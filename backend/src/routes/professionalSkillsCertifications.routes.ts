@@ -25,7 +25,7 @@ router.get('/:id/skills', authenticate, async (req: any, res) => {
     
     // Recupera le skills dal database
     const skills = await prisma.professionalSkill.findMany({
-      where: { recipientId: professionalId },
+      where: { userId: professionalId },
       orderBy: { createdAt: 'desc' }
     });
     
@@ -71,7 +71,7 @@ router.post('/:id/skills', authenticate, async (req: any, res) => {
     // Crea la nuova skill
     const skill = await prisma.professionalSkill.create({
       data: {
-        recipientId: professionalId,
+        userId: professionalId,
         name,
         level: level || 'intermediate'
       }
@@ -188,7 +188,7 @@ router.get('/:id/certifications', authenticate, async (req: any, res) => {
     
     // Recupera le certificazioni dal database
     const certifications = await prisma.professionalCertification.findMany({
-      where: { recipientId: professionalId },
+      where: { userId: professionalId },
       orderBy: { createdAt: 'desc' }
     });
     
@@ -234,7 +234,7 @@ router.post('/:id/certifications', authenticate, async (req: any, res) => {
     // Crea la nuova certificazione
     const certification = await prisma.professionalCertification.create({
       data: {
-        recipientId: professionalId,
+        userId: professionalId,
         name,
         issuer,
         validUntil: validUntil ? new Date(validUntil) : null,
