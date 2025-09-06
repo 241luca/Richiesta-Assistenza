@@ -1,0 +1,325 @@
+import { Router, Request, Response } from 'express';
+import { prisma } from '../../prismaClient';
+import { ResponseFormatter } from '../../utils/responseFormatter';
+import { authenticate } from '../../middleware/auth';
+import logger from '../../utils/logger';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+
+const router = Router();
+
+// Configurazione upload per logo
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = 'uploads/logos/';
+    // Crea directory se non esiste
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'logo-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Solo file immagine sono permessi'));
+    }
+  }
+});
+
+// GET /api/professional/settings - Ottieni impostazioni
+router.get('/settings', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    
+    let settings = await prisma.professionalReportSettings.findUnique({
+      where: { professionalId }
+    });
+    
+    // Se non esistono, crea impostazioni di default
+    if (!settings) {
+      settings = await prisma.professionalReportSettings.create({
+        data: {
+          professionalId,
+          autoStartTimer: false,
+          autoGpsLocation: false,
+          autoWeather: false,
+          quickPhrases: true,
+          quickMaterials: true,
+          showLastReports: true,
+          defaultLanguage: 'it',
+          pdfTemplate: 'professional',
+          includeTerms: false,
+          includePrivacy: false,
+          notifyOnSign: true,
+          notifyOnView: false,
+          dailySummary: false,
+          weeklyReport: false,
+          invoicePrefix: 'FT',
+          invoiceStartNumber: 1,
+          currentInvoiceNumber: 0
+        }
+      });
+    }
+    
+    return res.json(ResponseFormatter.success(
+      settings,
+      'Impostazioni recuperate con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore recupero impostazioni:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nel recupero delle impostazioni',
+      'FETCH_SETTINGS_ERROR'
+    ));
+  }
+});
+
+// PUT /api/professional/settings - Aggiorna impostazioni
+router.put('/settings', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    
+    // Verifica se esistono impostazioni
+    const existing = await prisma.professionalReportSettings.findUnique({
+      where: { professionalId }
+    });
+    
+    let settings;
+    
+    if (existing) {
+      // Aggiorna impostazioni esistenti
+      settings = await prisma.professionalReportSettings.update({
+        where: { professionalId },
+        data: {
+          ...req.body,
+          updatedAt: new Date()
+        }
+      });
+    } else {
+      // Crea nuove impostazioni
+      settings = await prisma.professionalReportSettings.create({
+        data: {
+          professionalId,
+          ...req.body
+        }
+      });
+    }
+    
+    return res.json(ResponseFormatter.success(
+      settings,
+      'Impostazioni aggiornate con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore aggiornamento impostazioni:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nell\'aggiornamento delle impostazioni',
+      'UPDATE_SETTINGS_ERROR'
+    ));
+  }
+});
+
+// POST /api/professional/settings/logo - Upload logo aziendale
+router.post('/settings/logo', authenticate, upload.single('logo'), async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    
+    if (!req.file) {
+      return res.status(400).json(ResponseFormatter.error(
+        'Nessun file logo caricato',
+        'NO_LOGO_FILE'
+      ));
+    }
+    
+    // URL del logo
+    const logoUrl = `/uploads/logos/${req.file.filename}`;
+    
+    // Aggiorna impostazioni con URL logo
+    let settings = await prisma.professionalReportSettings.findUnique({
+      where: { professionalId }
+    });
+    
+    if (settings) {
+      // Se c'è un logo vecchio, eliminalo
+      if (settings.businessLogo) {
+        const oldPath = path.join(process.cwd(), settings.businessLogo);
+        if (fs.existsSync(oldPath)) {
+          fs.unlinkSync(oldPath);
+        }
+      }
+      
+      settings = await prisma.professionalReportSettings.update({
+        where: { professionalId },
+        data: {
+          businessLogo: logoUrl,
+          updatedAt: new Date()
+        }
+      });
+    } else {
+      settings = await prisma.professionalReportSettings.create({
+        data: {
+          professionalId,
+          businessLogo: logoUrl
+        }
+      });
+    }
+    
+    return res.json(ResponseFormatter.success(
+      {
+        url: logoUrl,
+        settings
+      },
+      'Logo caricato con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore upload logo:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nel caricamento del logo',
+      'UPLOAD_LOGO_ERROR'
+    ));
+  }
+});
+
+// DELETE /api/professional/settings/logo - Rimuovi logo
+router.delete('/settings/logo', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    
+    const settings = await prisma.professionalReportSettings.findUnique({
+      where: { professionalId }
+    });
+    
+    if (!settings || !settings.businessLogo) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Nessun logo da rimuovere',
+        'NO_LOGO'
+      ));
+    }
+    
+    // Elimina file fisico
+    const logoPath = path.join(process.cwd(), settings.businessLogo);
+    if (fs.existsSync(logoPath)) {
+      fs.unlinkSync(logoPath);
+    }
+    
+    // Aggiorna database
+    await prisma.professionalReportSettings.update({
+      where: { professionalId },
+      data: {
+        businessLogo: null,
+        updatedAt: new Date()
+      }
+    });
+    
+    return res.json(ResponseFormatter.success(
+      null,
+      'Logo rimosso con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore rimozione logo:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nella rimozione del logo',
+      'DELETE_LOGO_ERROR'
+    ));
+  }
+});
+
+// POST /api/professional/settings/signature - Salva firma
+router.post('/settings/signature', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const { signatureImage, signatureName, signatureTitle } = req.body;
+    
+    if (!signatureImage) {
+      return res.status(400).json(ResponseFormatter.error(
+        'Immagine firma mancante',
+        'NO_SIGNATURE'
+      ));
+    }
+    
+    let settings = await prisma.professionalReportSettings.findUnique({
+      where: { professionalId }
+    });
+    
+    if (settings) {
+      settings = await prisma.professionalReportSettings.update({
+        where: { professionalId },
+        data: {
+          signatureImage,
+          signatureName,
+          signatureTitle,
+          updatedAt: new Date()
+        }
+      });
+    } else {
+      settings = await prisma.professionalReportSettings.create({
+        data: {
+          professionalId,
+          signatureImage,
+          signatureName,
+          signatureTitle
+        }
+      });
+    }
+    
+    return res.json(ResponseFormatter.success(
+      settings,
+      'Firma salvata con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore salvataggio firma:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nel salvataggio della firma',
+      'SAVE_SIGNATURE_ERROR'
+    ));
+  }
+});
+
+// GET /api/professional/settings/next-invoice-number - Ottieni prossimo numero fattura
+router.get('/settings/next-invoice-number', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    
+    const settings = await prisma.professionalReportSettings.findUnique({
+      where: { professionalId }
+    });
+    
+    const nextNumber = settings ? settings.currentInvoiceNumber + 1 : 1;
+    const prefix = settings?.invoicePrefix || 'FT';
+    const year = new Date().getFullYear();
+    
+    const invoiceNumber = `${prefix}/${year}/${String(nextNumber).padStart(5, '0')}`;
+    
+    return res.json(ResponseFormatter.success(
+      {
+        number: nextNumber,
+        formatted: invoiceNumber,
+        prefix,
+        year
+      },
+      'Numero fattura generato'
+    ));
+  } catch (error) {
+    logger.error('Errore generazione numero fattura:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nella generazione del numero fattura',
+      'INVOICE_NUMBER_ERROR'
+    ));
+  }
+});
+
+export default router;

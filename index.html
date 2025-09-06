@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema Richiesta Assistenza</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      /* Fix per Google Places Autocomplete dropdown z-index */
+      .pac-container {
+        z-index: 9999 !important;
+      }
+      
+      /* Fix per evitare sovrapposizioni con altri elementi */
+      .pac-container .pac-item {
+        padding: 10px;
+        cursor: pointer;
+      }
+      
+      .pac-container .pac-item:hover {
+        background-color: #f3f4f6;
+      }
+      
+      /* Assicura che il dropdown sia sempre visibile */
+      .pac-container {
+        background-color: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        margin-top: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

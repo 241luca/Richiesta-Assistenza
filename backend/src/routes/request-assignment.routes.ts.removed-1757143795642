@@ -1,0 +1,423 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { authenticate, AuthRequest } from '../middleware/auth';
+import { requireRole } from '../middleware/rbac';
+import { validateRequest } from '../middleware/validation';
+import { prisma } from '../config/database';
+import { logger } from '../utils/logger';
+import { 
+  formatAssistanceRequest,
+  ResponseFormatter 
+} from '../utils/responseFormatter';
+import { notificationService } from '../services/notification.service';
+
+const router = Router();
+
+// Validation schemas
+const assignRequestSchema = z.object({
+  body: z.object({
+    professionalId: z.string().uuid('ID professionista non valido'),
+    notes: z.string().optional()
+  })
+});
+
+const updateScheduledDateSchema = z.object({
+  body: z.object({
+    scheduledDate: z.string().datetime('Data non valida'),
+    notes: z.string().optional()
+  })
+});
+
+// POST /api/requests/:id/assign - Assegna richiesta a professionista (STAFF only)
+router.post(
+  '/:id/assign',
+  authenticate,
+  requireRole(['ADMIN', 'SUPER_ADMIN']),
+  validateRequest(assignRequestSchema),
+  async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const { professionalId, notes } = req.body;
+      const assignedByUser = req.user!;
+
+      // Verifica che la richiesta esista
+      const request = await prisma.assistanceRequest.findUnique({
+        where: { id },
+        include: {
+          client: true,
+          subcategory: true
+        }
+      });
+
+      if (!request) {
+        return res.status(404).json(
+          ResponseFormatter.error('Richiesta non trovata', 404)
+        );
+      }
+
+      // Verifica che non sia già assegnata
+      if (request.professionalId) {
+        return res.status(400).json(
+          ResponseFormatter.error('La richiesta è già assegnata', 400)
+        );
+      }
+
+      // Verifica che il professionista esista e sia abilitato
+      const professional = await prisma.user.findUnique({
+        where: { 
+          id: professionalId,
+          role: 'PROFESSIONAL'
+        }
+      });
+
+      if (!professional) {
+        return res.status(404).json(
+          ResponseFormatter.error('Professionista non trovato', 404)
+        );
+      }
+
+      // Verifica che il professionista sia abilitato per questa sottocategoria
+      if (request.subcategoryId) {
+        const isQualified = await prisma.professionalUserSubcategory.findFirst({
+          where: {
+            userId: professionalId,
+            subcategoryId: request.subcategoryId,
+            isActive: true
+          }
+        });
+
+        if (!isQualified) {
+          return res.status(400).json(
+            ResponseFormatter.error(
+              'Il professionista non è abilitato per questa sottocategoria',
+              400
+            )
+          );
+        }
+      }
+
+      // Assegna la richiesta
+      const updatedRequest = await prisma.assistanceRequest.update({
+        where: { id },
+        data: {
+          professionalId,
+          status: 'ASSIGNED',
+          assignmentType: 'STAFF',
+          assignedBy: assignedByUser.id,
+          assignedAt: new Date(),
+          internalNotes: notes ? 
+            `${request.internalNotes || ''}\n[${new Date().toISOString()}] Assegnato da ${assignedByUser.fullName}: ${notes}`.trim() : 
+            request.internalNotes,
+          updatedAt: new Date()
+        },
+        include: {
+          client: true,
+          professional: true,
+          category: true,
+          subcategory: true
+        }
+      });
+
+      // Invia notifica al professionista
+      try {
+        await notificationService.sendNotification({
+          type: 'REQUEST_ASSIGNED',
+          recipientId: professionalId,
+          title: 'Nuova richiesta assegnata',
+          content: `Ti è stata assegnata una nuova richiesta: ${request.title}`,
+          entityType: 'REQUEST',
+          entityId: id,
+          priority: request.priority === 'URGENT' ? 'HIGH' : 'NORMAL'
+        });
+      } catch (notifError) {
+        logger.error('Errore invio notifica:', notifError);
+        // Non blocchiamo l'operazione se la notifica fallisce
+      }
+
+      // Log dell'operazione
+      logger.info(`Richiesta ${id} assegnata a ${professionalId} da ${assignedByUser.id}`);
+
+      res.json(ResponseFormatter.success(
+        formatAssistanceRequest(updatedRequest),
+        'Richiesta assegnata con successo'
+      ));
+
+    } catch (error) {
+      logger.error('Errore assegnazione richiesta:', error);
+      res.status(500).json(
+        ResponseFormatter.error('Errore durante l\'assegnazione', 500)
+      );
+    }
+  }
+);
+
+// POST /api/requests/:id/self-assign - Auto-assegnazione professionista
+router.post(
+  '/:id/self-assign',
+  authenticate,
+  requireRole(['PROFESSIONAL']),
+  async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const professional = req.user!;
+
+      // Verifica che la richiesta esista e sia disponibile
+      const request = await prisma.assistanceRequest.findUnique({
+        where: { 
+          id,
+          status: 'PENDING',
+          professionalId: null
+        },
+        include: {
+          client: true,
+          subcategory: true
+        }
+      });
+
+      if (!request) {
+        return res.status(404).json(
+          ResponseFormatter.error('Richiesta non disponibile', 404)
+        );
+      }
+
+      // Verifica che il professionista sia abilitato per questa sottocategoria
+      if (request.subcategoryId) {
+        const isQualified = await prisma.professionalUserSubcategory.findFirst({
+          where: {
+            userId: professional.id,
+            subcategoryId: request.subcategoryId,
+            isActive: true
+          }
+        });
+
+        if (!isQualified) {
+          return res.status(403).json(
+            ResponseFormatter.error(
+              'Non sei abilitato per questa sottocategoria',
+              403
+            )
+          );
+        }
+      }
+
+      // Auto-assegna la richiesta
+      const updatedRequest = await prisma.assistanceRequest.update({
+        where: { id },
+        data: {
+          professionalId: professional.id,
+          status: 'ASSIGNED',
+          assignmentType: 'SELF',
+          assignedBy: professional.id,
+          assignedAt: new Date(),
+          updatedAt: new Date()
+        },
+        include: {
+          client: true,
+          professional: true,
+          category: true,
+          subcategory: true
+        }
+      });
+
+      // Notifica all'admin
+      const admins = await prisma.user.findMany({
+        where: {
+          role: { in: ['ADMIN', 'SUPER_ADMIN'] }
+        }
+      });
+
+      for (const admin of admins) {
+        try {
+          await notificationService.sendNotification({
+            type: 'PROFESSIONAL_SELF_ASSIGNED',
+            recipientId: admin.id,
+            title: 'Auto-assegnazione richiesta',
+            content: `${professional.fullName} si è auto-assegnato la richiesta: ${request.title}`,
+            entityType: 'REQUEST',
+            entityId: id,
+            priority: 'NORMAL'
+          });
+        } catch (notifError) {
+          logger.error(`Errore notifica admin ${admin.id}:`, notifError);
+        }
+      }
+
+      logger.info(`Professionista ${professional.id} auto-assegnato a richiesta ${id}`);
+
+      res.json(ResponseFormatter.success(
+        formatAssistanceRequest(updatedRequest),
+        'Richiesta presa in carico con successo'
+      ));
+
+    } catch (error) {
+      logger.error('Errore auto-assegnazione:', error);
+      res.status(500).json(
+        ResponseFormatter.error('Errore durante l\'auto-assegnazione', 500)
+      );
+    }
+  }
+);
+
+// PATCH /api/requests/:id/schedule - Imposta data intervento (PROFESSIONAL only)
+router.patch(
+  '/:id/schedule',
+  authenticate,
+  requireRole(['PROFESSIONAL']),
+  validateRequest(updateScheduledDateSchema),
+  async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const { scheduledDate, notes } = req.body;
+      const professional = req.user!;
+
+      // Verifica che la richiesta esista e sia assegnata al professionista
+      const request = await prisma.assistanceRequest.findUnique({
+        where: { 
+          id,
+          professionalId: professional.id,
+          status: 'ASSIGNED'
+        },
+        include: {
+          client: true
+        }
+      });
+
+      if (!request) {
+        return res.status(404).json(
+          ResponseFormatter.error(
+            'Richiesta non trovata o non assegnata a te',
+            404
+          )
+        );
+      }
+
+      // Aggiorna con data intervento e cambia stato a IN_PROGRESS
+      const updatedRequest = await prisma.assistanceRequest.update({
+        where: { id },
+        data: {
+          scheduledDate: new Date(scheduledDate),
+          status: 'IN_PROGRESS', // Automaticamente in lavorazione con la data
+          publicNotes: notes ? 
+            `${request.publicNotes || ''}\n[${new Date().toISOString()}] Intervento programmato: ${notes}`.trim() : 
+            request.publicNotes,
+          updatedAt: new Date()
+        },
+        include: {
+          client: true,
+          professional: true,
+          category: true,
+          subcategory: true
+        }
+      });
+
+      // Notifica al cliente
+      try {
+        const formattedDate = new Date(scheduledDate).toLocaleString('it-IT', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        await notificationService.sendNotification({
+          type: 'REQUEST_SCHEDULED',
+          recipientId: request.client.id,
+          title: 'Intervento programmato',
+          content: `L'intervento per "${request.title}" è stato programmato per ${formattedDate}`,
+          entityType: 'REQUEST',
+          entityId: id,
+          priority: 'HIGH'
+        });
+      } catch (notifError) {
+        logger.error('Errore invio notifica cliente:', notifError);
+      }
+
+      logger.info(`Data intervento impostata per richiesta ${id}: ${scheduledDate}`);
+
+      res.json(ResponseFormatter.success(
+        formatAssistanceRequest(updatedRequest),
+        'Data intervento impostata con successo'
+      ));
+
+    } catch (error) {
+      logger.error('Errore impostazione data:', error);
+      res.status(500).json(
+        ResponseFormatter.error('Errore durante l\'impostazione della data', 500)
+      );
+    }
+  }
+);
+
+// GET /api/requests/available - Richieste disponibili per professionisti
+router.get(
+  '/available',
+  authenticate,
+  requireRole(['PROFESSIONAL']),
+  async (req: AuthRequest, res) => {
+    try {
+      const professional = req.user!;
+
+      // Trova le sottocategorie del professionista
+      const professionalSubcategories = await prisma.professionalUserSubcategory.findMany({
+        where: {
+          userId: professional.id,
+          isActive: true
+        },
+        select: {
+          subcategoryId: true
+        }
+      });
+
+      const subcategoryIds = professionalSubcategories.map(ps => ps.subcategoryId);
+
+      if (subcategoryIds.length === 0) {
+        return res.json(ResponseFormatter.success(
+          [],
+          'Nessuna sottocategoria abilitata'
+        ));
+      }
+
+      // Trova richieste PENDING per le sue sottocategorie
+      const availableRequests = await prisma.assistanceRequest.findMany({
+        where: {
+          status: 'PENDING',
+          professionalId: null,
+          subcategoryId: {
+            in: subcategoryIds
+          }
+        },
+        include: {
+          client: {
+            select: {
+              id: true,
+              fullName: true,
+              city: true,
+              province: true
+            }
+          },
+          category: true,
+          subcategory: true
+        },
+        orderBy: [
+          { priority: 'desc' },
+          { createdAt: 'asc' }
+        ]
+      });
+
+      res.json(ResponseFormatter.success(
+        formatAssistanceRequestList(availableRequests),
+        `${availableRequests.length} richieste disponibili`
+      ));
+
+    } catch (error) {
+      logger.error('Errore recupero richieste disponibili:', error);
+      res.status(500).json(
+        ResponseFormatter.error('Errore nel recupero delle richieste', 500)
+      );
+    }
+  }
+);
+
+export default router;

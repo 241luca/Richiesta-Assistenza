@@ -1,0 +1,246 @@
+/**
+ * Request Event Handlers
+ * Gestisce tutti gli eventi relativi alle richieste di assistenza
+ */
+
+import { Server } from 'socket.io';
+import { PrismaClient } from '@prisma/client';
+import { logger } from '../../utils/logger';
+import { sendNotificationToUser } from './notification.handler';
+
+const prisma = new PrismaClient();
+
+interface AuthenticatedSocket {
+  id: string;
+  userId?: string;
+  userRole?: string;
+  emit: (event: string, data: any) => void;
+  join: (room: string) => void;
+  to: (room: string) => any;
+  on: (event: string, callback: (...args: any[]) => void) => void;
+}
+
+export function handleRequestEvents(socket: AuthenticatedSocket, io: Server) {
+  /**
+   * Sottoscrivi a una richiesta specifica
+   */
+  socket.on('request:subscribe', async (requestId: string) => {
+    try {
+      // Verifica che l'utente abbia accesso alla richiesta
+      const request = await prisma.assistanceRequest.findFirst({
+        where: {
+          id: requestId,
+          OR: [
+            { clientId: socket.userId },
+            { professionalId: socket.userId }
+          ]
+        }
+      });
+
+      if (!request) {
+        throw new Error('Request not found or access denied');
+      }
+
+      socket.join(`request:${requestId}`);
+      socket.emit('request:subscribed', { requestId });
+      logger.debug(`Socket ${socket.id} subscribed to request ${requestId}`);
+    } catch (error) {
+      logger.error('Error subscribing to request:', error);
+      socket.emit('error', { message: 'Failed to subscribe to request' });
+    }
+  });
+
+  /**
+   * Annulla sottoscrizione a una richiesta
+   */
+  socket.on('request:unsubscribe', async (requestId: string) => {
+    socket.leave(`request:${requestId}`);
+    socket.emit('request:unsubscribed', { requestId });
+    logger.debug(`Socket ${socket.id} unsubscribed from request ${requestId}`);
+  });
+
+  /**
+   * Aggiorna lo stato di una richiesta
+   */
+  socket.on('request:updateStatus', async (data: { requestId: string; status: string }) => {
+    try {
+      // Verifica autorizzazioni
+      const request = await prisma.assistanceRequest.findFirst({
+        where: {
+          id: data.requestId,
+        },
+        include: {
+          User_AssistanceRequest_clientIdToUser: { select: { id: true, firstName: true, lastName: true } },
+          User_AssistanceRequest_professionalIdToUser: { select: { id: true, firstName: true, lastName: true } }
+        }
+      });
+
+      if (!request) {
+        throw new Error('Request not found');
+      }
+
+      // Solo professionisti assegnati o admin possono aggiornare
+      if (socket.userId !== request.professionalId && !['ADMIN', 'SUPER_ADMIN'].includes(socket.userRole!)) {
+        throw new Error('Unauthorized to update request status');
+      }
+
+      // Aggiorna nel database
+      const updated = await prisma.assistanceRequest.update({
+        where: { id: data.requestId },
+        data: { 
+          status: data.status,
+          updatedAt: new Date()
+        }
+      });
+
+      // Notifica tutti gli iscritti alla richiesta
+      io.to(`request:${data.requestId}`).emit('request:statusUpdated', {
+        requestId: data.requestId,
+        status: data.status,
+        updatedBy: socket.userId,
+        timestamp: new Date()
+      });
+
+      // Invia notifica al cliente
+      if (request.clientId && request.clientId !== socket.userId) {
+        await sendNotificationToUser(io, request.clientId, {
+          type: 'request_updated',
+          title: 'Aggiornamento Richiesta',
+          message: `La tua richiesta "${request.title}" è stata aggiornata allo stato: ${data.status}`,
+          data: { requestId: data.requestId, status: data.status },
+          priority: 'normal'
+        });
+      }
+
+      logger.info(`Request ${data.requestId} status updated to ${data.status} by user ${socket.userId}`);
+    } catch (error) {
+      logger.error('Error updating request status:', error);
+      socket.emit('error', { message: error instanceof Error ? error.message : 'Failed to update request status' });
+    }
+  });
+
+  /**
+   * Invia un aggiornamento real-time per una richiesta
+   */
+  socket.on('request:sendUpdate', async (data: { 
+    requestId: string; 
+    message: string; 
+    attachments?: string[] 
+  }) => {
+    try {
+      // Verifica accesso alla richiesta
+      const request = await prisma.assistanceRequest.findFirst({
+        where: {
+          id: data.requestId,
+          OR: [
+            { clientId: socket.userId },
+            { professionalId: socket.userId }
+          ]
+        }
+      });
+
+      if (!request) {
+        throw new Error('Request not found or access denied');
+      }
+
+      // Salva l'aggiornamento nel database
+      const update = await prisma.requestUpdate.create({
+        data: {
+          requestId: data.requestId,
+          userId: socket.userId!,
+          message: data.message,
+          attachments: data.attachments || []
+        }
+      });
+
+      // Notifica tutti gli iscritti
+      io.to(`request:${data.requestId}`).emit('request:newUpdate', {
+        ...update,
+        timestamp: new Date()
+      });
+
+      // Notifica l'altra parte (cliente o professionista)
+      const targetUserId = socket.userId === request.clientId 
+        ? request.professionalId 
+        : request.clientId;
+
+      if (targetUserId) {
+        await sendNotificationToUser(io, targetUserId, {
+          type: 'request_update',
+          title: 'Nuovo aggiornamento richiesta',
+          message: `Nuovo aggiornamento per la richiesta: ${request.title}`,
+          data: { requestId: data.requestId, updateId: update.id },
+          priority: 'normal'
+        });
+      }
+
+      logger.info(`Update sent for request ${data.requestId} by user ${socket.userId}`);
+    } catch (error) {
+      logger.error('Error sending request update:', error);
+      socket.emit('error', { message: error instanceof Error ? error.message : 'Failed to send update' });
+    }
+  });
+}
+
+/**
+ * Notifica l'assegnazione di una richiesta a un professionista
+ */
+export async function notifyRequestAssignment(
+  io: Server,
+  requestId: string,
+  professionalId: string,
+  requestTitle: string
+) {
+  try {
+    // Notifica il professionista
+    await sendNotificationToUser(io, professionalId, {
+      type: 'request_assigned',
+      title: 'Nuova Richiesta Assegnata',
+      message: `Ti è stata assegnata la richiesta: ${requestTitle}`,
+      data: { requestId },
+      priority: 'high'
+    });
+
+    // Notifica real-time
+    io.to(`User:${professionalId}`).emit('request:assigned', {
+      requestId,
+      title: requestTitle,
+      timestamp: new Date()
+    });
+
+    logger.info(`Request ${requestId} assigned to professional ${professionalId}`);
+  } catch (error) {
+    logger.error('Error notifying request assignment:', error);
+  }
+}
+
+/**
+ * Notifica il completamento di una richiesta
+ */
+export async function notifyRequestCompletion(
+  io: Server,
+  requestId: string,
+  clientId: string,
+  requestTitle: string
+) {
+  try {
+    // Notifica il cliente
+    await sendNotificationToUser(io, clientId, {
+      type: 'request_completed',
+      title: 'Richiesta Completata',
+      message: `La tua richiesta "${requestTitle}" è stata completata con successo`,
+      data: { requestId },
+      priority: 'normal'
+    });
+
+    // Broadcast a tutti gli iscritti
+    io.to(`request:${requestId}`).emit('request:completed', {
+      requestId,
+      timestamp: new Date()
+    });
+
+    logger.info(`Request ${requestId} completion notified to client ${clientId}`);
+  } catch (error) {
+    logger.error('Error notifying request completion:', error);
+  }
+}

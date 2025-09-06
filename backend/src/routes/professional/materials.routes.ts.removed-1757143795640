@@ -1,0 +1,401 @@
+import { Router, Request, Response } from 'express';
+import { prisma } from '../../prismaClient';
+import { ResponseFormatter } from '../../utils/responseFormatter';
+import { authenticate } from '../../middleware/auth';
+import logger from '../../utils/logger';
+import multer from 'multer';
+import csv from 'csv-parser';
+import fs from 'fs';
+import path from 'path';
+
+const router = Router();
+
+// Configurazione multer per upload CSV
+const upload = multer({
+  dest: 'uploads/temp/',
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'text/csv' || path.extname(file.originalname).toLowerCase() === '.csv') {
+      cb(null, true);
+    } else {
+      cb(new Error('Solo file CSV sono permessi'));
+    }
+  }
+});
+
+// GET /api/professional/materials - Ottieni tutti i materiali
+router.get('/materials', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const { search, category, isFavorite } = req.query;
+    
+    // Costruisci filtri
+    const where: any = {
+      professionalId
+    };
+    
+    if (category) {
+      where.category = category;
+    }
+    
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { code: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+    
+    if (isFavorite !== undefined) {
+      where.isFavorite = isFavorite === 'true';
+    }
+    
+    const materials = await prisma.professionalMaterial.findMany({
+      where,
+      orderBy: [
+        { isFavorite: 'desc' },
+        { usageCount: 'desc' },
+        { name: 'asc' }
+      ]
+    });
+    
+    return res.json(ResponseFormatter.success(
+      materials,
+      'Materiali recuperati con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore recupero materiali:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nel recupero dei materiali',
+      'FETCH_MATERIALS_ERROR'
+    ));
+  }
+});
+
+// GET /api/professional/materials/:id - Ottieni singolo materiale
+router.get('/materials/:id', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const { id } = req.params;
+    
+    const material = await prisma.professionalMaterial.findFirst({
+      where: {
+        id,
+        professionalId
+      }
+    });
+    
+    if (!material) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Materiale non trovato',
+        'MATERIAL_NOT_FOUND'
+      ));
+    }
+    
+    return res.json(ResponseFormatter.success(
+      material,
+      'Materiale recuperato con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore recupero materiale:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nel recupero del materiale',
+      'FETCH_MATERIAL_ERROR'
+    ));
+  }
+});
+
+// POST /api/professional/materials - Crea nuovo materiale
+router.post('/materials', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const {
+      code,
+      name,
+      description,
+      unit,
+      defaultQuantity,
+      price,
+      vatRate,
+      category,
+      supplierName,
+      supplierCode,
+      notes
+    } = req.body;
+    
+    // Validazione
+    if (!code || !name || !unit || price === undefined) {
+      return res.status(400).json(ResponseFormatter.error(
+        'Campi obbligatori: codice, nome, unità e prezzo',
+        'VALIDATION_ERROR'
+      ));
+    }
+    
+    // Verifica codice univoco per utente
+    const existing = await prisma.professionalMaterial.findFirst({
+      where: {
+        professionalId,
+        code
+      }
+    });
+    
+    if (existing) {
+      return res.status(400).json(ResponseFormatter.error(
+        'Codice materiale già esistente',
+        'DUPLICATE_CODE'
+      ));
+    }
+    
+    // Crea nuovo materiale
+    const newMaterial = await prisma.professionalMaterial.create({
+      data: {
+        professionalId,
+        code,
+        name,
+        description,
+        unit,
+        defaultQuantity: defaultQuantity || 1,
+        price,
+        vatRate: vatRate || 22,
+        category,
+        supplierName,
+        supplierCode,
+        notes,
+        isFavorite: false,
+        usageCount: 0
+      }
+    });
+    
+    return res.json(ResponseFormatter.success(
+      newMaterial,
+      'Materiale creato con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore creazione materiale:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nella creazione del materiale',
+      'CREATE_MATERIAL_ERROR'
+    ));
+  }
+});
+
+// PUT /api/professional/materials/:id - Aggiorna materiale
+router.put('/materials/:id', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const { id } = req.params;
+    
+    // Verifica che il materiale appartenga al professionista
+    const existing = await prisma.professionalMaterial.findFirst({
+      where: {
+        id,
+        professionalId
+      }
+    });
+    
+    if (!existing) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Materiale non trovato',
+        'MATERIAL_NOT_FOUND'
+      ));
+    }
+    
+    // Aggiorna materiale
+    const updatedMaterial = await prisma.professionalMaterial.update({
+      where: { id },
+      data: {
+        ...req.body,
+        updatedAt: new Date()
+      }
+    });
+    
+    return res.json(ResponseFormatter.success(
+      updatedMaterial,
+      'Materiale aggiornato con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore aggiornamento materiale:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nell\'aggiornamento del materiale',
+      'UPDATE_MATERIAL_ERROR'
+    ));
+  }
+});
+
+// DELETE /api/professional/materials/:id - Elimina materiale
+router.delete('/materials/:id', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const { id } = req.params;
+    
+    // Verifica che il materiale appartenga al professionista
+    const existing = await prisma.professionalMaterial.findFirst({
+      where: {
+        id,
+        professionalId
+      }
+    });
+    
+    if (!existing) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Materiale non trovato',
+        'MATERIAL_NOT_FOUND'
+      ));
+    }
+    
+    // Elimina materiale
+    await prisma.professionalMaterial.delete({
+      where: { id }
+    });
+    
+    return res.json(ResponseFormatter.success(
+      null,
+      'Materiale eliminato con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore eliminazione materiale:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nell\'eliminazione del materiale',
+      'DELETE_MATERIAL_ERROR'
+    ));
+  }
+});
+
+// POST /api/professional/materials/:id/toggle-favorite - Toggle preferito
+router.post('/materials/:id/toggle-favorite', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const { id } = req.params;
+    
+    const material = await prisma.professionalMaterial.findFirst({
+      where: {
+        id,
+        professionalId
+      }
+    });
+    
+    if (!material) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Materiale non trovato',
+        'MATERIAL_NOT_FOUND'
+      ));
+    }
+    
+    const updatedMaterial = await prisma.professionalMaterial.update({
+      where: { id },
+      data: {
+        isFavorite: !material.isFavorite,
+        updatedAt: new Date()
+      }
+    });
+    
+    return res.json(ResponseFormatter.success(
+      updatedMaterial,
+      material.isFavorite ? 'Rimosso dai preferiti' : 'Aggiunto ai preferiti'
+    ));
+  } catch (error) {
+    logger.error('Errore toggle preferito:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nel modificare il preferito',
+      'TOGGLE_FAVORITE_ERROR'
+    ));
+  }
+});
+
+// POST /api/professional/materials/import - Importa materiali da CSV
+router.post('/materials/import', authenticate, upload.single('file'), async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    
+    if (!req.file) {
+      return res.status(400).json(ResponseFormatter.error(
+        'Nessun file caricato',
+        'NO_FILE'
+      ));
+    }
+    
+    const results: any[] = [];
+    const errors: any[] = [];
+    let rowNumber = 0;
+    
+    // Parse CSV
+    const stream = fs.createReadStream(req.file.path)
+      .pipe(csv())
+      .on('data', (data) => {
+        rowNumber++;
+        
+        // Validazione base
+        if (!data.code || !data.name || !data.price) {
+          errors.push({
+            row: rowNumber,
+            error: 'Campi obbligatori mancanti'
+          });
+          return;
+        }
+        
+        results.push({
+          professionalId,
+          code: data.code,
+          name: data.name,
+          description: data.description || '',
+          unit: data.unit || 'pz',
+          defaultQuantity: parseFloat(data.quantity) || 1,
+          price: parseFloat(data.price) || 0,
+          vatRate: parseInt(data.vatRate) || 22,
+          category: data.category || 'generale',
+          supplierName: data.supplier || null,
+          supplierCode: data.supplierCode || null,
+          notes: data.notes || null,
+          isFavorite: false,
+          usageCount: 0
+        });
+      })
+      .on('end', async () => {
+        try {
+          // Inserisci materiali validi
+          if (results.length > 0) {
+            await prisma.professionalMaterial.createMany({
+              data: results,
+              skipDuplicates: true
+            });
+          }
+          
+          // Elimina file temporaneo
+          fs.unlinkSync(req.file!.path);
+          
+          return res.json(ResponseFormatter.success(
+            {
+              imported: results.length,
+              errors: errors.length > 0 ? errors : undefined
+            },
+            `Importati ${results.length} materiali`
+          ));
+        } catch (error) {
+          logger.error('Errore importazione materiali:', error);
+          return res.status(500).json(ResponseFormatter.error(
+            'Errore durante l\'importazione',
+            'IMPORT_ERROR'
+          ));
+        }
+      })
+      .on('error', (error) => {
+        logger.error('Errore parsing CSV:', error);
+        fs.unlinkSync(req.file!.path);
+        return res.status(500).json(ResponseFormatter.error(
+          'Errore nel parsing del file CSV',
+          'CSV_PARSE_ERROR'
+        ));
+      });
+  } catch (error) {
+    logger.error('Errore importazione:', error);
+    if (req.file) {
+      fs.unlinkSync(req.file.path);
+    }
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore durante l\'importazione',
+      'IMPORT_ERROR'
+    ));
+  }
+});
+
+export default router;

@@ -1,0 +1,316 @@
+import { Router, Request, Response } from 'express';
+import { prisma } from '../../prismaClient';
+import { ResponseFormatter } from '../../utils/responseFormatter';
+import { authenticate } from '../../middleware/auth';
+import logger from '../../utils/logger';
+
+const router = Router();
+
+// GET /api/professional/phrases - Ottieni tutte le frasi del professionista
+router.get('/phrases', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const { category, search, isFavorite } = req.query;
+    
+    // Costruisci filtri
+    const where: any = {
+      professionalId,
+      isActive: true
+    };
+    
+    if (category) {
+      where.category = category;
+    }
+    
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { content: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+    
+    if (isFavorite !== undefined) {
+      where.isFavorite = isFavorite === 'true';
+    }
+    
+    const phrases = await prisma.professionalReportPhrase.findMany({
+      where,
+      orderBy: [
+        { isFavorite: 'desc' },
+        { usageCount: 'desc' },
+        { createdAt: 'desc' }
+      ]
+    });
+    
+    return res.json(ResponseFormatter.success(
+      phrases,
+      'Frasi recuperate con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore recupero frasi:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nel recupero delle frasi',
+      'FETCH_PHRASES_ERROR'
+    ));
+  }
+});
+
+// GET /api/professional/phrases/:id - Ottieni singola frase
+router.get('/phrases/:id', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const { id } = req.params;
+    
+    const phrase = await prisma.professionalReportPhrase.findFirst({
+      where: {
+        id,
+        professionalId,
+        isActive: true
+      }
+    });
+    
+    if (!phrase) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Frase non trovata',
+        'PHRASE_NOT_FOUND'
+      ));
+    }
+    
+    return res.json(ResponseFormatter.success(
+      phrase,
+      'Frase recuperata con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore recupero frase:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nel recupero della frase',
+      'FETCH_PHRASE_ERROR'
+    ));
+  }
+});
+
+// POST /api/professional/phrases - Crea nuova frase
+router.post('/phrases', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const { category, title, content, tags } = req.body;
+    
+    // Validazione
+    if (!category || !title || !content) {
+      return res.status(400).json(ResponseFormatter.error(
+        'Campi obbligatori: categoria, titolo e contenuto',
+        'VALIDATION_ERROR'
+      ));
+    }
+    
+    // Genera codice univoco
+    const count = await prisma.professionalReportPhrase.count({
+      where: { professionalId }
+    });
+    
+    const code = `${category.charAt(0).toUpperCase()}${String(count + 1).padStart(3, '0')}`;
+    
+    // Crea nuova frase
+    const newPhrase = await prisma.professionalReportPhrase.create({
+      data: {
+        professionalId,
+        category,
+        code,
+        title,
+        content,
+        tags: tags || [],
+        isActive: true,
+        isFavorite: false,
+        usageCount: 0
+      }
+    });
+    
+    return res.json(ResponseFormatter.success(
+      newPhrase,
+      'Frase creata con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore creazione frase:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nella creazione della frase',
+      'CREATE_PHRASE_ERROR'
+    ));
+  }
+});
+
+// PUT /api/professional/phrases/:id - Aggiorna frase
+router.put('/phrases/:id', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const { id } = req.params;
+    const { category, title, content, tags, isFavorite } = req.body;
+    
+    // Verifica che la frase appartenga al professionista
+    const existingPhrase = await prisma.professionalReportPhrase.findFirst({
+      where: {
+        id,
+        professionalId
+      }
+    });
+    
+    if (!existingPhrase) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Frase non trovata',
+        'PHRASE_NOT_FOUND'
+      ));
+    }
+    
+    // Aggiorna frase
+    const updatedPhrase = await prisma.professionalReportPhrase.update({
+      where: { id },
+      data: {
+        category: category || existingPhrase.category,
+        title: title || existingPhrase.title,
+        content: content || existingPhrase.content,
+        tags: tags !== undefined ? tags : existingPhrase.tags,
+        isFavorite: isFavorite !== undefined ? isFavorite : existingPhrase.isFavorite,
+        updatedAt: new Date()
+      }
+    });
+    
+    return res.json(ResponseFormatter.success(
+      updatedPhrase,
+      'Frase aggiornata con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore aggiornamento frase:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nell\'aggiornamento della frase',
+      'UPDATE_PHRASE_ERROR'
+    ));
+  }
+});
+
+// DELETE /api/professional/phrases/:id - Elimina frase (soft delete)
+router.delete('/phrases/:id', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const { id } = req.params;
+    
+    // Verifica che la frase appartenga al professionista
+    const existingPhrase = await prisma.professionalReportPhrase.findFirst({
+      where: {
+        id,
+        professionalId
+      }
+    });
+    
+    if (!existingPhrase) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Frase non trovata',
+        'PHRASE_NOT_FOUND'
+      ));
+    }
+    
+    // Soft delete
+    await prisma.professionalReportPhrase.update({
+      where: { id },
+      data: {
+        isActive: false,
+        updatedAt: new Date()
+      }
+    });
+    
+    return res.json(ResponseFormatter.success(
+      null,
+      'Frase eliminata con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore eliminazione frase:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nell\'eliminazione della frase',
+      'DELETE_PHRASE_ERROR'
+    ));
+  }
+});
+
+// POST /api/professional/phrases/:id/toggle-favorite - Toggle preferito
+router.post('/phrases/:id/toggle-favorite', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const { id } = req.params;
+    
+    // Verifica e toggle
+    const phrase = await prisma.professionalReportPhrase.findFirst({
+      where: {
+        id,
+        professionalId
+      }
+    });
+    
+    if (!phrase) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Frase non trovata',
+        'PHRASE_NOT_FOUND'
+      ));
+    }
+    
+    const updatedPhrase = await prisma.professionalReportPhrase.update({
+      where: { id },
+      data: {
+        isFavorite: !phrase.isFavorite,
+        updatedAt: new Date()
+      }
+    });
+    
+    return res.json(ResponseFormatter.success(
+      updatedPhrase,
+      phrase.isFavorite ? 'Rimosso dai preferiti' : 'Aggiunto ai preferiti'
+    ));
+  } catch (error) {
+    logger.error('Errore toggle preferito:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nel modificare il preferito',
+      'TOGGLE_FAVORITE_ERROR'
+    ));
+  }
+});
+
+// POST /api/professional/phrases/:id/increment-usage - Incrementa contatore uso
+router.post('/phrases/:id/increment-usage', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const { id } = req.params;
+    
+    const phrase = await prisma.professionalReportPhrase.findFirst({
+      where: {
+        id,
+        professionalId
+      }
+    });
+    
+    if (!phrase) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Frase non trovata',
+        'PHRASE_NOT_FOUND'
+      ));
+    }
+    
+    const updatedPhrase = await prisma.professionalReportPhrase.update({
+      where: { id },
+      data: {
+        usageCount: phrase.usageCount + 1,
+        lastUsedAt: new Date(),
+        updatedAt: new Date()
+      }
+    });
+    
+    return res.json(ResponseFormatter.success(
+      updatedPhrase,
+      'Contatore uso incrementato'
+    ));
+  } catch (error) {
+    logger.error('Errore incremento contatore:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nell\'incremento del contatore',
+      'INCREMENT_USAGE_ERROR'
+    ));
+  }
+});
+
+export default router;

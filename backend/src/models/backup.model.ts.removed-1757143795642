@@ -1,0 +1,19 @@
+// backend/src/models/backup.model.ts
+
+import { pgTable, serial, varchar, text, timestamp, bigint } from 'drizzle-orm/pg-core';
+
+export const backups = pgTable('backups', {
+  id: serial('id').primaryKey(),
+  type: varchar('type', { length: 50 }).notNull(), // DATABASE, CODE, UPLOADS
+  filename: varchar('filename', { length: 255 }).notNull(),
+  filepath: varchar('filepath', { length: 500 }).notNull(),
+  file_size: bigint('file_size', { mode: 'bigint' }),
+  status: varchar('status', { length: 50 }).default('COMPLETED'),
+  metadata: text('metadata'),
+  created_by: serial('created_by'),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at')
+});
+
+export type Backup = typeof backups.$inferSelect;
+export type NewBackup = typeof backups.$inferInsert;

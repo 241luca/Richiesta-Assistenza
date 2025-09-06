@@ -1,0 +1,128 @@
+// ==================== MODELLI SISTEMA NOTIFICHE ====================
+
+model NotificationChannel {
+  id            String   @id @default(cuid())
+  code          String   @unique  // email, websocket, sms, push
+  name          String   
+  displayName   String?
+  type          String   @default("email")
+  provider      String?  // brevo, twilio, firebase
+  configuration Json?
+  isActive      Boolean  @default(true)
+  isDefault     Boolean  @default(false)
+  priority      Int      @default(0)
+  rateLimit     Json?
+  metadata      Json?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  templates    NotificationTemplate[]
+  preferences  UserNotificationPreference[]
+  
+  @@index([code])
+  @@index([isActive])
+}
+
+model NotificationType {
+  id               String   @id @default(cuid())
+  code             String   @unique  // USER_REGISTERED, REQUEST_CREATED, etc
+  name             String
+  description      String?
+  category         String   // USER, REQUEST, QUOTE, PAYMENT, etc
+  defaultChannels  String[] // Array di channel codes
+  priority         String   @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  isActive         Boolean  @default(true)
+  requiresAction   Boolean  @default(false)
+  actionUrl        String?
+  iconUrl          String?
+  color            String?
+  metadata         Json?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  templates    NotificationTemplate[]
+  preferences  UserNotificationPreference[]
+  
+  @@index([code])
+  @@index([category])
+  @@index([isActive])
+}
+
+model NotificationTemplate {
+  id         String   @id @default(cuid())
+  typeId     String
+  type       NotificationType @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  channelId  String
+  channel    NotificationChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  language   String   @default("it")
+  
+  subject    String?  // Per email
+  bodyHtml   String?  @db.Text  // Per email HTML
+  bodyText   String?  @db.Text  // Per SMS/text
+  
+  variables  String[] // Lista variabili utilizzate {{name}}, {{amount}}, etc
+  
+  isActive   Boolean  @default(true)
+  metadata   Json?
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  @@unique([typeId, channelId, language])
+  @@index([typeId])
+  @@index([channelId])
+  @@index([language])
+}
+
+model UserNotificationPreference {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("UserNotificationPreferences", fields: [userId], references: [id], onDelete: Cascade)
+  typeId     String
+  type       NotificationType @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  channelId  String
+  channel    NotificationChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  
+  enabled    Boolean  @default(true)
+  frequency  String   @default("IMMEDIATE") // IMMEDIATE, DAILY, WEEKLY
+  
+  metadata   Json?
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  @@unique([userId, typeId, channelId])
+  @@index([userId])
+  @@index([typeId])
+  @@index([channelId])
+}
+
+model NotificationLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation("NotificationLogs", fields: [userId], references: [id])
+  typeCode    String
+  channelCode String
+  
+  subject     String?
+  content     String?  @db.Text
+  
+  status      String   // PENDING, SENT, DELIVERED, FAILED, BOUNCED
+  attempts    Int      @default(1)
+  
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  failedAt    DateTime?
+  errorMessage String?
+  
+  metadata    Json?
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
+  @@index([typeCode])
+  @@index([status])
+  @@index([createdAt])
+}

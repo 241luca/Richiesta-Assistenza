@@ -1,0 +1,35 @@
+import { Express } from 'express';
+import phrasesRoutes from './phrases.routes';
+import materialsRoutes from './materials.routes';
+import templatesRoutes from './templates.routes';
+import settingsRoutes from './settings.routes';
+import logger from '../../utils/logger';
+
+/**
+ * Registra tutte le route professionali per il sistema rapporti
+ * @param app Express application instance
+ */
+export function registerProfessionalReportRoutes(app: Express): void {
+  try {
+    // Registra le route per le frasi ricorrenti
+    app.use('/api/professional', phrasesRoutes);
+    logger.info('✅ Route frasi ricorrenti registrate');
+
+    // Registra le route per i materiali
+    app.use('/api/professional', materialsRoutes);
+    logger.info('✅ Route materiali registrate');
+
+    // Registra le route per i template
+    app.use('/api/professional', templatesRoutes);
+    logger.info('✅ Route template registrate');
+
+    // Registra le route per le impostazioni
+    app.use('/api/professional', settingsRoutes);
+    logger.info('✅ Route impostazioni registrate');
+
+    logger.info('🚀 Tutte le route professionali rapporti sono state registrate con successo');
+  } catch (error) {
+    logger.error('❌ Errore nella registrazione delle route professionali:', error);
+    throw error;
+  }
+}

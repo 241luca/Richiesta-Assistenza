@@ -1,0 +1,33 @@
+// ESEMPIO DI SCHEMA PRISMA CON NOMI PERSONALIZZATI CHIARI
+
+model AssistanceRequest {
+  id             String   @id
+  title          String
+  description    String
+  
+  // Collegamenti con User - NOMI PERSONALIZZATI CHIARI
+  clientId       String
+  client         User     @relation("ClientRequests", fields: [clientId], references: [id])
+  
+  professionalId String?
+  professional   User?    @relation("ProfessionalRequests", fields: [professionalId], references: [id])
+  
+  // Altri campi...
+}
+
+model User {
+  id        String   @id
+  email     String   @unique
+  firstName String
+  lastName  String
+  
+  // Relazioni inverse con nomi chiari
+  clientRequests       AssistanceRequest[] @relation("ClientRequests")
+  professionalRequests AssistanceRequest[] @relation("ProfessionalRequests")
+  
+  // Altri campi...
+}
+
+// Con questa configurazione, nel codice puoi usare:
+// - request.client (invece di User_AssistanceRequest_clientIdToUser)
+// - request.professional (invece di User_AssistanceRequest_professionalIdToUser)

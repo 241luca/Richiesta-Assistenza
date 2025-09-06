@@ -1,0 +1,322 @@
+import { Router, Request, Response } from 'express';
+import { prisma } from '../../prismaClient';
+import { ResponseFormatter } from '../../utils/responseFormatter';
+import { authenticate } from '../../middleware/auth';
+import logger from '../../utils/logger';
+
+const router = Router();
+
+// GET /api/professional/templates - Ottieni tutti i template
+router.get('/templates', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    
+    const templates = await prisma.professionalReportTemplate.findMany({
+      where: {
+        professionalId,
+        isActive: true
+      },
+      include: {
+        baseTemplate: true
+      },
+      orderBy: [
+        { isDefault: 'desc' },
+        { usageCount: 'desc' },
+        { createdAt: 'desc' }
+      ]
+    });
+    
+    return res.json(ResponseFormatter.success(
+      templates,
+      'Template recuperati con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore recupero template:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nel recupero dei template',
+      'FETCH_TEMPLATES_ERROR'
+    ));
+  }
+});
+
+// GET /api/professional/templates/:id - Ottieni singolo template
+router.get('/templates/:id', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const { id } = req.params;
+    
+    const template = await prisma.professionalReportTemplate.findFirst({
+      where: {
+        id,
+        professionalId
+      },
+      include: {
+        baseTemplate: {
+          include: {
+            fields: true
+          }
+        }
+      }
+    });
+    
+    if (!template) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Template non trovato',
+        'TEMPLATE_NOT_FOUND'
+      ));
+    }
+    
+    return res.json(ResponseFormatter.success(
+      template,
+      'Template recuperato con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore recupero template:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nel recupero del template',
+      'FETCH_TEMPLATE_ERROR'
+    ));
+  }
+});
+
+// POST /api/professional/templates - Crea nuovo template
+router.post('/templates', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const {
+      name,
+      description,
+      baseTemplateId,
+      customSettings,
+      customFields,
+      customLayout
+    } = req.body;
+    
+    // Validazione
+    if (!name) {
+      return res.status(400).json(ResponseFormatter.error(
+        'Il nome del template è obbligatorio',
+        'VALIDATION_ERROR'
+      ));
+    }
+    
+    // Crea nuovo template
+    const newTemplate = await prisma.professionalReportTemplate.create({
+      data: {
+        professionalId,
+        name,
+        description,
+        baseTemplateId,
+        customSettings,
+        customFields,
+        customLayout,
+        isDefault: false,
+        isActive: true,
+        usageCount: 0
+      }
+    });
+    
+    return res.json(ResponseFormatter.success(
+      newTemplate,
+      'Template creato con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore creazione template:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nella creazione del template',
+      'CREATE_TEMPLATE_ERROR'
+    ));
+  }
+});
+
+// PUT /api/professional/templates/:id - Aggiorna template
+router.put('/templates/:id', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const { id } = req.params;
+    
+    // Verifica che il template appartenga al professionista
+    const existing = await prisma.professionalReportTemplate.findFirst({
+      where: {
+        id,
+        professionalId
+      }
+    });
+    
+    if (!existing) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Template non trovato',
+        'TEMPLATE_NOT_FOUND'
+      ));
+    }
+    
+    // Aggiorna template
+    const updatedTemplate = await prisma.professionalReportTemplate.update({
+      where: { id },
+      data: {
+        ...req.body,
+        updatedAt: new Date()
+      }
+    });
+    
+    return res.json(ResponseFormatter.success(
+      updatedTemplate,
+      'Template aggiornato con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore aggiornamento template:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nell\'aggiornamento del template',
+      'UPDATE_TEMPLATE_ERROR'
+    ));
+  }
+});
+
+// DELETE /api/professional/templates/:id - Elimina template
+router.delete('/templates/:id', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const { id } = req.params;
+    
+    // Verifica che il template appartenga al professionista
+    const existing = await prisma.professionalReportTemplate.findFirst({
+      where: {
+        id,
+        professionalId
+      }
+    });
+    
+    if (!existing) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Template non trovato',
+        'TEMPLATE_NOT_FOUND'
+      ));
+    }
+    
+    // Soft delete
+    await prisma.professionalReportTemplate.update({
+      where: { id },
+      data: {
+        isActive: false,
+        updatedAt: new Date()
+      }
+    });
+    
+    return res.json(ResponseFormatter.success(
+      null,
+      'Template eliminato con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore eliminazione template:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nell\'eliminazione del template',
+      'DELETE_TEMPLATE_ERROR'
+    ));
+  }
+});
+
+// POST /api/professional/templates/:id/set-default - Imposta come predefinito
+router.post('/templates/:id/set-default', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const { id } = req.params;
+    
+    // Verifica che il template appartenga al professionista
+    const existing = await prisma.professionalReportTemplate.findFirst({
+      where: {
+        id,
+        professionalId
+      }
+    });
+    
+    if (!existing) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Template non trovato',
+        'TEMPLATE_NOT_FOUND'
+      ));
+    }
+    
+    // Rimuovi default da tutti gli altri template
+    await prisma.professionalReportTemplate.updateMany({
+      where: {
+        professionalId,
+        isDefault: true
+      },
+      data: {
+        isDefault: false
+      }
+    });
+    
+    // Imposta questo come default
+    const updatedTemplate = await prisma.professionalReportTemplate.update({
+      where: { id },
+      data: {
+        isDefault: true,
+        updatedAt: new Date()
+      }
+    });
+    
+    return res.json(ResponseFormatter.success(
+      updatedTemplate,
+      'Template impostato come predefinito'
+    ));
+  } catch (error) {
+    logger.error('Errore impostazione default:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nell\'impostazione del template predefinito',
+      'SET_DEFAULT_ERROR'
+    ));
+  }
+});
+
+// POST /api/professional/templates/:id/clone - Clona template
+router.post('/templates/:id/clone', authenticate, async (req: any, res: Response) => {
+  try {
+    const professionalId = req.user.id;
+    const { id } = req.params;
+    
+    // Ottieni template originale
+    const original = await prisma.professionalReportTemplate.findFirst({
+      where: {
+        id,
+        professionalId
+      }
+    });
+    
+    if (!original) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Template non trovato',
+        'TEMPLATE_NOT_FOUND'
+      ));
+    }
+    
+    // Crea copia
+    const clonedTemplate = await prisma.professionalReportTemplate.create({
+      data: {
+        professionalId,
+        name: `${original.name} (Copia)`,
+        description: original.description,
+        baseTemplateId: original.baseTemplateId,
+        customSettings: original.customSettings,
+        customFields: original.customFields,
+        customLayout: original.customLayout,
+        isDefault: false,
+        isActive: true,
+        usageCount: 0
+      }
+    });
+    
+    return res.json(ResponseFormatter.success(
+      clonedTemplate,
+      'Template clonato con successo'
+    ));
+  } catch (error) {
+    logger.error('Errore clonazione template:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nella clonazione del template',
+      'CLONE_TEMPLATE_ERROR'
+    ));
+  }
+});
+
+export default router;

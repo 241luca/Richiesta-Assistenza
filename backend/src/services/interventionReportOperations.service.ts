@@ -1,0 +1,436 @@
+import { AppError } from '../utils/errors';
+import interventionReportService from './interventionReport.service';
+
+class InterventionReportOperationsService {
+  // ========== CRUD RAPPORTI ==========
+  
+  async getReports(filters: any, recipientId: string, userRole: string) {
+    try {
+      // Mock data per test
+      let reports = [
+        {
+          id: '1',
+          reportNumber: 'RAPP-2024-0001',
+          requestId: '1',
+          professionalId: '2',
+          clientId: '3',
+          templateId: '1',
+          statusId: '1',
+          typeId: '3',
+          interventionDate: new Date('2024-01-15'),
+          startTime: new Date('2024-01-15T09:00:00'),
+          endTime: new Date('2024-01-15T11:00:00'),
+          totalHours: 2,
+          travelTime: 0.5,
+          formData: {
+            client_name: 'Mario Rossi',
+            client_address: 'Via Roma 1, Milano',
+            intervention_description: 'Riparazione perdita rubinetto cucina'
+          },
+          materials: null,
+          materialsTotal: null,
+          photos: null,
+          signatures: null,
+          isDraft: false,
+          viewedByClientAt: null,
+          sentToClientAt: new Date('2024-01-15T15:00:00'),
+          professionalSignedAt: new Date('2024-01-15T11:30:00'),
+          clientSignedAt: null,
+          createdAt: new Date('2024-01-15T11:35:00'),
+          version: 1
+        },
+        {
+          id: '2',
+          reportNumber: 'RAPP-2024-0002',
+          requestId: '2',
+          professionalId: '2',
+          clientId: '4',
+          templateId: '2',
+          statusId: '2',
+          typeId: '2',
+          interventionDate: new Date('2024-01-16'),
+          startTime: new Date('2024-01-16T14:00:00'),
+          endTime: new Date('2024-01-16T16:30:00'),
+          totalHours: 2.5,
+          travelTime: 0.25,
+          formData: {
+            client_name: 'Luigi Bianchi',
+            client_address: 'Via Milano 15, Roma',
+            intervention_description: 'Manutenzione impianto elettrico'
+          },
+          materials: [
+            { name: 'Interruttore', quantity: 2, price: 15 },
+            { name: 'Cavo elettrico', quantity: 5, price: 3 }
+          ],
+          materialsTotal: 45,
+          photos: null,
+          signatures: {
+            Professional: {
+              signature: 'base64_signature_data',
+              signedAt: new Date('2024-01-16T16:35:00'),
+              name: 'Tecnico Giovanni'
+            }
+          },
+          isDraft: false,
+          viewedByClientAt: new Date('2024-01-16T18:00:00'),
+          sentToClientAt: new Date('2024-01-16T17:00:00'),
+          professionalSignedAt: new Date('2024-01-16T16:35:00'),
+          clientSignedAt: null,
+          createdAt: new Date('2024-01-16T16:40:00'),
+          version: 2
+        }
+      ];
+      
+      // Filtra per ruolo
+      if (userRole === 'PROFESSIONAL') {
+        reports = reports.filter(r => r.professionalId === userId);
+      } else if (userRole === 'CLIENT') {
+        reports = reports.filter(r => r.clientId === userId);
+      }
+      
+      // Altri filtri
+      if (filters.requestId) {
+        reports = reports.filter(r => r.requestId === filters.requestId);
+      }
+      
+      if (filters.statusId) {
+        reports = reports.filter(r => r.statusId === filters.statusId);
+      }
+      
+      if (filters.isDraft !== undefined) {
+        reports = reports.filter(r => r.isDraft === filters.isDraft);
+      }
+      
+      // Paginazione
+      const limit = filters.limit || 50;
+      const offset = filters.offset || 0;
+      const paginatedReports = reports.slice(offset, offset + limit);
+      
+      return {
+        data: paginatedReports,
+        total: reports.length,
+        limit,
+        offset
+      };
+    } catch (error) {
+      console.error('Errore recupero rapporti:', error);
+      throw error;
+    }
+  }
+  
+  async getReportById(id: string, recipientId: string, userRole: string) {
+    try {
+      const allReports = await this.getReports({}, userId, userRole);
+      const report = allReports.data.find(r => r.id === id);
+      
+      if (!report) {
+        throw new AppError('Rapporto non trovato', 404);
+      }
+      
+      // Verifica permessi
+      if (userRole === 'PROFESSIONAL' && report.professionalId !== userId) {
+        throw new AppError('Non autorizzato a visualizzare questo rapporto', 403);
+      }
+      
+      if (userRole === 'CLIENT' && report.clientId !== userId) {
+        throw new AppError('Non autorizzato a visualizzare questo rapporto', 403);
+      }
+      
+      // Aggiorna visualizzazione se cliente
+      if (userRole === 'CLIENT' && !report.viewedByClientAt) {
+        report.viewedByClientAt = new Date();
+        console.log('Rapporto visualizzato dal cliente:', id);
+      }
+      
+      // Aggiungi dati correlati mock
+      const enrichedReport = {
+        ...report,
+        request: {
+          id: report.requestId,
+          title: 'Richiesta assistenza #' + report.requestId,
+          address: 'Via Test 1',
+          city: 'Milano'
+        },
+        Professional: {
+          id: report.professionalId,
+          fullName: 'Giovanni Tecnico',
+          email: 'giovanni@example.com',
+          phone: '3331234567'
+        },
+        Client: {
+          id: report.clientId,
+          fullName: 'Mario Rossi',
+          email: 'mario@example.com',
+          phone: '3339876543',
+          address: 'Via Roma 1',
+          city: 'Milano'
+        },
+        template: {
+          id: report.templateId,
+          name: 'Template Standard'
+        },
+        status: {
+          id: report.statusId,
+          name: 'Bozza',
+          code: 'draft',
+          color: '#6B7280'
+        },
+        type: {
+          id: report.typeId,
+          name: 'Riparazione',
+          code: 'repair'
+        }
+      };
+      
+      return enrichedReport;
+    } catch (error) {
+      console.error('Errore recupero rapporto:', error);
+      throw error;
+    }
+  }
+  
+  async createReport(data: any, recipientId: string) {
+    try {
+      // Genera numero rapporto
+      const reportNumber = await interventionReportService.getNextReportNumber();
+      
+      // Prepara dati
+      const report = {
+        id: Date.now().toString(),
+        reportNumber,
+        requestId: data.requestId,
+        professionalId: userId,
+        clientId: data.clientId || '1', // Mock client
+        templateId: data.templateId,
+        statusId: data.statusId || '1', // Default: draft
+        typeId: data.typeId,
+        interventionDate: new Date(data.interventionDate),
+        startTime: data.startTime ? new Date(data.startTime) : null,
+        endTime: data.endTime ? new Date(data.endTime) : null,
+        totalHours: data.totalHours || null,
+        travelTime: data.travelTime || null,
+        formData: data.formData || {},
+        materials: data.materials || null,
+        materialsTotal: data.materialsTotal || null,
+        photos: data.photos || null,
+        signatures: data.signatures || null,
+        internalNotes: data.internalNotes || null,
+        clientNotes: data.clientNotes || null,
+        followUpRequired: data.followUpRequired || false,
+        followUpNotes: data.followUpNotes || null,
+        isDraft: data.isDraft !== false,
+        metadata: data.metadata || null,
+        createdAt: new Date(),
+        version: 1
+      };
+      
+      console.log('Rapporto creato:', report);
+      
+      // Se non è bozza, simula invio notifica
+      if (!report.isDraft) {
+        console.log('Notifica inviata al cliente per rapporto:', report.reportNumber);
+      }
+      
+      return report;
+    } catch (error) {
+      console.error('Errore creazione rapporto:', error);
+      throw error;
+    }
+  }
+  
+  async updateReport(id: string, data: any, recipientId: string) {
+    try {
+      const report = await this.getReportById(id, userId, 'PROFESSIONAL');
+      
+      // Verifica se modificabile
+      if (report.status.code === 'signed' || report.status.code === 'archived') {
+        throw new AppError('Rapporto non modificabile in questo stato', 403);
+      }
+      
+      // Calcola ore se forniti start/end
+      if (data.startTime && data.endTime) {
+        const start = new Date(data.startTime);
+        const end = new Date(data.endTime);
+        data.totalHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+      }
+      
+      // Aggiorna rapporto
+      const updated = {
+        ...report,
+        ...data,
+        version: report.version + 1,
+        updatedAt: new Date()
+      };
+      
+      console.log('Rapporto aggiornato:', updated);
+      return updated;
+    } catch (error) {
+      console.error('Errore aggiornamento rapporto:', error);
+      throw error;
+    }
+  }
+  
+  async deleteReport(id: string, recipientId: string) {
+    try {
+      const report = await this.getReportById(id, userId, 'PROFESSIONAL');
+      
+      // Verifica se eliminabile
+      if (report.status.code !== 'draft') {
+        throw new AppError('Solo le bozze possono essere eliminate', 403);
+      }
+      
+      console.log('Rapporto eliminato:', id);
+      return { success: true };
+    } catch (error) {
+      console.error('Errore eliminazione rapporto:', error);
+      throw error;
+    }
+  }
+  
+  // ========== OPERAZIONI SPECIALI ==========
+  
+  async signReport(id: string, signatureData: any, recipientId: string, userRole: string) {
+    try {
+      const report = await this.getReportById(id, userId, userRole);
+      
+      // Prepara dati firma
+      const signatures = report.signatures || {};
+      const now = new Date();
+      
+      if (userRole === 'PROFESSIONAL') {
+        signatures.professional = {
+          signature: signatureData.signature,
+          signedAt: now,
+          name: signatureData.name || 'Professionista'
+        };
+        
+        console.log('Firma professionista aggiunta al rapporto:', id);
+      } else if (userRole === 'CLIENT') {
+        signatures.client = {
+          signature: signatureData.signature,
+          signedAt: now,
+          name: signatureData.name || 'Cliente'
+        };
+        
+        console.log('Firma cliente aggiunta al rapporto:', id);
+        console.log('Notifica inviata al professionista');
+      }
+      
+      // Se entrambi hanno firmato, cambia stato
+      if (signatures.professional && signatures.client) {
+        console.log('Rapporto completamente firmato, cambio stato a "signed"');
+      }
+      
+      return { success: true, signatures };
+    } catch (error) {
+      console.error('Errore firma rapporto:', error);
+      throw error;
+    }
+  }
+  
+  async sendReportToClient(id: string, recipientId: string) {
+    try {
+      const report = await this.getReportById(id, userId, 'PROFESSIONAL');
+      
+      if (report.isDraft) {
+        throw new AppError('Impossibile inviare una bozza', 400);
+      }
+      
+      // Simula invio
+      console.log('Rapporto inviato al cliente:', report.reportNumber);
+      console.log('Email inviata a:', report.client.email);
+      console.log('Notifica in-app creata per cliente:', report.client.id);
+      
+      return { 
+        success: true,
+        sentAt: new Date()
+      };
+    } catch (error) {
+      console.error('Errore invio rapporto:', error);
+      throw error;
+    }
+  }
+  
+  async generatePDF(id: string, recipientId: string, userRole: string) {
+    try {
+      const report = await this.getReportById(id, userId, userRole);
+      
+      // In produzione qui genererebbe il PDF reale
+      console.log('Generazione PDF per rapporto:', report.reportNumber);
+      
+      // Simula URL del PDF
+      const pdfUrl = `/api/intervention-reports/${id}/pdf`;
+      
+      return {
+        success: true,
+        url: pdfUrl,
+        filename: `${report.reportNumber}.pdf`
+      };
+    } catch (error) {
+      console.error('Errore generazione PDF:', error);
+      throw error;
+    }
+  }
+  
+  async duplicateReport(id: string, recipientId: string) {
+    try {
+      const original = await this.getReportById(id, userId, 'PROFESSIONAL');
+      
+      // Crea copia
+      const duplicate = {
+        ...original,
+        id: Date.now().toString(),
+        reportNumber: await interventionReportService.getNextReportNumber(),
+        statusId: '1', // Torna a bozza
+        isDraft: true,
+        signatures: null,
+        viewedByClientAt: null,
+        sentToClientAt: null,
+        professionalSignedAt: null,
+        clientSignedAt: null,
+        createdAt: new Date(),
+        version: 1
+      };
+      
+      // Rimuovi proprietà che non devono essere duplicate
+      delete duplicate.request;
+      delete duplicate.professional;
+      delete duplicate.client;
+      delete duplicate.template;
+      delete duplicate.status;
+      delete duplicate.type;
+      
+      console.log('Rapporto duplicato:', duplicate.reportNumber);
+      return duplicate;
+    } catch (error) {
+      console.error('Errore duplicazione rapporto:', error);
+      throw error;
+    }
+  }
+  
+  async getReportStatistics(recipientId: string, userRole: string) {
+    try {
+      const reports = await this.getReports({}, userId, userRole);
+      
+      const stats = {
+        total: reports.total,
+        draft: reports.data.filter(r => r.isDraft).length,
+        sent: reports.data.filter(r => r.sentToClientAt && !r.clientSignedAt).length,
+        signed: reports.data.filter(r => r.clientSignedAt).length,
+        thisMonth: reports.data.filter(r => {
+          const date = new Date(r.createdAt);
+          const now = new Date();
+          return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+        }).length,
+        totalHours: reports.data.reduce((sum, r) => sum + (r.totalHours || 0), 0)
+      };
+      
+      return stats;
+    } catch (error) {
+      console.error('Errore calcolo statistiche:', error);
+      throw error;
+    }
+  }
+}
+
+export default new InterventionReportOperationsService();

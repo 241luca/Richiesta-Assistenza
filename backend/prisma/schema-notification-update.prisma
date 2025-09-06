@@ -1,0 +1,138 @@
+// AGGIUNTE PER SISTEMA NOTIFICHE PROFESSIONALE
+// Da aggiungere allo schema.prisma esistente
+
+model NotificationTemplate {
+  id                    String                @id @default(cuid())
+  code                  String                @unique
+  name                  String
+  description           String?
+  category              String
+  subject               String?               // Per email
+  htmlContent           String                // Template HTML
+  textContent           String?               // Template testo semplice
+  smsContent            String?               // Template SMS
+  whatsappContent       String?               // Template WhatsApp
+  variables             Json                  // Array di variabili disponibili [{name, description, required}]
+  channels              Json                  // Array di canali abilitati ["email", "sms", "websocket", "whatsapp"]
+  priority              NotificationPriority  @default(NORMAL)
+  isActive              Boolean               @default(true)
+  isSystem              Boolean               @default(false) // Template di sistema non modificabili
+  version               Int                   @default(1)
+  createdBy             String?
+  updatedBy             String?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  NotificationEvent     NotificationEvent[]
+  NotificationLog       NotificationLog[]
+  
+  @@index([code])
+  @@index([category])
+  @@index([isActive])
+}
+
+model NotificationEvent {
+  id                    String                @id @default(cuid())
+  code                  String                @unique
+  name                  String
+  description           String?
+  eventType             String                // "request_created", "quote_received", "payment_completed", etc.
+  entityType            String?               // "request", "quote", "payment", etc.
+  conditions            Json?                 // Condizioni per scatenare l'evento
+  templateId            String
+  isActive              Boolean               @default(true)
+  delay                 Int                   @default(0) // Ritardo in minuti prima dell'invio
+  retryPolicy           Json?                 // {maxRetries: 3, retryDelay: 300}
+  metadata              Json?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  NotificationTemplate  NotificationTemplate  @relation(fields: [templateId], references: [id])
+  
+  @@index([code])
+  @@index([eventType])
+  @@index([isActive])
+  @@index([templateId])
+}
+
+model NotificationLog {
+  id                    String                @id @default(cuid())
+  notificationId        String?               // ID della notifica se salvata
+  templateId            String?
+  eventId               String?
+  recipientId           String
+  recipientEmail        String?
+  recipientPhone        String?
+  channel               String                // "email", "sms", "websocket", "whatsapp"
+  status                String                // "pending", "sent", "delivered", "failed", "bounced"
+  subject               String?
+  content               String
+  variables             Json?                 // Variabili utilizzate nel template
+  sentAt                DateTime?
+  deliveredAt           DateTime?
+  readAt                DateTime?
+  failedAt              DateTime?
+  failureReason         String?
+  retryCount            Int                   @default(0)
+  metadata              Json?
+  createdAt             DateTime              @default(now())
+  
+  NotificationTemplate  NotificationTemplate? @relation(fields: [templateId], references: [id])
+  User                  User                  @relation(fields: [recipientId], references: [id])
+  
+  @@index([recipientId])
+  @@index([channel])
+  @@index([status])
+  @@index([templateId])
+  @@index([sentAt])
+  @@index([createdAt])
+}
+
+model NotificationChannel {
+  id                    String                @id @default(cuid())
+  code                  String                @unique
+  name                  String
+  type                  String                // "email", "sms", "websocket", "whatsapp", "push"
+  provider              String?               // "smtp", "sendgrid", "twilio", "whatsapp_business", etc.
+  configuration         Json                  // Configurazione specifica del provider
+  isActive              Boolean               @default(true)
+  isDefault             Boolean               @default(false)
+  priority              Int                   @default(0)
+  rateLimit             Json?                 // {maxPerMinute: 60, maxPerHour: 1000}
+  metadata              Json?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([code])
+  @@index([type])
+  @@index([isActive])
+}
+
+model NotificationQueue {
+  id                    String                @id @default(cuid())
+  templateId            String
+  eventId               String?
+  recipientId           String
+  channel               String
+  priority              NotificationPriority
+  scheduledFor          DateTime
+  status                String                @default("pending") // "pending", "processing", "sent", "failed"
+  attempts              Int                   @default(0)
+  maxAttempts           Int                   @default(3)
+  lastAttemptAt         DateTime?
+  nextRetryAt           DateTime?
+  data                  Json                  // Dati completi per l'invio
+  error                 String?
+  createdAt             DateTime              @default(now())
+  processedAt           DateTime?
+  
+  @@index([status])
+  @@index([priority])
+  @@index([scheduledFor])
+  @@index([recipientId])
+  @@index([channel])
+}
+
+// Aggiornamento del model User per aggiungere relazione con NotificationLog
+// Da aggiungere nella sezione relations del model User esistente:
+// NotificationLog       NotificationLog[]

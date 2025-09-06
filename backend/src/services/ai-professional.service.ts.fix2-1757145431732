@@ -1,0 +1,744 @@
+import { PrismaClient } from '@prisma/client';
+import OpenAI from 'openai';
+import { logger } from '../utils/logger';
+
+const prisma = new PrismaClient();
+
+interface AiChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+  timestamp?: Date;
+}
+
+interface AiChatRequest {
+  userId: string;
+  requestId?: string;
+  subcategoryId?: string;
+  message: string;
+  conversationType: 'client_help' | 'professional_help' | 'system_help';
+  conversationId?: string;
+}
+
+interface AiSettings {
+  model: string;
+  temperature: number;
+  maxTokens: number;
+  systemPrompt: string;
+  knowledgeBase?: any[];
+  tone: string;
+  initialMessage?: string;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+}
+
+class AiProfessionalService {
+  private openaiClient: OpenAI | null = null;
+  private conversationCache: Map<string, AiChatMessage[]> = new Map();
+
+  constructor() {
+    this.initializeOpenAI();
+  }
+
+  private async initializeOpenAI(): Promise<void> {
+    try {
+      const apiKey = await prisma.apiKey.findFirst({
+        where: {
+          service: 'OPENAI',
+          isActive: true
+        }
+      });
+
+      if (apiKey?.key) {
+        this.openaiClient = new OpenAI({
+          apiKey: apiKey.key
+        });
+        logger.info('OpenAI client initialized successfully');
+      } else {
+        logger.warn('OpenAI API key not found. Please configure in Admin > API Keys');
+      }
+    } catch (error) {
+      logger.error('Error initializing OpenAI:', error);
+    }
+  }
+
+  /**
+   * Ottieni le impostazioni AI appropriate basate sul contesto
+   */
+  private async getAiSettings(chatRequest: AiChatRequest): Promise<AiSettings> {
+    // Impostazioni di default professionali
+    const defaultSettings: AiSettings = {
+      model: 'gpt-3.5-turbo',
+      temperature: 0.7,
+      maxTokens: 2048,
+      systemPrompt: 'Sei un assistente AI professionale del Sistema Richiesta Assistenza.',
+      tone: 'professional',
+      topP: 1,
+      frequencyPenalty: 0,
+      presencePenalty: 0
+    };
+
+    try {
+      // Se è aiuto sistema
+      if (chatRequest.conversationType === 'system_help') {
+        return {
+          ...defaultSettings,
+          systemPrompt: `Sei l'assistente virtuale del Sistema Richiesta Assistenza.
+          Aiuti gli utenti a navigare e utilizzare la piattaforma.
+          Spiega le funzionalità in modo chiaro e semplice.
+          Fornisci istruzioni passo-passo quando richiesto.`,
+          tone: 'friendly',
+          temperature: 0.6
+        };
+      }
+
+      // Se c'è una sottocategoria, cerca configurazione specifica
+      if (chatRequest.subcategoryId) {
+        const subcategorySettings = await prisma.subcategoryAiSettings.findUnique({
+          where: { subcategoryId: chatRequest.subcategoryId }
+        });
+
+        if (subcategorySettings) {
+          const isClient = chatRequest.conversationType === 'client_help';
+          
+          // Per professionisti, cerca personalizzazione
+          if (!isClient && chatRequest.userId) {
+            try {
+              const customization = await prisma.professionalAiCustomization.findFirst({
+                where: {
+                  professionalId: chatRequest.userId,
+                  subcategoryId: chatRequest.subcategoryId,
+                  isActive: true
+                }
+              });
+
+              if (customization) {
+                return {
+                  model: subcategorySettings.modelName,
+                  temperature: customization.customTemperature || subcategorySettings.temperature,
+                  maxTokens: customization.customMaxTokens || subcategorySettings.maxTokens,
+                  systemPrompt: customization.customSystemPrompt || subcategorySettings.systemPrompt,
+                  tone: customization.customTone || 'technical',
+                  topP: subcategorySettings.topP,
+                  frequencyPenalty: subcategorySettings.frequencyPenalty,
+                  presencePenalty: subcategorySettings.presencePenalty,
+                  initialMessage: customization.customInitialMessage
+                };
+              }
+            } catch (error) {
+              logger.warn('Could not load professional customization:', error);
+            }
+          }
+
+          // Usa impostazioni sottocategoria base
+          return {
+            model: subcategorySettings.modelName,
+            temperature: subcategorySettings.temperature,
+            maxTokens: subcategorySettings.maxTokens,
+            systemPrompt: subcategorySettings.systemPrompt,
+            tone: isClient ? 'friendly' : 'technical',
+            topP: subcategorySettings.topP,
+            frequencyPenalty: subcategorySettings.frequencyPenalty,
+            presencePenalty: subcategorySettings.presencePenalty
+          };
+        }
+      }
+
+      // Impostazioni base per tipo di conversazione
+      if (chatRequest.conversationType === 'client_help') {
+        return {
+          ...defaultSettings,
+          systemPrompt: `Sei un assistente tecnico esperto e amichevole.
+          Fornisci consigli pratici e soluzioni immediate ai clienti.
+          Usa un linguaggio semplice e comprensibile.
+          Prioritizza la sicurezza e suggerisci quando è necessario un professionista.`,
+          tone: 'friendly',
+          temperature: 0.7
+        };
+      } else if (chatRequest.conversationType === 'professional_help') {
+        return {
+          ...defaultSettings,
+          systemPrompt: `Sei un consulente tecnico esperto per professionisti del settore.
+          Fornisci informazioni tecniche dettagliate e precise.
+          Suggerisci best practices, normative applicabili e soluzioni professionali.
+          Includi consigli su materiali, strumenti e procedure ottimali.`,
+          tone: 'technical',
+          temperature: 0.6,
+          maxTokens: 3000
+        };
+      }
+
+      return defaultSettings;
+    } catch (error) {
+      logger.error('Error getting AI settings:', error);
+      return defaultSettings;
+    }
+  }
+
+  /**
+   * Prepara il contesto completo per l'AI basato sulla richiesta
+   * Include TUTTE le informazioni della richiesta: titolo, descrizione, chat, allegati, etc.
+   */
+  private async prepareContext(chatRequest: AiChatRequest): Promise<string> {
+    const contextParts: string[] = [];
+
+    try {
+      // Se c'è una richiesta di assistenza, aggiungi TUTTI i dettagli
+      if (chatRequest.requestId) {
+        const request = await prisma.assistanceRequest.findUnique({
+          where: { id: chatRequest.requestId },
+          include: {
+            Client: {
+              select: {
+                firstName: true,
+                lastName: true,
+                city: true,
+                province: true,
+                phone: true,
+                email: true
+              }
+            },
+            Professional: {
+              select: {
+                firstName: true,
+                lastName: true,
+                profession: true,
+                specializations: true,
+                phone: true
+              }
+            },
+            SubCategory: {
+              include: {
+                Category: true
+              }
+            },
+            chatMessages: {
+              orderBy: { createdAt: 'asc' },
+              take: 50, // Prendi più messaggi per avere contesto completo
+              include: {
+                User: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    role: true
+                  }
+                }
+              }
+            },
+            attachments: {
+              select: {
+                fileName: true,
+                description: true,
+                fileType: true
+              }
+            },
+            quotes: {
+              where: { status: 'ACCEPTED' },
+              include: {
+                items: true
+              }
+            }
+          }
+        });
+
+        if (request) {
+          // SEZIONE 1: INFORMAZIONI BASE DELLA RICHIESTA
+          contextParts.push(`=== 📋 DETTAGLI RICHIESTA ASSISTENZA ===`);
+          contextParts.push(`ID Richiesta: ${request.id}`);
+          contextParts.push(`📌 TITOLO: ${request.title}`);
+          contextParts.push(`📝 DESCRIZIONE COMPLETA DEL PROBLEMA:`);
+          contextParts.push(`"${request.description}"`);
+          contextParts.push(`Priorità: ${request.priority === 'URGENT' ? '🔴 URGENTE' : request.priority}`);
+          contextParts.push(`Stato Attuale: ${request.status}`);
+          
+          // SEZIONE 2: CATEGORIA E SOTTOCATEGORIA
+          if (request.subcategory) {
+            contextParts.push(`\n=== 🏷️ CLASSIFICAZIONE ===`);
+            contextParts.push(`Categoria: ${request.subcategory.category.name}`);
+            contextParts.push(`Sottocategoria: ${request.subcategory.name}`);
+            if (request.subcategory.description) {
+              contextParts.push(`Descrizione servizio: ${request.subcategory.description}`);
+            }
+          }
+          
+          // SEZIONE 3: INFORMAZIONI CLIENTE
+          if (request.client) {
+            contextParts.push(`\n=== 👤 INFORMAZIONI CLIENTE ===`);
+            contextParts.push(`Nome: ${request.client.firstName} ${request.client.lastName}`);
+            contextParts.push(`Email: ${request.client.email || 'Non fornita'}`);
+            contextParts.push(`Telefono: ${request.client.phone || 'Non fornito'}`);
+            contextParts.push(`Città: ${request.client.city} (${request.client.province})`);
+          }
+          
+          // SEZIONE 4: LUOGO INTERVENTO
+          if (request.address) {
+            contextParts.push(`\n=== 📍 LUOGO INTERVENTO ===`);
+            contextParts.push(`Indirizzo completo: ${request.address}`);
+            contextParts.push(`Città: ${request.city} (${request.province})`);
+            contextParts.push(`CAP: ${request.postalCode}`);
+            if (request.locationNotes) {
+              contextParts.push(`Note accesso: ${request.locationNotes}`);
+            }
+          }
+          
+          // SEZIONE 5: TEMPISTICHE
+          contextParts.push(`\n=== ⏰ TEMPISTICHE ===`);
+          contextParts.push(`Data Creazione: ${request.createdAt?.toLocaleString('it-IT')}`);
+          if (request.requestedDate) {
+            contextParts.push(`Data Richiesta Intervento: ${request.requestedDate.toLocaleString('it-IT')}`);
+          }
+          if (request.scheduledDate) {
+            contextParts.push(`Data Programmata: ${request.scheduledDate.toLocaleString('it-IT')}`);
+          }
+          if (request.completedDate) {
+            contextParts.push(`Data Completamento: ${request.completedDate.toLocaleString('it-IT')}`);
+          }
+          
+          // SEZIONE 6: PROFESSIONISTA ASSEGNATO
+          if (request.professional) {
+            contextParts.push(`\n=== 🔧 PROFESSIONISTA ASSEGNATO ===`);
+            contextParts.push(`Nome: ${request.professional.firstName} ${request.professional.lastName}`);
+            contextParts.push(`Professione: ${request.professional.profession || 'Non specificata'}`);
+            if (request.professional.phone) {
+              contextParts.push(`Telefono: ${request.professional.phone}`);
+            }
+            if (request.professional.specializations && request.professional.specializations.length > 0) {
+              contextParts.push(`Specializzazioni: ${request.professional.specializations.join(', ')}`);
+            }
+          }
+          
+          // SEZIONE 7: NOTE PUBBLICHE E PRIVATE
+          if (request.publicNotes) {
+            contextParts.push(`\n=== 📄 NOTE PUBBLICHE ===`);
+            contextParts.push(request.publicNotes);
+          }
+          if (request.privateNotes) {
+            contextParts.push(`\n=== 🔒 NOTE PRIVATE (STAFF) ===`);
+            contextParts.push(request.privateNotes);
+          }
+          
+          // SEZIONE 8: FILE ALLEGATI
+          if (request.attachments && request.attachments.length > 0) {
+            contextParts.push(`\n=== 📎 FILE ALLEGATI (${request.attachments.length}) ===`);
+            request.attachments.forEach((att, index) => {
+              contextParts.push(`${index + 1}. ${att.fileName} (${att.fileType})`);
+              if (att.description) {
+                contextParts.push(`   Descrizione: ${att.description}`);
+              }
+            });
+          }
+          
+          // SEZIONE 9: PREVENTIVI ACCETTATI
+          if (request.quotes && request.quotes.length > 0) {
+            contextParts.push(`\n=== 💰 PREVENTIVO ACCETTATO ===`);
+            const acceptedQuote = request.quotes[0];
+            contextParts.push(`Totale: €${(acceptedQuote.totalAmount / 100).toFixed(2)}`);
+            if (acceptedQuote.items && acceptedQuote.items.length > 0) {
+              contextParts.push(`Voci del preventivo:`);
+              acceptedQuote.items.forEach(item => {
+                contextParts.push(`- ${item.description}: €${(item.totalPrice / 100).toFixed(2)}`);
+              });
+            }
+          }
+          
+          // SEZIONE 10: CRONOLOGIA CHAT COMPLETA (FONDAMENTALE!)
+          if (request.chatMessages && request.chatMessages.length > 0) {
+            contextParts.push(`\n=== 💬 CRONOLOGIA CONVERSAZIONE (${request.chatMessages.length} messaggi) ===`);
+            contextParts.push(`[IMPORTANTE: Questa è la conversazione completa relativa alla richiesta]`);
+            
+            request.chatMessages.forEach((msg, index) => {
+              const senderName = `${msg.User.firstName} ${msg.User.lastName}`;
+              const senderRole = msg.User.role === 'CLIENT' ? '👤 Cliente' : 
+                                msg.User.role === 'PROFESSIONAL' ? '🔧 Professionista' : 
+                                msg.User.role === 'ADMIN' || msg.User.role === 'SUPER_ADMIN' ? '⚙️ Staff' : msg.User.role;
+              const timestamp = msg.createdAt.toLocaleString('it-IT', {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+              });
+              
+              contextParts.push(`\n[${timestamp}] ${senderRole} ${senderName}:`);
+              contextParts.push(`"${msg.message}"`);
+              
+              if (msg.attachments && msg.attachments.length > 0) {
+                contextParts.push(`[Allegati: ${msg.attachments.map(a => a.fileName).join(', ')}]`);
+              }
+            });
+          }
+        }
+      }
+
+      // Se c'è una sottocategoria ma non una richiesta specifica
+      else if (chatRequest.subcategoryId) {
+        const subcategory = await prisma.subcategory.findUnique({
+          where: { id: chatRequest.subcategoryId },
+          include: {
+            Category: true,
+            SubcategoryAiSettings: true
+          }
+        });
+
+        if (subcategory) {
+          contextParts.push(`=== 🏷️ CONTESTO SERVIZIO ===`);
+          contextParts.push(`Categoria: ${subcategory.category.name}`);
+          contextParts.push(`Sottocategoria: ${subcategory.name}`);
+          if (subcategory.description) {
+            contextParts.push(`Descrizione: ${subcategory.description}`);
+          }
+          if (subcategory.requirements) {
+            contextParts.push(`Requisiti: ${subcategory.requirements}`);
+          }
+        }
+      }
+
+      // Aggiungi informazioni utente corrente
+      const user = await prisma.user.findUnique({
+        where: { id: chatRequest.userId },
+        select: {
+          firstName: true,
+          lastName: true,
+          role: true,
+          profession: true,
+          specializations: true
+        }
+      });
+
+      if (user) {
+        contextParts.push(`\n=== 🙋 UTENTE CHE STA CHIEDENDO ===`);
+        contextParts.push(`Nome: ${user.firstName} ${user.lastName}`);
+        contextParts.push(`Ruolo: ${user.role === 'CLIENT' ? 'Cliente' : 
+                                  user.role === 'PROFESSIONAL' ? 'Professionista' :
+                                  user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' ? 'Staff' : user.role}`);
+        if (user.profession) {
+          contextParts.push(`Professione: ${user.profession}`);
+        }
+        if (user.specializations && user.specializations.length > 0) {
+          contextParts.push(`Specializzazioni: ${user.specializations.join(', ')}`);
+        }
+      }
+
+      // Aggiungi istruzioni finali per l'AI
+      contextParts.push(`\n=== 📌 ISTRUZIONI PER L'ASSISTENTE AI ===`);
+      contextParts.push(`1. Considera TUTTO il contesto fornito sopra, specialmente il TITOLO e la DESCRIZIONE del problema`);
+      contextParts.push(`2. Leggi ATTENTAMENTE la cronologia della conversazione per capire cosa è già stato discusso`);
+      contextParts.push(`3. Fornisci risposte pertinenti e specifiche al problema descritto`);
+      contextParts.push(`4. Se sei un assistente per il professionista, fornisci consigli tecnici dettagliati`);
+      contextParts.push(`5. Se sei un assistente per il cliente, usa un linguaggio semplice e chiaro`);
+
+    } catch (error) {
+      logger.error('Error preparing context:', error);
+      contextParts.push(`[Errore nel recupero del contesto completo]`);
+    }
+
+    return contextParts.join('\n');
+  }
+
+  /**
+   * Carica la Knowledge Base rilevante
+   */
+  private async loadKnowledgeBase(chatRequest: AiChatRequest): Promise<string[]> {
+    const kbParts: string[] = [];
+
+    try {
+      // 1. Carica KB della sottocategoria
+      if (chatRequest.subcategoryId) {
+        const subcategoryKB = await prisma.knowledgeBaseDocument.findMany({
+          where: {
+            subcategoryIds: {
+              has: chatRequest.subcategoryId
+            },
+            isActive: true
+          },
+          select: {
+            title: true,
+            content: true
+          },
+          take: 5 // Limita a 5 documenti più rilevanti
+        });
+
+        if (subcategoryKB.length > 0) {
+          kbParts.push(`\n=== 📚 KNOWLEDGE BASE SOTTOCATEGORIA ===`);
+          subcategoryKB.forEach(doc => {
+            if (doc.content) {
+              kbParts.push(`📖 ${doc.title}:`);
+              kbParts.push(doc.content.substring(0, 1000)); // Primi 1000 caratteri
+            }
+          });
+        }
+      }
+
+      // 2. Se c'è un professionista, carica la sua KB personalizzata
+      if (chatRequest.userId && chatRequest.conversationType === 'professional_help') {
+        const professionalKB = await prisma.knowledgeBaseDocument.findMany({
+          where: {
+            uploadedById: chatRequest.userId,
+            metadata: {
+              path: ['professional'],
+              equals: true
+            },
+            isActive: true
+          },
+          select: {
+            title: true,
+            content: true
+          },
+          take: 3 // Limita a 3 documenti personali
+        });
+
+        if (professionalKB.length > 0) {
+          kbParts.push(`\n=== 📚 KNOWLEDGE BASE PERSONALIZZATA PROFESSIONISTA ===`);
+          professionalKB.forEach(doc => {
+            if (doc.content) {
+              kbParts.push(`📖 ${doc.title}:`);
+              kbParts.push(doc.content.substring(0, 500)); // Primi 500 caratteri
+            }
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('Error loading knowledge base:', error);
+    }
+
+    return kbParts;
+  }
+
+  /**
+   * Invia messaggio all'AI con gestione professionale
+   */
+  async sendMessage(chatRequest: AiChatRequest): Promise<any> {
+    try {
+      // Verifica OpenAI
+      if (!this.openaiClient) {
+        await this.initializeOpenAI();
+        if (!this.openaiClient) {
+          throw new Error('OpenAI non configurato. Configura la chiave API in Admin > API Keys > AI');
+        }
+      }
+
+      // Ottieni impostazioni
+      const settings = await this.getAiSettings(chatRequest);
+      
+      // Prepara contesto completo della richiesta
+      const context = await this.prepareContext(chatRequest);
+      
+      // Carica Knowledge Base
+      const kbContent = await this.loadKnowledgeBase(chatRequest);
+      
+      // Recupera conversazione precedente se esiste
+      const conversationKey = chatRequest.conversationId || 
+        `${chatRequest.userId}-${chatRequest.requestId || 'general'}`;
+      const previousMessages = this.conversationCache.get(conversationKey) || [];
+
+      // Costruisci il system prompt completo
+      let systemContent = settings.systemPrompt;
+      
+      // Aggiungi contesto della richiesta
+      if (context) {
+        systemContent += `\n\n${context}`;
+      }
+      
+      // Aggiungi Knowledge Base
+      if (kbContent.length > 0) {
+        systemContent += `\n\n${kbContent.join('\n')}`;
+      }
+
+      // Costruisci array messaggi
+      const messages: AiChatMessage[] = [
+        {
+          role: 'system',
+          content: systemContent
+        }
+      ];
+
+      // Aggiungi messaggio iniziale se prima interazione
+      if (previousMessages.length === 0 && settings.initialMessage) {
+        messages.push({
+          role: 'assistant',
+          content: settings.initialMessage
+        });
+      }
+
+      // Aggiungi storico conversazione (ultimi 20 messaggi per mantenere contesto)
+      messages.push(...previousMessages.slice(-20));
+
+      // Aggiungi nuovo messaggio utente
+      messages.push({
+        role: 'user',
+        content: chatRequest.message
+      });
+
+      // Log per debug
+      logger.info('AI Request Context Length:', systemContent.length);
+      logger.info('AI Total Messages:', messages.length);
+
+      // Chiama OpenAI
+      const completion = await this.openaiClient.chat.completions.create({
+        model: settings.model,
+        messages: messages as any,
+        temperature: settings.temperature,
+        max_tokens: settings.maxTokens,
+        top_p: settings.topP,
+        frequency_penalty: settings.frequencyPenalty,
+        presence_penalty: settings.presencePenalty
+      });
+
+      const aiResponse = completion.choices[0].message.content;
+      const totalTokens = completion.usage?.total_tokens || 0;
+
+      // Aggiorna cache conversazione
+      const updatedMessages = [
+        ...previousMessages,
+        {
+          role: 'user' as const,
+          content: chatRequest.message,
+          timestamp: new Date()
+        },
+        {
+          role: 'assistant' as const,
+          content: aiResponse || '',
+          timestamp: new Date()
+        }
+      ];
+
+      this.conversationCache.set(conversationKey, updatedMessages);
+
+      // Log conversazione se configurato
+      if (chatRequest.userId) {
+        try {
+          await this.logConversation(chatRequest, aiResponse || '', settings.model, totalTokens);
+        } catch (error) {
+          logger.warn('Could not log conversation:', error);
+        }
+      }
+
+      return {
+        conversationId: conversationKey,
+        message: aiResponse,
+        model: settings.model,
+        tokensUsed: totalTokens,
+        tone: settings.tone,
+        initialMessage: previousMessages.length === 0 ? settings.initialMessage : null
+      };
+    } catch (error) {
+      logger.error('Error sending message to AI:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Log della conversazione per analytics
+   */
+  private async logConversation(
+    chatRequest: AiChatRequest,
+    response: string,
+    model: string,
+    tokens: number
+  ): Promise<void> {
+    try {
+      // Salva nel database per future analytics
+      await prisma.aiConversation.create({
+        data: {
+          userId: chatRequest.userId,
+          requestId: chatRequest.requestId,
+          subcategoryId: chatRequest.subcategoryId,
+          conversationType: chatRequest.conversationType,
+          userMessage: chatRequest.message,
+          aiResponse: response,
+          model: model,
+          tokensUsed: tokens,
+          metadata: {
+            conversationId: chatRequest.conversationId,
+            timestamp: new Date().toISOString()
+          }
+        }
+      });
+    } catch (error) {
+      // Se la tabella non esiste ancora, loggare solo
+      logger.info('AI Conversation', {
+        userId: chatRequest.userId,
+        requestId: chatRequest.requestId,
+        conversationType: chatRequest.conversationType,
+        model,
+        tokens,
+        timestamp: new Date()
+      });
+    }
+  }
+
+  /**
+   * Ottieni statistiche utilizzo AI
+   */
+  async getUsageStats(userId?: string): Promise<any> {
+    try {
+      // Statistiche dal database
+      const stats = {
+        totalConversations: this.conversationCache.size,
+        activeConversations: this.conversationCache.size,
+        modelsUsed: ['gpt-3.5-turbo', 'gpt-4'],
+        estimatedCost: 0
+      };
+
+      // Se abbiamo la tabella dei log, calcola statistiche reali
+      try {
+        const logs = await prisma.aiConversation.groupBy({
+          by: ['model'],
+          where: userId ? { userId } : undefined,
+          _count: true,
+          _sum: {
+            tokensUsed: true
+          }
+        });
+
+        if (logs) {
+          stats.modelsUsed = logs.map(l => l.model);
+          // Calcola costo stimato (prezzi OpenAI approssimativi)
+          const totalTokens = logs.reduce((sum, l) => sum + (l._sum.tokensUsed || 0), 0);
+          stats.estimatedCost = (totalTokens / 1000) * 0.002; // $0.002 per 1K tokens
+        }
+      } catch (e) {
+        // Tabella non esiste ancora
+      }
+
+      return stats;
+    } catch (error) {
+      logger.error('Error getting usage stats:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clear conversation cache
+   */
+  clearConversation(conversationId: string): void {
+    this.conversationCache.delete(conversationId);
+  }
+
+  /**
+   * Test AI connection
+   */
+  async testConnection(): Promise<boolean> {
+    try {
+      if (!this.openaiClient) {
+        await this.initializeOpenAI();
+      }
+      
+      if (!this.openaiClient) {
+        return false;
+      }
+
+      const test = await this.openaiClient.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: 'Test' }],
+        max_tokens: 5
+      });
+
+      return !!test.choices[0].message.content;
+    } catch (error) {
+      logger.error('AI connection test failed:', error);
+      return false;
+    }
+  }
+}
+
+export const aiProfessionalService = new AiProfessionalService();
