@@ -29,7 +29,7 @@ router.get('/', async (req: Request, res: Response) => {
       orderBy: { displayOrder: 'asc' },
       include: {
         _count: {
-          select: { users: true }
+          select: { User: true }
         }
       }
     });
