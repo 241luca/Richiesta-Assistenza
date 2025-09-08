@@ -1,8 +1,8 @@
-# 📋 ISTRUZIONI-PROGETTO - Sistema Richiesta Assistenza v3.0
+# 📋 ISTRUZIONI-PROGETTO - Sistema Richiesta Assistenza v4.0
 
 > ⚠️ **LEGGERE PRIMA DI INIZIARE QUALSIASI LAVORO**
 > 
-> Ultimo aggiornamento: 6 Settembre 2025
+> Ultimo aggiornamento: 10 Gennaio 2025
 > 
 > Questo documento contiene TUTTE le regole tecniche VINCOLANTI per lo sviluppo del progetto.
 
@@ -24,14 +24,18 @@ cd backend && npm install && cd ..
 cd backend
 npx prisma generate
 npx prisma db push
+npx prisma db seed  # Dati di test
 cd ..
 
 # 4. Avvia il sistema
-# Terminal 1
+# Terminal 1 - Backend
 cd backend && npm run dev  # Backend su :3200
 
-# Terminal 2
+# Terminal 2 - Frontend  
 npm run dev                # Frontend su :5193
+
+# Terminal 3 - Redis (opzionale ma consigliato)
+redis-server
 
 # 5. Verifica funzionamento
 curl http://localhost:3200/api/health
@@ -54,23 +58,25 @@ curl http://localhost:3200/api/health
 
 ## 📖 INDICE
 
-1. [**🔴 LE 5 REGOLE D'ORO**](#-le-5-regole-doro) - MEMORIZZARE!
-2. [**📋 Quick Reference Card**](#-quick-reference-card)
-3. [**🏗️ Architettura Sistema**](#-architettura-sistema)
-4. [**💻 Sviluppo**](#-sviluppo)
-5. [**🗄️ Database Best Practices**](#-database-best-practices)
-6. [**🔒 Security Checklist**](#-security-checklist) 
-7. [**🧪 Testing Requirements**](#-testing-requirements)
-8. [**⚡ Performance Guidelines**](#-performance-guidelines)
-9. [**📦 Deployment**](#-deployment)
-10. [**🔧 Troubleshooting**](#-troubleshooting)
-11. [**📝 Templates**](#-templates)
-12. [**🤖 Script Automazione**](#-script-automazione)
-13. [**✅ Checklist Finale**](#-checklist-finale)
+1. [**🔴 LE 7 REGOLE D'ORO**](#-le-7-regole-doro) - MEMORIZZARE!
+2. [**⚠️ ERRORI FREQUENTI DA EVITARE**](#-errori-frequenti-da-evitare)
+3. [**📋 Quick Reference Card**](#-quick-reference-card)
+4. [**🏗️ Architettura Sistema**](#-architettura-sistema)
+5. [**✅ Funzionalità Implementate**](#-funzionalità-implementate)
+6. [**💻 Sviluppo**](#-sviluppo)
+7. [**🗄️ Database Best Practices**](#-database-best-practices)
+8. [**🔐 Security Checklist**](#-security-checklist) 
+9. [**🧪 Testing Requirements**](#-testing-requirements)
+10. [**⚡ Performance Guidelines**](#-performance-guidelines)
+11. [**📦 Deployment**](#-deployment)
+12. [**🔧 Troubleshooting**](#-troubleshooting)
+13. [**📝 Templates**](#-templates)
+14. [**🤖 Script Automazione**](#-script-automazione)
+15. [**✅ Checklist Finale**](#-checklist-finale)
 
 ---
 
-## 🔴 LE 5 REGOLE D'ORO
+## 🔴 LE 7 REGOLE D'ORO
 
 ### 1️⃣ ResponseFormatter SEMPRE nelle Routes
 ```typescript
@@ -87,14 +93,30 @@ res.json({ data });
 // ✅ SEMPRE
 const { data } = useQuery({
   queryKey: ['items'],
-  queryFn: () => api.get('/items')
+  queryFn: () => api.get('/items')  // NO /api/items!
 });
 
 // ❌ MAI
 const data = await fetch('/api/items');
 ```
 
-### 3️⃣ Relazioni Prisma con @relation
+### 3️⃣ API Client ha già /api nel baseURL
+```typescript
+// ⚠️ ERRORE FREQUENTISSIMO!
+// ❌ SBAGLIATO - Risulta in /api/api/users
+api.get('/api/users')  
+
+// ✅ CORRETTO - Risulta in /api/users
+api.get('/users')
+
+// Il client Axios è configurato così:
+const api = axios.create({
+  baseURL: 'http://localhost:3200/api',  // <-- /api già incluso!
+  headers: { 'Content-Type': 'application/json' }
+});
+```
+
+### 4️⃣ Relazioni Prisma con @relation
 ```prisma
 // ✅ SEMPRE
 client User @relation("ClientRequests", fields: [clientId], references: [id])
@@ -103,14 +125,78 @@ client User @relation("ClientRequests", fields: [clientId], references: [id])
 User_AssistanceRequest_clientIdToUser User
 ```
 
-### 4️⃣ Backup PRIMA di modifiche critiche
+### 5️⃣ Backup PRIMA di modifiche critiche
 ```bash
 cp file.tsx file.backup-$(date +%Y%m%d-%H%M%S).tsx
 ```
 
-### 5️⃣ Test PRIMA del commit
+### 6️⃣ Test PRIMA del commit
 ```bash
 ./scripts/pre-commit-check.sh  # OBBLIGATORIO!
+```
+
+### 7️⃣ WebSocket per notifiche real-time
+```typescript
+// ✅ Usa il sistema notifiche centralizzato
+notificationService.sendToUser(userId, notification);
+
+// ❌ NON creare WebSocket custom
+io.to(userId).emit('custom-event', data);
+```
+
+---
+
+## ⚠️ ERRORI FREQUENTI DA EVITARE
+
+### 🔴 ERRORE #1: Doppio /api negli URL
+```typescript
+// ❌ ERRORE COMUNE - Genera /api/api/endpoint
+await api.get('/api/users');
+await api.post('/api/requests');
+
+// ✅ CORRETTO - api client ha già /api nel baseURL
+await api.get('/users');
+await api.post('/requests');
+
+// 📌 RICORDA: services/api.ts configura già baseURL con /api
+```
+
+### 🔴 ERRORE #2: ResponseFormatter nei Services
+```typescript
+// ❌ MAI nei services
+export async function getUsers() {
+  const users = await prisma.user.findMany();
+  return ResponseFormatter.success(users);  // NO!
+}
+
+// ✅ SOLO nelle routes
+router.get('/users', async (req, res) => {
+  const users = await userService.getUsers();
+  return res.json(ResponseFormatter.success(users));  // SI!
+});
+```
+
+### 🔴 ERRORE #3: Fetch invece di React Query
+```typescript
+// ❌ NON usare fetch diretto
+useEffect(() => {
+  fetch('/api/data').then(res => res.json())...
+}, []);
+
+// ✅ SEMPRE React Query
+const { data } = useQuery({
+  queryKey: ['data'],
+  queryFn: () => api.get('/data')
+});
+```
+
+### 🔴 ERRORE #4: Console.log in produzione
+```typescript
+// ❌ Rimuovere prima del commit
+console.log('Debug:', data);
+
+// ✅ Usare il logger
+logger.debug('Debug:', data);
 ```
 
 ---
@@ -122,6 +208,13 @@ cp file.tsx file.backup-$(date +%Y%m%d-%H%M%S).tsx
 - **Frontend**: http://localhost:5193
 - **Database**: PostgreSQL (vedi .env)
 - **Redis**: localhost:6379
+- **WebSocket**: ws://localhost:3200
+
+### API Endpoints Base
+- **API Base**: http://localhost:3200/api (già configurato in axios)
+- **Health Check**: http://localhost:3200/api/health
+- **Admin Dashboard**: http://localhost:5193/admin
+- **Professional Area**: http://localhost:5193/professional
 
 ### Comandi Frequenti
 ```bash
@@ -130,6 +223,7 @@ cd backend
 npx prisma generate         # Rigenera client
 npx prisma db push         # Applica schema
 npx prisma studio          # GUI database
+npx prisma db seed         # Popola dati test
 
 # TypeScript
 npx tsc --noEmit          # Check errori
@@ -140,15 +234,21 @@ npm run test:coverage     # Coverage report
 
 # Build
 npm run build            # Build production
+
+# Scripts utili
+./scripts/check-system.sh        # Verifica sistema
+./scripts/test-finale.sh          # Test completo
+./scripts/backup-all.sh           # Backup completo
 ```
 
 ### File Critici
 ```
-/ISTRUZIONI-PROGETTO.md         # Questo file (regole)
-/backend/prisma/schema.prisma   # Schema database
-/backend/src/utils/responseFormatter.ts  # ResponseFormatter
-/src/services/api.ts            # API client
-/.env                          # Configurazioni
+/ISTRUZIONI-PROGETTO.md                    # Questo file (regole)
+/ARCHITETTURA-SISTEMA-COMPLETA.md         # Architettura dettagliata
+/backend/prisma/schema.prisma             # Schema database
+/backend/src/utils/responseFormatter.ts   # ResponseFormatter
+/src/services/api.ts                      # API client (⚠️ ha già /api)
+/.env                                      # Configurazioni
 ```
 
 ---
@@ -165,8 +265,10 @@ npm run build            # Build production
   "tailwindcss": "^3.4.0",  // ⚠️ NON v4!
   "@tanstack/react-query": "^5.x",
   "@heroicons/react": "^2.x",
-  "vite": "^7.x",
-  "typescript": "^5.x"
+  "lucide-react": "latest",
+  "vite": "^5.x",
+  "typescript": "^5.x",
+  "axios": "^1.x"
 }
 ```
 
@@ -180,7 +282,9 @@ npm run build            # Build production
   "bcrypt": "^5.x",
   "socket.io": "^4.x",
   "bull": "^4.x",
-  "redis": "^4.x"
+  "redis": "^4.x",
+  "node-cron": "^3.x",
+  "winston": "^3.x"
 }
 ```
 
@@ -190,22 +294,126 @@ richiesta-assistenza/
 ├── src/                      # Frontend React (⚠️ NON /frontend!)
 │   ├── components/          # Componenti React
 │   ├── pages/              # Pagine route
+│   │   ├── admin/          # Area admin
+│   │   ├── professional/   # Area professionisti
+│   │   └── client/         # Area clienti
 │   ├── contexts/           # React Contexts
 │   ├── hooks/              # Custom hooks
-│   ├── services/           # API services
+│   ├── services/           # API services (⚠️ api.ts ha /api)
 │   └── types/              # TypeScript types
 ├── backend/                 # Backend Express
 │   ├── src/
-│   │   ├── routes/         # API endpoints (USANO ResponseFormatter)
-│   │   ├── services/       # Business logic (NON usano ResponseFormatter)
-│   │   ├── middleware/     # Express middleware
+│   │   ├── routes/         # 70+ API endpoints
+│   │   ├── services/       # 50+ Business logic services
+│   │   ├── middleware/     # Auth, audit, security
+│   │   ├── websocket/      # Real-time communication
+│   │   ├── jobs/           # Background jobs
 │   │   └── utils/          # Utilities
 │   └── prisma/
-│       └── schema.prisma   # Database schema
+│       └── schema.prisma   # Database schema (30+ tabelle)
 ├── scripts/                # Script automazione
-├── REPORT-SESSIONI-CLAUDE/ # Report obbligatori
-└── uploads/                # File uploads
+├── logs/                   # Log applicazione
+├── uploads/                # File uploads
+└── database-backups/       # Backup automatici
 ```
+
+---
+
+## ✅ FUNZIONALITÀ IMPLEMENTATE
+
+### 🎯 Sistema Core
+- ✅ **Autenticazione**: JWT + 2FA con Speakeasy
+- ✅ **Autorizzazione**: RBAC con 4 ruoli (CLIENT, PROFESSIONAL, ADMIN, SUPER_ADMIN)
+- ✅ **Gestione Utenti**: CRUD completo con profili dettagliati
+- ✅ **Richieste Assistenza**: Flusso completo da creazione a completamento
+- ✅ **Sistema Preventivi**: Multi-versione con accettazione/rifiuto
+- ✅ **Categorie/Sottocategorie**: Sistema gerarchico con filtri intelligenti
+
+### 📝 Rapporti Intervento (NUOVO)
+- ✅ **Template Personalizzabili**: Per tipo di intervento
+- ✅ **Gestione Materiali**: Con prezzi e quantità
+- ✅ **Frasi Predefinite**: Per velocizzare compilazione
+- ✅ **Export PDF**: Generazione automatica rapporti
+- ✅ **Firma Digitale**: Cliente può firmare su tablet/telefono
+
+### 🔔 Sistema Notifiche Centralizzato
+- ✅ **Template Manager**: Admin gestisce tutti i template
+- ✅ **Multi-canale**: Email (Brevo) + In-app (WebSocket)
+- ✅ **Real-time**: Notifiche push immediate
+- ✅ **Centro Notifiche**: Per ogni utente con stato letto/non letto
+- ✅ **Scheduler**: Invio programmato notifiche
+
+### 📊 Audit Log System
+- ✅ **Tracciamento Completo**: Ogni azione registrata
+- ✅ **Security Monitoring**: Login, tentativi falliti, azioni sospette
+- ✅ **Alert Automatici**: Su eventi critici
+- ✅ **Retention Policy**: Per categoria di log
+- ✅ **Dashboard Analytics**: Visualizzazione log e statistiche
+
+### 💾 Sistema Backup
+- ✅ **Backup Automatici**: Schedulabili con cron
+- ✅ **Backup Manuali**: Da interfaccia admin
+- ✅ **Retention Management**: Gestione spazio e durata
+- ✅ **Recovery Point**: Ripristino a punto specifico
+- ✅ **Export Dati**: CSV, JSON, SQL
+
+### ❤️ Health Monitor
+- ✅ **Check Automatici**: Ogni 5 minuti
+- ✅ **Dashboard Real-time**: Stato tutti i servizi
+- ✅ **Auto-remediation**: Fix automatici problemi comuni
+- ✅ **Performance Metrics**: CPU, RAM, DB connections
+- ✅ **Alert System**: Email/SMS su problemi critici
+- ✅ **Report Settimanali**: Analisi trend e problemi
+
+### 🛠️ Script Manager
+- ✅ **Esecuzione Sicura**: Solo script autorizzati
+- ✅ **Categorizzazione**: Per rischio (low/medium/high/critical)
+- ✅ **Log Esecuzione**: Tracciamento completo
+- ✅ **Parametri Dinamici**: Input validati
+- ✅ **Scheduler Integration**: Script programmabili
+
+### 📅 Interventi Multipli Programmati
+- ✅ **Calendario Professionale**: Vista mensile/settimanale
+- ✅ **Slot Management**: Gestione disponibilità orarie
+- ✅ **Conflict Detection**: Evita sovrapposizioni
+- ✅ **Recurring Events**: Interventi ricorrenti
+- ✅ **Google Calendar Sync**: (Opzionale)
+
+### 👷 Gestione Professionisti
+- ✅ **Skills & Certificazioni**: Portfolio completo
+- ✅ **Sistema Tariffe**: Personalizzabile per professionista
+- ✅ **Costi Trasferimento**: Scaglioni chilometrici
+- ✅ **Rating & Reviews**: Sistema recensioni bidirezionale
+- ✅ **Disponibilità**: Calendario e orari di lavoro
+- ✅ **Zone Operative**: Gestione aree di copertura
+
+### 💬 Chat & Comunicazione
+- ✅ **Chat Real-time**: WebSocket tra cliente e professionista
+- ✅ **File Sharing**: Invio documenti e immagini
+- ✅ **Message History**: Storico conversazioni
+- ✅ **Typing Indicators**: Stato digitazione
+- ✅ **Read Receipts**: Conferme di lettura
+
+### 🤖 AI Integration
+- ✅ **AI Assistant**: Supporto professionisti con GPT
+- ✅ **Smart Suggestions**: Suggerimenti preventivi
+- ✅ **Auto-categorization**: Classificazione automatica richieste
+- ✅ **Knowledge Base**: Documenti e FAQ con embeddings
+- ✅ **Conversation Memory**: Contesto mantenuto
+
+### 🗺️ Maps & Geocoding
+- ✅ **Google Maps Integration**: Visualizzazione indirizzi
+- ✅ **Distance Calculation**: Calcolo km per trasferimento
+- ✅ **Route Planning**: Itinerari ottimizzati
+- ✅ **Area Coverage**: Visualizzazione zone operative
+- ✅ **Address Autocomplete**: Suggerimenti indirizzi
+
+### 📈 Analytics & Reporting
+- ✅ **Dashboard Multi-ruolo**: KPI personalizzati
+- ✅ **Revenue Tracking**: Fatturato e margini
+- ✅ **Performance Metrics**: Tempi risposta, conversion rate
+- ✅ **Export Reports**: PDF, Excel, CSV
+- ✅ **Trend Analysis**: Grafici e previsioni
 
 ---
 
@@ -222,7 +430,9 @@ router.get('/users', authenticate, async (req: any, res) => {
     return res.json(ResponseFormatter.success(users, 'Users retrieved'));
   } catch (error) {
     logger.error('Error:', error);
-    return res.status(500).json(ResponseFormatter.error('Failed', 'FETCH_ERROR'));
+    return res.status(500).json(
+      ResponseFormatter.error('Failed', 'FETCH_ERROR')
+    );
   }
 });
 ```
@@ -236,14 +446,38 @@ export async function getAllUsers() {
 }
 ```
 
+### Pattern API Client (ATTENZIONE!)
+
+#### ⚠️ CONFIGURAZIONE API CLIENT
+```typescript
+// src/services/api.ts
+const api = axios.create({
+  baseURL: 'http://localhost:3200/api',  // ⚠️ NOTA: /api GIÀ INCLUSO!
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+```
+
+#### ✅ USO CORRETTO
+```typescript
+// ✅ CORRETTO - Non aggiungere /api
+api.get('/users')           // → http://localhost:3200/api/users
+api.post('/requests')       // → http://localhost:3200/api/requests
+api.put('/quotes/123')      // → http://localhost:3200/api/quotes/123
+
+// ❌ SBAGLIATO - Doppio /api
+api.get('/api/users')       // → http://localhost:3200/api/api/users ❌
+```
+
 ### Pattern React Query
 
 #### Query Pattern
 ```typescript
-// ✅ CORRETTO
+// ✅ CORRETTO - Nota: NO /api nell'URL!
 const { data, isLoading, error } = useQuery({
   queryKey: ['users', filters],
-  queryFn: () => api.get('/users', { params: filters }),
+  queryFn: () => api.get('/users', { params: filters }),  // NO /api!
   staleTime: 5 * 60 * 1000,
   gcTime: 10 * 60 * 1000,
   retry: 3
@@ -254,7 +488,7 @@ const { data, isLoading, error } = useQuery({
 ```typescript
 // ✅ CORRETTO
 const mutation = useMutation({
-  mutationFn: (data) => api.post('/users', data),
+  mutationFn: (data) => api.post('/users', data),  // NO /api!
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ['users'] });
     toast.success('User created!');
@@ -263,6 +497,24 @@ const mutation = useMutation({
     toast.error(error.message);
   }
 });
+```
+
+### Pattern WebSocket Notifiche
+
+```typescript
+// ✅ USA IL SISTEMA CENTRALIZZATO
+import { notificationService } from '@/services/notification.service';
+
+// Invio notifica
+await notificationService.sendToUser(userId, {
+  title: 'Nuovo preventivo',
+  message: 'Hai ricevuto un nuovo preventivo',
+  type: 'quote_received',
+  data: { quoteId, requestId }
+});
+
+// ❌ NON CREARE SOCKET CUSTOM
+io.to(userId).emit('custom-notification', data);  // NO!
 ```
 
 ### Pattern Prisma Relazioni
@@ -297,11 +549,8 @@ const request = await prisma.assistanceRequest.findUnique({
     client: true,       // minuscolo
     professional: true, // minuscolo
     category: true,     // minuscolo
-    _count: {          // ⚠️ ECCEZIONE: maiuscolo in _count
-      select: {
-        Quote: true     // Maiuscolo!
-      }
-    }
+    Quote: true,        // ⚠️ Maiuscolo per modelli
+    InterventionReport: true  // ⚠️ Maiuscolo per modelli
   }
 });
 ```
@@ -327,14 +576,20 @@ router.post('/endpoint', authenticate, validateRequest(schema), async (req, res)
     
     // Error response
     if (error instanceof z.ZodError) {
-      return res.status(400).json(ResponseFormatter.error('Validation failed', 'VALIDATION_ERROR', error.errors));
+      return res.status(400).json(
+        ResponseFormatter.error('Validation failed', 'VALIDATION_ERROR', error.errors)
+      );
     }
     
     if (error instanceof BusinessError) {
-      return res.status(400).json(ResponseFormatter.error(error.message, error.code));
+      return res.status(400).json(
+        ResponseFormatter.error(error.message, error.code)
+      );
     }
     
-    return res.status(500).json(ResponseFormatter.error('Internal server error', 'INTERNAL_ERROR'));
+    return res.status(500).json(
+      ResponseFormatter.error('Internal server error', 'INTERNAL_ERROR')
+    );
   }
 });
 ```
@@ -342,6 +597,23 @@ router.post('/endpoint', authenticate, validateRequest(schema), async (req, res)
 ---
 
 ## 🗄️ DATABASE BEST PRACTICES
+
+### Schema Attuale - Tabelle Principali
+
+```
+User (utenti)
+├── AssistanceRequest (richieste assistenza)
+│   ├── Quote (preventivi)
+│   ├── InterventionReport (rapporti intervento)
+│   ├── RequestChatMessage (chat)
+│   └── ScheduledIntervention (interventi programmati)
+├── Category/Subcategory (categorie servizi)
+├── Notification (notifiche)
+├── AuditLog (log di audit)
+├── BackupSchedule (backup programmati)
+├── HealthCheckResult (risultati health check)
+└── ScriptExecution (esecuzioni script)
+```
 
 ### Query Optimization
 
@@ -360,10 +632,11 @@ const users = await prisma.user.findMany({
 ```typescript
 const users = await prisma.user.findMany({
   include: {
-    requests: true,
+    clientRequests: true,
+    professionalRequests: true,
     quotes: true,
-    messages: true,
-    notifications: true
+    notifications: true,
+    auditLogs: true
   }
 });
 ```
@@ -409,10 +682,14 @@ const result = await prisma.$transaction(async (tx) => {
     }
   });
   
-  // 3. Update user stats
-  await tx.user.update({
-    where: { id: request.clientId },
-    data: { requestCount: { increment: 1 } }
+  // 3. Create audit log
+  await tx.auditLog.create({
+    data: {
+      action: 'REQUEST_CREATED',
+      entityType: 'AssistanceRequest',
+      entityId: request.id,
+      userId: req.user.id
+    }
   });
   
   return request;
@@ -429,49 +706,59 @@ npx prisma migrate deploy
 
 # Reset (SOLO sviluppo!)
 npx prisma migrate reset
+
+# Backup prima di migration
+pg_dump database_name > backup_before_migration.sql
 ```
 
 ---
 
-## 🔒 SECURITY CHECKLIST
+## 🔐 SECURITY CHECKLIST
 
 ### Pre-Deploy Security Checks
 
 #### Authentication & Authorization
-- [ ] JWT secret forte (min 32 caratteri)
-- [ ] Refresh token implementato
-- [ ] Rate limiting su login
-- [ ] Account lockout dopo tentativi falliti
-- [ ] Password policy (min 8 char, complessità)
-- [ ] 2FA disponibile per admin
+- [x] JWT secret forte (min 32 caratteri)
+- [x] Refresh token implementato
+- [x] Rate limiting su login
+- [x] Account lockout dopo tentativi falliti
+- [x] Password policy (min 8 char, complessità)
+- [x] 2FA disponibile con TOTP
 
 #### Input Validation
-- [ ] Zod validation su TUTTI gli endpoint
-- [ ] SQL injection prevention (Prisma parameterized queries)
-- [ ] XSS prevention (sanitizzazione input)
-- [ ] File upload validation (tipo, dimensione)
-- [ ] Path traversal prevention
+- [x] Zod validation su TUTTI gli endpoint
+- [x] SQL injection prevention (Prisma parameterized queries)
+- [x] XSS prevention (sanitizzazione input)
+- [x] File upload validation (tipo, dimensione)
+- [x] Path traversal prevention
 
 #### Headers & CORS
-- [ ] Helmet.js configurato
-- [ ] CORS whitelist configurata
-- [ ] CSP headers impostati
-- [ ] HTTPS only cookies
-- [ ] SameSite cookies
+- [x] Helmet.js configurato
+- [x] CORS whitelist configurata
+- [x] CSP headers impostati
+- [x] HTTPS only cookies
+- [x] SameSite cookies
+
+#### Audit & Monitoring
+- [x] Audit log su tutte le azioni
+- [x] Security alerts configurati
+- [x] Failed login monitoring
+- [x] Suspicious activity detection
+- [x] Session tracking
 
 #### Environment & Config
-- [ ] .env NON in repository
-- [ ] Secrets in environment variables
-- [ ] Production mode enabled
-- [ ] Debug mode disabled
-- [ ] Error messages generici in produzione
+- [x] .env NON in repository
+- [x] Secrets in environment variables
+- [x] Production mode enabled
+- [x] Debug mode disabled
+- [x] Error messages generici in produzione
 
 #### Data Protection
-- [ ] Password hashing (bcrypt rounds >= 10)
-- [ ] PII encryption at rest
-- [ ] Secure session management
-- [ ] Audit logging implementato
-- [ ] GDPR compliance
+- [x] Password hashing (bcrypt rounds >= 10)
+- [x] PII encryption at rest
+- [x] Secure session management
+- [x] GDPR compliance
+- [x] Backup encryption
 
 ### Security Headers Configuration
 ```typescript
@@ -482,7 +769,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", "ws://localhost:3200"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
@@ -505,6 +792,7 @@ app.use(helmet({
 - **Unit Tests**: 80% coverage
 - **Integration Tests**: Tutti gli endpoint critici
 - **E2E Tests**: Flow principali utente
+- **Performance Tests**: Load testing su API critiche
 
 ### Test Structure
 ```typescript
@@ -558,6 +846,24 @@ describe('GET /api/users', () => {
 });
 ```
 
+### Script di Test Disponibili
+```bash
+# Test completo sistema
+./scripts/test-finale.sh
+
+# Test notifiche
+./scripts/test-notification-system.sh
+
+# Test TypeScript
+./scripts/test-typescript.sh
+
+# Test admin dashboard
+./scripts/test-admin-dashboard.sh
+
+# Check audit system
+./scripts/audit-system-check.sh
+```
+
 ---
 
 ## ⚡ PERFORMANCE GUIDELINES
@@ -567,31 +873,34 @@ describe('GET /api/users', () => {
 - **API Response**: < 200ms (p95)
 - **Database Query**: < 50ms
 - **Frontend Bundle**: < 500KB gzipped
+- **WebSocket Latency**: < 100ms
 
 ### Optimization Checklist
 
 #### Frontend
-- [ ] Code splitting implementato
-- [ ] Lazy loading per routes
-- [ ] Images ottimizzate (WebP)
-- [ ] Bundle analyzer eseguito
-- [ ] React.memo per componenti pesanti
-- [ ] Virtual scrolling per liste lunghe
+- [x] Code splitting implementato
+- [x] Lazy loading per routes
+- [x] Images ottimizzate (WebP)
+- [x] Bundle analyzer eseguito
+- [x] React.memo per componenti pesanti
+- [x] Virtual scrolling per liste lunghe
 
 #### Backend
-- [ ] Database indexes ottimizzati
-- [ ] Query N+1 risolte
-- [ ] Redis caching implementato
-- [ ] Pagination su liste
-- [ ] Rate limiting configurato
-- [ ] Compression abilitata
+- [x] Database indexes ottimizzati
+- [x] Query N+1 risolte
+- [x] Redis caching implementato
+- [x] Pagination su liste
+- [x] Rate limiting configurato
+- [x] Compression abilitata
+- [x] Connection pooling
 
 #### Database
-- [ ] Indexes su campi di ricerca
-- [ ] Composite indexes per query complesse
-- [ ] Query EXPLAIN analizzate
-- [ ] Connection pooling configurato
-- [ ] Slow query log attivo
+- [x] Indexes su campi di ricerca
+- [x] Composite indexes per query complesse
+- [x] Query EXPLAIN analizzate
+- [x] Connection pooling configurato (20 connections)
+- [x] Slow query log attivo
+- [x] Vacuum automatico configurato
 
 ### Caching Strategy
 ```typescript
@@ -615,6 +924,21 @@ async function getUserWithCache(userId: string) {
 }
 ```
 
+### WebSocket Optimization
+```typescript
+// Namespace per tipo di utente
+io.of('/client').use(clientAuth);
+io.of('/professional').use(professionalAuth);
+io.of('/admin').use(adminAuth);
+
+// Room management
+socket.join(`user:${userId}`);
+socket.join(`request:${requestId}`);
+
+// Broadcast ottimizzato
+io.to(`request:${requestId}`).emit('update', data);
+```
+
 ---
 
 ## 📦 DEPLOYMENT
@@ -634,6 +958,7 @@ async function getUserWithCache(userId: string) {
 - [ ] Redis configured
 - [ ] SSL certificates valid
 - [ ] Monitoring configured
+- [ ] Backup schedule active
 
 #### Security
 - [ ] Security checklist completed
@@ -641,6 +966,7 @@ async function getUserWithCache(userId: string) {
 - [ ] OWASP top 10 reviewed
 - [ ] Dependencies updated
 - [ ] Secrets rotated
+- [ ] Audit log active
 
 ### Deployment Commands
 ```bash
@@ -654,6 +980,24 @@ npx prisma migrate deploy
 
 # Start production
 NODE_ENV=production npm start
+
+# Con PM2
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup
+```
+
+### Docker Deployment
+```dockerfile
+# Backend Dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+RUN npx prisma generate
+EXPOSE 3200
+CMD ["npm", "start"]
 ```
 
 ---
@@ -661,6 +1005,21 @@ NODE_ENV=production npm start
 ## 🔧 TROUBLESHOOTING
 
 ### Problemi Comuni e Soluzioni
+
+#### Doppio /api negli URL (ERRORE FREQUENTE!)
+```bash
+# Sintomo: 404 su tutte le API call
+# Causa: api.get('/api/users') invece di api.get('/users')
+
+# Identificare il problema
+grep -r "api.get('/api" src/
+grep -r "api.post('/api" src/
+grep -r "api.put('/api" src/
+grep -r "api.delete('/api" src/
+
+# Soluzione: Rimuovere /api dalle chiamate
+# api.get('/api/users') → api.get('/users')
+```
 
 #### ResponseFormatter non usato
 ```bash
@@ -673,12 +1032,42 @@ grep -l "ResponseFormatter" backend/src/services/*.ts
 # Soluzione: Aggiungere ResponseFormatter alle routes identificate
 ```
 
+#### WebSocket non si connette
+```typescript
+// Verificare configurazione CORS
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5193",
+    credentials: true
+  }
+});
+
+// Client deve usare stesso URL
+const socket = io('http://localhost:3200', {
+  withCredentials: true
+});
+```
+
 #### Errori TypeScript dopo modifica schema
 ```bash
 # Soluzione
 cd backend
 npx prisma generate
+npx prisma db push
 npx tsc --noEmit
+```
+
+#### Notifiche non arrivano
+```bash
+# Verificare servizi attivi
+redis-cli ping  # Deve rispondere PONG
+curl http://localhost:3200/api/health  # Check WebSocket
+
+# Verificare template esistono
+SELECT * FROM "NotificationTemplate";
+
+# Check logs
+tail -f logs/error.log
 ```
 
 #### Relazioni Prisma non trovate
@@ -708,6 +1097,22 @@ if (req.query.isActive !== undefined) {
 }
 ```
 
+#### Health Check fallisce
+```bash
+# Verificare tutti i servizi
+systemctl status postgresql
+redis-cli ping
+lsof -i :3200
+lsof -i :5193
+
+# Check orchestrator
+ps aux | grep health-check-orchestrator
+
+# Restart se necessario
+cd backend
+npm run dev
+```
+
 #### Porta già in uso
 ```bash
 # Trova processo
@@ -730,18 +1135,35 @@ npx prisma db pull
 npx prisma generate --force
 
 # Verifica DATABASE_URL in .env
+echo $DATABASE_URL
+```
+
+#### Backup non funziona
+```bash
+# Verificare permessi cartella
+ls -la database-backups/
+
+# Creare cartella se non esiste
+mkdir -p database-backups
+
+# Test backup manuale
+./scripts/backup-all.sh
+
+# Check cron job
+crontab -l
 ```
 
 ---
 
 ## 📝 TEMPLATES
 
-### Template Nuovo Endpoint API
+### Template Nuovo Endpoint API (con Audit)
 ```typescript
 // routes/[resource].routes.ts
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
 import { validateRequest } from '../middleware/validation';
+import { auditLogger } from '../middleware/auditLogger';
 import { [resource]Schema } from '../schemas/[resource].schema';
 import * as [resource]Service from '../services/[resource].service';
 import { ResponseFormatter } from '../utils/responseFormatter';
@@ -750,10 +1172,10 @@ import logger from '../utils/logger';
 const router = Router();
 
 // GET /api/[resources]
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authenticate, auditLogger('LIST_[RESOURCES]'), async (req, res) => {
   try {
     const filters = {
-      // Parse query params
+      // Parse query params - ATTENZIONE a undefined!
     };
     
     const result = await [resource]Service.getAll(filters);
@@ -772,21 +1194,33 @@ router.get('/', authenticate, async (req, res) => {
 });
 
 // POST /api/[resources]
-router.post('/', authenticate, validateRequest([resource]Schema), async (req, res) => {
-  try {
-    const result = await [resource]Service.create(req.body);
-    
-    return res.status(201).json(ResponseFormatter.success(
-      result,
-      '[Resource] created successfully'
-    ));
-  } catch (error) {
-    logger.error('Error creating [resource]:', error);
-    return res.status(500).json(ResponseFormatter.error(
-      'Failed to create [resource]',
-      'CREATE_ERROR'
-    ));
-  }
+router.post('/', 
+  authenticate, 
+  validateRequest([resource]Schema),
+  auditLogger('CREATE_[RESOURCE]'),
+  async (req, res) => {
+    try {
+      const result = await [resource]Service.create(req.body);
+      
+      // Invia notifica se necessario
+      await notificationService.sendToUser(result.userId, {
+        title: '[Resource] created',
+        message: 'Your [resource] has been created',
+        type: '[resource]_created',
+        data: { [resource]Id: result.id }
+      });
+      
+      return res.status(201).json(ResponseFormatter.success(
+        result,
+        '[Resource] created successfully'
+      ));
+    } catch (error) {
+      logger.error('Error creating [resource]:', error);
+      return res.status(500).json(ResponseFormatter.error(
+        'Failed to create [resource]',
+        'CREATE_ERROR'
+      ));
+    }
 });
 
 export default router;
@@ -797,17 +1231,24 @@ export default router;
 // services/[resource].service.ts
 import { prisma } from '../lib/prisma';
 import { [Resource]CreateInput, [Resource]UpdateInput } from '../types';
+import { logger } from '../utils/logger';
 
 export async function getAll(filters: any) {
   return await prisma.[resource].findMany({
     where: filters,
-    orderBy: { createdAt: 'desc' }
+    orderBy: { createdAt: 'desc' },
+    include: {
+      // Relazioni necessarie
+    }
   });
 }
 
 export async function getById(id: string) {
   const [resource] = await prisma.[resource].findUnique({
-    where: { id }
+    where: { id },
+    include: {
+      // Relazioni necessarie
+    }
   });
   
   if (![resource]) {
@@ -818,13 +1259,53 @@ export async function getById(id: string) {
 }
 
 export async function create(data: [Resource]CreateInput) {
-  return await prisma.[resource].create({ data });
+  return await prisma.$transaction(async (tx) => {
+    // Crea risorsa
+    const [resource] = await tx.[resource].create({ data });
+    
+    // Crea audit log
+    await tx.auditLog.create({
+      data: {
+        action: '[RESOURCE]_CREATED',
+        entityType: '[Resource]',
+        entityId: [resource].id,
+        userId: data.userId,
+        newValues: [resource],
+        success: true,
+        severity: 'INFO',
+        category: 'BUSINESS'
+      }
+    });
+    
+    return [resource];
+  });
 }
 
 export async function update(id: string, data: [Resource]UpdateInput) {
-  return await prisma.[resource].update({
-    where: { id },
-    data
+  return await prisma.$transaction(async (tx) => {
+    const old = await tx.[resource].findUnique({ where: { id } });
+    
+    const updated = await tx.[resource].update({
+      where: { id },
+      data
+    });
+    
+    // Audit log con diff
+    await tx.auditLog.create({
+      data: {
+        action: '[RESOURCE]_UPDATED',
+        entityType: '[Resource]',
+        entityId: id,
+        oldValues: old,
+        newValues: updated,
+        changes: diff(old, updated),
+        success: true,
+        severity: 'INFO',
+        category: 'BUSINESS'
+      }
+    });
+    
+    return updated;
   });
 }
 
@@ -835,18 +1316,18 @@ export async function remove(id: string) {
 }
 ```
 
-### Template React Component con Query
+### Template React Component con Query (NO /api!)
 ```tsx
 // components/[Resource]List.tsx
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/services/api';
+import { api } from '@/services/api';  // ⚠️ Ha già /api nel baseURL
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
 
 export function [Resource]List() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['[resources]'],
-    queryFn: () => api.get('/[resources]'),
+    queryFn: () => api.get('/[resources]'),  // ✅ NO /api prefix!
     staleTime: 5 * 60 * 1000,
   });
 
@@ -865,11 +1346,80 @@ export function [Resource]List() {
 }
 ```
 
+### Template Component con Mutation
+```tsx
+// components/[Resource]Form.tsx
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/services/api';  // ⚠️ Ha già /api
+import { toast } from 'react-hot-toast';
+
+export function [Resource]Form() {
+  const queryClient = useQueryClient();
+  
+  const createMutation = useMutation({
+    mutationFn: (data) => api.post('/[resources]', data),  // ✅ NO /api!
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['[resources]'] });
+      toast.success('[Resource] created successfully!');
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Error creating [resource]');
+    }
+  });
+
+  const handleSubmit = (formData) => {
+    createMutation.mutate(formData);
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Form fields */}
+      <button 
+        type="submit" 
+        disabled={createMutation.isPending}
+      >
+        {createMutation.isPending ? 'Creating...' : 'Create'}
+      </button>
+    </form>
+  );
+}
+```
+
 ---
 
 ## 🤖 SCRIPT AUTOMAZIONE
 
-### pre-commit-check.sh
+### Script Disponibili
+
+```bash
+# 📋 GESTIONE SISTEMA
+./scripts/check-system.sh           # Verifica stato completo sistema
+./scripts/start-session.sh          # Avvia tutti i servizi
+./scripts/end-session.sh            # Ferma tutti i servizi
+
+# 🧪 TESTING
+./scripts/test-finale.sh            # Test completo sistema
+./scripts/test-typescript.sh        # Verifica errori TypeScript
+./scripts/test-notification-system.sh # Test sistema notifiche
+./scripts/test-admin-dashboard.sh   # Test dashboard admin
+./scripts/audit-system-check.sh     # Verifica audit log
+
+# 💾 BACKUP
+./scripts/backup-all.sh             # Backup completo DB + files
+./scripts/backup-request-detail.sh  # Backup specifico richiesta
+
+# 🔧 FIX & UTILITIES
+./scripts/fix-typescript-errors.sh  # Fix automatico errori TS
+./scripts/fix-prisma-complete.sh    # Fix schema e client Prisma
+./scripts/validate-addresses.sh     # Valida indirizzi con geocoding
+
+# 📝 DEVELOPMENT
+./scripts/pre-commit-check.sh       # Check pre-commit obbligatorio
+./scripts/validate-work.sh          # Valida modifiche
+./scripts/update-progress.sh        # Aggiorna progresso lavoro
+```
+
+### pre-commit-check.sh (AGGIORNATO)
 ```bash
 #!/bin/bash
 # scripts/pre-commit-check.sh
@@ -877,7 +1427,7 @@ export function [Resource]List() {
 echo "🔍 Pre-commit checks..."
 
 # 1. TypeScript check
-echo "📝 Checking TypeScript..."
+echo "📌 Checking TypeScript..."
 cd backend && npx tsc --noEmit
 if [ $? -ne 0 ]; then
   echo "❌ TypeScript errors found!"
@@ -886,7 +1436,7 @@ fi
 cd ..
 
 # 2. ResponseFormatter check
-echo "📝 Checking ResponseFormatter..."
+echo "📌 Checking ResponseFormatter..."
 SERVICES_WITH_RF=$(grep -r "ResponseFormatter" backend/src/services/ 2>/dev/null | wc -l)
 if [ $SERVICES_WITH_RF -gt 0 ]; then
   echo "❌ ResponseFormatter found in services!"
@@ -899,33 +1449,51 @@ if [ $ROUTES_WITHOUT_RF -gt 0 ]; then
   exit 1
 fi
 
-# 3. Console.log check
-echo "📝 Checking for console.log..."
+# 3. Check for /api/api pattern (NUOVO!)
+echo "📌 Checking for double /api pattern..."
+DOUBLE_API=$(grep -r "api\.\(get\|post\|put\|delete\|patch\)('/api" src/ 2>/dev/null | wc -l)
+if [ $DOUBLE_API -gt 0 ]; then
+  echo "❌ Found api.get('/api/...') pattern! Remove /api prefix!"
+  grep -r "api\.\(get\|post\|put\|delete\|patch\)('/api" src/
+  exit 1
+fi
+
+# 4. Console.log check
+echo "📌 Checking for console.log..."
 CONSOLE_LOGS=$(grep -r "console.log" src/ backend/src/ --exclude-dir=node_modules 2>/dev/null | wc -l)
 if [ $CONSOLE_LOGS -gt 0 ]; then
   echo "⚠️  Warning: console.log statements found"
 fi
 
-# 4. Tests
-echo "📝 Running tests..."
+# 5. Tests
+echo "📌 Running tests..."
 npm test
 if [ $? -ne 0 ]; then
   echo "❌ Tests failed!"
   exit 1
 fi
 
-# 5. Build check
-echo "📝 Checking build..."
+# 6. Build check
+echo "📌 Checking build..."
 npm run build
 if [ $? -ne 0 ]; then
   echo "❌ Build failed!"
   exit 1
 fi
 
+# 7. Check backup files not in commit
+echo "📌 Checking for backup files..."
+BACKUP_FILES=$(git status --porcelain | grep ".backup-" | wc -l)
+if [ $BACKUP_FILES -gt 0 ]; then
+  echo "❌ Backup files found in commit! Remove them first."
+  git status --porcelain | grep ".backup-"
+  exit 1
+fi
+
 echo "✅ All checks passed! Ready to commit."
 ```
 
-### check-system.sh
+### check-system.sh (AGGIORNATO)
 ```bash
 #!/bin/bash
 # scripts/check-system.sh
@@ -950,24 +1518,49 @@ redis-cli ping > /dev/null 2>&1
 if [ $? -eq 0 ]; then
   echo "✅ Redis: Running"
 else
-  echo "⚠️  Redis: Not running"
+  echo "⚠️  Redis: Not running (optional but recommended)"
 fi
 
 # Check ports
 lsof -i :3200 > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-  echo "⚠️  Port 3200: In use"
+  echo "✅ Backend: Running on port 3200"
 else
-  echo "✅ Port 3200: Available"
+  echo "⚠️  Backend: Not running"
 fi
 
 lsof -i :5193 > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-  echo "⚠️  Port 5193: In use"
+  echo "✅ Frontend: Running on port 5193"
 else
-  echo "✅ Port 5193: Available"
+  echo "⚠️  Frontend: Not running"
 fi
 
+# Check health endpoint
+curl -s http://localhost:3200/api/health > /dev/null 2>&1
+if [ $? -eq 0 ]; then
+  echo "✅ API Health: OK"
+else
+  echo "⚠️  API Health: Not responding"
+fi
+
+# Check WebSocket
+curl -s http://localhost:3200/socket.io/ > /dev/null 2>&1
+if [ $? -eq 0 ]; then
+  echo "✅ WebSocket: Active"
+else
+  echo "⚠️  WebSocket: Not active"
+fi
+
+# Check critical services
+echo ""
+echo "📊 Service Status:"
+echo "- Notification System: $(curl -s http://localhost:3200/api/health | grep notification || echo 'Unknown')"
+echo "- Audit System: $(curl -s http://localhost:3200/api/health | grep audit || echo 'Unknown')"
+echo "- Health Monitor: $(ps aux | grep health-check-orchestrator | grep -v grep > /dev/null && echo 'Running' || echo 'Not running')"
+echo "- Script Manager: $(curl -s http://localhost:3200/api/admin/scripts/registry > /dev/null && echo 'Available' || echo 'Not available')"
+
+echo ""
 echo "✅ System check complete"
 ```
 
@@ -981,23 +1574,27 @@ echo "✅ System check complete"
 - [ ] `npx tsc --noEmit` = 0 errori
 - [ ] ResponseFormatter in TUTTE le routes
 - [ ] ResponseFormatter NON nei services
+- [ ] NO `/api/api/` pattern (controlla api client)
 - [ ] React Query per tutte le API calls
 - [ ] Relazioni Prisma con @relation
 - [ ] No console.log in produzione
 - [ ] Tests passano tutti
+- [ ] Audit log implementato per azioni critiche
 
-#### Controlli Qualità
+#### Controlli Qualità 
 - [ ] Code review effettuata
 - [ ] Documentazione aggiornata
 - [ ] CHANGELOG.md aggiornato
 - [ ] Comments per codice complesso
 - [ ] Error handling appropriato
+- [ ] Notifiche inviate dove necessario
 
 #### Controlli Performance
 - [ ] Query database ottimizzate
 - [ ] Nessun N+1 problem
 - [ ] Pagination implementata
 - [ ] Caching dove necessario
+- [ ] WebSocket events ottimizzati
 
 #### Controlli Security
 - [ ] Input validation con Zod
@@ -1005,6 +1602,7 @@ echo "✅ System check complete"
 - [ ] Authorization controllata
 - [ ] No sensitive data in logs
 - [ ] Environment variables usate
+- [ ] Audit trail presente
 
 #### Controlli Finali
 - [ ] Build production successful
@@ -1012,6 +1610,7 @@ echo "✅ System check complete"
 - [ ] Git commit message descrittivo
 - [ ] PR description completa
 - [ ] Tests coverage > 80%
+- [ ] Health check passa
 
 ---
 
@@ -1024,6 +1623,16 @@ echo "✅ System check complete"
 ---
 
 ## 📅 CHANGELOG
+
+### v4.0 - 10 Gennaio 2025
+- ✨ Documentazione completamente aggiornata con stato reale sistema
+- ✨ Aggiunto warning prominente su api client con /api incluso
+- ✨ Documentate tutte le nuove funzionalità implementate
+- ✨ Aggiunti nuovi pattern per WebSocket e notifiche
+- ✨ Aggiornati script di automazione
+- ✨ Aggiunti template con audit log
+- 🐛 Fix esempi con doppio /api
+- 📝 Aggiornata checklist con nuovi controlli
 
 ### v3.0 - 6 Settembre 2025
 - ✨ Aggiunto Quick Start section
@@ -1051,3 +1660,5 @@ echo "✅ System check complete"
 **REMINDER**: Questo documento è VINCOLANTE. Ogni deviazione deve essere approvata e documentata.
 
 > 💡 **Pro Tip**: Salva questo file nei bookmark del browser per accesso rapido!
+> 
+> ⚠️ **RICORDA SEMPRE**: Il client API ha già `/api` nel baseURL - NON aggiungere `/api` nelle chiamate!

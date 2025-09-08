@@ -90,7 +90,7 @@ router.get('/', async (req: any, res: any) => {
         take: 5,
         orderBy: { createdAt: 'desc' },
         include: {
-          professional: {
+          User_AssistanceRequest_professionalIdToUser: {
             select: {
               firstName: true,
               lastName: true,
@@ -100,7 +100,7 @@ router.get('/', async (req: any, res: any) => {
               province: true
             }
           },
-          category: {
+          Category: {
             select: {
               name: true
             }
@@ -175,15 +175,15 @@ router.get('/', async (req: any, res: any) => {
           Category: request.category?.name || 'Non categorizzato',
           status: request.status.toLowerCase(),
           createdAt: request.createdAt.toISOString(),
-          professionalName: request.professional ? 
-            (request.professional.fullName || `${request.professional.firstName} ${request.professional.lastName}`) : null,
+          professionalName: request.User_AssistanceRequest_professionalIdToUser ? 
+            (request.User_AssistanceRequest_professionalIdToUser.fullName || `${request.User_AssistanceRequest_professionalIdToUser.firstName} ${request.User_AssistanceRequest_professionalIdToUser.lastName}`) : null,
           // NUOVO: Aggiungi i dati dell'indirizzo della richiesta
           address: request.address,
           city: request.city,
           province: request.province,
           // NUOVO: Aggiungi l'indirizzo del professionista se assegnato
-          professionalAddress: request.professional && request.professional.address ? 
-            `${request.professional.address}, ${request.professional.city} (${request.professional.province})` : null
+          professionalAddress: request.User_AssistanceRequest_professionalIdToUser && request.User_AssistanceRequest_professionalIdToUser.address ? 
+            `${request.User_AssistanceRequest_professionalIdToUser.address}, ${request.User_AssistanceRequest_professionalIdToUser.city} (${request.User_AssistanceRequest_professionalIdToUser.province})` : null
         })),
         recentQuotes: recentQuotes.map(quote => ({
           id: quote.id,
@@ -277,14 +277,14 @@ router.get('/', async (req: any, res: any) => {
         take: 5,
         orderBy: { createdAt: 'desc' },
         include: {
-          client: {
+          User_AssistanceRequest_clientIdToUser: {
             select: {
               firstName: true,
               lastName: true,
               fullName: true
             }
           },
-          category: {
+          Category: {
             select: {
               name: true
             }
@@ -350,8 +350,8 @@ router.get('/', async (req: any, res: any) => {
           Category: request.category?.name || 'Non categorizzato',
           status: request.status.toLowerCase(),
           createdAt: request.createdAt.toISOString(),
-          clientName: request.client ? 
-            (request.client.fullName || `${request.client.firstName} ${request.client.lastName}`) : null,
+          clientName: request.User_AssistanceRequest_clientIdToUser ? 
+            (request.User_AssistanceRequest_clientIdToUser.fullName || `${request.User_AssistanceRequest_clientIdToUser.firstName} ${request.User_AssistanceRequest_clientIdToUser.lastName}`) : null,
           // NUOVO: Aggiungi i dati dell'indirizzo della richiesta
           address: request.address,
           city: request.city,
@@ -443,14 +443,14 @@ router.get('/', async (req: any, res: any) => {
         take: 5,
         orderBy: { createdAt: 'desc' },
         include: {
-          client: {
+          User_AssistanceRequest_clientIdToUser: {
             select: {
               firstName: true,
               lastName: true,
               fullName: true
             }
           },
-          category: {
+          Category: {
             select: {
               name: true
             }
@@ -526,8 +526,8 @@ router.get('/', async (req: any, res: any) => {
             title: request.title,
             status: request.status.toLowerCase(),
             createdAt: request.createdAt.toISOString(),
-            clientName: request.client ? 
-              (request.client.fullName || `${request.client.firstName} ${request.client.lastName}`) : null,
+            clientName: request.User_AssistanceRequest_clientIdToUser ? 
+              (request.User_AssistanceRequest_clientIdToUser.fullName || `${request.User_AssistanceRequest_clientIdToUser.firstName} ${request.User_AssistanceRequest_clientIdToUser.lastName}`) : null,
             // NUOVO: Aggiungi i dati dell'indirizzo
             address: request.address,
             city: request.city,
@@ -549,7 +549,7 @@ router.get('/', async (req: any, res: any) => {
 
   } catch (error) {
     logger.error('Error fetching dashboard data:', error);
-    res.status('500').json(ResponseFormatter.error(
+    res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero dei dati della dashboard',
       'DASHBOARD_ERROR',
       process.env.NODE_ENV === 'development' ? error.message : undefined

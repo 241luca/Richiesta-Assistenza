@@ -57,6 +57,93 @@ const moduleDescriptions: ModuleDescription[] = [
     ]
   },
   {
+    id: 'redis',
+    name: 'Redis Cache',
+    icon: <ServerIcon className="w-6 h-6" />,
+    color: 'red',
+    description: 'Monitora il sistema di cache Redis per sessioni, code di lavoro e dati temporanei.',
+    checks: [
+      'Connessione al server Redis',
+      'Memoria disponibile e utilizzata',
+      'Numero di chiavi memorizzate',
+      'Performance lettura/scrittura',
+      'Persistenza su disco attiva',
+      'Configurazione master/slave'
+    ],
+    metrics: [
+      'Memoria utilizzata (MB)',
+      'Numero chiavi totali',
+      'Hit rate cache (%)',
+      'Operazioni al secondo',
+      'Connessioni client attive',
+      'Tempo uptime (ore)'
+    ],
+    criticalThresholds: [
+      { label: 'Max memoria', value: '4GB' },
+      { label: 'Min hit rate', value: '80%' },
+      { label: 'Max connessioni', value: '1000' },
+      { label: 'Max latency', value: '10ms' }
+    ]
+  },
+  {
+    id: 'websocket',
+    name: 'WebSocket Server',
+    icon: <ChatBubbleBottomCenterTextIcon className="w-6 h-6" />,
+    color: 'purple',
+    description: 'Verifica il server WebSocket (Socket.io) per comunicazioni real-time e chat.',
+    checks: [
+      'Server Socket.io attivo e in ascolto',
+      'Connessioni client attive',
+      'Latenza messaggi real-time',
+      'Rooms e namespaces configurati',
+      'Heartbeat e reconnection attivi',
+      'Autenticazione socket funzionante'
+    ],
+    metrics: [
+      'Client connessi',
+      'Messaggi/secondo',
+      'Latenza media (ms)',
+      'Rooms attive',
+      'Eventi emessi/minuto',
+      'Disconnessioni/ora'
+    ],
+    criticalThresholds: [
+      { label: 'Max clients', value: '10000' },
+      { label: 'Max latency', value: '100ms' },
+      { label: 'Max rooms', value: '5000' },
+      { label: 'Max disconnect rate', value: '5%' }
+    ]
+  },
+  {
+    id: 'emailservice',
+    name: 'Email Service (Brevo)',
+    icon: <BellIcon className="w-6 h-6" />,
+    color: 'green',
+    description: 'Controlla il servizio email Brevo (ex SendinBlue) per invio notifiche e comunicazioni.',
+    checks: [
+      'Connessione API Brevo attiva',
+      'Validità API key',
+      'Quota email disponibile',
+      'Template email configurati',
+      'Domini verificati per invio',
+      'Webhook configurati correttamente'
+    ],
+    metrics: [
+      'Email inviate oggi',
+      'Quota rimanente',
+      'Delivery rate (%)',
+      'Bounce rate (%)',
+      'Open rate (%)',
+      'Email in coda'
+    ],
+    criticalThresholds: [
+      { label: 'Min delivery rate', value: '95%' },
+      { label: 'Max bounce rate', value: '5%' },
+      { label: 'Min quota', value: '1000' },
+      { label: 'Max send time', value: '5 sec' }
+    ]
+  },
+  {
     id: 'notification',
     name: 'Sistema Notifiche',
     icon: <BellIcon className="w-6 h-6" />,

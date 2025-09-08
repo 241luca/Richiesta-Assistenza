@@ -73,7 +73,7 @@ import auditRoutes from './routes/audit.routes';
 import { auditLogger, auditAuth } from './middleware/auditLogger';
 
 // SISTEMA HEALTH CHECK - Added 07/01/2025
-import healthCheckRoutes from './routes/admin/health-check.routes';
+import adminHealthCheckRoutes from './routes/admin/health-check.routes';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -339,7 +339,7 @@ app.use('/api/audit', authenticate, auditRoutes);
 logger.info('Audit log system enabled at /api/audit');
 
 // SISTEMA HEALTH CHECK - Added 07/01/2025 - CORRECTED 08/09/2025
-app.use('/api/admin/health-check', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), healthCheckRoutes);
+app.use('/api/admin/health-check', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), adminHealthCheckRoutes);
 logger.info('Health check system enabled at /api/admin/health-check');
 
 // Existing admin routes

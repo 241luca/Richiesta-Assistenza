@@ -48,6 +48,14 @@ async function sendInterventionNotification(params: {
   }
 }
 
+// Custom error class per distinguere i tipi di errore
+export class AuthorizationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AuthorizationError';
+  }
+}
+
 // Service class
 export class ScheduledInterventionService {
   
@@ -56,7 +64,63 @@ export class ScheduledInterventionService {
     try {
       logger.info('Getting interventions for request:', { requestId, userId });
       
-      // Prima verifica che l'utente abbia accesso alla richiesta
+      // Prima ottieni i dati dell'utente per verificare se è admin
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { 
+          id: true, 
+          role: true,
+          firstName: true,
+          lastName: true 
+        }
+      });
+
+      if (!user) {
+        logger.warn('User not found:', { userId });
+        throw new AuthorizationError('Utente non trovato');
+      }
+
+      // Gli admin possono vedere tutto
+      if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+        logger.info('Admin user accessing interventions:', { userId, requestId });
+        
+        const interventions = await prisma.scheduledIntervention.findMany({
+          where: {
+            requestId: requestId
+          },
+          include: {
+            Professional: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                fullName: true,
+                email: true
+              }
+            },
+            Creator: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                fullName: true
+              }
+            }
+          },
+          orderBy: {
+            proposedDate: 'asc'
+          }
+        });
+
+        logger.info('Interventions retrieved for admin:', { 
+          count: interventions.length,
+          requestId 
+        });
+        
+        return interventions;
+      }
+      
+      // Per utenti non admin, verifica che abbiano accesso alla richiesta
       const request = await prisma.assistanceRequest.findFirst({
         where: {
           id: requestId,
@@ -64,13 +128,30 @@ export class ScheduledInterventionService {
             { clientId: userId },
             { professionalId: userId }
           ]
+        },
+        select: {
+          id: true,
+          clientId: true,
+          professionalId: true,
+          title: true
         }
       });
 
       if (!request) {
-        logger.warn('User not authorized to view interventions:', { requestId, userId });
-        throw new Error('Non autorizzato a vedere questi interventi');
+        logger.warn('User not authorized to view interventions:', { 
+          requestId, 
+          userId,
+          userRole: user.role 
+        });
+        throw new AuthorizationError('Non autorizzato a vedere questi interventi');
       }
+
+      logger.info('User authorized, fetching interventions:', { 
+        requestId, 
+        userId,
+        isClient: request.clientId === userId,
+        isProfessional: request.professionalId === userId
+      });
 
       // Usa Prisma ORM per ottenere gli interventi
       const interventions = await prisma.scheduledIntervention.findMany({
@@ -101,18 +182,35 @@ export class ScheduledInterventionService {
         }
       });
 
-      logger.info('Found interventions:', { count: interventions.length });
+      logger.info('Interventions retrieved successfully:', { 
+        count: interventions.length,
+        requestId,
+        userId 
+      });
+
       return interventions;
-    } catch (error) {
-      logger.error('Error getting interventions:', error);
+      
+    } catch (error: any) {
+      logger.error('Error getting interventions:', error.message, { 
+        requestId, 
+        userId,
+        errorType: error.name 
+      });
       throw error;
     }
   }
 
-  // Proponi date per intervento
+  // Proponi interventi multipli (dal professionista)
   static async proposeInterventions(professionalId: string, data: any) {
     try {
-      const { requestId, interventions } = data;
+      const validated = proposeInterventionSchema.parse(data);
+      const { requestId, interventions } = validated;
+      
+      logger.info('Professional proposing interventions:', { 
+        professionalId, 
+        requestId, 
+        count: interventions.length 
+      });
       
       // Verifica che la richiesta esista e sia assegnata al professionista
       const request = await prisma.assistanceRequest.findFirst({
@@ -125,102 +223,47 @@ export class ScheduledInterventionService {
           client: {
             select: {
               id: true,
-              firstName: true,
-              lastName: true,
+              email: true,
               fullName: true,
-              email: true
+              firstName: true,
+              lastName: true
             }
           },
           professional: {
             select: {
               id: true,
-              firstName: true,
-              lastName: true,
               fullName: true,
-              email: true
+              firstName: true,
+              lastName: true
             }
           }
         }
       });
 
       if (!request) {
-        throw new Error('Richiesta non trovata o non assegnata');
+        logger.warn('Request not found or not assigned to professional:', { 
+          requestId, 
+          professionalId 
+        });
+        throw new AuthorizationError('Richiesta non trovata o non assegnata a te');
       }
 
       // Crea gli interventi proposti
-      const createdInterventions = [];
-      for (const intervention of interventions) {
-        const created = await prisma.scheduledIntervention.create({
-          data: {
-            id: uuidv4(),
-            requestId,
-            professionalId,
-            proposedDate: new Date(intervention.proposedDate),
-            description: intervention.description,
-            estimatedDuration: intervention.estimatedDuration,
-            status: 'PROPOSED',
-            createdBy: professionalId,
-            updatedAt: new Date()
-          },
-          include: {
-            Professional: true
-          }
-        });
-        createdInterventions.push(created);
-      }
-
-      // ✅ NUOVO: Invia notifica al cliente
-      const professionalName = request.professional?.fullName || 
-                              `${request.professional?.firstName} ${request.professional?.lastName}`;
-      
-      await sendInterventionNotification({
-        recipientId: request.clientId,
-        type: 'INTERVENTION_PROPOSED',
-        title: '📅 Nuove date proposte per intervento',
-        message: `${professionalName} ha proposto ${createdInterventions.length} ${createdInterventions.length === 1 ? 'data' : 'date'} per l'intervento. Conferma quella che preferisci.`,
-        requestId,
-        priority: 'high',
-        actionUrl: `${process.env.FRONTEND_URL}/requests/${requestId}/interventions`
-      });
-
-      // Emit WebSocket event
-      const io = getIO();
-      if (io) {
-        io.to(`request:${requestId}`).emit('intervention:proposed', {
-          requestId,
-          interventions: createdInterventions,
-          professionalId
-        });
-      }
-
-      logger.info('Interventions proposed:', { 
-        requestId, 
-        count: createdInterventions.length 
-      });
-
-      return createdInterventions;
-    } catch (error) {
-      logger.error('Error proposing interventions:', error);
-      throw error;
-    }
-  }
-
-  // Conferma intervento (cliente)
-  static async confirmIntervention(clientId: string, interventionId: string) {
-    try {
-      // Verifica che l'intervento esista e appartenga al cliente
-      const intervention = await prisma.scheduledIntervention.findFirst({
-        where: {
-          id: interventionId,
-          AssistanceRequest: {
-            clientId: clientId
-          },
-          status: 'PROPOSED'
-        },
-        include: {
-          AssistanceRequest: {
+      const createdInterventions = await Promise.all(
+        interventions.map(async (intervention) => {
+          return await prisma.scheduledIntervention.create({
+            data: {
+              id: uuidv4(),
+              requestId: requestId,
+              professionalId: professionalId,
+              proposedDate: new Date(intervention.proposedDate),
+              description: intervention.description,
+              estimatedDuration: intervention.estimatedDuration,
+              status: 'PROPOSED',
+              createdBy: professionalId
+            },
             include: {
-              client: {
+              Professional: {
                 select: {
                   id: true,
                   firstName: true,
@@ -230,187 +273,285 @@ export class ScheduledInterventionService {
                 }
               }
             }
-          },
-          Professional: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              fullName: true,
-              email: true
-            }
-          }
-        }
+          });
+        })
+      );
+
+      logger.info('Interventions created:', { 
+        count: createdInterventions.length,
+        requestId 
       });
 
-      if (!intervention) {
-        throw new Error('Intervento non trovato o non disponibile');
-      }
-
-      // Aggiorna lo stato dell'intervento
-      const updated = await prisma.scheduledIntervention.update({
-        where: { id: interventionId },
-        data: {
-          status: 'CONFIRMED',
-          confirmedDate: intervention.proposedDate,
-          clientConfirmed: true,
-          updatedAt: new Date()
-        }
-      });
-
-      // Cancella altri interventi proposti per la stessa richiesta
-      await prisma.scheduledIntervention.updateMany({
-        where: {
-          requestId: intervention.requestId,
-          id: { not: interventionId },
-          status: 'PROPOSED'
-        },
-        data: {
-          status: 'CANCELLED',
-          updatedAt: new Date()
-        }
-      });
-
-      // ✅ NUOVO: Notifica al professionista
-      const clientName = intervention.AssistanceRequest.client?.fullName || 
-                        `${intervention.AssistanceRequest.client?.firstName} ${intervention.AssistanceRequest.client?.lastName}`;
-      
-      await sendInterventionNotification({
-        recipientId: intervention.professionalId,
-        type: 'INTERVENTION_CONFIRMED',
-        title: '✅ Intervento confermato',
-        message: `${clientName} ha confermato l'intervento per ${new Date(intervention.proposedDate).toLocaleDateString('it-IT', {
-          weekday: 'long',
-          day: 'numeric',
-          month: 'long',
-          hour: '2-digit',
-          minute: '2-digit'
-        })}`,
-        requestId: intervention.requestId,
-        interventionId: interventionId,
-        priority: 'high'
-      });
-
-      // ✅ NUOVO: Notifica di conferma anche al cliente
-      await sendInterventionNotification({
-        recipientId: clientId,
-        type: 'INTERVENTION_CONFIRMATION',
-        title: '✅ Intervento programmato con successo',
-        message: `Hai confermato l'intervento per ${new Date(intervention.proposedDate).toLocaleDateString('it-IT', {
-          weekday: 'long',
-          day: 'numeric',
-          month: 'long',
-          hour: '2-digit',
-          minute: '2-digit'
-        })}. Il professionista è stato notificato.`,
-        requestId: intervention.requestId,
-        interventionId: interventionId,
-        priority: 'normal'
-      });
-
-      // Emit WebSocket event
-      const io = getIO();
-      if (io) {
-        io.to(`request:${intervention.requestId}`).emit('intervention:confirmed', {
-          interventionId,
-          requestId: intervention.requestId,
-          confirmedDate: intervention.proposedDate
+      // ✅ Invia notifica al cliente utilizzando il notification service
+      if (request.client) {
+        await sendInterventionNotification({
+          recipientId: request.client.id,
+          type: 'intervention_proposed',
+          title: 'Nuovi Interventi Proposti',
+          message: `Il professionista ${request.professional?.fullName} ha proposto ${createdInterventions.length} interventi per la tua richiesta "${request.title}"`,
+          requestId: requestId,
+          priority: 'high'
         });
       }
 
-      logger.info('Intervention confirmed:', { interventionId });
-      return updated;
-    } catch (error) {
-      logger.error('Error confirming intervention:', error);
+      // Emit socket event per aggiornamento real-time
+      const io = getIO();
+      io.to(`user:${request.clientId}`).emit('interventions:proposed', {
+        requestId,
+        interventions: createdInterventions,
+        professionalName: request.professional?.fullName
+      });
+
+      return createdInterventions;
+      
+    } catch (error: any) {
+      logger.error('Error proposing interventions:', error);
       throw error;
     }
   }
 
-  // Rifiuta intervento (cliente)
-  static async declineIntervention(clientId: string, interventionId: string, reason?: string) {
+  // Accetta/Rifiuta intervento (dal cliente)
+  static async respondToIntervention(
+    clientId: string, 
+    interventionId: string, 
+    status: 'CONFIRMED' | 'REJECTED',
+    reason?: string
+  ) {
     try {
+      logger.info('Client responding to intervention:', { 
+        clientId, 
+        interventionId, 
+        status 
+      });
+      
       // Verifica che l'intervento esista e appartenga al cliente
       const intervention = await prisma.scheduledIntervention.findFirst({
         where: {
           id: interventionId,
-          AssistanceRequest: {
+          Request: {
             clientId: clientId
           },
           status: 'PROPOSED'
         },
         include: {
-          AssistanceRequest: {
-            include: {
-              client: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  fullName: true
-                }
-              }
+          Request: {
+            select: {
+              id: true,
+              title: true,
+              clientId: true,
+              professionalId: true
             }
           },
           Professional: {
             select: {
               id: true,
+              email: true,
+              fullName: true,
               firstName: true,
-              lastName: true,
-              fullName: true
+              lastName: true
             }
           }
         }
       });
 
       if (!intervention) {
-        throw new Error('Intervento non trovato o non disponibile');
+        logger.warn('Intervention not found or not authorized:', { 
+          interventionId, 
+          clientId 
+        });
+        throw new AuthorizationError('Intervento non trovato o non autorizzato');
       }
 
       // Aggiorna lo stato dell'intervento
-      const updated = await prisma.scheduledIntervention.update({
+      const updatedIntervention = await prisma.scheduledIntervention.update({
         where: { id: interventionId },
         data: {
-          status: 'DECLINED',
-          clientDeclineReason: reason,
-          updatedAt: new Date()
+          status: status,
+          confirmedAt: status === 'CONFIRMED' ? new Date() : null,
+          rejectionReason: status === 'REJECTED' ? reason : null,
+          respondedAt: new Date()
+        },
+        include: {
+          Professional: true
         }
       });
 
-      // ✅ NUOVO: Notifica al professionista del rifiuto
-      const clientName = intervention.AssistanceRequest.client?.fullName || 
-                        `${intervention.AssistanceRequest.client?.firstName} ${intervention.AssistanceRequest.client?.lastName}`;
-      
-      await sendInterventionNotification({
-        recipientId: intervention.professionalId,
-        type: 'INTERVENTION_DECLINED',
-        title: '❌ Data intervento rifiutata',
-        message: `${clientName} ha rifiutato la data proposta per l'intervento${reason ? `: ${reason}` : ''}. Proponi una nuova data.`,
-        requestId: intervention.requestId,
-        interventionId: interventionId,
-        priority: 'normal'
+      logger.info('Intervention status updated:', { 
+        interventionId, 
+        status,
+        professionalId: intervention.Professional?.id 
       });
 
-      // Emit WebSocket event
-      const io = getIO();
-      if (io) {
-        io.to(`request:${intervention.requestId}`).emit('intervention:declined', {
-          interventionId,
-          requestId: intervention.requestId,
-          reason
+      // ✅ Invia notifica al professionista
+      if (intervention.Professional) {
+        const notificationTitle = status === 'CONFIRMED' 
+          ? 'Intervento Confermato' 
+          : 'Intervento Rifiutato';
+        
+        const notificationMessage = status === 'CONFIRMED'
+          ? `Il cliente ha confermato l'intervento del ${new Date(intervention.proposedDate).toLocaleDateString('it-IT')} per la richiesta "${intervention.Request.title}"`
+          : `Il cliente ha rifiutato l'intervento del ${new Date(intervention.proposedDate).toLocaleDateString('it-IT')} per la richiesta "${intervention.Request.title}"${reason ? `. Motivo: ${reason}` : ''}`;
+
+        await sendInterventionNotification({
+          recipientId: intervention.Professional.id,
+          type: status === 'CONFIRMED' ? 'intervention_confirmed' : 'intervention_rejected',
+          title: notificationTitle,
+          message: notificationMessage,
+          requestId: intervention.Request.id,
+          interventionId: interventionId,
+          priority: status === 'CONFIRMED' ? 'high' : 'normal'
         });
       }
 
-      logger.info('Intervention declined:', { interventionId, reason });
-      return updated;
-    } catch (error) {
-      logger.error('Error declining intervention:', error);
+      // Emit socket event
+      const io = getIO();
+      io.to(`user:${intervention.Request.professionalId}`).emit(`intervention:${status.toLowerCase()}`, {
+        interventionId,
+        requestId: intervention.Request.id,
+        proposedDate: intervention.proposedDate,
+        reason: reason
+      });
+
+      // Se è confermato, aggiorna anche lo stato della richiesta se necessario
+      if (status === 'CONFIRMED') {
+        await prisma.assistanceRequest.update({
+          where: { id: intervention.Request.id },
+          data: { 
+            status: 'IN_PROGRESS',
+            updatedAt: new Date()
+          }
+        });
+      }
+
+      return updatedIntervention;
+      
+    } catch (error: any) {
+      logger.error('Error responding to intervention:', error);
+      throw error;
+    }
+  }
+
+  // Cancella intervento
+  static async cancelIntervention(
+    userId: string, 
+    interventionId: string, 
+    reason: string
+  ) {
+    try {
+      logger.info('Cancelling intervention:', { userId, interventionId });
+      
+      // Verifica che l'intervento esista e l'utente abbia il permesso
+      const intervention = await prisma.scheduledIntervention.findFirst({
+        where: {
+          id: interventionId,
+          OR: [
+            { professionalId: userId },
+            { Request: { clientId: userId } }
+          ],
+          status: { in: ['PROPOSED', 'CONFIRMED'] }
+        },
+        include: {
+          Request: {
+            select: {
+              id: true,
+              title: true,
+              clientId: true,
+              professionalId: true,
+              client: {
+                select: {
+                  id: true,
+                  email: true,
+                  fullName: true
+                }
+              },
+              professional: {
+                select: {
+                  id: true,
+                  email: true,
+                  fullName: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!intervention) {
+        logger.warn('Intervention not found or not authorized to cancel:', { 
+          interventionId, 
+          userId 
+        });
+        throw new AuthorizationError('Intervento non trovato o non autorizzato alla cancellazione');
+      }
+
+      // Aggiorna lo stato a CANCELLED
+      const cancelledIntervention = await prisma.scheduledIntervention.update({
+        where: { id: interventionId },
+        data: {
+          status: 'CANCELLED',
+          cancellationReason: reason,
+          cancelledBy: userId,
+          cancelledAt: new Date()
+        }
+      });
+
+      logger.info('Intervention cancelled:', { interventionId });
+
+      // Determina chi inviare la notifica
+      const isClient = intervention.Request.clientId === userId;
+      const recipientId = isClient 
+        ? intervention.Request.professionalId 
+        : intervention.Request.clientId;
+      
+      const recipientName = isClient 
+        ? intervention.Request.professional?.fullName 
+        : intervention.Request.client?.fullName;
+
+      const cancellerRole = isClient ? 'cliente' : 'professionista';
+
+      // ✅ Invia notifica all'altra parte
+      if (recipientId) {
+        await sendInterventionNotification({
+          recipientId: recipientId,
+          type: 'intervention_cancelled',
+          title: 'Intervento Cancellato',
+          message: `L'intervento del ${new Date(intervention.proposedDate).toLocaleDateString('it-IT')} è stato cancellato dal ${cancellerRole}. Motivo: ${reason}`,
+          requestId: intervention.Request.id,
+          interventionId: interventionId,
+          priority: 'high'
+        });
+      }
+
+      // Emit socket event
+      const io = getIO();
+      io.to(`user:${recipientId}`).emit('intervention:cancelled', {
+        interventionId,
+        requestId: intervention.Request.id,
+        cancelledBy: userId,
+        reason
+      });
+
+      return cancelledIntervention;
+      
+    } catch (error: any) {
+      logger.error('Error cancelling intervention:', error);
       throw error;
     }
   }
 
   // Completa intervento
-  static async completeIntervention(professionalId: string, interventionId: string, data: any) {
+  static async completeIntervention(
+    professionalId: string, 
+    interventionId: string, 
+    completionData: {
+      notes?: string;
+      actualDuration?: number;
+      materialsUsed?: any[];
+    }
+  ) {
     try {
+      logger.info('Completing intervention:', { professionalId, interventionId });
+      
       // Verifica che l'intervento esista e appartenga al professionista
       const intervention = await prisma.scheduledIntervention.findFirst({
         where: {
@@ -419,20 +560,155 @@ export class ScheduledInterventionService {
           status: 'CONFIRMED'
         },
         include: {
-          AssistanceRequest: {
-            include: {
+          Request: {
+            select: {
+              id: true,
+              title: true,
+              clientId: true,
               client: {
                 select: {
                   id: true,
-                  firstName: true,
-                  lastName: true,
-                  fullName: true,
-                  email: true
+                  email: true,
+                  fullName: true
                 }
               }
             }
           },
           Professional: {
+            select: {
+              fullName: true
+            }
+          }
+        }
+      });
+
+      if (!intervention) {
+        logger.warn('Intervention not found or not authorized to complete:', { 
+          interventionId, 
+          professionalId 
+        });
+        throw new AuthorizationError('Intervento non trovato o non autorizzato al completamento');
+      }
+
+      // Aggiorna lo stato a COMPLETED
+      const completedIntervention = await prisma.scheduledIntervention.update({
+        where: { id: interventionId },
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+          completionNotes: completionData.notes,
+          actualDuration: completionData.actualDuration,
+          materialsUsed: completionData.materialsUsed
+        }
+      });
+
+      logger.info('Intervention completed:', { interventionId });
+
+      // ✅ Invia notifica al cliente
+      if (intervention.Request.client) {
+        await sendInterventionNotification({
+          recipientId: intervention.Request.client.id,
+          type: 'intervention_completed',
+          title: 'Intervento Completato',
+          message: `Il professionista ${intervention.Professional?.fullName} ha completato l'intervento per la richiesta "${intervention.Request.title}"`,
+          requestId: intervention.Request.id,
+          interventionId: interventionId,
+          priority: 'normal'
+        });
+      }
+
+      // Emit socket event
+      const io = getIO();
+      io.to(`user:${intervention.Request.clientId}`).emit('intervention:completed', {
+        interventionId,
+        requestId: intervention.Request.id,
+        completedAt: new Date()
+      });
+
+      // Verifica se tutti gli interventi sono completati
+      const allInterventions = await prisma.scheduledIntervention.findMany({
+        where: {
+          requestId: intervention.Request.id,
+          status: { not: 'CANCELLED' }
+        }
+      });
+
+      const allCompleted = allInterventions.every(int => 
+        int.status === 'COMPLETED' || int.status === 'CANCELLED'
+      );
+
+      // Se tutti gli interventi sono completati, aggiorna anche la richiesta
+      if (allCompleted) {
+        await prisma.assistanceRequest.update({
+          where: { id: intervention.Request.id },
+          data: { 
+            status: 'COMPLETED',
+            completedDate: new Date()
+          }
+        });
+
+        logger.info('All interventions completed, request marked as completed:', { 
+          requestId: intervention.Request.id 
+        });
+      }
+
+      return completedIntervention;
+      
+    } catch (error: any) {
+      logger.error('Error completing intervention:', error);
+      throw error;
+    }
+  }
+
+  // Get single intervention
+  static async getIntervention(interventionId: string, userId: string) {
+    try {
+      logger.info('Getting single intervention:', { interventionId, userId });
+
+      // Prima ottieni i dati dell'utente per verificare se è admin
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true }
+      });
+
+      // Build the where clause based on user role
+      let whereClause: any = { id: interventionId };
+      
+      // If not admin, check authorization
+      if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN') {
+        whereClause = {
+          id: interventionId,
+          OR: [
+            { professionalId: userId },
+            { Request: { clientId: userId } }
+          ]
+        };
+      }
+
+      const intervention = await prisma.scheduledIntervention.findFirst({
+        where: whereClause,
+        include: {
+          Professional: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              fullName: true,
+              email: true,
+              phone: true
+            }
+          },
+          Request: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              status: true,
+              clientId: true,
+              professionalId: true
+            }
+          },
+          Creator: {
             select: {
               id: true,
               firstName: true,
@@ -444,187 +720,18 @@ export class ScheduledInterventionService {
       });
 
       if (!intervention) {
-        throw new Error('Intervento non trovato o non confermato');
+        logger.warn('Intervention not found or not authorized:', { 
+          interventionId, 
+          userId 
+        });
+        throw new AuthorizationError('Intervento non trovato o non autorizzato');
       }
 
-      // Aggiorna lo stato dell'intervento
-      const updated = await prisma.scheduledIntervention.update({
-        where: { id: interventionId },
-        data: {
-          status: 'COMPLETED',
-          actualDuration: data.actualDuration,
-          notes: data.notes,
-          updatedAt: new Date()
-        }
-      });
-
-      // ✅ NUOVO: Notifica al cliente del completamento
-      const professionalName = intervention.Professional?.fullName || 
-                              `${intervention.Professional?.firstName} ${intervention.Professional?.lastName}`;
+      logger.info('Intervention retrieved:', { interventionId });
+      return intervention;
       
-      await sendInterventionNotification({
-        recipientId: intervention.AssistanceRequest.clientId,
-        type: 'INTERVENTION_COMPLETED',
-        title: '✅ Intervento completato',
-        message: `${professionalName} ha completato l'intervento. ${data.notes ? `Note: ${data.notes}` : 'Controlla i dettagli e il rapporto di intervento.'}`,
-        requestId: intervention.requestId,
-        interventionId: interventionId,
-        priority: 'high',
-        actionUrl: `${process.env.FRONTEND_URL}/requests/${intervention.requestId}/report`
-      });
-
-      // Emit WebSocket event
-      const io = getIO();
-      if (io) {
-        io.to(`request:${intervention.requestId}`).emit('intervention:completed', {
-          interventionId,
-          requestId: intervention.requestId,
-          actualDuration: data.actualDuration
-        });
-      }
-
-      logger.info('Intervention completed:', { interventionId });
-      return updated;
-    } catch (error) {
-      logger.error('Error completing intervention:', error);
-      throw error;
-    }
-  }
-
-  // ✅ NUOVO: Invia promemoria per interventi imminenti
-  static async sendInterventionReminders() {
-    try {
-      // Trova interventi confermati nelle prossime 24 ore
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      
-      const upcomingInterventions = await prisma.scheduledIntervention.findMany({
-        where: {
-          status: 'CONFIRMED',
-          proposedDate: {
-            gte: new Date(),
-            lte: tomorrow
-          }
-        },
-        include: {
-          AssistanceRequest: {
-            include: {
-              client: true
-            }
-          },
-          Professional: true
-        }
-      });
-
-      for (const intervention of upcomingInterventions) {
-        const interventionTime = new Date(intervention.proposedDate).toLocaleDateString('it-IT', {
-          weekday: 'long',
-          day: 'numeric',
-          month: 'long',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-
-        // Promemoria al cliente
-        await sendInterventionNotification({
-          recipientId: intervention.AssistanceRequest.clientId,
-          type: 'INTERVENTION_REMINDER',
-          title: '⏰ Promemoria intervento domani',
-          message: `Promemoria: hai un intervento programmato per ${interventionTime} con ${intervention.Professional.fullName || intervention.Professional.firstName}`,
-          requestId: intervention.requestId,
-          interventionId: intervention.id,
-          priority: 'normal'
-        });
-
-        // Promemoria al professionista
-        await sendInterventionNotification({
-          recipientId: intervention.professionalId,
-          type: 'INTERVENTION_REMINDER',
-          title: '⏰ Promemoria intervento domani',
-          message: `Promemoria: hai un intervento programmato per ${interventionTime} presso ${intervention.AssistanceRequest.client.fullName || intervention.AssistanceRequest.client.firstName}`,
-          requestId: intervention.requestId,
-          interventionId: intervention.id,
-          priority: 'normal'
-        });
-      }
-
-      logger.info(`Sent reminders for ${upcomingInterventions.length} upcoming interventions`);
-      return upcomingInterventions.length;
-    } catch (error) {
-      logger.error('Error sending intervention reminders:', error);
-      throw error;
-    }
-  }
-
-  // Cancella intervento
-  static async cancelIntervention(userId: string, interventionId: string, reason?: string) {
-    try {
-      // Verifica che l'intervento esista e l'utente abbia i permessi
-      const intervention = await prisma.scheduledIntervention.findFirst({
-        where: {
-          id: interventionId,
-          OR: [
-            { professionalId: userId },
-            { AssistanceRequest: { clientId: userId } }
-          ],
-          status: { in: ['PROPOSED', 'CONFIRMED'] }
-        },
-        include: {
-          AssistanceRequest: {
-            include: {
-              client: true
-            }
-          },
-          Professional: true
-        }
-      });
-
-      if (!intervention) {
-        throw new Error('Intervento non trovato o non cancellabile');
-      }
-
-      // Aggiorna lo stato
-      const updated = await prisma.scheduledIntervention.update({
-        where: { id: interventionId },
-        data: {
-          status: 'CANCELLED',
-          notes: reason,
-          updatedAt: new Date()
-        }
-      });
-
-      // ✅ NUOVO: Determina chi ha cancellato e notifica l'altra parte
-      const isCancelledByClient = userId === intervention.AssistanceRequest.clientId;
-      const recipientId = isCancelledByClient ? intervention.professionalId : intervention.AssistanceRequest.clientId;
-      const cancellerName = isCancelledByClient 
-        ? (intervention.AssistanceRequest.client.fullName || intervention.AssistanceRequest.client.firstName)
-        : (intervention.Professional.fullName || intervention.Professional.firstName);
-
-      await sendInterventionNotification({
-        recipientId,
-        type: 'INTERVENTION_CANCELLED',
-        title: '❌ Intervento cancellato',
-        message: `${cancellerName} ha cancellato l'intervento programmato${reason ? `: ${reason}` : ''}`,
-        requestId: intervention.requestId,
-        interventionId: interventionId,
-        priority: 'high'
-      });
-
-      // Emit WebSocket event
-      const io = getIO();
-      if (io) {
-        io.to(`request:${intervention.requestId}`).emit('intervention:cancelled', {
-          interventionId,
-          requestId: intervention.requestId,
-          cancelledBy: userId,
-          reason
-        });
-      }
-
-      logger.info('Intervention cancelled:', { interventionId, cancelledBy: userId });
-      return updated;
-    } catch (error) {
-      logger.error('Error cancelling intervention:', error);
+    } catch (error: any) {
+      logger.error('Error getting intervention:', error);
       throw error;
     }
   }

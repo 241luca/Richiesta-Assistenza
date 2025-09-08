@@ -52,7 +52,7 @@ router.get(
 
       // Filter by role
       if (user.role === 'CLIENT') {
-        where.request = {
+        where.AssistanceRequest = {  // Corretto da 'request'
           clientId: user.id
         };
         where.status = where.status || { not: 'DRAFT' };
@@ -96,7 +96,7 @@ router.get(
               subcategory: true
             }
           },
-          User: {
+          professional: {  // Nome corretto della relazione
             select: {
               id: true,
               firstName: true,
@@ -126,8 +126,8 @@ router.get(
           ...quote,
           totalAmount,
           // Alias per backward compatibility
-          // request: quote.assistanceRequest, // Rimosso - request già presente
-          Professional: quote.User,
+          request: quote.AssistanceRequest,  // Mappiamo AssistanceRequest a request
+          Professional: quote.professional,  // Mappiamo professional a Professional
           items: quote.QuoteItem.map(item => ({
             ...item,
             unitPrice: Number(item.unitPrice) * 100,
@@ -266,7 +266,16 @@ router.get(
               subcategory: true
             }
           },
-          User: true
+          professional: {  // Nome corretto della relazione
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              fullName: true,
+              email: true,
+              profession: true
+            }
+          }
         }
       });
 
@@ -301,8 +310,8 @@ router.get(
         amount: Number(quote.amount) * 100,
         depositAmount: quote.depositAmount ? Number(quote.depositAmount) * 100 : null,
         // Alias per backward compatibility
-        // request: quote.assistanceRequest, // Rimosso - request già presente
-        Professional: quote.User,
+        request: quote.AssistanceRequest,  // Mappiamo AssistanceRequest a request
+        Professional: quote.professional,  // Mappiamo professional a Professional
         items: quote.QuoteItem.map(item => ({
           ...item,
           unitPrice: Number(item.unitPrice) * 100,
@@ -355,7 +364,7 @@ router.put(
       // Verifica che il preventivo esista
       const quote = await prisma.quote.findUnique({
         where: { id },
-        include: { request: true }
+        include: { AssistanceRequest: true }  // Nome corretto della relazione
       });
 
       if (!quote) {
@@ -435,7 +444,7 @@ router.delete(
       // Verifica che il preventivo esista
       const quote = await prisma.quote.findUnique({
         where: { id },
-        include: { request: true }
+        include: { AssistanceRequest: true }  // Nome corretto della relazione
       });
 
       if (!quote) {
@@ -472,7 +481,7 @@ router.delete(
         where: { id },
         include: {
           QuoteItem: true,
-          request: {
+          AssistanceRequest: {  // Nome corretto della relazione
             select: {
               id: true,
               title: true,
@@ -495,7 +504,7 @@ router.delete(
           version: quoteDetails?.version,
           professionalId: quoteDetails?.professionalId,
           requestId: quoteDetails?.requestId,
-          requestTitle: quoteDetails?.request?.title,
+          requestTitle: quoteDetails?.AssistanceRequest?.title,  // Riferimento corretto
           itemCount: quoteDetails?.QuoteItem?.length || 0,
           totalValue: quoteDetails?.QuoteItem?.reduce((sum, item) => 
             sum + (Number(item.totalPrice) || 0), 0
@@ -555,7 +564,7 @@ router.get(
       // Verifica che il preventivo esista
       const quote = await prisma.quote.findUnique({
         where: { id },
-        include: { request: true }
+        include: { AssistanceRequest: true }  // Nome corretto della relazione
       });
 
       if (!quote) {
@@ -581,7 +590,7 @@ router.get(
       const revisions = await prisma.quoteRevision.findMany({
         where: { quoteId: id },
         include: {
-          User: {
+          professional: {  // Corretto da User
             select: {
               id: true,
               firstName: true,
@@ -618,12 +627,12 @@ router.get('/:id/pdf', authenticate, async (req: AuthRequest, res) => {
     const quote = await prisma.quote.findUnique({
       where: { id: quoteId },
       include: {
-        request: {
+        AssistanceRequest: {  // Nome corretto della relazione!
           include: {
             client: true
           }
         },
-        User: true // Professional
+        professional: true // Nome corretto per il professionista
       }
     });
     

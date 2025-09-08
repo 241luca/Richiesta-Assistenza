@@ -12,7 +12,7 @@ import {
   reportGenerator, 
   autoRemediation,
   performanceMonitor 
-} from '../../services/health-check-automation';
+} from '../../services/health-check-automation/index';
 import { ResponseFormatter } from '../../utils/responseFormatter';
 import { logger } from '../../utils/logger';
 

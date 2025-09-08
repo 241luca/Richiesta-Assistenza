@@ -1,0 +1,87 @@
+{
+  "enabled": true,
+  "jobs": [
+    {
+      "id": "health-check",
+      "name": "System Health Check",
+      "schedule": "*/5 * * * *",
+      "description": "Run complete system health check",
+      "enabled": true,
+      "timeout": 30000,
+      "retries": 2,
+      "priority": "high"
+    },
+    {
+      "id": "performance-metrics",
+      "name": "Collect Performance Metrics",
+      "schedule": "*/1 * * * *",
+      "description": "Collect CPU, memory, and disk metrics",
+      "enabled": true,
+      "timeout": 10000,
+      "retries": 1,
+      "priority": "medium"
+    },
+    {
+      "id": "weekly-report",
+      "name": "Weekly Health Report",
+      "schedule": "0 8 * * MON",
+      "description": "Generate and send weekly health report",
+      "enabled": true,
+      "timeout": 60000,
+      "retries": 3,
+      "priority": "low"
+    },
+    {
+      "id": "cleanup-old-logs",
+      "name": "Cleanup Old Logs",
+      "schedule": "0 2 * * *",
+      "description": "Remove logs older than 30 days",
+      "enabled": true,
+      "timeout": 30000,
+      "retries": 1,
+      "priority": "low"
+    },
+    {
+      "id": "backup-health-data",
+      "name": "Backup Health Data",
+      "schedule": "0 3 * * *",
+      "description": "Backup health check results and metrics",
+      "enabled": true,
+      "timeout": 45000,
+      "retries": 2,
+      "priority": "medium"
+    },
+    {
+      "id": "check-certificates",
+      "name": "Check SSL Certificates",
+      "schedule": "0 9 * * *",
+      "description": "Check SSL certificate expiration",
+      "enabled": false,
+      "timeout": 15000,
+      "retries": 1,
+      "priority": "high"
+    },
+    {
+      "id": "database-optimization",
+      "name": "Database Optimization",
+      "schedule": "0 4 * * SUN",
+      "description": "Run database vacuum and analyze",
+      "enabled": true,
+      "timeout": 120000,
+      "retries": 1,
+      "priority": "low"
+    }
+  ],
+  "defaultSettings": {
+    "maxConcurrent": 3,
+    "queueName": "health-check-scheduler",
+    "timezone": "Europe/Rome",
+    "missingScheduleRetry": true
+  },
+  "notifications": {
+    "onSuccess": false,
+    "onFailure": true,
+    "onRetry": true,
+    "channels": ["email", "websocket"]
+  }
+}

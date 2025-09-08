@@ -31,12 +31,12 @@ class PDFService {
         where: { id: quoteId },
         include: {
           QuoteItem: { orderBy: { order: 'asc' } },
-          User: true, // Professional (U maiuscola!)
-          request: {  // request minuscolo!
+          professional: true, // Professional con nome relazione corretto
+          AssistanceRequest: {  // AssistanceRequest con A maiuscola!
             include: {
-              Client: true, // Cliente della richiesta
-              Category: true,
-              SubCategory: true
+              client: true, // Cliente della richiesta (minuscolo!)
+              category: true, // categoria (minuscolo!)
+              subcategory: true // sottocategoria (minuscolo!)
             }
           }
         }
@@ -321,11 +321,11 @@ class PDFService {
       const rawRequest = await prisma.assistanceRequest.findUnique({
         where: { id: requestId },
         include: {
-          Client: true, // Cliente della richiesta
-          Professional: true, // Professionista assegnato
-          Category: true,
-          SubCategory: true,
-          attachments: true
+          client: true, // Cliente della richiesta (minuscolo!)
+          professional: true, // Professionista assegnato (minuscolo!)
+          category: true, // categoria (minuscolo!)
+          subcategory: true, // sottocategoria (minuscolo!)
+          RequestAttachment: true // Allegati con nome corretto Prisma
         }
       });
 
@@ -466,7 +466,7 @@ class PDFService {
         },
         include: {
           QuoteItem: { orderBy: { order: 'asc' } },
-          User: true  // U maiuscola!
+          professional: true  // professional con nome relazione corretto
         },
         orderBy: { totalAmount: 'asc' }
       });

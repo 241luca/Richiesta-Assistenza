@@ -3,6 +3,7 @@ import { prisma } from '../config/database';
 import { AuditAction, LogSeverity, LogCategory } from '@prisma/client';
 import { Request } from 'express';
 import { differenceWith, isEqual } from 'lodash';
+import { createId } from '@paralleldrive/cuid2';
 
 interface AuditLogData {
   userId?: string;
@@ -43,6 +44,7 @@ class AuditLogService {
       // Crea il log nel database
       const auditLog = await prisma.auditLog.create({
         data: {
+          id: createId(),  // Aggiungiamo l'ID qui
           userId: data.userId,
           userEmail: data.userEmail,
           userRole: data.userRole,

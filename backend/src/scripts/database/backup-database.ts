@@ -8,7 +8,6 @@ import { promisify } from 'util';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { logger } from '../../utils/logger';
-import { format } from 'date-fns';
 
 const execAsync = promisify(exec);
 
@@ -23,56 +22,58 @@ export async function execute(params: BackupParams = {}) {
   try {
     logger.info('🔄 Starting database backup...');
     
-    // Create backup directory if not exists
-    const backupDir = path.join(process.cwd(), 'backups');
-    await fs.mkdir(backupDir, { recursive: true });
-    
-    // Generate backup filename
-    const timestamp = format(new Date(), 'yyyy-MM-dd-HHmmss');
-    const filename = `backup-${timestamp}.sql${compress ? '.gz' : ''}`;
-    const filepath = path.join(backupDir, filename);
-    
-    // Get database URL from environment
-    const dbUrl = process.env.DATABASE_URL;
-    if (!dbUrl) {
+    // Get database connection info from env
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) {
       throw new Error('DATABASE_URL not configured');
     }
     
-    // Build pg_dump command
-    let command = `pg_dump ${dbUrl}`;
+    // Create backup directory if not exists
+    const backupDir = path.join(process.cwd(), '..', 'database-backups');
+    await fs.mkdir(backupDir, { recursive: true });
     
-    // Add exclude tables if any
+    // Generate backup filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `backup-${timestamp}.sql${compress ? '.gz' : ''}`;
+    const filepath = path.join(backupDir, filename);
+    
+    logger.info(`📁 Backup file: ${filename}`);
+    
+    // Build pg_dump command
+    let command = `pg_dump "${databaseUrl}"`;
+    
+    // Add exclude tables if specified
     if (excludeTables.length > 0) {
       excludeTables.forEach(table => {
-        command += ` --exclude-table=${table}`;
+        command += ` --exclude-table="${table}"`;
       });
     }
     
-    // Add compression if enabled
+    // Add compression if needed
     if (compress) {
-      command += ` | gzip`;
+      command += ' | gzip';
     }
     
-    command += ` > ${filepath}`;
+    command += ` > "${filepath}"`;
     
-    logger.info(`Executing: ${command.replace(dbUrl, 'DATABASE_URL')}`);
+    logger.info('⏳ Running backup command...');
     
     // Execute backup
     await execAsync(command);
     
-    // Get file size
+    // Verify backup file exists
     const stats = await fs.stat(filepath);
-    const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
+    const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
     
     logger.info(`✅ Backup completed successfully`);
-    logger.info(`📁 File: ${filename}`);
-    logger.info(`📊 Size: ${sizeMB} MB`);
+    logger.info(`📊 File size: ${sizeMB} MB`);
     
     return {
       success: true,
       filename,
       filepath,
-      size: stats.size,
+      size: sizeMB,
+      compressed: compress,
       timestamp: new Date()
     };
     

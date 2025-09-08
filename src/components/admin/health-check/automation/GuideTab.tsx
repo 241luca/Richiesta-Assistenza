@@ -305,7 +305,7 @@ export default function GuideTab() {
                   <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-medium">WARNING</span>
                 </div>
                 <div className="flex items-center justify-between py-2 border-b">
-                  <span className="text-gray-700">API response time > 1000ms</span>
+                  <span className="text-gray-700">API response time &gt; 1000ms</span>
                   <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-medium">WARNING</span>
                 </div>
                 <div className="flex items-center justify-between py-2">
@@ -457,8 +457,8 @@ export default function GuideTab() {
                 </div>
                 <p className="text-sm text-gray-600 mb-2">Pulisce la cache quando la memoria è piena</p>
                 <div className="text-xs bg-gray-50 rounded p-2 font-mono">
-                  Condizione: Memory usage > 85% OR Cache errors
-                  Azione: Clear Redis cache + Restart cache service
+                Condizione: Memory usage &gt; 85% OR Cache errors
+                Azione: Clear Redis cache + Restart cache service
                 </div>
               </div>
 
@@ -481,8 +481,8 @@ export default function GuideTab() {
                 </div>
                 <p className="text-sm text-gray-600 mb-2">Ottimizza database quando rallenta</p>
                 <div className="text-xs bg-gray-50 rounded p-2 font-mono">
-                  Condizione: Query time > 500ms OR Score < 60
-                  Azione: VACUUM ANALYZE + Clear old records
+                Condizione: Query time &gt; 500ms OR Score &lt; 60
+                Azione: VACUUM ANALYZE + Clear old records
                 </div>
               </div>
 

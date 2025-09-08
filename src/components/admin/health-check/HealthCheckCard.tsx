@@ -127,18 +127,30 @@ export default function HealthCheckCard({
         </div>
 
         {/* Metrics Summary */}
-        {module.metrics && (
-          <div className="space-y-2 mb-4">
-            {Object.entries(module.metrics).slice(0, 3).map(([key, value]: [string, any]) => (
-              <div key={key} className="flex justify-between text-sm">
-                <span className="text-gray-600">
-                  {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </span>
-                <span className="font-medium text-gray-900">
-                  {typeof value === 'number' ? value.toLocaleString() : value}
-                </span>
-              </div>
-            ))}
+        {module.metrics ? (
+          Object.keys(module.metrics).length > 0 ? (
+            <div className="space-y-2 mb-4">
+              {Object.entries(module.metrics).slice(0, 3).map(([key, value]: [string, any]) => (
+                <div key={key} className="flex justify-between text-sm">
+                  <span className="text-gray-600">
+                    {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </span>
+                  <span className="font-medium text-gray-900">
+                    {value !== null && value !== undefined
+                      ? (typeof value === 'number' ? value.toLocaleString() : String(value))
+                      : 'N/A'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-gray-500 italic mb-4">
+              Servizio non configurato
+            </div>
+          )
+        ) : (
+          <div className="text-sm text-gray-500 italic mb-4">
+            Nessuna metrica disponibile
           </div>
         )}
 

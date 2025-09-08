@@ -23,13 +23,13 @@ import {
   DocumentArrowDownIcon,
   AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
-import api from '@/services/api';
-import HealthCheckCard from '@/components/admin/health-check/HealthCheckCard';
-import HealthScoreChart from '@/components/admin/health-check/HealthScoreChart';
-import ModuleStatus from '@/components/admin/health-check/ModuleStatus';
-import AlertsPanel from '@/components/admin/health-check/AlertsPanel';
-import ModuleDescriptions from '@/components/admin/health-check/ModuleDescriptions';
-import HealthCheckAutomation from '@/components/admin/health-check/HealthCheckAutomation';
+import api from '../../services/api';
+import HealthCheckCard from '../../components/admin/health-check/HealthCheckCard';
+import HealthScoreChart from '../../components/admin/health-check/HealthScoreChart';
+import ModuleStatus from '../../components/admin/health-check/ModuleStatus';
+import AlertsPanel from '../../components/admin/health-check/AlertsPanel';
+import ModuleDescriptions from '../../components/admin/health-check/ModuleDescriptions';
+import HealthCheckAutomation from '../../components/admin/health-check/HealthCheckAutomation';
 
 export default function HealthCheckDashboard() {
   const queryClient = useQueryClient();

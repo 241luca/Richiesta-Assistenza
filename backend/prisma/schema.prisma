@@ -183,6 +183,23 @@ model AuditLogRetention {
   updatedAt     DateTime
 }
 
+model AutoRemediationLog {
+  id                String   @id @default(dbgenerated("gen_random_uuid()"))
+  ruleId            String
+  module            String
+  success           Boolean
+  actionsExecuted   String[] @default([])
+  error             String?
+  healthScoreBefore Int
+  healthScoreAfter  Int?
+  timestamp         DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now())
+
+  @@index([module])
+  @@index([timestamp])
+}
+
 model BackupExecution {
   id             String         @id
   scheduleId     String
@@ -319,6 +336,25 @@ model DepositRule {
 
   @@index([categoryId])
   @@index([isActive])
+}
+
+model HealthCheckResult {
+  id            String   @id @default(dbgenerated("gen_random_uuid()"))
+  module        String
+  status        String
+  score         Int
+  checks        Json     @default("[]")
+  warnings      String[] @default([])
+  errors        String[] @default([])
+  metrics       Json?    @default("{}")
+  executionTime Int      @default(0)
+  timestamp     DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now())
+
+  @@index([module])
+  @@index([status])
+  @@index([timestamp])
 }
 
 model InterventionFieldType {
@@ -895,6 +931,22 @@ model Payment {
   @@index([stripePaymentId])
   @@index([transactionId])
   @@index([userId])
+}
+
+model PerformanceMetrics {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()"))
+  timestamp           DateTime @default(now())
+  cpuUsage            Int
+  memoryUsage         Int
+  databaseConnections Int
+  apiResponseTime     Int
+  requestsPerMinute   Int
+  errorRate           Float
+  metrics             Json?    @default("{}")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now())
+
+  @@index([timestamp])
 }
 
 model Profession {

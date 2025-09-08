@@ -157,21 +157,31 @@ export default function ModuleStatus({ module, onClose }: ModuleStatusProps) {
           )}
 
           {/* Metrics */}
-          {module.metrics && Object.keys(module.metrics).length > 0 && (
+          {module.metrics && (
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Metrics</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {Object.entries(module.metrics).map(([key, value]: [string, any]) => (
-                  <div key={key} className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider">
-                      {key.replace(/_/g, ' ')}
-                    </p>
-                    <p className="mt-1 text-lg font-semibold text-gray-900">
-                      {typeof value === 'number' ? value.toLocaleString() : value}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              {Object.keys(module.metrics).length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {Object.entries(module.metrics).map(([key, value]: [string, any]) => (
+                    <div key={key} className="bg-gray-50 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 uppercase tracking-wider">
+                        {key.replace(/_/g, ' ')}
+                      </p>
+                      <p className="mt-1 text-lg font-semibold text-gray-900">
+                        {value !== null && value !== undefined 
+                          ? (typeof value === 'number' ? value.toLocaleString() : String(value))
+                          : 'N/A'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-gray-50 rounded-lg p-4 text-center text-gray-500">
+                  <InformationCircleIcon className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                  <p>Nessuna metrica disponibile</p>
+                  <p className="text-sm mt-1">Il servizio potrebbe non essere configurato o attivo</p>
+                </div>
+              )}
             </div>
           )}
 

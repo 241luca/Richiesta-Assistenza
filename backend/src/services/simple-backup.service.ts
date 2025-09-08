@@ -52,7 +52,7 @@ class SimpleBackupService {
   /**
    * 1. BACKUP DATABASE - Usa pg_dump nativo
    */
-  async backupDatabase(recipientId: string): Promise<BackupResult> {
+  async backupDatabase(userId: string): Promise<BackupResult> {
     logger.info('Starting database backup...');
     
     const timestamp = format(new Date(), 'yyyy-MM-dd-HH-mm-ss');
@@ -111,7 +111,7 @@ class SimpleBackupService {
   /**
    * 2. BACKUP CODE - Archivia il codice sorgente
    */
-  async backupCode(recipientId: string): Promise<BackupResult> {
+  async backupCode(userId: string): Promise<BackupResult> {
     logger.info('Starting code backup...');
     
     const timestamp = format(new Date(), 'yyyy-MM-dd-HH-mm-ss');
@@ -184,7 +184,7 @@ class SimpleBackupService {
   /**
    * 3. BACKUP FILES - Archivia tutti i file caricati
    */
-  async backupFiles(recipientId: string): Promise<BackupResult> {
+  async backupFiles(userId: string): Promise<BackupResult> {
     logger.info('Starting uploads backup...');
     
     const timestamp = format(new Date(), 'yyyy-MM-dd-HH-mm-ss');
