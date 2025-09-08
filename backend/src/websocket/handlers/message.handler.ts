@@ -6,7 +6,7 @@
 import { Server } from 'socket.io';
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../../utils/logger';
-import { sendNotificationToUser } from './notification.handler';
+import { notificationService } from '../../services/notification.service'; // CHANGED: usa il service unificato
 
 const prisma = new PrismaClient();
 
@@ -97,19 +97,23 @@ export function handleMessageEvents(socket: AuthenticatedSocket, io: Server) {
         timestamp: new Date()
       });
 
-      // Invia notifica se il destinatario è offline o non nella chat
+      // Invia notifica se il destinatario è offline o non nella chat - UPDATED: usa notification service
       const recipientSockets = await io.in(`User:${data.recipientId}`).fetchSockets();
       if (recipientSockets.length === 0) {
-        await sendNotificationToUser(io, data.recipientId, {
-          type: 'message_new',
+        await notificationService.sendToUser({
+          userId: data.recipientId, // FIXED: usa userId
+          type: 'NEW_MESSAGE',
           title: 'Nuovo Messaggio',
           message: `${message.sender.firstName} ${message.sender.lastName}: ${data.content.substring(0, 100)}${data.content.length > 100 ? '...' : ''}`,
           data: { 
             messageId: message.id, 
             senderId: socket.userId,
-            requestId: data.requestId 
+            senderName: `${message.sender.firstName} ${message.sender.lastName}`,
+            requestId: data.requestId,
+            actionUrl: data.requestId ? `${process.env.FRONTEND_URL}/requests/${data.requestId}#chat` : `${process.env.FRONTEND_URL}/messages`
           },
-          priority: 'normal'
+          priority: 'normal',
+          channels: ['websocket', 'email']
         });
       }
 

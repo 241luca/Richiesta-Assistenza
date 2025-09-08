@@ -1,11 +1,13 @@
 /**
  * Notification Event Handlers
  * Gestisce tutti gli eventi relativi alle notifiche real-time
+ * FIXED: Corretti problemi di nomenclatura database e generazione UUID
  */
 
 import { Server } from 'socket.io';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, NotificationPriority } from '@prisma/client';
 import { logger } from '../../utils/logger';
+import { v4 as uuidv4 } from 'uuid';
 
 const prisma = new PrismaClient();
 
@@ -157,14 +159,13 @@ export function handleNotificationEvents(socket: AuthenticatedSocket, io: Server
   socket.on('notification:getPreferences', async () => {
     try {
       const preferences = await prisma.notificationPreference.findUnique({
-        where: { recipientId: socket.userId! }
+        where: { userId: socket.userId! }
       });
 
       socket.emit('notification:preferences', preferences || {
-        email: true,
-        push: true,
-        sms: false,
-        inApp: true
+        emailNotifications: true,
+        pushNotifications: true,
+        smsNotifications: false
       });
     } catch (error) {
       logger.error('Error fetching notification preferences:', error);
@@ -178,10 +179,11 @@ export function handleNotificationEvents(socket: AuthenticatedSocket, io: Server
   socket.on('notification:updatePreferences', async (preferences: any) => {
     try {
       const updated = await prisma.notificationPreference.upsert({
-        where: { recipientId: socket.userId! },
+        where: { userId: socket.userId! },
         update: preferences,
         create: {
-          recipientId: socket.userId!,
+          id: uuidv4(), // ✅ FIX: Genera UUID per nuove preferenze
+          userId: socket.userId!,
           ...preferences
         }
       });
@@ -196,10 +198,11 @@ export function handleNotificationEvents(socket: AuthenticatedSocket, io: Server
 
 /**
  * Invia una notifica real-time a un utente specifico
+ * FIXED: Corretti campi database e generazione UUID
  */
 export async function sendNotificationToUser(
   io: Server,
-  recipientId: string,
+  userId: string,
   notification: {
     type: string;
     title: string;
@@ -209,21 +212,22 @@ export async function sendNotificationToUser(
   }
 ) {
   try {
-    // Salva nel database
+    // ✅ FIX: Salva nel database con campi corretti
     const saved = await prisma.notification.create({
       data: {
-        userId,
+        id: uuidv4(), // ✅ FIX 1: Genera sempre UUID
+        recipientId: userId,
         type: notification.type,
         title: notification.title,
-        message: notification.message,
-        data: notification.data || {},
-        priority: notification.priority || 'normal',
+        content: notification.message, // ✅ FIX 2: Usa 'content' non 'message'
+        metadata: notification.data || {}, // Campo corretto per dati extra
+        priority: normalizePriority(notification.priority), // ✅ FIX 3: Converti in MAIUSCOLO
         isRead: false
       }
     });
 
     // Invia via WebSocket se l'utente è online
-    io.to(`User:${userId}`).emit('notification:new', {
+    io.to(`user:${userId}`).emit('notification:new', {
       ...saved,
       timestamp: new Date()
     });
@@ -231,12 +235,12 @@ export async function sendNotificationToUser(
     // Aggiorna il contatore
     const unreadCount = await prisma.notification.count({
       where: {
-        userId,
+        recipientId: userId,
         isRead: false
       }
     });
 
-    io.to(`User:${userId}`).emit('notification:unreadCount', { count: unreadCount });
+    io.to(`user:${userId}`).emit('notification:unreadCount', { count: unreadCount });
 
     logger.info(`Notification sent to user ${userId}: ${notification.title}`);
     return saved;
@@ -248,6 +252,7 @@ export async function sendNotificationToUser(
 
 /**
  * Invia una notifica a tutti gli utenti di un'organizzazione
+ * FIXED: Corretti campi database e generazione UUID
  */
 export async function broadcastNotificationToOrganization(
   io: Server,
@@ -265,17 +270,20 @@ export async function broadcastNotificationToOrganization(
       select: { id: true }
     });
 
-    // Crea notifiche per tutti gli utenti
+    // ✅ FIX: Crea notifiche per tutti gli utenti con campi corretti
+    const notificationData = users.map(user => ({
+      id: uuidv4(), // ✅ FIX 1: Genera UUID per ogni notifica
+      recipientId: user.id,
+      type: notification.type,
+      title: notification.title,
+      content: notification.message, // ✅ FIX 2: Usa 'content'
+      metadata: notification.data || {},
+      priority: normalizePriority(notification.priority), // ✅ FIX 3: MAIUSCOLO
+      isRead: false
+    }));
+
     const notifications = await prisma.notification.createMany({
-      data: users.map(user => ({
-        recipientId: user.id,
-        type: notification.type,
-        title: notification.title,
-        message: notification.message,
-        data: notification.data || {},
-        priority: notification.priority || 'normal',
-        isRead: false
-      }))
+      data: notificationData
     });
 
     // Broadcast via WebSocket
@@ -287,6 +295,83 @@ export async function broadcastNotificationToOrganization(
     return notifications;
   } catch (error) {
     logger.error('Error broadcasting notification:', error);
+    throw error;
+  }
+}
+
+/**
+ * Helper per normalizzare la priorità in MAIUSCOLO per il database
+ * ✅ FIX 3: Funzione helper per convertire priority
+ */
+function normalizePriority(priority?: string): NotificationPriority {
+  const normalizedPriority = (priority || 'normal').toUpperCase();
+  switch (normalizedPriority) {
+    case 'LOW':
+      return 'LOW';
+    case 'HIGH':
+      return 'HIGH';
+    case 'URGENT':
+      return 'URGENT';
+    case 'NORMAL':
+    default:
+      return 'NORMAL';
+  }
+}
+
+/**
+ * Invia una notifica a un gruppo di utenti
+ * FIXED: Aggiunto metodo helper con campi corretti
+ */
+export async function sendNotificationToGroup(
+  io: Server,
+  userIds: string[],
+  notification: {
+    type: string;
+    title: string;
+    message: string;
+    data?: any;
+    priority?: 'low' | 'normal' | 'high' | 'urgent';
+  }
+) {
+  try {
+    // ✅ Crea notifiche per il gruppo con campi corretti
+    const notificationData = userIds.map(userId => ({
+      id: uuidv4(), // ✅ FIX 1: UUID per ogni notifica
+      recipientId: userId,
+      type: notification.type,
+      title: notification.title,
+      content: notification.message, // ✅ FIX 2: Campo corretto
+      metadata: notification.data || {},
+      priority: normalizePriority(notification.priority), // ✅ FIX 3: MAIUSCOLO
+      isRead: false
+    }));
+
+    const notifications = await prisma.notification.createMany({
+      data: notificationData
+    });
+
+    // Invia via WebSocket a ogni utente
+    for (const userId of userIds) {
+      io.to(`user:${userId}`).emit('notification:new', {
+        ...notification,
+        timestamp: new Date()
+      });
+
+      // Aggiorna contatore per ogni utente
+      const unreadCount = await prisma.notification.count({
+        where: {
+          recipientId: userId,
+          isRead: false
+        }
+      });
+
+      io.to(`user:${userId}`).emit('notification:unreadCount', { count: unreadCount });
+    }
+
+    logger.info(`Notification sent to ${userIds.length} users: ${notification.title}`);
+    return notifications;
+  } catch (error) {
+    logger.error('Error sending notification to group:', error);
     throw error;
   }
 }

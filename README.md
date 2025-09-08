@@ -1,7 +1,7 @@
 # 🚀 Sistema di Richiesta Assistenza
 
-**Versione**: 2.0.0  
-**Ultimo Aggiornamento**: 6 Settembre 2025  
+**Versione**: 4.1.0  
+**Ultimo Aggiornamento**: 8 Settembre 2025  
 **Status**: ✅ Production Ready
 
 ## 📋 Panoramica
@@ -19,6 +19,23 @@ Il **Sistema di Richiesta Assistenza** è una piattaforma enterprise completa ch
 - **📊 Monitoring Avanzato**: Health checks, circuit breakers, request tracking
 - **🔄 Alta Affidabilità**: Retry logic, circuit breaker pattern, 99.9% uptime
 
+### 🆕 Nuove Funzionalità v4.1
+
+- **📚 Tab Guida ai Test**: Documentazione completa integrata nella dashboard Health Check
+- **✅ FAQ Complete**: 8+ domande frequenti con risposte dettagliate
+- **🎆 UI Migliorata**: Navigazione più intuitiva con 6 tab
+- **🔧 Fix Performance**: Monitor completamente funzionante
+- **🔗 API Consolidate**: Tutti i percorsi corretti e funzionanti
+
+### 🆕 Funzionalità v4.0
+
+- **🏥 Health Check System**: Monitoraggio completo con auto-remediation
+- **🛠️ Script Manager**: Gestione script amministrativi da UI
+- **📊 Audit Log**: Tracciamento completo operazioni
+- **📈 Performance Monitor**: Metriche real-time CPU, Memory, API
+- **🤖 Auto-Remediation**: Risoluzione automatica problemi comuni
+- **📄 Report Automatici**: Generazione PDF settimanali
+
 ## 🏗️ Architettura
 
 ### Stack Tecnologico
@@ -26,11 +43,12 @@ Il **Sistema di Richiesta Assistenza** è una piattaforma enterprise completa ch
 #### Backend (Node.js + TypeScript)
 - **Framework**: Express.js 4.x con TypeScript
 - **Database**: PostgreSQL 14+ con Prisma ORM
-- **Cache**: Redis (opzionale)
+- **Cache**: Redis 7+
 - **Real-time**: Socket.io
 - **Queue**: Bull + Redis
+- **Scheduler**: node-cron
 - **Authentication**: JWT + 2FA (Speakeasy)
-- **File Storage**: Local + Cloud (configurabile)
+- **File Storage**: Local + Cloud (S3 compatible)
 
 #### Frontend (React 18)
 - **Build Tool**: Vite 5.x
@@ -39,29 +57,34 @@ Il **Sistema di Richiesta Assistenza** è una piattaforma enterprise completa ch
 - **Routing**: React Router v6
 - **UI**: Tailwind CSS + Shadcn/UI
 - **Icons**: Heroicons + Lucide React
+- **Charts**: Recharts
+- **Forms**: React Hook Form + Zod
 
 #### Integrazioni Esterne
 - **AI**: OpenAI API (GPT-4, GPT-3.5-turbo)
 - **Pagamenti**: Stripe
 - **Maps**: Google Maps API
 - **Email**: Brevo (SendinBlue)
-- **SMS**: Configurabile
+- **SMS**: Twilio (opzionale)
+- **Storage**: S3 compatible (opzionale)
 
-### 🔒 Sicurezza Implementata (v2.0.0)
+### 🔒 Sicurezza Implementata (v4.0)
 
 #### Security Headers
 - **Content Security Policy (CSP)**: Protezione XSS avanzata
 - **HSTS**: Force HTTPS con preload list
 - **X-Frame-Options**: Protezione clickjacking
-- **Rate Limiting**: 100 req/15min generale, 5 tentativi auth
+- **Rate Limiting**: Configurabile per endpoint
 - **Security Monitoring**: Detection SQL injection, XSS, path traversal
+- **Audit Logging**: Tracciamento completo operazioni
 
 #### Performance & Reliability
 - **Response Compression**: Brotli + Gzip (-70% bandwidth)
 - **Circuit Breaker**: Per tutti i servizi esterni
 - **Retry Logic**: Exponential backoff intelligente
 - **Request ID Tracking**: Correlazione log end-to-end
-- **Health Checks**: Monitoring completo sistema
+- **Health Checks**: Sistema completo con dashboard
+- **Auto-Remediation**: Fix automatici per problemi comuni
 
 ## 📁 Struttura Progetto
 
@@ -71,127 +94,150 @@ richiesta-assistenza/
 │   ├── src/
 │   │   ├── config/               # Configurazioni
 │   │   ├── middleware/           # Middleware (security, auth, compression)
-│   │   │   ├── security.ts      # ✨ NEW: Security headers avanzati
-│   │   │   ├── compression.ts   # ✨ NEW: Brotli/Gzip compression
-│   │   │   ├── requestId.ts     # ✨ NEW: Request tracking
+│   │   │   ├── security.ts      # Security headers avanzati
+│   │   │   ├── compression.ts   # Brotli/Gzip compression
+│   │   │   ├── requestId.ts     # Request tracking
+│   │   │   ├── auditLogger.ts   # ✨ NEW: Audit logging
 │   │   │   └── auth.ts          # Autenticazione JWT + 2FA
 │   │   ├── routes/               # API routes
-│   │   │   ├── health.routes.ts # ✨ NEW: Health checks avanzati
+│   │   │   ├── admin/
+│   │   │   │   ├── health-check.routes.ts  # ✨ NEW
+│   │   │   │   └── scripts.routes.ts       # ✨ NEW
 │   │   │   └── ...
-│   │   ├── services/             # Business logic
-│   │   ├── utils/
-│   │   │   └── retryLogic.ts    # ✨ NEW: Retry & Circuit Breaker
+│   │   ├── services/             
+│   │   │   ├── health-check-automation/    # ✨ NEW
+│   │   │   ├── scripts.service.ts          # ✨ NEW
+│   │   │   └── ...
+│   │   ├── scripts/              # ✨ NEW: Admin scripts
 │   │   └── server.ts             # Entry point
 │   ├── prisma/
 │   │   └── schema.prisma        # Database schema
 │   └── logs/                     # Log files con rotation
 │
-├── 📂 client/                     # Frontend React
-│   ├── src/
-│   │   ├── components/           # Componenti React
-│   │   ├── hooks/               # Custom hooks
-│   │   ├── pages/               # Pagine applicazione
-│   │   └── lib/                 # Utilities
-│   └── public/                  # Assets statici
+├── 📂 src/                        # Frontend React (NON /client!)
+│   ├── components/               
+│   │   ├── admin/
+│   │   │   ├── health-check/    # ✨ NEW: Health Check UI
+│   │   │   ├── script-manager/  # ✨ NEW: Script Manager UI
+│   │   │   └── audit-log/       # ✨ NEW: Audit Log UI
+│   │   └── ...
+│   ├── hooks/                    # Custom hooks
+│   ├── pages/                    # Pagine applicazione
+│   ├── services/                 # API services
+│   └── lib/                      # Utilities
 │
-├── 📂 shared/                     # Codice condiviso
-│   ├── schema.ts                # Schema database
-│   └── types.ts                 # TypeScript types
+├── 📂 Docs/                       # ✨ NEW: Documentazione completa
+│   ├── 01-GETTING-STARTED/
+│   ├── 02-ARCHITETTURA/
+│   ├── 03-SVILUPPO/
+│   └── 04-SISTEMI/              # ✨ NEW
+│       ├── HEALTH-CHECK-SYSTEM.md
+│       ├── SCRIPT-MANAGER.md
+│       └── README.md
 │
-├── 📂 docs/                       # Documentazione
-│   ├── API.md                   # API Reference
-│   ├── SECURITY.md              # ✨ NEW: Security guidelines
-│   └── DEPLOYMENT.md            # Deploy instructions
+├── 📂 scripts/                    # Script di utility
+│   └── health-checks/            # ✨ NEW: Health check scripts
 │
-└── 📂 REPORT-SESSIONI-CLAUDE/     # Report sviluppo
-    └── 2025-09-SETTEMBRE/        # Report corrente mese
+├── 📄 package.json               # Dipendenze frontend
+├── 📄 ISTRUZIONI-PROGETTO.md    # ⚠️ LEGGERE PRIMA DI INIZIARE
+└── 📄 README.md                  # Questo file
 ```
 
 ## 🚀 Quick Start
 
 ### Prerequisiti
-
-- Node.js 18+ 
+- Node.js 18+ LTS
 - PostgreSQL 14+
-- Redis (opzionale, per cache e queue)
+- Redis 7+ (per queue e cache)
 - npm o yarn
 
 ### Installazione
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/your-org/richiesta-assistenza.git
+git clone https://github.com/241luca/Richiesta-Assistenza.git
 cd richiesta-assistenza
 
-# 2. Installa dipendenze backend
-cd backend
+# 2. Installa dipendenze
 npm install
+cd backend && npm install && cd ..
 
-# 3. Configura ambiente
+# 3. Setup database
+cd backend
+npx prisma generate
+npx prisma db push
+npx prisma db seed  # Dati di esempio
+
+# 4. Crea tabelle Health Check
+npx ts-node src/scripts/create-health-tables.ts
+
+# 5. Configura environment
 cp .env.example .env
 # Modifica .env con le tue configurazioni
 
-# 4. Setup database
-npx prisma generate
-npx prisma db push
+# 6. Avvia i servizi
+# Terminal 1 - Backend
+cd backend && npm run dev
 
-# 5. Avvia backend (porta 3200)
+# Terminal 2 - Frontend
 npm run dev
 
-# 6. In nuovo terminale, installa frontend
-cd ../client
-npm install
-
-# 7. Avvia frontend (porta 5193)
-npm run dev
+# Terminal 3 - Redis (se non già attivo)
+redis-server
 ```
 
 ### Accesso
 
 - **Frontend**: http://localhost:5193
 - **Backend API**: http://localhost:3200
-- **Health Check**: http://localhost:3200/api/health
-- **API Docs**: http://localhost:3200/api-docs (se configurato)
+- **Health Check**: http://localhost:3200/health
 
-## 📊 API Endpoints Principali
+### Credenziali Default
 
-### 🔐 Autenticazione
-- `POST /api/auth/register` - Registrazione utente
-- `POST /api/auth/login` - Login (con 2FA opzionale)
-- `POST /api/auth/logout` - Logout
-- `POST /api/auth/refresh` - Refresh token
-- `POST /api/auth/2fa/enable` - Abilita 2FA
-- `POST /api/auth/2fa/verify` - Verifica codice 2FA
+```
+Admin:
+  Email: admin@test.com
+  Password: password123
 
-### 📋 Richieste Assistenza
-- `GET /api/requests` - Lista richieste
-- `POST /api/requests` - Crea nuova richiesta
-- `GET /api/requests/:id` - Dettaglio richiesta
-- `PUT /api/requests/:id` - Aggiorna richiesta
-- `DELETE /api/requests/:id` - Elimina richiesta
+Professional:
+  Email: professional@test.com
+  Password: password123
 
-### 💰 Preventivi
-- `GET /api/quotes` - Lista preventivi
-- `POST /api/quotes` - Crea preventivo
-- `PUT /api/quotes/:id/accept` - Accetta preventivo
-- `PUT /api/quotes/:id/reject` - Rifiuta preventivo
+Client:
+  Email: client@test.com
+  Password: password123
+```
 
-### 📅 Interventi Pianificati
-- `GET /api/scheduled-interventions/request/:id` - Lista interventi
-- `POST /api/scheduled-interventions` - Proponi interventi
-- `PUT /api/scheduled-interventions/:id/accept` - Accetta
-- `PUT /api/scheduled-interventions/:id/reject` - Rifiuta
+## 📊 Dashboard Amministrativa
 
-### 🤖 AI Assistant
-- `POST /api/ai/chat` - Chat con AI assistant
-- `GET /api/ai/settings` - Configurazioni AI
-- `PUT /api/ai/settings` - Aggiorna configurazioni
+### Nuove Sezioni v4.0
 
-### 🏥 Health & Monitoring (NEW v2.0.0)
-- `GET /api/health` - Health check base
-- `GET /api/health/detailed` - Metriche complete sistema
-- `GET /api/health/ready` - Readiness probe
-- `GET /api/health/live` - Liveness probe
+#### 🏥 Health Check System
+**Accesso**: Menu → Health Check → Automation & Alerts
+
+- **Overview**: Stato sistema real-time
+- **Scheduler**: Configurazione intervalli automatici
+- **Reports**: Generazione PDF on-demand e settimanali
+- **Auto-Remediation**: Gestione regole auto-fix
+- **Performance**: Grafici metriche real-time
+
+#### 🛠️ Script Manager
+**Accesso**: Menu → Script Manager
+
+- Lista script categorizzati
+- Esecuzione con parametri dinamici
+- Output real-time
+- Storia esecuzioni
+- Controllo accessi role-based
+
+#### 📊 Audit Log
+**Accesso**: Menu → Audit Log
+
+- Tracciamento tutte le operazioni
+- Filtri avanzati
+- Export CSV/JSON/PDF
+- Grafici statistiche
+- Retention policy configurabile
 
 ## 🔧 Configurazione
 
@@ -199,14 +245,11 @@ npm run dev
 
 ```env
 # Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/assistenza
+DATABASE_URL=postgresql://user:pass@localhost:5432/assistance_db
 
-# Security (NEW v2.0.0)
-SESSION_SECRET=your-secret-key-min-32-chars
-JWT_SECRET=your-jwt-secret
-BLOCK_SUSPICIOUS=true
-RATE_LIMIT_ENABLED=true
-CSP_REPORT_ONLY=false
+# Security
+JWT_SECRET=your-32-char-minimum-secret
+SESSION_SECRET=your-32-char-minimum-secret
 
 # External Services
 OPENAI_API_KEY=sk-...
@@ -214,80 +257,79 @@ STRIPE_SECRET_KEY=sk_test_...
 GOOGLE_MAPS_API_KEY=AIza...
 BREVO_API_KEY=xkeysib-...
 
-# Performance (NEW v2.0.0)
-COMPRESSION_LEVEL=6
-BROTLI_QUALITY=6
-CACHE_ENABLED=true
+# Redis
+REDIS_URL=redis://localhost:6379
 
-# Circuit Breaker (NEW v2.0.0)
-CIRCUIT_BREAKER_ENABLED=true
-RETRY_MAX_ATTEMPTS=3
-CIRCUIT_FAILURE_THRESHOLD=5
+# Health Check (NEW)
+HEALTH_CHECK_ENABLED=true
+HEALTH_CHECK_INTERVAL=30
+HEALTH_CHECK_ALERT_EMAIL=admin@example.com
 
-# Application
-NODE_ENV=production
-PORT=3200
-FRONTEND_URL=http://localhost:5193
+# Script Manager (NEW)
+SCRIPT_MANAGER_ENABLED=true
+SCRIPT_TIMEOUT=300000
+
+# Audit Log (NEW)
+AUDIT_LOG_ENABLED=true
+AUDIT_RETENTION_DAYS=90
 ```
 
-## 📈 Monitoring e Metriche
+## 📚 Documentazione
 
-### Dashboard Monitoring (v2.0.0)
+### Documenti Principali
 
-Accedi a `/api/health/detailed` per visualizzare:
+- **[ISTRUZIONI-PROGETTO.md](./ISTRUZIONI-PROGETTO.md)** - ⚠️ LEGGERE PRIMA DI INIZIARE
+- **[Architettura Completa](./Docs/02-ARCHITETTURA/ARCHITETTURA-SISTEMA-COMPLETA.md)**
+- **[Health Check System](./Docs/04-SISTEMI/HEALTH-CHECK-SYSTEM.md)** - NEW
+- **[Script Manager](./Docs/04-SISTEMI/SCRIPT-MANAGER.md)** - NEW
+- **[Aggiornamento v4.0](./Docs/02-ARCHITETTURA/AGGIORNAMENTO-v4.0.md)** - NEW
 
-```json
-{
-  "database": {
-    "status": "healthy",
-    "responseTime": "5ms",
-    "connections": 10
-  },
-  "externalServices": {
-    "circuitBreakers": {
-      "openai": { "state": "CLOSED", "failureCount": 0 },
-      "stripe": { "state": "CLOSED", "failureCount": 0 },
-      "googleMaps": { "state": "CLOSED", "failureCount": 0 },
-      "email": { "state": "CLOSED", "failureCount": 0 }
-    }
-  },
-  "system": {
-    "cpu": { "usage": "15%" },
-    "memory": { "used": "256MB", "total": "512MB" },
-    "uptime": "24 hours"
-  },
-  "security": {
-    "rateLimiting": "enabled",
-    "securityHeaders": "enabled",
-    "compression": "enabled",
-    "requestIdTracking": "enabled"
-  }
-}
+### API Documentation
+
+- Base URL: `http://localhost:3200/api`
+- Authentication: JWT Bearer token
+- Response Format: ResponseFormatter standard
+
+#### Nuovi Endpoints v4.0
+
 ```
-
-### Performance Metrics
-
-- **Response Time**: < 100ms (p95)
-- **Compression Ratio**: 70-80% reduction
-- **Uptime**: 99.9% con circuit breaker
-- **Error Rate**: < 0.1%
+Health Check:
+  GET    /admin/health-check/status
+  POST   /admin/health-check/start
+  POST   /admin/health-check/stop
+  POST   /admin/health-check/report
+  
+Script Manager:
+  GET    /admin/scripts
+  POST   /admin/scripts/:id/execute
+  GET    /admin/scripts/:id/output
+  
+Audit Log:
+  GET    /audit
+  GET    /audit/export
+  POST   /audit/cleanup
+```
 
 ## 🧪 Testing
 
 ```bash
-# Backend tests
-cd backend
-npm test                 # Unit tests
-npm run test:e2e        # E2E tests
-npm run test:coverage   # Coverage report
+# Unit tests
+npm test
 
-# Frontend tests
-cd client
-npm test                # Component tests
-npm run test:e2e       # Cypress E2E
+# Integration tests
+npm run test:integration
+
+# E2E tests
+npm run test:e2e
+
+# Coverage report
+npm run test:coverage
+
+# Health Check test
+curl http://localhost:3200/api/admin/health-check/status
 ```
 
-## 📦 Deployment
+## 🚢 Deployment
 
 ### Docker
 
@@ -295,83 +337,90 @@ npm run test:e2e       # Cypress E2E
 # Build images
 docker-compose build
 
-# Run containers
+# Start services
 docker-compose up -d
 
-# Check status
-docker-compose ps
+# Check logs
+docker-compose logs -f
 ```
 
-### Kubernetes
+### PM2
 
 ```bash
-# Apply manifests
-kubectl apply -f k8s/
-
-# Check pods
-kubectl get pods -n assistenza
-
-# Check services
-kubectl get svc -n assistenza
-```
-
-### PM2 (Production)
-
-```bash
-# Start backend
+# Start with PM2
 pm2 start ecosystem.config.js
 
 # Monitor
 pm2 monit
 
-# Logs
-pm2 logs
+# Reload
+pm2 reload all
 ```
 
-## 🔄 Changelog
+## 📈 Monitoring
 
-### v2.0.0 (6 Settembre 2025)
-- ✨ Security headers avanzati (OWASP compliant)
-- ✨ Response compression (Brotli/Gzip)
-- ✨ Retry logic con circuit breaker
-- ✨ Request ID tracking
-- ✨ Health checks avanzati
-- ✨ Rate limiting migliorato
-- ✨ Security monitoring
-- 🐛 Fix scheduled interventions
-- 🐛 Fix Prisma schema relations
-- 📚 Documentazione completa aggiornata
+### Health Checks
+- Sistema automatico ogni 5-30 minuti
+- Dashboard real-time
+- Alert automatici per problemi critici
+- Report PDF settimanali
 
-### v1.5.0 (Agosto 2025)
-- ✨ Sistema interventi pianificati
-- ✨ Rapporti intervento
-- ✨ Backup system
-- 🔧 Miglioramenti performance
+### Metriche Monitorate
+- CPU & Memory usage
+- API response times
+- Database performance
+- Error rates
+- Request throughput
+- WebSocket connections
 
-### v1.0.0 (Luglio 2025)
-- 🎉 Release iniziale
-- ✨ Autenticazione e autorizzazione
-- ✨ Gestione richieste e preventivi
-- ✨ Integrazione AI
-- ✨ Sistema notifiche
+## 🤝 Contributing
+
+1. Fork il repository
+2. Crea un branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
+4. Push al branch (`git push origin feature/AmazingFeature`)
+5. Apri una Pull Request
+
+## 📝 Changelog
+
+### v4.1.0 (8 Settembre 2025 - Pomeriggio)
+- ✨ **NUOVO**: Tab "Guida ai Test" con documentazione integrata
+- ✨ FAQ estese con 8+ domande frequenti
+- ✨ Spiegazioni user-friendly per tutti i componenti
+- 🔧 Fix metodi `getCurrentMetrics()` e `getHistory()`
+- 🔧 Correzione tutti i percorsi API duplicati `/api/api/`
+- 🔧 Gestione graceful tabelle database mancanti
+- 📁 Consolidamento script in posizione unica
+
+### v4.0.0 (8 Settembre 2025 - Mattina)
+- ✨ Health Check System con auto-remediation
+- ✨ Script Manager con UI
+- ✨ Audit Log system
+- ✨ Performance monitoring real-time
+- ✨ Report PDF automatici
+- 📚 Documentazione completa riorganizzata
+
+### v3.0.0 (6 Settembre 2025)
+- 🔒 Security headers avanzati
+- ⚡ Compression Brotli/Gzip
+- 📊 Request ID tracking
+- 🔄 Circuit breaker pattern
+
+### v2.0.0 (30 Agosto 2025)
+- 🤖 Integrazione AI
+- 💳 Sistema pagamenti
+- 📍 Geolocalizzazione
+
+## 📄 License
+
+Proprietario - LM Tecnologie © 2025
 
 ## 👥 Team
 
 - **Lead Developer**: Luca Mambelli
-- **AI Assistant**: Claude (Anthropic)
-- **Contact**: lucamambelli@lmtecnologie.it
-
-## 📄 Licenza
-
-Proprietario - © 2025 LM Tecnologie. Tutti i diritti riservati.
-
-## 🆘 Support
-
-Per supporto e segnalazioni:
-- **Email**: support@lmtecnologie.it
-- **Issues**: GitHub Issues
-- **Docs**: [Documentazione completa](./docs/)
+- **Email**: lucamambelli@lmtecnologie.it
+- **GitHub**: [@241luca](https://github.com/241luca)
 
 ---
 
-**Sistema Richiesta Assistenza v2.0.0** - Enterprise Ready Platform 🚀
+**Sistema Richiesta Assistenza v4.1** - Enterprise Ready Solution 🚀

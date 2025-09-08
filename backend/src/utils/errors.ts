@@ -1,87 +1,61 @@
 /**
- * Custom Error class for application errors
+ * Custom Error Classes
+ * Gestione errori strutturata per l'applicazione
  */
+
 export class AppError extends Error {
   public statusCode: number;
+  public code: string;
   public isOperational: boolean;
-  public status: string;
 
-  constructor(message: string, statusCode: number = 500) {
+  constructor(message: string, statusCode: number = 500, code: string = 'INTERNAL_ERROR') {
     super(message);
-    
     this.statusCode = statusCode;
-    this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
+    this.code = code;
     this.isOperational = true;
 
     Error.captureStackTrace(this, this.constructor);
   }
 }
 
-/**
- * Validation Error class
- */
 export class ValidationError extends AppError {
-  public errors: any[];
-
-  constructor(message: string, errors: any[] = []) {
-    super(message, 400);
-    this.errors = errors;
+  constructor(message: string) {
+    super(message, 400, 'VALIDATION_ERROR');
   }
 }
 
-/**
- * Authentication Error class
- */
-export class AuthError extends AppError {
+export class AuthenticationError extends AppError {
   constructor(message: string = 'Authentication failed') {
-    super(message, 401);
+    super(message, 401, 'AUTHENTICATION_ERROR');
   }
 }
 
-/**
- * Authorization Error class
- */
-export class ForbiddenError extends AppError {
-  constructor(message: string = 'Access forbidden') {
-    super(message, 403);
+export class AuthorizationError extends AppError {
+  constructor(message: string = 'Not authorized') {
+    super(message, 403, 'AUTHORIZATION_ERROR');
   }
 }
 
-/**
- * Not Found Error class
- */
 export class NotFoundError extends AppError {
   constructor(message: string = 'Resource not found') {
-    super(message, 404);
+    super(message, 404, 'NOT_FOUND');
   }
 }
 
-/**
- * Conflict Error class
- */
 export class ConflictError extends AppError {
-  constructor(message: string = 'Resource conflict') {
-    super(message, 409);
+  constructor(message: string) {
+    super(message, 409, 'CONFLICT');
   }
 }
 
-/**
- * Database Error class
- */
-export class DatabaseError extends AppError {
-  constructor(message: string = 'Database operation failed') {
-    super(message, 500);
+export class TooManyRequestsError extends AppError {
+  constructor(message: string = 'Too many requests') {
+    super(message, 429, 'TOO_MANY_REQUESTS');
   }
 }
 
-/**
- * External Service Error class
- */
-export class ExternalServiceError extends AppError {
-  public service: string;
-
-  constructor(service: string, message: string = 'External service error') {
-    super(message, 503);
-    this.service = service;
+export class BusinessError extends AppError {
+  constructor(message: string, code: string = 'BUSINESS_ERROR') {
+    super(message, 400, code);
   }
 }

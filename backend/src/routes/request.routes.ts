@@ -14,6 +14,8 @@ import {
 } from '../utils/responseFormatter';
 import GoogleMapsService from '../services/googleMaps.service';
 import bcrypt from 'bcryptjs';
+import { auditLogService } from '../services/auditLog.service';
+import { AuditAction, LogSeverity, LogCategory } from '@prisma/client';
 
 const router = Router();
 

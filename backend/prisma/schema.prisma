@@ -70,11 +70,11 @@ model ApiKey {
 }
 
 model AssistanceRequest {
-  id                                          String               @id
+  id                                          String                  @id
   title                                       String
   description                                 String
-  priority                                    Priority             @default(MEDIUM)
-  status                                      RequestStatus        @default(PENDING)
+  priority                                    Priority                @default(MEDIUM)
+  status                                      RequestStatus           @default(PENDING)
   clientId                                    String
   professionalId                              String?
   categoryId                                  String
@@ -94,23 +94,24 @@ model AssistanceRequest {
   publicNotes                                 String?
   tags                                        Json?
   customFields                                Json?
-  createdAt                                   DateTime             @default(now())
+  createdAt                                   DateTime                @default(now())
   updatedAt                                   DateTime
   assignedAt                                  DateTime?
   assignedBy                                  String?
   assignmentType                              AssignmentType?
   AiConversation                              AiConversation[]
-  assignedByUser User?                @relation("AssistanceRequest_assignedByToUser", fields: [assignedBy], references: [id])
-  category       Category             @relation(fields: [categoryId], references: [id])
-  client         User                 @relation("AssistanceRequest_clientIdToUser", fields: [clientId], references: [id])
-  professional   User?                @relation("AssistanceRequest_professionalIdToUser", fields: [professionalId], references: [id])
-  subcategory    Subcategory?         @relation(fields: [subcategoryId], references: [id])
+  User_AssistanceRequest_assignedByToUser     User?                   @relation("AssistanceRequest_assignedByToUser", fields: [assignedBy], references: [id])
+  Category                                    Category                @relation(fields: [categoryId], references: [id])
+  User_AssistanceRequest_clientIdToUser       User                    @relation("AssistanceRequest_clientIdToUser", fields: [clientId], references: [id])
+  User_AssistanceRequest_professionalIdToUser User?                   @relation("AssistanceRequest_professionalIdToUser", fields: [professionalId], references: [id])
+  Subcategory                                 Subcategory?            @relation(fields: [subcategoryId], references: [id])
   InterventionReport                          InterventionReport[]
   Message                                     Message[]
   Quote                                       Quote[]
   RequestAttachment                           RequestAttachment[]
   RequestChatMessage                          RequestChatMessage[]
   RequestUpdate                               RequestUpdate[]
+  ScheduledIntervention                       ScheduledIntervention[]
 
   @@index([categoryId])
   @@index([clientId])
@@ -118,6 +119,68 @@ model AssistanceRequest {
   @@index([professionalId])
   @@index([status])
   @@index([subcategoryId])
+}
+
+model AuditLog {
+  id           String      @id
+  userId       String?
+  userEmail    String?
+  userRole     String?
+  ipAddress    String
+  userAgent    String
+  sessionId    String?
+  action       AuditAction
+  entityType   String
+  entityId     String?
+  timestamp    DateTime    @default(now())
+  endpoint     String?
+  method       String?
+  requestId    String?
+  oldValues    Json?
+  newValues    Json?
+  changes      Json?
+  metadata     Json?
+  success      Boolean
+  errorMessage String?
+  responseTime Int?
+  statusCode   Int?
+  severity     LogSeverity
+  category     LogCategory
+  User         User?       @relation(fields: [userId], references: [id])
+
+  @@index([action, timestamp])
+  @@index([category, severity])
+  @@index([entityType, entityId])
+  @@index([sessionId])
+  @@index([timestamp])
+  @@index([userId, timestamp])
+}
+
+model AuditLogAlert {
+  id            String      @id
+  name          String
+  description   String?
+  condition     Json
+  severity      LogSeverity
+  isActive      Boolean     @default(true)
+  lastTriggered DateTime?
+  triggerCount  Int         @default(0)
+  notifyEmails  Json?
+  notifyWebhook String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime
+
+  @@index([isActive])
+}
+
+model AuditLogRetention {
+  id            String      @id
+  category      LogCategory @unique
+  retentionDays Int
+  isActive      Boolean     @default(true)
+  description   String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime
 }
 
 model BackupExecution {
@@ -349,8 +412,8 @@ model InterventionReport {
   version                                      Int                         @default(1)
   createdAt                                    DateTime                    @default(now())
   updatedAt                                    DateTime
-  client       User                        @relation("InterventionReport_clientIdToUser", fields: [clientId], references: [id])
-  professional User                        @relation("InterventionReport_professionalIdToUser", fields: [professionalId], references: [id])
+  User_InterventionReport_clientIdToUser       User                        @relation("InterventionReport_clientIdToUser", fields: [clientId], references: [id])
+  User_InterventionReport_professionalIdToUser User                        @relation("InterventionReport_professionalIdToUser", fields: [professionalId], references: [id])
   AssistanceRequest                            AssistanceRequest           @relation(fields: [requestId], references: [id])
   InterventionReportStatus                     InterventionReportStatus    @relation(fields: [statusId], references: [id])
   InterventionReportTemplate                   InterventionReportTemplate? @relation(fields: [templateId], references: [id])
@@ -626,9 +689,9 @@ model Message {
   editedAt                       DateTime?
   deletedAt                      DateTime?
   createdAt                      DateTime           @default(now())
-  recipient User               @relation("Message_recipientIdToUser", fields: [recipientId], references: [id])
+  User_Message_recipientIdToUser User               @relation("Message_recipientIdToUser", fields: [recipientId], references: [id])
   AssistanceRequest              AssistanceRequest? @relation(fields: [requestId], references: [id])
-  sender    User               @relation("Message_senderIdToUser", fields: [senderId], references: [id])
+  User_Message_senderIdToUser    User               @relation("Message_senderIdToUser", fields: [senderId], references: [id])
 
   @@index([isRead])
   @@index([recipientId])
@@ -650,8 +713,8 @@ model Notification {
   readAt                              DateTime?
   metadata                            Json?
   createdAt                           DateTime             @default(now())
-  recipient User                 @relation("Notification_recipientIdToUser", fields: [recipientId], references: [id])
-  sender    User?                @relation("Notification_senderIdToUser", fields: [senderId], references: [id])
+  User_Notification_recipientIdToUser User                 @relation("Notification_recipientIdToUser", fields: [recipientId], references: [id])
+  User_Notification_senderIdToUser    User?                @relation("Notification_senderIdToUser", fields: [senderId], references: [id])
 
   @@index([isRead])
   @@index([recipientId])
@@ -1221,6 +1284,32 @@ model RequestUpdate {
   @@index([userId])
 }
 
+model ScheduledIntervention {
+  id                                              String            @id
+  requestId                                       String
+  professionalId                                  String
+  proposedDate                                    DateTime
+  confirmedDate                                   DateTime?
+  status                                          String            @default("PROPOSED")
+  description                                     String?
+  estimatedDuration                               Int?
+  actualDuration                                  Int?
+  notes                                           String?
+  clientConfirmed                                 Boolean           @default(false)
+  clientDeclineReason                             String?
+  createdAt                                       DateTime          @default(now())
+  updatedAt                                       DateTime
+  createdBy                                       String?
+  User_ScheduledIntervention_createdByToUser      User?             @relation("ScheduledIntervention_createdByToUser", fields: [createdBy], references: [id])
+  User_ScheduledIntervention_professionalIdToUser User              @relation("ScheduledIntervention_professionalIdToUser", fields: [professionalId], references: [id])
+  AssistanceRequest                               AssistanceRequest @relation(fields: [requestId], references: [id])
+
+  @@index([professionalId])
+  @@index([proposedDate])
+  @@index([requestId])
+  @@index([status])
+}
+
 model Subcategory {
   id                          String                        @id
   name                        String
@@ -1410,6 +1499,7 @@ model User {
   AssistanceRequest_AssistanceRequest_assignedByToUser                   AssistanceRequest[]           @relation("AssistanceRequest_assignedByToUser")
   AssistanceRequest_AssistanceRequest_clientIdToUser                     AssistanceRequest[]           @relation("AssistanceRequest_clientIdToUser")
   AssistanceRequest_AssistanceRequest_professionalIdToUser               AssistanceRequest[]           @relation("AssistanceRequest_professionalIdToUser")
+  AuditLog                                                               AuditLog[]
   BackupRestore                                                          BackupRestore[]
   BackupSchedule                                                         BackupSchedule[]
   InterventionReport_InterventionReport_clientIdToUser                   InterventionReport[]          @relation("InterventionReport_clientIdToUser")
@@ -1442,6 +1532,8 @@ model User {
   RequestAttachment                                                      RequestAttachment[]
   RequestChatMessage                                                     RequestChatMessage[]
   RequestUpdate                                                          RequestUpdate[]
+  ScheduledIntervention_ScheduledIntervention_createdByToUser            ScheduledIntervention[]       @relation("ScheduledIntervention_createdByToUser")
+  ScheduledIntervention_ScheduledIntervention_professionalIdToUser       ScheduledIntervention[]       @relation("ScheduledIntervention_professionalIdToUser")
   SystemBackup                                                           SystemBackup[]
   Profession                                                             Profession?                   @relation(fields: [professionId], references: [id])
 
@@ -1468,6 +1560,57 @@ enum AssignmentType {
   STAFF
   SELF
   AUTOMATIC
+}
+
+enum AuditAction {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+  PASSWORD_CHANGED
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_COMPLETED
+  TWO_FA_ENABLED
+  TWO_FA_DISABLED
+  TWO_FA_FAILED
+  SESSION_EXPIRED
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  BULK_CREATE
+  BULK_UPDATE
+  BULK_DELETE
+  REQUEST_CREATED
+  REQUEST_ASSIGNED
+  REQUEST_UPDATED
+  REQUEST_CANCELLED
+  REQUEST_COMPLETED
+  QUOTE_CREATED
+  QUOTE_SENT
+  QUOTE_ACCEPTED
+  QUOTE_REJECTED
+  PAYMENT_INITIATED
+  PAYMENT_PROCESSED
+  PAYMENT_FAILED
+  PAYMENT_REFUNDED
+  PERMISSION_GRANTED
+  PERMISSION_REVOKED
+  ROLE_CHANGED
+  SUSPICIOUS_ACTIVITY
+  RATE_LIMIT_EXCEEDED
+  UNAUTHORIZED_ACCESS
+  API_KEY_CREATED
+  API_KEY_REVOKED
+  BACKUP_CREATED
+  BACKUP_RESTORED
+  SYSTEM_ERROR
+  INTEGRATION_FAILED
+  EMAIL_SENT
+  EMAIL_FAILED
+  EXPORT_DATA
+  IMPORT_DATA
+  DATA_ANONYMIZED
+  DATA_DELETED
 }
 
 enum BackupFrequency {
@@ -1504,7 +1647,26 @@ enum DetailLevel {
   ADVANCED
 }
 
+enum LogCategory {
+  SECURITY
+  BUSINESS
+  SYSTEM
+  COMPLIANCE
+  PERFORMANCE
+  USER_ACTIVITY
+  API
+  INTEGRATION
+}
+
 enum LogLevel {
+  DEBUG
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+enum LogSeverity {
   DEBUG
   INFO
   WARNING

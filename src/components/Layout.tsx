@@ -24,7 +24,9 @@ import {
   BriefcaseIcon,
   PhoneIcon,
   ServerIcon,
-  CommandLineIcon
+  CommandLineIcon,
+  ShieldCheckIcon,
+  HeartIcon
 } from '@heroicons/react/24/outline';
 import { BellIcon as BellIconSolid } from '@heroicons/react/24/solid';
 // CAMBIATO: Ora usa il hook invece del context
@@ -42,9 +44,10 @@ export default function Layout({ children }: LayoutProps) {
   const handleLogout = async () => {
     try {
       await logout();
-      toast.success('Logout effettuato con successo');
+      // Il toast di successo viene già mostrato dal hook
     } catch (error) {
-      toast.error('Errore durante il logout');
+      console.error('Logout error:', error);
+      // Il toast di errore viene già mostrato dal hook
     }
   };
 
@@ -75,9 +78,21 @@ export default function Layout({ children }: LayoutProps) {
           
           // Il resto in ordine alfabetico
           { name: 'API Keys', href: '/admin/api-keys', icon: KeyIcon },
+          { 
+            name: 'Audit Log', 
+            href: '/admin/audit', 
+            icon: ShieldCheckIcon,
+            isNew: true // Badge "NEW"
+          },
           { name: 'Categorie', href: '/admin/categories', icon: BuildingOfficeIcon },
           { name: 'Tabelle Sistema', href: '/admin/system-enums', icon: SwatchIcon },
           { name: 'Gestione Professionisti', href: '/admin/professionals', icon: UserGroupIcon },
+          { 
+            name: 'Health Check', 
+            href: '/admin/health', 
+            icon: HeartIcon,
+            isNew: true // Badge "NEW"
+          },
           { name: 'Impostazioni', href: '/admin/settings', icon: Cog6ToothIcon },
           { name: 'Impostazioni Sistema', href: '/admin/system-settings', icon: AdjustmentsHorizontalIcon },
           { name: 'Profilo', href: '/profile', icon: UserCircleIcon },
@@ -107,6 +122,12 @@ export default function Layout({ children }: LayoutProps) {
         return [
           ...baseItems,
           { name: 'Dashboard Admin', href: '/admin', icon: ChartBarIcon },
+          { 
+            name: 'Audit Log', 
+            href: '/admin/audit', 
+            icon: ShieldCheckIcon,
+            isNew: true // Badge "NEW"
+          },
           { name: 'Test Sistema', href: '/admin/test', icon: BeakerIcon },
           { name: 'Utenti', href: '/admin/users', icon: UserGroupIcon },
           { name: 'Richieste', href: '/requests', icon: DocumentTextIcon },
@@ -140,6 +161,12 @@ export default function Layout({ children }: LayoutProps) {
           { name: 'Sottocategorie', href: '/admin/subcategories', icon: TagIcon },
           { name: 'Sistema AI', href: '/admin/ai', icon: SparklesIcon },
           { name: 'Gestione Professionisti', href: '/admin/professionals', icon: UserGroupIcon },
+          { 
+            name: 'Health Check', 
+            href: '/admin/health', 
+            icon: HeartIcon,
+            isNew: true // Badge "NEW"
+          },
           { name: 'Impostazioni', href: '/admin/settings', icon: Cog6ToothIcon },
           { name: 'Profilo', href: '/profile', icon: UserCircleIcon },
           // NOTA: Sistema Notifiche NON disponibile per ADMIN normale

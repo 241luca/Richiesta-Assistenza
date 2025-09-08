@@ -261,11 +261,16 @@ export const useAuth = () => {
   const login = (emailOrData: string | LoginData, password?: string) => {
     if (typeof emailOrData === 'string' && password) {
       // Formato vecchio: login(email, password)
-      loginMutation.mutate({ email: emailOrData, password });
+      return loginMutation.mutateAsync({ email: emailOrData, password });
     } else {
       // Formato nuovo: login({ email, password })
-      loginMutation.mutate(emailOrData as LoginData);
+      return loginMutation.mutateAsync(emailOrData as LoginData);
     }
+  };
+
+  // Funzione logout che ritorna una Promise
+  const logout = () => {
+    return logoutMutation.mutateAsync();
   };
 
   return {
@@ -284,10 +289,10 @@ export const useAuth = () => {
     
     // Mutations con funzioni helper
     login,
-    logout: logoutMutation.mutate,
-    register: registerMutation.mutate,
-    resetPassword: resetPasswordMutation.mutate,
-    updateProfile: updateProfileMutation.mutate,
+    logout, // Ora usa la funzione che ritorna Promise
+    register: registerMutation.mutateAsync,
+    resetPassword: resetPasswordMutation.mutateAsync,
+    updateProfile: updateProfileMutation.mutateAsync,
     
     // Stati delle mutations
     isLoggingIn: loginMutation.isPending,

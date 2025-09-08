@@ -1,9 +1,10 @@
 import { PrismaClient, Quote, QuoteItem, QuoteStatus, Prisma } from '@prisma/client';
 import { AppError } from '../utils/errors';
 import { notificationService } from './notification.service';
-import { emailService } from './email.service';
-import { pdfService } from './pdf.service';
+// import { emailService } from './email.service'; // COMMENTED: Non esiste ancora
+// import { pdfService } from './pdf.service'; // COMMENTED: Non esiste ancora
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '../utils/logger';
 // AGGIUNTO: ResponseFormatter per formattazione consistente
 import { formatQuote, formatQuoteList, formatQuoteItem } from '../utils/responseFormatter';
 
@@ -341,13 +342,20 @@ class QuoteService {
       return accepted;
     });
 
-    // Invia notifiche
+    // Invia notifiche - FIXED: usa userId
     await notificationService.sendToUser({
-      type: 'quote_accepted',
+      userId: quote.professionalId, // FIXED: usa userId
+      type: 'QUOTE_ACCEPTED',
       title: 'Preventivo Accettato',
       message: `Il tuo preventivo per "${quote.assistanceRequest.title}" è stato accettato!`,
-      recipientId: quote.professionalId,
       priority: 'high',
+      data: {
+        quoteId: quote.id,
+        requestId: quote.requestId,
+        amount: quote.amount,
+        clientName: quote.assistanceRequest.User_AssistanceRequest_clientIdToUser?.fullName || 'Cliente',
+        actionUrl: `${process.env.FRONTEND_URL}/quotes/${quote.id}`
+      },
       channels: ['websocket', 'email']
     });
 
@@ -393,13 +401,19 @@ class QuoteService {
       }
     });
 
-    // Notifica il professionista
+    // Notifica il professionista - FIXED: usa userId
     await notificationService.sendToUser({
-      type: 'quote_rejected',
+      userId: quote.professionalId, // FIXED: usa userId
+      type: 'QUOTE_REJECTED',
       title: 'Preventivo Rifiutato',
-      message: `Il tuo preventivo per "${quote.assistanceRequest.title}" è stato rifiutato`,
-      recipientId: quote.professionalId,
+      message: `Il tuo preventivo per "${quote.assistanceRequest.title}" è stato rifiutato${reason ? `. Motivo: ${reason}` : ''}`,
       priority: 'normal',
+      data: {
+        quoteId: quote.id,
+        requestId: quote.requestId,
+        reason: reason,
+        actionUrl: `${process.env.FRONTEND_URL}/quotes/${quote.id}`
+      },
       channels: ['websocket', 'email']
     });
 
@@ -642,21 +656,29 @@ class QuoteService {
   }
 
   /**
-   * Helper: Invia notifica per nuovo preventivo
+   * Helper: Invia notifica per nuovo preventivo - FIXED: usa userId
    */
   private async sendQuoteNotification(quote: any, request: any) {
-    // Notifica in-app
-    await notificationService.sendToUser({
-      type: 'new_quote',
-      title: 'Nuovo Preventivo Ricevuto',
-      message: `Hai ricevuto un nuovo preventivo per "${request.title}"`,
-      recipientId: request.clientId,
-      priority: 'high',
-      channels: ['websocket', 'email']
-    });
-
-    // Email
-    // TODO: Implementare invio email con PDF allegato
+    try {
+      // FIXED: usa userId invece di recipientId
+      await notificationService.sendToUser({
+        userId: request.clientId, // FIXED: usa userId
+        type: 'NEW_QUOTE',
+        title: 'Nuovo Preventivo Ricevuto',
+        message: `Hai ricevuto un nuovo preventivo di €${quote.amount} per "${request.title}"`,
+        priority: 'high',
+        data: {
+          quoteId: quote.id,
+          requestId: request.id,
+          amount: quote.amount,
+          professionalName: quote.User?.fullName || 'Professionista',
+          actionUrl: `${process.env.FRONTEND_URL}/quotes/${quote.id}`
+        },
+        channels: ['websocket', 'email']
+      });
+    } catch (error) {
+      logger.error('Error sending quote notification:', error);
+    }
   }
 
   /**

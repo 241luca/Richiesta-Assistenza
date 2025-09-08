@@ -22,6 +22,7 @@ import requestRoutes from './routes/request.routes';
 import { quoteRoutes } from './routes/quote.routes';
 import paymentRoutes from './routes/payment.routes';
 import notificationRoutes from './routes/notification.routes';
+import notificationAdminRoutes from './routes/notificationAdmin.routes'; // ADMIN endpoints notifiche
 import notificationTemplateRoutes from './routes/notificationTemplate.routes'; // NUOVO SISTEMA NOTIFICHE
 import adminRoutes from './routes/admin.routes';
 import categoryRoutes from './routes/category.routes';
@@ -38,6 +39,7 @@ import aiRoutes from './routes/ai-professional.routes';
 import adminSystemEnumsRoutes from './routes/systemEnum.routes';
 import adminSystemSettingsRoutes from './routes/systemSettings.routes';
 import kbDocumentsRoutes from './routes/kb-documents.routes';
+import adminUsersRoutes from './routes/admin-users.routes'; // NUOVO - Gestione utenti avanzata
 import professionalRoutes from './routes/professional.routes';
 import professionalPricingRoutes from './routes/professionalPricing.routes'; // NUOVO - Gestione tariffe
 import professionsRoutes from './routes/professions.routes'; // NUOVO - Gestione professioni tabellate
@@ -65,6 +67,13 @@ import { chatRoutes } from './routes/chat.routes';
 
 // NUOVA FUNZIONALITÀ: Script Manager routes
 import scriptsRoutes from './routes/admin/scripts.routes';
+
+// SISTEMA AUDIT LOG - Added 07/01/2025
+import auditRoutes from './routes/audit.routes';
+import { auditLogger, auditAuth } from './middleware/auditLogger';
+
+// SISTEMA HEALTH CHECK - Added 07/01/2025
+import healthCheckRoutes from './routes/admin/health-check.routes';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -153,6 +162,22 @@ app.use(cors({
 
 // Request ID middleware - DEVE essere il PRIMO dopo security
 app.use(requestIdMiddleware);
+
+// AUDIT LOG MIDDLEWARE - Registra TUTTE le operazioni API
+app.use('/api', (req, res, next) => {
+  // Skip per endpoint che non necessitano logging dettagliato
+  if (req.path.startsWith('/health') || 
+      req.path.startsWith('/public') ||
+      req.path.includes('/ws-test')) {
+    return next();
+  }
+  
+  // Applica audit logging globale
+  return auditLogger({
+    captureBody: req.method !== 'GET', // Cattura body solo per POST/PUT/DELETE
+    category: 'API' as any
+  })(req, res, next);
+});
 
 // Body parsing middleware
 app.use(compression());
@@ -265,6 +290,7 @@ app.use('/api/requests', authenticate, requestRoutes);
 app.use('/api/quotes', authenticate, quoteRoutes);
 app.use('/api/payments', authenticate, paymentRoutes);
 app.use('/api/notifications', authenticate, notificationRoutes);
+app.use('/api/notifications', authenticate, notificationAdminRoutes); // Admin endpoints notifiche
 app.use('/api/notification-templates', authenticate, notificationTemplateRoutes); // NUOVO SISTEMA NOTIFICHE PROFESSIONALE
 app.use('/api/categories', authenticate, categoryRoutes);
 app.use('/api/subcategories', authenticate, subcategoryRoutes);
@@ -304,6 +330,17 @@ app.use('/api/dashboard', authenticate, userDashboardRoutes);
 // NEW: System configuration routes (SUPER_ADMIN only)
 app.use('/api/admin/system-enums', authenticate, requireRole(['SUPER_ADMIN']), adminSystemEnumsRoutes);
 app.use('/api/admin/system-settings', authenticate, requireRole(['SUPER_ADMIN']), adminSystemSettingsRoutes);
+
+// Admin users management routes - NUOVO
+app.use('/api/admin/users', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), adminUsersRoutes);
+
+// SISTEMA AUDIT LOG - Added 07/01/2025
+app.use('/api/audit', authenticate, auditRoutes);
+logger.info('Audit log system enabled at /api/audit');
+
+// SISTEMA HEALTH CHECK - Added 07/01/2025 - CORRECTED 08/09/2025
+app.use('/api/admin/health-check', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), healthCheckRoutes);
+logger.info('Health check system enabled at /api/admin/health-check');
 
 // Existing admin routes
 app.use('/api/admin/api-keys', authenticate, requireRole(['SUPER_ADMIN']), apiKeysRoutes);

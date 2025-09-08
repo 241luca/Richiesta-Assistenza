@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   BellIcon, 
@@ -16,7 +16,12 @@ import {
   ClockIcon,
   ExclamationTriangleIcon,
   DocumentDuplicateIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  BeakerIcon,
+  DocumentTextIcon,
+  PaperAirplaneIcon,
+  UserGroupIcon,
+  FunnelIcon
 } from '@heroicons/react/24/outline';
 import { BellIcon as BellIconSolid } from '@heroicons/react/24/solid';
 import { api } from '../../services/api';
@@ -24,238 +29,736 @@ import { toast } from 'react-hot-toast';
 import TemplateEditor from './TemplateEditor';
 import EventManager from './EventManager';
 import NotificationStats from './NotificationStats';
+import { format } from 'date-fns';
+import { it } from 'date-fns/locale';
 
-// Tipi TypeScript
-interface NotificationTemplate {
-  id: string;
-  code: string;
-  name: string;
-  description?: string;
-  category: string;
-  channels: string[];
-  priority: string;
-  isActive: boolean;
-  isSystem: boolean;
-  version: number;
-  createdAt: string;
-  updatedAt: string;
-}
+// Tipi di notifiche aggiornati
+const NOTIFICATION_TYPES = {
+  // Richieste
+  NEW_REQUEST: { label: 'Nuova Richiesta', color: 'blue', icon: DocumentTextIcon },
+  REQUEST_ASSIGNED: { label: 'Richiesta Assegnata', color: 'green', icon: UserGroupIcon },
+  REQUEST_STATUS_CHANGED: { label: 'Stato Cambiato', color: 'yellow', icon: ArrowPathIcon },
+  PROFESSIONAL_ASSIGNED: { label: 'Professionista Assegnato', color: 'indigo', icon: UserGroupIcon },
+  
+  // Interventi
+  INTERVENTIONS_PROPOSED: { label: 'Interventi Proposti', color: 'purple', icon: ClockIcon },
+  INTERVENTION_ACCEPTED: { label: 'Intervento Accettato', color: 'green', icon: CheckCircleIcon },
+  INTERVENTION_REJECTED: { label: 'Intervento Rifiutato', color: 'red', icon: XCircleIcon },
+  
+  // Preventivi  
+  NEW_QUOTE: { label: 'Nuovo Preventivo', color: 'indigo', icon: DocumentTextIcon },
+  QUOTE_ACCEPTED: { label: 'Preventivo Accettato', color: 'green', icon: CheckCircleIcon },
+  QUOTE_REJECTED: { label: 'Preventivo Rifiutato', color: 'red', icon: XCircleIcon },
+  
+  // Pagamenti
+  PAYMENT_SUCCESS: { label: 'Pagamento Riuscito', color: 'green', icon: CheckCircleIcon },
+  PAYMENT_FAILED: { label: 'Pagamento Fallito', color: 'red', icon: ExclamationTriangleIcon },
+  
+  // Utenti
+  WELCOME: { label: 'Benvenuto', color: 'blue', icon: BellIcon },
+  EMAIL_VERIFIED: { label: 'Email Verificata', color: 'green', icon: EnvelopeIcon },
+  PASSWORD_RESET: { label: 'Reset Password', color: 'yellow', icon: ExclamationTriangleIcon },
+  PASSWORD_CHANGED: { label: 'Password Cambiata', color: 'green', icon: CheckCircleIcon },
+  
+  // Chat
+  NEW_MESSAGE: { label: 'Nuovo Messaggio', color: 'blue', icon: ChatBubbleLeftIcon }
+};
 
-interface NotificationEvent {
-  id: string;
-  code: string;
-  name: string;
-  description?: string;
-  eventType: string;
-  entityType?: string;
-  templateId: string;
-  isActive: boolean;
-  delay: number;
-  NotificationTemplate?: NotificationTemplate;
-}
+// Priorità
+const PRIORITIES = {
+  low: { label: 'Bassa', color: 'gray', value: 1 },
+  normal: { label: 'Normale', color: 'blue', value: 2 },
+  high: { label: 'Alta', color: 'yellow', value: 3 },
+  urgent: { label: 'Urgente', color: 'red', value: 4 }
+};
 
-interface NotificationStats {
-  total: number;
-  sent: number;
-  delivered: number;
-  failed: number;
-  deliveryRate: number;
-  failureRate: number;
-  byChannel: { channel: string; count: number }[];
-  byTemplate: { templateId: string; _count: number }[];
-}
-
-// Lista template disponibili per riferimento rapido
-const AVAILABLE_TEMPLATES = [
-  { category: 'auth', templates: [
-    'welcome_user - Benvenuto nuovo utente',
-    'user_deleted - Cancellazione utente',
-    'password_reset - Reset password',
-    'email_verification - Verifica email'
-  ]},
-  { category: 'request', templates: [
-    'request_created_client - Nuova richiesta (cliente)',
-    'request_modified_client - Modifica richiesta (cliente)',
-    'request_modified_professional - Modifica richiesta (professionista)',
-    'request_closed_client - Chiusura richiesta (cliente)',
-    'request_closed_professional - Chiusura richiesta (professionista)',
-    'request_assigned_client - Assegnazione professionista',
-    'request_assigned_professional - Nuova richiesta assegnata',
-    'request_status_changed - Cambio stato richiesta'
-  ]},
-  { category: 'quote', templates: [
-    'quote_received - Nuovo preventivo ricevuto',
-    'quote_modified - Preventivo modificato',
-    'quote_accepted_professional - Preventivo accettato',
-    'quote_rejected_professional - Preventivo rifiutato'
-  ]},
-  { category: 'chat', templates: [
-    'chat_message_client - Nuovo messaggio (cliente)',
-    'chat_message_professional - Nuovo messaggio (professionista)'
-  ]},
-  { category: 'professional', templates: [
-    'skill_added - Nuova competenza aggiunta',
-    'skill_revoked - Competenza revocata'
-  ]},
-  { category: 'payment', templates: [
-    'payment_success - Pagamento completato',
-    'payment_failed - Pagamento fallito',
-    'deposit_required - Richiesta deposito'
-  ]}
-];
+// Canali
+const CHANNELS = {
+  websocket: { label: 'WebSocket', icon: BellIcon, color: 'green' },
+  email: { label: 'Email', icon: EnvelopeIcon, color: 'blue' },
+  sms: { label: 'SMS', icon: DevicePhoneMobileIcon, color: 'purple' },
+  push: { label: 'Push', icon: BellIcon, color: 'indigo' }
+};
 
 const NotificationDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'templates' | 'events' | 'stats' | 'logs'>('templates');
-  const [selectedTemplate, setSelectedTemplate] = useState<NotificationTemplate | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'templates' | 'events' | 'logs' | 'test'>('overview');
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [selectedLog, setSelectedLog] = useState(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
-  const [showTemplateList, setShowTemplateList] = useState(false);
+  const [logFilters, setLogFilters] = useState({
+    type: '',
+    priority: '',
+    status: '',
+    search: '',
+    dateFrom: '',
+    dateTo: ''
+  });
+  
   const queryClient = useQueryClient();
 
-  // Query per recuperare i template - FIX: Rimuovi /api dall'URL
-  const { data: templates, isLoading: templatesLoading, error: templatesError } = useQuery({
+  // === QUERY: STATISTICHE ===
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['notification-stats'],
+    queryFn: async () => {
+      const response = await api.get('/notifications/stats');
+      return response.data?.data;
+    },
+    enabled: activeTab === 'overview'
+  });
+
+  // === QUERY: LOG NOTIFICHE ===  
+  const { data: logs, isLoading: logsLoading, refetch: refetchLogs } = useQuery({
+    queryKey: ['notification-logs', logFilters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      Object.entries(logFilters).forEach(([key, value]) => {
+        if (value) params.append(key, value);
+      });
+      const response = await api.get(`/notifications/logs?${params}`);
+      return response.data?.data;
+    },
+    enabled: activeTab === 'logs'
+  });
+
+  // === QUERY: TEMPLATE ===
+  const { data: templates, isLoading: templatesLoading } = useQuery({
     queryKey: ['notification-templates', filterCategory, searchTerm],
     queryFn: async () => {
       const params: any = {};
       if (filterCategory !== 'all') params.category = filterCategory;
       if (searchTerm) params.search = searchTerm;
       
-      // FIX: Cambiato da /api/notification-templates a /notification-templates
       const response = await api.get('/notification-templates/templates', { params });
-      return response.data;
-    }
+      return response.data?.data;
+    },
+    enabled: activeTab === 'templates'
   });
 
-  // Query per recuperare gli eventi - FIX: Rimuovi /api dall'URL
+  // === QUERY: EVENTI ===
   const { data: events, isLoading: eventsLoading } = useQuery({
     queryKey: ['notification-events'],
     queryFn: async () => {
-      // FIX: Cambiato da /api/notification-templates a /notification-templates
       const response = await api.get('/notification-templates/events');
+      return response.data?.data;
+    },
+    enabled: activeTab === 'events'
+  });
+
+  // === MUTATION: INVIA TEST ===
+  const sendTestMutation = useMutation({
+    mutationFn: async (data) => {
+      const response = await api.post('/notifications/test', data);
       return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Notifica di test inviata!');
+      setShowTestModal(false);
+      refetchLogs();
+    },
+    onError: (error) => {
+      toast.error('Errore invio notifica di test');
     }
   });
 
-  // Query per le statistiche - FIX: Rimuovi /api dall'URL
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['notification-stats'],
-    queryFn: async () => {
-      // FIX: Cambiato da /api/notification-templates a /notification-templates
-      const response = await api.get('/notification-templates/statistics');
+  // === MUTATION: BROADCAST ===
+  const broadcastMutation = useMutation({
+    mutationFn: async (data) => {
+      const response = await api.post('/notifications/broadcast', data);
       return response.data;
     },
-    enabled: activeTab === 'stats'
-  });
-
-  // Mutation per processare la coda - FIX: Rimuovi /api dall'URL
-  const processQueueMutation = useMutation({
-    mutationFn: async () => {
-      // FIX: Cambiato da /api/notification-templates a /notification-templates
-      return await api.post('/notification-templates/queue/process', { limit: 100 });
-    },
-    onSuccess: () => {
-      toast.success('Coda processata con successo');
-      queryClient.invalidateQueries({ queryKey: ['notification-stats'] });
+    onSuccess: (data) => {
+      toast.success(`Broadcast inviato! ${data.data.succeeded} riusciti, ${data.data.failed} falliti`);
+      setShowBroadcastModal(false);
     },
     onError: () => {
-      toast.error('Errore nel processare la coda');
+      toast.error('Errore invio broadcast');
     }
   });
 
-  // Mutation per eliminare template - FIX: Rimuovi /api dall'URL
-  const deleteTemplateMutation = useMutation({
-    mutationFn: async (id: string) => {
-      // FIX: Cambiato da /api/notification-templates a /notification-templates
-      return await api.delete(`/notification-templates/templates/${id}`);
+  // === MUTATION: REINVIA NOTIFICA ===
+  const resendMutation = useMutation({
+    mutationFn: async (id) => {
+      const response = await api.post(`/notifications/${id}/resend`);
+      return response.data;
     },
     onSuccess: () => {
-      toast.success('Template eliminato con successo');
-      queryClient.invalidateQueries({ queryKey: ['notification-templates'] });
+      toast.success('Notifica reinviata!');
+      refetchLogs();
     },
     onError: () => {
-      toast.error('Errore nell\'eliminazione del template');
+      toast.error('Errore reinvio notifica');
     }
   });
 
-  // Mutation per attivare/disattivare template - FIX: Rimuovi /api dall'URL
-  const toggleTemplateMutation = useMutation({
-    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
-      // FIX: Cambiato da /api/notification-templates a /notification-templates
-      return await api.patch(`/notification-templates/templates/${id}`, { isActive });
-    },
-    onSuccess: () => {
-      toast.success('Template aggiornato con successo');
-      queryClient.invalidateQueries({ queryKey: ['notification-templates'] });
-    }
-  });
+  // === COMPONENTE: OVERVIEW TAB ===
+  const OverviewTab = () => (
+    <div className="space-y-6">
+      {statsLoading ? (
+        <div className="flex justify-center py-12">
+          <ArrowPathIcon className="h-8 w-8 animate-spin text-gray-400" />
+        </div>
+      ) : (
+        <>
+          {/* Cards Statistiche */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white p-6 rounded-lg shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Totale Inviate</p>
+                  <p className="text-2xl font-bold">{stats?.total || 0}</p>
+                </div>
+                <PaperAirplaneIcon className="h-8 w-8 text-blue-500" />
+              </div>
+            </div>
 
-  // Funzione per copiare il codice template negli appunti
-  const copyTemplateCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    toast.success(`Codice "${code}" copiato negli appunti!`);
+            <div className="bg-white p-6 rounded-lg shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Consegnate</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {stats?.delivered || 0}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {stats?.deliveryRate ? `${stats.deliveryRate.toFixed(1)}%` : '0%'}
+                  </p>
+                </div>
+                <CheckCircleIcon className="h-8 w-8 text-green-500" />
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Lette</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {stats?.read || 0}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {stats?.readRate ? `${stats.readRate.toFixed(1)}%` : '0%'}
+                  </p>
+                </div>
+                <EyeIcon className="h-8 w-8 text-blue-500" />
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Fallite</p>
+                  <p className="text-2xl font-bold text-red-600">
+                    {stats?.failed || 0}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {stats?.failureRate ? `${stats.failureRate.toFixed(1)}%` : '0%'}
+                  </p>
+                </div>
+                <XCircleIcon className="h-8 w-8 text-red-500" />
+              </div>
+            </div>
+          </div>
+
+          {/* Grafici */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Per Tipo */}
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-semibold mb-4">Notifiche per Tipo</h3>
+              <div className="space-y-2">
+                {stats?.byType?.map((item) => {
+                  const type = NOTIFICATION_TYPES[item.type] || { label: item.type, color: 'gray' };
+                  const percentage = stats.total ? (item.count / stats.total) * 100 : 0;
+                  return (
+                    <div key={item.type} className="flex items-center">
+                      <div className="w-40 text-sm truncate">{type.label}</div>
+                      <div className="flex-1 mx-2">
+                        <div className="bg-gray-200 rounded-full h-4">
+                          <div
+                            className={`bg-${type.color}-500 h-4 rounded-full`}
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="text-sm text-gray-600 w-20 text-right">
+                        {item.count} ({percentage.toFixed(1)}%)
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Per Canale */}
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-semibold mb-4">Notifiche per Canale</h3>
+              <div className="space-y-2">
+                {stats?.byChannel?.map((item) => {
+                  const channel = CHANNELS[item.channel] || { label: item.channel, color: 'gray' };
+                  const percentage = stats.total ? (item.count / stats.total) * 100 : 0;
+                  const ChannelIcon = channel.icon;
+                  return (
+                    <div key={item.channel} className="flex items-center">
+                      <div className="w-32 text-sm flex items-center">
+                        <ChannelIcon className="h-4 w-4 mr-2" />
+                        {channel.label}
+                      </div>
+                      <div className="flex-1 mx-2">
+                        <div className="bg-gray-200 rounded-full h-4">
+                          <div
+                            className={`bg-${channel.color}-500 h-4 rounded-full`}
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="text-sm text-gray-600 w-20 text-right">
+                        {item.count} ({percentage.toFixed(1)}%)
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Trend Ultimi 7 Giorni */}
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-lg font-semibold mb-4">Trend Ultimi 7 Giorni</h3>
+            <div className="grid grid-cols-7 gap-2">
+              {stats?.last7Days?.map((day) => (
+                <div key={day.date} className="text-center">
+                  <div className="text-xs text-gray-500 mb-1">
+                    {format(new Date(day.date), 'EEE', { locale: it })}
+                  </div>
+                  <div className="bg-blue-100 rounded p-2">
+                    <div className="text-lg font-semibold">{day.count}</div>
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    {format(new Date(day.date), 'dd/MM')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  // === COMPONENTE: LOGS TAB ===
+  const LogsTab = () => (
+    <div className="space-y-4">
+      {/* Filtri */}
+      <div className="bg-white p-4 rounded-lg shadow">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Cerca
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={logFilters.search}
+                onChange={(e) => setLogFilters({ ...logFilters, search: e.target.value })}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md"
+                placeholder="Cerca..."
+              />
+              <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tipo
+            </label>
+            <select
+              value={logFilters.type}
+              onChange={(e) => setLogFilters({ ...logFilters, type: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            >
+              <option value="">Tutti</option>
+              {Object.entries(NOTIFICATION_TYPES).map(([key, value]) => (
+                <option key={key} value={key}>{value.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Priorità
+            </label>
+            <select
+              value={logFilters.priority}
+              onChange={(e) => setLogFilters({ ...logFilters, priority: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            >
+              <option value="">Tutte</option>
+              {Object.entries(PRIORITIES).map(([key, value]) => (
+                <option key={key} value={key}>{value.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Stato
+            </label>
+            <select
+              value={logFilters.status}
+              onChange={(e) => setLogFilters({ ...logFilters, status: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            >
+              <option value="">Tutti</option>
+              <option value="pending">In Attesa</option>
+              <option value="sent">Inviata</option>
+              <option value="delivered">Consegnata</option>
+              <option value="read">Letta</option>
+              <option value="failed">Fallita</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Da
+            </label>
+            <input
+              type="date"
+              value={logFilters.dateFrom}
+              onChange={(e) => setLogFilters({ ...logFilters, dateFrom: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              A
+            </label>
+            <input
+              type="date"
+              value={logFilters.dateTo}
+              onChange={(e) => setLogFilters({ ...logFilters, dateTo: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 flex justify-end space-x-2">
+          <button
+            onClick={() => setLogFilters({
+              type: '',
+              priority: '',
+              status: '',
+              search: '',
+              dateFrom: '',
+              dateTo: ''
+            })}
+            className="px-4 py-2 text-gray-600 hover:text-gray-900"
+          >
+            Reset Filtri
+          </button>
+          <button
+            onClick={refetchLogs}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            <ArrowPathIcon className="h-5 w-5 inline mr-2" />
+            Aggiorna
+          </button>
+        </div>
+      </div>
+
+      {/* Tabella Log */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Data/Ora
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Tipo
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Destinatario
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Titolo
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Canali
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Stato
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Priorità
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Azioni
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {logsLoading ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                    <ArrowPathIcon className="h-8 w-8 animate-spin text-gray-400 mx-auto" />
+                  </td>
+                </tr>
+              ) : logs?.logs?.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                    Nessuna notifica trovata
+                  </td>
+                </tr>
+              ) : (
+                logs?.logs?.map((log) => {
+                  const type = NOTIFICATION_TYPES[log.type] || { label: log.type, color: 'gray', icon: BellIcon };
+                  const priority = PRIORITIES[log.priority?.toLowerCase()] || { label: log.priority, color: 'gray' };
+                  const TypeIcon = type.icon;
+
+                  return (
+                    <tr key={log.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm whitespace-nowrap">
+                        {format(new Date(log.createdAt), 'dd/MM/yyyy HH:mm')}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center">
+                          <TypeIcon className={`h-5 w-5 text-${type.color}-500 mr-2`} />
+                          <span className="text-sm">{type.label}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <div>
+                          <div className="font-medium">{log.recipient?.fullName}</div>
+                          <div className="text-gray-500 text-xs">{log.recipient?.email}</div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm">{log.title}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex space-x-1">
+                          {log.channels?.map((channel) => {
+                            const ch = CHANNELS[channel];
+                            if (!ch) return null;
+                            const ChannelIcon = ch.icon;
+                            return (
+                              <ChannelIcon
+                                key={channel}
+                                className={`h-5 w-5 text-${ch.color}-500`}
+                                title={ch.label}
+                              />
+                            );
+                          })}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {log.status === 'sent' && (
+                          <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+                            Inviata
+                          </span>
+                        )}
+                        {log.status === 'delivered' && (
+                          <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                            Consegnata
+                          </span>
+                        )}
+                        {log.status === 'read' && (
+                          <span className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800">
+                            Letta
+                          </span>
+                        )}
+                        {log.status === 'failed' && (
+                          <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">
+                            Fallita
+                          </span>
+                        )}
+                        {log.status === 'pending' && (
+                          <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">
+                            In Attesa
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 text-xs rounded-full bg-${priority.color}-100 text-${priority.color}-800`}>
+                          {priority.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => setSelectedLog(log)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Dettagli"
+                          >
+                            <EyeIcon className="h-5 w-5" />
+                          </button>
+                          {log.status === 'failed' && (
+                            <button
+                              onClick={() => resendMutation.mutate(log.id)}
+                              className="text-green-600 hover:text-green-900"
+                              title="Reinvia"
+                            >
+                              <ArrowPathIcon className="h-5 w-5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Paginazione */}
+        {logs?.total > 0 && (
+          <div className="px-4 py-3 bg-gray-50 border-t flex justify-between items-center">
+            <div className="text-sm text-gray-700">
+              Mostrando {logs?.logs?.length || 0} di {logs?.total} notifiche
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // === COMPONENTE: TEST TAB ===
+  const TestTab = () => {
+    const [testData, setTestData] = useState({
+      email: '',
+      type: 'TEST_NOTIFICATION',
+      title: 'Notifica di Test',
+      message: 'Questa è una notifica di test dal sistema amministrativo.',
+      priority: 'normal',
+      channels: ['websocket']
+    });
+
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold mb-4">Invia Notifica di Test</h2>
+        
+        <div className="space-y-4 max-w-2xl">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email Destinatario
+            </label>
+            <input
+              type="email"
+              value={testData.email}
+              onChange={(e) => setTestData({ ...testData, email: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              placeholder="user@example.com"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tipo Notifica
+            </label>
+            <select
+              value={testData.type}
+              onChange={(e) => setTestData({ ...testData, type: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            >
+              <option value="TEST_NOTIFICATION">Test Generico</option>
+              {Object.entries(NOTIFICATION_TYPES).map(([key, value]) => (
+                <option key={key} value={key}>{value.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Titolo
+            </label>
+            <input
+              type="text"
+              value={testData.title}
+              onChange={(e) => setTestData({ ...testData, title: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Messaggio
+            </label>
+            <textarea
+              value={testData.message}
+              onChange={(e) => setTestData({ ...testData, message: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              rows={3}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Priorità
+            </label>
+            <select
+              value={testData.priority}
+              onChange={(e) => setTestData({ ...testData, priority: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            >
+              {Object.entries(PRIORITIES).map(([key, value]) => (
+                <option key={key} value={key}>{value.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Canali
+            </label>
+            <div className="space-y-2">
+              {Object.entries(CHANNELS).map(([key, value]) => {
+                const ChannelIcon = value.icon;
+                return (
+                  <label key={key} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={testData.channels.includes(key)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setTestData({ ...testData, channels: [...testData.channels, key] });
+                        } else {
+                          setTestData({ ...testData, channels: testData.channels.filter(c => c !== key) });
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                    <ChannelIcon className="h-4 w-4 mr-1" />
+                    <span>{value.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex space-x-3">
+            <button
+              onClick={() => sendTestMutation.mutate(testData)}
+              disabled={!testData.email || testData.channels.length === 0}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <PaperAirplaneIcon className="h-5 w-5 inline mr-2" />
+              Invia Test
+            </button>
+
+            <button
+              onClick={() => setShowBroadcastModal(true)}
+              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+            >
+              <UserGroupIcon className="h-5 w-5 inline mr-2" />
+              Broadcast
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
-
-  // Icona per canale
-  const getChannelIcon = (channel: string) => {
-    switch (channel) {
-      case 'email':
-        return <EnvelopeIcon className="h-4 w-4" />;
-      case 'sms':
-        return <DevicePhoneMobileIcon className="h-4 w-4" />;
-      case 'websocket':
-        return <BellIcon className="h-4 w-4" />;
-      case 'whatsapp':
-        return <ChatBubbleLeftIcon className="h-4 w-4" />;
-      default:
-        return <BellIcon className="h-4 w-4" />;
-    }
-  };
-
-  // Colore per priorità
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'URGENT':
-        return 'bg-red-100 text-red-800';
-      case 'HIGH':
-        return 'bg-orange-100 text-orange-800';
-      case 'NORMAL':
-        return 'bg-blue-100 text-blue-800';
-      case 'LOW':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  // Colore per categoria
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'auth':
-        return 'bg-purple-100 text-purple-800';
-      case 'request':
-        return 'bg-blue-100 text-blue-800';
-      case 'quote':
-        return 'bg-green-100 text-green-800';
-      case 'payment':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'system':
-        return 'bg-gray-100 text-gray-800';
-      case 'marketing':
-        return 'bg-pink-100 text-pink-800';
-      case 'chat':
-        return 'bg-cyan-100 text-cyan-800';
-      case 'professional':
-        return 'bg-indigo-100 text-indigo-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  // Mostra errore se c'è un problema
-  if (templatesError) {
-    console.error('Errore caricamento template:', templatesError);
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -266,19 +769,19 @@ const NotificationDashboard: React.FC = () => {
             <div>
               <h1 className="text-3xl font-bold text-gray-900 flex items-center">
                 <BellIconSolid className="h-8 w-8 text-indigo-600 mr-3" />
-                Sistema Notifiche Professionale
+                Sistema Notifiche
               </h1>
               <p className="mt-1 text-sm text-gray-500">
-                Gestisci template, eventi e monitora le notifiche inviate
+                Gestione completa notifiche, template e log
               </p>
             </div>
             <div className="flex space-x-3">
               <button
-                onClick={() => processQueueMutation.mutate()}
+                onClick={refetchLogs}
                 className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
               >
                 <ArrowPathIcon className="h-4 w-4 mr-2" />
-                Processa Coda
+                Aggiorna
               </button>
               <button
                 onClick={() => {
@@ -300,6 +803,28 @@ const NotificationDashboard: React.FC = () => {
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
             <button
+              onClick={() => setActiveTab('overview')}
+              className={`${
+                activeTab === 'overview'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+            >
+              <ChartBarIcon className="h-4 w-4 mr-2" />
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('logs')}
+              className={`${
+                activeTab === 'logs'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+            >
+              <DocumentTextIcon className="h-4 w-4 mr-2" />
+              Log Notifiche
+            </button>
+            <button
               onClick={() => setActiveTab('templates')}
               className={`${
                 activeTab === 'templates'
@@ -320,25 +845,15 @@ const NotificationDashboard: React.FC = () => {
               Eventi
             </button>
             <button
-              onClick={() => setActiveTab('stats')}
+              onClick={() => setActiveTab('test')}
               className={`${
-                activeTab === 'stats'
+                activeTab === 'test'
                   ? 'border-indigo-500 text-indigo-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
             >
-              <ChartBarIcon className="h-4 w-4 mr-2" />
-              Statistiche
-            </button>
-            <button
-              onClick={() => setActiveTab('logs')}
-              className={`${
-                activeTab === 'logs'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-            >
-              Log
+              <BeakerIcon className="h-4 w-4 mr-2" />
+              Test
             </button>
           </nav>
         </div>
@@ -346,239 +861,19 @@ const NotificationDashboard: React.FC = () => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Templates Tab */}
+        {activeTab === 'overview' && <OverviewTab />}
+        {activeTab === 'logs' && <LogsTab />}
         {activeTab === 'templates' && (
           <div>
-            {/* Filtri e Ricerca */}
-            <div className="mb-6 space-y-4">
-              <div className="flex space-x-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Cerca template per nome o codice..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-                </div>
-                <select
-                  value={filterCategory}
-                  onChange={(e) => setFilterCategory(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="all">Tutte le categorie</option>
-                  <option value="auth">Autenticazione</option>
-                  <option value="request">Richieste</option>
-                  <option value="quote">Preventivi</option>
-                  <option value="payment">Pagamenti</option>
-                  <option value="chat">Chat</option>
-                  <option value="professional">Professionisti</option>
-                  <option value="system">Sistema</option>
-                  <option value="marketing">Marketing</option>
-                </select>
-                <button
-                  onClick={() => setShowTemplateList(!showTemplateList)}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                  title="Mostra lista template disponibili"
-                >
-                  <DocumentDuplicateIcon className="h-5 w-5 mr-2" />
-                  {showTemplateList ? 'Nascondi' : 'Mostra'} Lista
-                </button>
-              </div>
-
-              {/* Lista Template Disponibili */}
-              {showTemplateList && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-blue-900 mb-3">
-                    📋 Lista Template Disponibili (clicca per copiare il codice)
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {AVAILABLE_TEMPLATES.map((cat) => (
-                      <div key={cat.category} className="space-y-2">
-                        <h4 className={`text-xs font-semibold px-2 py-1 rounded inline-block ${getCategoryColor(cat.category)}`}>
-                          {cat.category.toUpperCase()}
-                        </h4>
-                        <ul className="space-y-1">
-                          {cat.templates.map((template) => {
-                            const [code, name] = template.split(' - ');
-                            return (
-                              <li key={code} className="text-xs">
-                                <button
-                                  onClick={() => copyTemplateCode(code)}
-                                  className="text-left hover:bg-blue-100 rounded px-2 py-1 w-full transition-colors group"
-                                >
-                                  <code className="font-mono text-blue-700 group-hover:text-blue-900">{code}</code>
-                                  <span className="text-gray-600 ml-1">- {name}</span>
-                                  <DocumentDuplicateIcon className="h-3 w-3 inline ml-1 opacity-0 group-hover:opacity-100 text-blue-600" />
-                                </button>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+            {/* Qui andrà la gestione template esistente */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold mb-4">Template Notifiche</h2>
+              <p className="text-gray-500">Usa il sistema template esistente...</p>
             </div>
-
-            {/* Lista Template */}
-            {templatesLoading ? (
-              <div className="flex justify-center py-12">
-                <ArrowPathIcon className="h-8 w-8 animate-spin text-gray-400" />
-              </div>
-            ) : templates?.data?.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-lg shadow">
-                <BellIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">Nessun template trovato</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Inizia creando il tuo primo template di notifica.
-                </p>
-                <div className="mt-6">
-                  <button
-                    onClick={() => {
-                      setSelectedTemplate(null);
-                      setIsEditorOpen(true);
-                    }}
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                  >
-                    <PlusIcon className="h-4 w-4 mr-2" />
-                    Crea Template
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                {templates?.data?.map((template: NotificationTemplate) => (
-                  <div
-                    key={template.id}
-                    className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center">
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            {template.name}
-                          </h3>
-                          {template.isSystem && (
-                            <span className="ml-2 px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-600">
-                              Sistema
-                            </span>
-                          )}
-                          <span className={`ml-2 px-2 py-1 text-xs rounded-full ${getCategoryColor(template.category)}`}>
-                            {template.category}
-                          </span>
-                          <span className={`ml-2 px-2 py-1 text-xs rounded-full ${getPriorityColor(template.priority)}`}>
-                            {template.priority}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-500 mt-1">
-                          Codice: <code className="bg-gray-100 px-1 rounded cursor-pointer hover:bg-gray-200" 
-                                        onClick={() => copyTemplateCode(template.code)}>
-                            {template.code}
-                          </code>
-                        </p>
-                        {template.description && (
-                          <p className="text-sm text-gray-600 mt-2">{template.description}</p>
-                        )}
-                        
-                        {/* Canali */}
-                        <div className="flex items-center mt-3 space-x-3">
-                          <span className="text-sm text-gray-500">Canali:</span>
-                          <div className="flex space-x-2">
-                            {template.channels.map((channel) => (
-                              <span
-                                key={channel}
-                                className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
-                              >
-                                {getChannelIcon(channel)}
-                                <span className="ml-1">{channel}</span>
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Azioni */}
-                      <div className="flex items-center space-x-2 ml-4">
-                        <button
-                          onClick={() => {
-                            setSelectedTemplate(template);
-                            setIsEditorOpen(true);
-                          }}
-                          className="p-2 text-gray-400 hover:text-gray-600"
-                          title="Modifica"
-                        >
-                          <PencilIcon className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            // Preview template
-                            window.open(`/admin/notifications/preview/${template.code}`, '_blank');
-                          }}
-                          className="p-2 text-gray-400 hover:text-gray-600"
-                          title="Anteprima"
-                        >
-                          <EyeIcon className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => toggleTemplateMutation.mutate({ 
-                            id: template.id, 
-                            isActive: !template.isActive 
-                          })}
-                          className={`p-2 ${template.isActive ? 'text-green-500' : 'text-gray-400'} hover:text-gray-600`}
-                          title={template.isActive ? 'Attivo' : 'Disattivato'}
-                        >
-                          {template.isActive ? (
-                            <CheckCircleIcon className="h-5 w-5" />
-                          ) : (
-                            <XCircleIcon className="h-5 w-5" />
-                          )}
-                        </button>
-                        {!template.isSystem && (
-                          <button
-                            onClick={() => {
-                              if (confirm('Sei sicuro di voler eliminare questo template?')) {
-                                deleteTemplateMutation.mutate(template.id);
-                              }
-                            }}
-                            className="p-2 text-gray-400 hover:text-red-600"
-                            title="Elimina"
-                          >
-                            <TrashIcon className="h-5 w-5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Footer */}
-                    <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between text-xs text-gray-500">
-                      <span>Versione: {template.version}</span>
-                      <span>Aggiornato: {new Date(template.updatedAt).toLocaleDateString('it-IT')}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         )}
-
-        {/* Events Tab */}
-        {activeTab === 'events' && <EventManager events={events?.data || []} />}
-
-        {/* Stats Tab */}
-        {activeTab === 'stats' && <NotificationStats stats={stats?.data} loading={statsLoading} />}
-
-        {/* Logs Tab */}
-        {activeTab === 'logs' && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4">Log Notifiche</h2>
-            <p className="text-gray-500">Funzionalità in sviluppo...</p>
-          </div>
-        )}
+        {activeTab === 'events' && <EventManager events={events || []} />}
+        {activeTab === 'test' && <TestTab />}
       </div>
 
       {/* Template Editor Modal */}
@@ -595,6 +890,74 @@ const NotificationDashboard: React.FC = () => {
             setSelectedTemplate(null);
           }}
         />
+      )}
+
+      {/* Modal Dettagli Log */}
+      {selectedLog && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-4">Dettagli Notifica</h3>
+            <div className="space-y-3">
+              <div>
+                <span className="font-medium">ID:</span> {selectedLog.id}
+              </div>
+              <div>
+                <span className="font-medium">Tipo:</span> {selectedLog.type}
+              </div>
+              <div>
+                <span className="font-medium">Titolo:</span> {selectedLog.title}
+              </div>
+              <div>
+                <span className="font-medium">Contenuto:</span>
+                <p className="mt-1 text-gray-600">{selectedLog.content}</p>
+              </div>
+              <div>
+                <span className="font-medium">Metadata:</span>
+                <pre className="mt-1 bg-gray-100 p-2 rounded text-xs">
+                  {JSON.stringify(selectedLog.metadata, null, 2)}
+                </pre>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setSelectedLog(null)}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+              >
+                Chiudi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Broadcast */}
+      {showBroadcastModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">Invia Broadcast</h3>
+            <p className="text-sm text-red-600 mb-4">
+              ⚠️ Attenzione: Questo invierà una notifica a TUTTI gli utenti selezionati!
+            </p>
+            {/* Form broadcast qui */}
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                onClick={() => setShowBroadcastModal(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={() => {
+                  // Implementa broadcast
+                  setShowBroadcastModal(false);
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                Invia Broadcast
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

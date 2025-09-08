@@ -3,12 +3,14 @@ import { logger } from '../utils/logger';
 import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+// ✅ FIX: Importa il servizio notifiche centrale
+import { notificationService } from './notification.service';
 
 const prisma = new PrismaClient();
 
 export interface ChatMessageInput {
   requestId: string;
-  recipientId: string;
+  userId: string;
   message: string;
   messageType?: MessageType;
   attachments?: Array<{
@@ -28,7 +30,7 @@ class ChatService {
   /**
    * Verifica se un utente può accedere alla chat di una richiesta
    */
-  async canAccessChat(recipientId: string, requestId: string): Promise<boolean> {
+  async canAccessChat(userId: string, requestId: string): Promise<boolean> {
     try {
       const user = await prisma.user.findUnique({
         where: { id: userId },
@@ -106,13 +108,13 @@ class ChatService {
       // Crea il messaggio
       const message = await prisma.requestChatMessage.create({
         data: {
-          id: uuidv4(), // Genera un UUID per l'id
+          id: uuidv4(),
           requestId: data.requestId,
-          recipientId: data.userId,
+          userId: data.userId,
           message: data.message,
           messageType: data.messageType || 'TEXT',
           attachments: data.attachments || null,
-          readBy: JSON.stringify([{ recipientId: data.userId, readAt: new Date() }]),
+          readBy: JSON.stringify([{ userId: data.userId, readAt: new Date() }]),
           updatedAt: new Date()
         },
         include: {
@@ -129,8 +131,8 @@ class ChatService {
         }
       });
 
-      // Crea notifica per gli altri partecipanti
-      await this.createChatNotifications(data.requestId, data.userId, data.message);
+      // ✅ FIX: Usa il sistema di notifiche centrale
+      await this.createChatNotificationsV2(data.requestId, data.userId, data.message);
 
       return message;
     } catch (error) {
@@ -142,7 +144,7 @@ class ChatService {
   /**
    * Recupera i messaggi di una chat
    */
-  async getMessages(requestId: string, recipientId: string, limit = 50, offset = 0) {
+  async getMessages(requestId: string, userId: string, limit = 50, offset = 0) {
     try {
       // Verifica accesso
       const canAccess = await this.canAccessChat(userId, requestId);
@@ -187,12 +189,12 @@ class ChatService {
   /**
    * Modifica un messaggio
    */
-  async updateMessage(messageId: string, recipientId: string, update: ChatMessageUpdate) {
+  async updateMessage(messageId: string, userId: string, update: ChatMessageUpdate) {
     try {
       // Verifica che l'utente sia l'autore del messaggio
       const message = await prisma.requestChatMessage.findUnique({
         where: { id: messageId },
-        select: { recipientId: true, requestId: true }
+        select: { userId: true, requestId: true }
       });
 
       if (!message || message.userId !== userId) {
@@ -212,7 +214,8 @@ class ChatService {
           isEdited: update.message ? true : undefined,
           editedAt: update.message ? new Date() : undefined,
           isDeleted: update.isDeleted,
-          deletedAt: update.isDeleted ? new Date() : undefined
+          deletedAt: update.isDeleted ? new Date() : undefined,
+          updatedAt: new Date()
         },
         include: {
           User: {
@@ -238,19 +241,19 @@ class ChatService {
   /**
    * Elimina un messaggio (soft delete)
    */
-  async deleteMessage(messageId: string, recipientId: string) {
+  async deleteMessage(messageId: string, userId: string) {
     return this.updateMessage(messageId, userId, { isDeleted: true });
   }
 
   /**
    * Segna i messaggi come letti
    */
-  async markMessagesAsRead(requestId: string, recipientId: string) {
+  async markMessagesAsRead(requestId: string, userId: string) {
     try {
       const messages = await prisma.requestChatMessage.findMany({
         where: {
           requestId,
-          recipientId: { not: userId },
+          userId: { not: userId },
           isDeleted: false
         },
         select: { id: true, readBy: true }
@@ -286,18 +289,19 @@ class ChatService {
   /**
    * Conta i messaggi non letti
    */
-  async getUnreadCount(requestId: string, recipientId: string) {
+  async getUnreadCount(requestId: string, userId: string) {
     try {
       const messages = await prisma.requestChatMessage.findMany({
         where: {
           requestId,
-          recipientId: { not: userId },
+          userId: { not: userId },
           isDeleted: false
         },
         select: { readBy: true }
       });
 
       let unreadCount = 0;
+      
       for (const message of messages) {
         let readBy = [];
         try {
@@ -307,7 +311,9 @@ class ChatService {
         }
 
         const hasRead = readBy.some((r: any) => r.userId === userId);
-        if (!hasRead) unreadCount++;
+        if (!hasRead) {
+          unreadCount++;
+        }
       }
 
       return unreadCount;
@@ -318,9 +324,10 @@ class ChatService {
   }
 
   /**
-   * Crea notifiche per i partecipanti della chat
+   * ✅ FIX: NUOVO METODO - Crea notifiche chat usando il sistema centrale
+   * Sostituisce il vecchio metodo createChatNotifications
    */
-  private async createChatNotifications(requestId: string, senderId: string, messageText: string) {
+  private async createChatNotificationsV2(requestId: string, senderId: string, messageText: string) {
     try {
       const request = await prisma.assistanceRequest.findUnique({
         where: { id: requestId },
@@ -335,13 +342,13 @@ class ChatService {
 
       const sender = await prisma.user.findUnique({
         where: { id: senderId },
-        select: { fullName: true, role: true }
+        select: { fullName: true, firstName: true, role: true }
       });
 
       if (!sender) return;
 
       // Determina chi deve ricevere la notifica
-      const recipientIds = [];
+      const recipientIds: string[] = [];
       
       // Se il mittente è il cliente, notifica il professionista
       if (senderId === request.clientId && request.professionalId) {
@@ -355,36 +362,39 @@ class ChatService {
 
       // Se il mittente è admin/staff, notifica sia cliente che professionista
       if (sender.role === 'ADMIN' || sender.role === 'SUPER_ADMIN') {
-        // Notifica sempre il cliente
         if (senderId !== request.clientId) {
           recipientIds.push(request.clientId);
         }
-        // Notifica il professionista se assegnato e diverso dal mittente
         if (request.professionalId && senderId !== request.professionalId) {
           recipientIds.push(request.professionalId);
         }
       }
 
-      // Crea le notifiche
+      // ✅ FIX: Usa il servizio notifiche centrale per ogni destinatario
       for (const recipientId of recipientIds) {
         if (recipientId !== senderId) {
-          await prisma.notification.create({
+          await notificationService.sendToUser({
+            userId: recipientId, // ✅ Campo corretto
+            type: 'CHAT_MESSAGE',
+            title: `Nuovo messaggio da ${sender.fullName || sender.firstName}`,
+            message: `${sender.fullName || sender.firstName} ha scritto nella richiesta "${request.title}": ${messageText.substring(0, 100)}${messageText.length > 100 ? '...' : ''}`,
+            priority: 'normal',
             data: {
-              id: uuidv4(),
-              type: 'CHAT_MESSAGE',
-              title: 'Nuovo messaggio nella richiesta',
-              content: `${sender.fullName} ha inviato un messaggio nella richiesta "${request.title}": ${messageText.substring(0, 100)}${messageText.length > 100 ? '...' : ''}`,
-              recipientId,
+              requestId,
               senderId,
-              entityType: 'REQUEST',
-              entityId: requestId,
-              priority: 'NORMAL'
-            }
+              senderName: sender.fullName || sender.firstName,
+              messagePreview: messageText.substring(0, 100),
+              actionUrl: `${process.env.FRONTEND_URL || 'http://localhost:5193'}/requests/${requestId}/chat`
+            },
+            channels: ['websocket'] // Solo websocket per i messaggi chat, non email
           });
         }
       }
+
+      logger.info(`Chat notifications sent for request ${requestId}`);
     } catch (error) {
       logger.error('Error creating chat notifications:', error);
+      // Non far fallire l'invio del messaggio se le notifiche falliscono
     }
   }
 
@@ -397,21 +407,57 @@ class ChatService {
         where: { id: requestId },
         select: {
           title: true,
-          status: true
+          status: true,
+          clientId: true,
+          professionalId: true
         }
       });
 
       if (!request) return;
 
+      // Trova un utente di sistema o usa l'ID del primo admin
+      const systemUser = await prisma.user.findFirst({
+        where: { role: 'SUPER_ADMIN' },
+        select: { id: true }
+      });
+
+      if (!systemUser) {
+        logger.error('No system user found for system message');
+        return;
+      }
+
       await prisma.requestChatMessage.create({
         data: {
+          id: uuidv4(), // ✅ FIX: Genera UUID
           requestId,
-          recipientId: 'system',
+          userId: systemUser.id,
           message: `Chat iniziata per la richiesta: "${request.title}". I partecipanti possono ora comunicare qui.`,
           messageType: 'SYSTEM' as MessageType,
-          isRead: false
+          isRead: false,
+          updatedAt: new Date()
         }
       });
+
+      // ✅ FIX: Notifica i partecipanti che la chat è iniziata
+      const participantIds = [request.clientId];
+      if (request.professionalId) {
+        participantIds.push(request.professionalId);
+      }
+
+      for (const participantId of participantIds) {
+        await notificationService.sendToUser({
+          userId: participantId,
+          type: 'CHAT_STARTED',
+          title: 'Chat disponibile',
+          message: `La chat per la richiesta "${request.title}" è ora attiva. Puoi comunicare con gli altri partecipanti.`,
+          priority: 'low',
+          data: {
+            requestId,
+            actionUrl: `${process.env.FRONTEND_URL || 'http://localhost:5193'}/requests/${requestId}/chat`
+          },
+          channels: ['websocket']
+        });
+      }
     } catch (error) {
       logger.error('Error creating initial system message:', error);
     }
@@ -435,11 +481,13 @@ class ChatService {
 
       await prisma.requestChatMessage.create({
         data: {
+          id: uuidv4(), // ✅ FIX: Genera UUID
           requestId,
-          recipientId: systemUser.id,
+          userId: systemUser.id,
           message,
           messageType: 'SYSTEM',
-          readBy: JSON.stringify([])
+          readBy: JSON.stringify([]),
+          updatedAt: new Date()
         }
       });
     } catch (error) {
@@ -453,14 +501,53 @@ class ChatService {
   async closeChatForRequest(requestId: string, status: RequestStatus) {
     try {
       let message = '';
+      let notificationTitle = '';
+      let notificationType = '';
+      
       if (status === 'COMPLETED') {
         message = '✅ La richiesta è stata completata. La chat è ora chiusa.';
+        notificationTitle = 'Richiesta completata';
+        notificationType = 'REQUEST_COMPLETED';
       } else if (status === 'CANCELLED') {
         message = '❌ La richiesta è stata cancellata. La chat è ora chiusa.';
+        notificationTitle = 'Richiesta cancellata';
+        notificationType = 'REQUEST_CANCELLED';
       }
 
       if (message) {
         await this.sendSystemMessage(requestId, message);
+        
+        // ✅ FIX: Notifica i partecipanti della chiusura
+        const request = await prisma.assistanceRequest.findUnique({
+          where: { id: requestId },
+          select: {
+            title: true,
+            clientId: true,
+            professionalId: true
+          }
+        });
+
+        if (request) {
+          const participantIds = [request.clientId];
+          if (request.professionalId) {
+            participantIds.push(request.professionalId);
+          }
+
+          for (const participantId of participantIds) {
+            await notificationService.sendToUser({
+              userId: participantId,
+              type: notificationType,
+              title: notificationTitle,
+              message: `La richiesta "${request.title}" è stata ${status === 'COMPLETED' ? 'completata' : 'cancellata'}. La chat è stata chiusa.`,
+              priority: 'normal',
+              data: {
+                requestId,
+                status
+              },
+              channels: ['websocket', 'email']
+            });
+          }
+        }
       }
     } catch (error) {
       logger.error('Error closing chat for request:', error);

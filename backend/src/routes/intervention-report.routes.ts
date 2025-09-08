@@ -3,6 +3,8 @@ import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/rbac';
 import { ResponseFormatter } from '../utils/responseFormatter';
 import interventionReportOperationsService from '../services/interventionReportOperations.service';
+import { safeAuditLog } from '../utils/safeAuditLog';
+import { AuditAction, LogSeverity, LogCategory } from '@prisma/client';
 
 const router = Router();
 
@@ -83,6 +85,26 @@ router.post('/reports', authenticate, async (req: any, res) => {
       req.user.id
     );
     
+    // Audit log per creazione rapporto
+    await safeAuditLog({
+      action: AuditAction.CREATE,
+      entityType: 'InterventionReport',
+      entityId: report.id,
+      userId: req.user.id,
+      userEmail: req.user.email,
+      userRole: req.user.role,
+      ipAddress: req.ip || 'unknown',
+      userAgent: req.get('user-agent') || 'unknown',
+      success: true,
+      severity: LogSeverity.INFO,
+      category: LogCategory.BUSINESS,
+      metadata: {
+        requestId: report.requestId,
+        reportNumber: report.reportNumber,
+        interventionType: report.interventionType
+      }
+    });
+    
     return res.json(ResponseFormatter.success(
       report,
       'Rapporto creato con successo'
@@ -112,6 +134,25 @@ router.put('/reports/:id', authenticate, async (req: any, res) => {
       req.body,
       req.user.id
     );
+    
+    // Audit log per aggiornamento rapporto
+    await safeAuditLog({
+      action: AuditAction.UPDATE,
+      entityType: 'InterventionReport',
+      entityId: req.params.id,
+      userId: req.user.id,
+      userEmail: req.user.email,
+      userRole: req.user.role,
+      ipAddress: req.ip || 'unknown',
+      userAgent: req.get('user-agent') || 'unknown',
+      success: true,
+      severity: LogSeverity.INFO,
+      category: LogCategory.BUSINESS,
+      metadata: {
+        reportNumber: report.reportNumber,
+        status: report.status
+      }
+    });
     
     return res.json(ResponseFormatter.success(
       report,
@@ -148,6 +189,24 @@ router.delete('/reports/:id', authenticate, async (req: any, res) => {
       req.params.id,
       req.user.id
     );
+    
+    // Audit log per eliminazione rapporto
+    await safeAuditLog({
+      action: AuditAction.DELETE,
+      entityType: 'InterventionReport',
+      entityId: req.params.id,
+      userId: req.user.id,
+      userEmail: req.user.email,
+      userRole: req.user.role,
+      ipAddress: req.ip || 'unknown',
+      userAgent: req.get('user-agent') || 'unknown',
+      success: true,
+      severity: LogSeverity.WARNING,
+      category: LogCategory.BUSINESS,
+      metadata: {
+        deletedBy: req.user.id
+      }
+    });
     
     return res.json(ResponseFormatter.success(
       null,

@@ -298,10 +298,10 @@ export class RequestService {
           }
         });
 
-        // Send notification to each admin
+        // Send notification to each admin - FIXED: usa userId
         for (const admin of admins) {
           await notificationService.sendToUser({
-            recipientId: admin.id,
+            userId: admin.id, // FIXED: usa userId non recipientId
             type: 'NEW_REQUEST',
             title: 'Nuova richiesta di assistenza',
             message: `Una nuova richiesta "${request.title}" è stata creata da ${request.User_AssistanceRequest_clientIdToUser.fullName || request.User_AssistanceRequest_clientIdToUser.email}`,
@@ -309,16 +309,16 @@ export class RequestService {
             data: {
               requestId: request.id,
               clientName: request.User_AssistanceRequest_clientIdToUser.fullName || request.User_AssistanceRequest_clientIdToUser.email,
-              Category: request.category?.name,
+              category: request.Category?.name,
               priority: request.priority
             },
             channels: ['websocket', 'email']
           });
         }
 
-        // Send confirmation to client
+        // Send confirmation to client - FIXED: usa userId
         await notificationService.sendToUser({
-          recipientId: data.clientId,
+          userId: data.clientId, // FIXED: usa userId non recipientId
           type: 'REQUEST_CREATED',
           title: 'Richiesta creata con successo',
           message: `La tua richiesta "${request.title}" è stata creata ed è in attesa di assegnazione`,
@@ -662,9 +662,9 @@ export class RequestService {
       'CANCELLED': 'annullata'
     };
 
-    // Notify client
+    // Notify client - FIXED: usa userId
     await notificationService.sendToUser({
-      recipientId: request.clientId,
+      userId: request.clientId, // FIXED: usa userId non recipientId
       type: 'STATUS_CHANGED',
       title: 'Stato richiesta aggiornato',
       message: `La tua richiesta "${request.title}" è ora ${statusMessages[newStatus]}`,
@@ -678,10 +678,10 @@ export class RequestService {
       channels: ['websocket', 'email']
     });
 
-    // If assigned to professional, notify them too
+    // If assigned to professional, notify them too - FIXED: usa userId
     if (request.professionalId) {
       await notificationService.sendToUser({
-        recipientId: request.professionalId,
+        userId: request.professionalId, // FIXED: usa userId non recipientId
         type: 'STATUS_CHANGED',
         title: 'Stato richiesta aggiornato',
         message: `La richiesta "${request.title}" è ora ${statusMessages[newStatus]}`,
@@ -705,10 +705,10 @@ export class RequestService {
                       `${request.User_AssistanceRequest_clientIdToUser?.firstName || ''} ${request.User_AssistanceRequest_clientIdToUser?.lastName || ''}`.trim() ||
                       request.User_AssistanceRequest_clientIdToUser?.email || 'Cliente';
 
-    // Notify professional
+    // Notify professional - FIXED: usa userId
     if (request.professionalId) {
       await notificationService.sendToUser({
-        recipientId: request.professionalId,
+        userId: request.professionalId, // FIXED: usa userId non recipientId
         type: 'REQUEST_ASSIGNED',
         title: 'Nuova richiesta assegnata',
         message: `Ti è stata assegnata la richiesta "${request.title}"`,
@@ -717,16 +717,16 @@ export class RequestService {
           requestId: request.id,
           requestTitle: request.title,
           clientName: clientName,
-          Category: request.category?.name,
+          category: request.category?.name,
           priority: request.priority
         },
         channels: ['websocket', 'email']
       });
     }
 
-    // Notify client
+    // Notify client - FIXED: usa userId
     await notificationService.sendToUser({
-      recipientId: request.clientId,
+      userId: request.clientId, // FIXED: usa userId non recipientId
       type: 'PROFESSIONAL_ASSIGNED',
       title: 'Professionista assegnato',
       message: `Un professionista è stato assegnato alla tua richiesta "${request.title}"`,

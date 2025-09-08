@@ -288,6 +288,18 @@ export const api = {
     get: () => apiClient.get('/dashboard'),
     getMetrics: () => apiClient.get('/dashboard'), // Alias per compatibilità
   },
+
+  // Health Check System - CORRETTI I PERCORSI!
+  health: {
+    getSummary: () => apiClient.get('/admin/health-check/status'),
+    getModules: () => apiClient.get('/admin/health-check/schedule'),
+    runAllChecks: () => apiClient.post('/admin/health-check/run'),
+    runSingleCheck: (module: string) => apiClient.post('/admin/health-check/run', { module }),
+    getHistory: (module?: string, params?: any) => 
+      module 
+        ? apiClient.get(`/admin/health-check/history/${module}`, { params })
+        : apiClient.get('/admin/health-check/history', { params }),
+  },
 };
 
 export default api;

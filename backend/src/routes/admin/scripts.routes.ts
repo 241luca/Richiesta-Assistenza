@@ -1,140 +1,209 @@
+/**
+ * Script Manager Routes
+ * API endpoints per la gestione ed esecuzione degli script amministrativi
+ */
+
 import { Router } from 'express';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import path from 'path';
-import fs from 'fs';
 import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
+import { scriptManager } from '../../services/scripts.service';
 import { ResponseFormatter } from '../../utils/responseFormatter';
-import logger from '../../utils/logger';
+import { logger } from '../../utils/logger';
+import { z } from 'zod';
 
 const router = Router();
-const execAsync = promisify(exec);
 
-// Lista degli script autorizzati (per sicurezza)
-const ALLOWED_SCRIPTS = [
-  'check-system',
-  'pre-commit-check',
-  'validate-work',
-  'claude-help'
-];
-
-// Path base degli script
-const SCRIPTS_PATH = path.join(process.cwd(), '..', 'scripts');
+// Middleware: solo admin possono accedere
+router.use(authenticate);
+router.use(requireRole(['ADMIN', 'SUPER_ADMIN']));
 
 /**
  * GET /api/admin/scripts
  * Ottiene la lista degli script disponibili
  */
-router.get('/', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
+router.get('/', async (req: any, res) => {
   try {
-    const scripts = [];
+    const userId = req.user.id;
+    const userRole = req.user.role;
     
-    for (const scriptName of ALLOWED_SCRIPTS) {
-      const scriptPath = path.join(SCRIPTS_PATH, `${scriptName}.sh`);
-      const exists = fs.existsSync(scriptPath);
-      
-      scripts.push({
-        name: scriptName,
-        displayName: scriptName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        available: exists,
-        description: getScriptDescription(scriptName)
-      });
-    }
+    const scripts = await scriptManager.getScripts(userId, userRole);
+    const categories = scriptManager.getCategories();
     
-    return res.json(ResponseFormatter.success(scripts, 'Scripts retrieved'));
+    return res.json(ResponseFormatter.success(
+      { scripts, categories },
+      'Scripts retrieved successfully'
+    ));
   } catch (error) {
     logger.error('Error getting scripts:', error);
-    return res.status(500).json(ResponseFormatter.error('Failed to get scripts', 'SCRIPTS_ERROR'));
+    return res.status(500).json(
+      ResponseFormatter.error('Failed to get scripts', 'SCRIPTS_ERROR')
+    );
   }
 });
 
 /**
- * POST /api/admin/scripts/run
- * Esegue uno script e ritorna l'output
+ * GET /api/admin/scripts/:id
+ * Ottiene i dettagli di uno script
  */
-router.post('/run', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const { scriptName } = req.body;
+    const scriptId = req.params.id;
+    const script = await scriptManager.getScript(scriptId);
     
-    // Validazione sicurezza
-    if (!ALLOWED_SCRIPTS.includes(scriptName)) {
-      return res.status(400).json(ResponseFormatter.error('Script not allowed', 'INVALID_SCRIPT'));
+    if (!script) {
+      return res.status(404).json(
+        ResponseFormatter.error('Script not found', 'SCRIPT_NOT_FOUND')
+      );
     }
     
-    const scriptPath = path.join(SCRIPTS_PATH, `${scriptName}.sh`);
-    
-    // Verifica che lo script esista
-    if (!fs.existsSync(scriptPath)) {
-      return res.status(404).json(ResponseFormatter.error('Script not found', 'SCRIPT_NOT_FOUND'));
-    }
-    
-    // Esegui lo script dalla directory root del progetto
-    const projectRoot = path.join(process.cwd(), '..');
-    const { stdout, stderr } = await execAsync(`bash ${scriptPath}`, {
-      cwd: projectRoot, // Esegui dalla root del progetto
-      timeout: 30000,
-      maxBuffer: 1024 * 1024 * 10 // 10MB buffer
-    });
-    
-    // Log esecuzione
-    logger.info(`Script executed: ${scriptName} by user ${req.user?.id}`);
-    
-    return res.json(ResponseFormatter.success({
-      output: stdout,
-      errors: stderr,
-      exitCode: 0,
-      timestamp: new Date().toISOString()
-    }, 'Script executed successfully'));
-    
-  } catch (error: any) {
-    logger.error('Error running script:', error);
-    
-    // Se è un errore di timeout
-    if (error.killed) {
-      return res.status(408).json(ResponseFormatter.error('Script timeout', 'TIMEOUT'));
-    }
-    
-    // Se lo script ha restituito un codice di errore
-    if (error.code) {
-      return res.json(ResponseFormatter.success({
-        output: error.stdout || '',
-        errors: error.stderr || error.message,
-        exitCode: error.code,
-        timestamp: new Date().toISOString()
-      }, 'Script completed with errors'));
-    }
-    
-    return res.status(500).json(ResponseFormatter.error('Failed to run script', 'EXECUTION_ERROR'));
-  }
-});
-
-/**
- * POST /api/admin/scripts/stop
- * Ferma uno script in esecuzione (per il futuro)
- */
-router.post('/stop', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
-  try {
-    // TODO: Implementare stop di processi long-running
-    return res.json(ResponseFormatter.success(null, 'Stop functionality not yet implemented'));
+    return res.json(ResponseFormatter.success(script, 'Script retrieved'));
   } catch (error) {
-    logger.error('Error stopping script:', error);
-    return res.status(500).json(ResponseFormatter.error('Failed to stop script', 'STOP_ERROR'));
+    logger.error('Error getting script:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Failed to get script', 'SCRIPT_ERROR')
+    );
   }
 });
 
 /**
- * Helper per ottenere la descrizione dello script
+ * POST /api/admin/scripts/:id/execute
+ * Esegue uno script
  */
-function getScriptDescription(scriptName: string): string {
-  const descriptions: Record<string, string> = {
-    'check-system': 'Verifica lo stato del sistema, database, Redis e porte',
-    'pre-commit-check': 'Esegue tutti i controlli necessari prima di un commit',
-    'validate-work': 'Valida le modifiche fatte al codice',
-    'claude-help': 'Mostra la guida rapida per sviluppatori'
-  };
-  
-  return descriptions[scriptName] || 'No description available';
-}
+router.post('/:id/execute', async (req: any, res) => {
+  try {
+    const scriptId = req.params.id;
+    const parameters = req.body.parameters || {};
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    
+    // Esegui script
+    const execution = await scriptManager.executeScript(
+      scriptId,
+      parameters,
+      userId,
+      userRole
+    );
+    
+    return res.json(ResponseFormatter.success(
+      execution,
+      'Script execution started'
+    ));
+  } catch (error: any) {
+    logger.error('Error executing script:', error);
+    
+    if (error.message === 'Insufficient permissions') {
+      return res.status(403).json(
+        ResponseFormatter.error('Insufficient permissions', 'FORBIDDEN')
+      );
+    }
+    
+    if (error.message.includes('not found')) {
+      return res.status(404).json(
+        ResponseFormatter.error(error.message, 'NOT_FOUND')
+      );
+    }
+    
+    if (error.message.includes('Required parameter') || error.message.includes('must be')) {
+      return res.status(400).json(
+        ResponseFormatter.error(error.message, 'VALIDATION_ERROR')
+      );
+    }
+    
+    return res.status(500).json(
+      ResponseFormatter.error('Failed to execute script', 'EXECUTION_ERROR')
+    );
+  }
+});
+
+/**
+ * GET /api/admin/scripts/:id/history
+ * Ottiene lo storico delle esecuzioni di uno script
+ */
+router.get('/:id/history', async (req, res) => {
+  try {
+    const scriptId = req.params.id;
+    const limit = parseInt(req.query.limit as string) || 10;
+    
+    const history = await scriptManager.getScriptHistory(scriptId, limit);
+    
+    return res.json(ResponseFormatter.success(
+      history,
+      'Script history retrieved'
+    ));
+  } catch (error) {
+    logger.error('Error getting script history:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Failed to get script history', 'HISTORY_ERROR')
+    );
+  }
+});
+
+/**
+ * GET /api/admin/scripts/execution/:runId
+ * Ottiene lo stato di un'esecuzione
+ */
+router.get('/execution/:runId', async (req, res) => {
+  try {
+    const runId = req.params.runId;
+    const execution = scriptManager.getExecution(runId);
+    
+    if (!execution) {
+      return res.status(404).json(
+        ResponseFormatter.error('Execution not found', 'EXECUTION_NOT_FOUND')
+      );
+    }
+    
+    return res.json(ResponseFormatter.success(
+      execution,
+      'Execution status retrieved'
+    ));
+  } catch (error) {
+    logger.error('Error getting execution status:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Failed to get execution status', 'STATUS_ERROR')
+    );
+  }
+});
+
+/**
+ * GET /api/admin/scripts/execution/:runId/output
+ * Ottiene l'output di un'esecuzione
+ */
+router.get('/execution/:runId/output', async (req, res) => {
+  try {
+    const runId = req.params.runId;
+    const output = scriptManager.getExecutionOutput(runId);
+    
+    return res.json(ResponseFormatter.success(
+      { output },
+      'Execution output retrieved'
+    ));
+  } catch (error) {
+    logger.error('Error getting execution output:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Failed to get execution output', 'OUTPUT_ERROR')
+    );
+  }
+});
+
+/**
+ * POST /api/admin/scripts/reload
+ * Ricarica il registry degli script (SUPER_ADMIN only)
+ */
+router.post('/reload', requireRole(['SUPER_ADMIN']), async (req, res) => {
+  try {
+    await scriptManager.reloadRegistry();
+    
+    return res.json(ResponseFormatter.success(
+      null,
+      'Script registry reloaded successfully'
+    ));
+  } catch (error) {
+    logger.error('Error reloading registry:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Failed to reload registry', 'RELOAD_ERROR')
+    );
+  }
+});
 
 export default router;

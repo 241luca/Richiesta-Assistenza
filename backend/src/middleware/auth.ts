@@ -91,6 +91,29 @@ export async function authenticate(
 // Alias for authenticate
 export const requireAuth = authenticate;
 
+// Middleware per richiedere ruoli specifici
+export function requireRole(roles: string[]) {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+        error: 'UNAUTHORIZED'
+      });
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Insufficient permissions',
+        error: 'FORBIDDEN'
+      });
+    }
+
+    next();
+  };
+}
+
 // Optional authentication - doesn't fail if no token
 export async function optionalAuth(
   req: AuthRequest,

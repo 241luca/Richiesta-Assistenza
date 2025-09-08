@@ -1,0 +1,75 @@
+{
+  "schedule": {
+    "enabled": true,
+    "interval": "*/30 * * * *",
+    "modules": {
+      "auth": "*/15 * * * *",
+      "database": "*/5 * * * *",
+      "payment": "0 * * * *",
+      "notification": "*/30 * * * *",
+      "chat": "*/30 * * * *",
+      "ai": "0 */2 * * *",
+      "request": "*/15 * * * *",
+      "backup": "0 */6 * * *"
+    }
+  },
+  "alerts": {
+    "enabled": true,
+    "channels": ["email", "slack", "dashboard"],
+    "thresholds": {
+      "critical": 60,
+      "warning": 80
+    },
+    "recipients": {
+      "email": ["admin@sistema.it", "lucamambelli@lmtecnologie.it"],
+      "slack": "#system-alerts"
+    }
+  },
+  "retention": {
+    "days": 30,
+    "compress": true,
+    "archivePath": "/var/log/health-checks/archive"
+  },
+  "modules": {
+    "auth": {
+      "enabled": true,
+      "timeout": 5000,
+      "retries": 3
+    },
+    "database": {
+      "enabled": true,
+      "timeout": 3000,
+      "retries": 2
+    },
+    "notification": {
+      "enabled": true,
+      "timeout": 5000,
+      "retries": 3
+    },
+    "backup": {
+      "enabled": true,
+      "timeout": 10000,
+      "retries": 1
+    },
+    "chat": {
+      "enabled": true,
+      "timeout": 5000,
+      "retries": 2
+    },
+    "payment": {
+      "enabled": true,
+      "timeout": 8000,
+      "retries": 3
+    },
+    "ai": {
+      "enabled": true,
+      "timeout": 10000,
+      "retries": 2
+    },
+    "request": {
+      "enabled": true,
+      "timeout": 5000,
+      "retries": 2
+    }
+  }
+}

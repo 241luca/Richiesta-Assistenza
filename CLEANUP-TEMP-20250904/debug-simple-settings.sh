@@ -1,0 +1,46 @@
+#!/bin/bash
+
+echo "🔍 DEBUG SISTEMICO SYSTEM SETTINGS"
+echo "=================================="
+
+echo "✅ CREATA PAGINA SIMPLE SETTINGS"
+echo ""
+
+echo "🎯 PIANO DI TEST:"
+echo ""
+echo "1. 🔧 Clicca su '🔧 SIMPLE Settings' nel menu"
+echo "   ❓ Si carica?"
+echo "   ❓ I pulsanti funzionano?"
+echo "   ❓ Ci sono errori nella console?"
+echo "   ❓ I dati arrivano dal backend?"
+echo ""
+
+echo "2. 📊 Confronta con 'Impostazioni Sistema' originale"
+echo "   ✅ Se SIMPLE funziona e ORIGINALE no = problema nel componente originale"
+echo "   ❌ Se SIMPLE non funziona = problema condiviso (API, auth, etc.)"
+echo ""
+
+echo "3. 🔍 Controlla i log nella console:"
+echo "   🔍 SystemSettingsSimplePage rendered!"
+echo "   🌐 Fetching settings data..."
+echo "   🔍 Query state: {...}"
+echo "   🔥 Button clicked in SystemSettingsSimple!"
+echo ""
+
+echo "📋 POSSIBILI RISULTATI:"
+echo ""
+echo "✅ SIMPLE funziona perfettamente:"
+echo "   → Il problema è nel componente SystemSettingsPage originale"
+echo "   → Probabilmente un errore nel JSX complesso, negli hook o nei dati"
+echo ""
+echo "⚠️ SIMPLE si carica ma i pulsanti non funzionano:"
+echo "   → Problema JavaScript globale o CSS overlay"
+echo ""
+echo "❌ SIMPLE non si carica:"
+echo "   → Problema API, autenticazione o routing"
+echo ""
+echo "❌ SIMPLE crash con errore:"
+echo "   → Problema negli hook condivisi (useQuery, apiClient)"
+echo ""
+
+echo "🚀 VAI A TESTARE 'SIMPLE SETTINGS' E DIMMI IL RISULTATO!"

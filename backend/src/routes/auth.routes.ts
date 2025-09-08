@@ -11,6 +11,9 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { ResponseFormatter, formatUser } from '../utils/responseFormatter';
 import { logger } from '../utils/logger';
 import { AuthRequest, optionalAuth } from '../middleware/auth';
+import { notificationService } from '../services/notification.service';
+import { safeAuditLog } from '../utils/safeAuditLog';
+import { AuditAction, LogSeverity, LogCategory } from '@prisma/client';
 
 const router = Router();
 
@@ -50,7 +53,7 @@ const resetPasswordSchema = z.object({
 });
 
 // Helper functions
-function generateTokens(recipientId: string) {
+function generateTokens(userId: string) {
   const accessToken = jwt.sign(
     { userId },
     process.env.JWT_SECRET!,
@@ -129,6 +132,22 @@ router.post('/register',
     // Generate tokens
     const tokens = generateTokens(user.id);
 
+    // Audit log for new registration (non-blocking)
+    await safeAuditLog({
+      action: AuditAction.CREATE,
+      entityType: 'User',
+      entityId: user.id,
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent') || '',
+      success: true,
+      severity: LogSeverity.INFO,
+      category: LogCategory.USER_ACTIVITY,
+      metadata: { registrationRole: data.role }
+    });
+
     logger.info(`New user registered: ${user.email} (${user.role})`);
 
     res.status(201).json(
@@ -160,6 +179,20 @@ router.post('/login',
     if (!user) {
       // Record failed login attempt
       logger.warn(`Login attempt for non-existent User: ${email}`);
+      
+      // Audit log for failed login (non-blocking)
+      await safeAuditLog({
+        action: AuditAction.LOGIN_FAILED,
+        entityType: 'User',
+        userEmail: email,
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent') || '',
+        success: false,
+        severity: LogSeverity.WARNING,
+        category: LogCategory.SECURITY,
+        metadata: { reason: 'User not found' }
+      });
+      
       return res.status(401).json(
         ResponseFormatter.error(
           'Email or password is incorrect',
@@ -200,11 +233,12 @@ router.post('/login',
       await prisma.loginHistory.create({
         data: {
           id: randomUUID(),
-          recipientId: user.id,
+          userId: user.id,
           ipAddress: req.ip,
           userAgent: req.get('user-agent'),
           success: false,
-          failReason: 'Invalid password'
+          failReason: 'Invalid password',
+          createdAt: new Date()
         }
       });
 
@@ -258,15 +292,31 @@ router.post('/login',
     await prisma.loginHistory.create({
       data: {
         id: randomUUID(),
-        recipientId: user.id,
+        userId: user.id,
         ipAddress: req.ip,
         userAgent: req.get('user-agent'),
-        success: true
+        success: true,
+        createdAt: new Date()
       }
     });
 
     // Generate tokens
     const tokens = generateTokens(user.id);
+
+    // Audit log for successful login (non-blocking)
+    await safeAuditLog({
+      action: AuditAction.LOGIN_SUCCESS,
+      entityType: 'User',
+      entityId: user.id,
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent') || '',
+      success: true,
+      severity: LogSeverity.INFO,
+      category: LogCategory.SECURITY
+    });
 
     logger.info(`User logged in: ${user.email}`);
 
@@ -343,9 +393,30 @@ router.post('/logout',
     // In a stateless JWT system, logout is handled client-side
     // Here we can log the logout event
     if (req.user) {
+      // Audit log for logout con tutti i dati utente
+      await safeAuditLog({
+        action: AuditAction.LOGOUT,
+        entityType: 'Authentication',
+        entityId: req.user.id,
+        userId: req.user.id,
+        userEmail: req.user.email,
+        userRole: req.user.role,
+        ipAddress: req.ip || 'unknown',
+        userAgent: req.get('user-agent') || 'unknown',
+        success: true,
+        severity: LogSeverity.INFO,
+        category: LogCategory.SECURITY,
+        metadata: {
+          logoutTime: new Date()
+        }
+      });
+      
       logger.info(`User logged out: ${req.user.email}`);
     }
 
+    // REMOVED: Clear-Site-Data header that was causing warnings
+    // The frontend will handle clearing local storage
+    
     res.json(
       ResponseFormatter.success(
         null,
@@ -382,14 +453,29 @@ router.post('/forgot-password',
 
     // Generate reset token
     const resetToken = jwt.sign(
-      { recipientId: user.id, purpose: 'password-reset' },
+      { userId: user.id, purpose: 'password-reset' },
       process.env.JWT_SECRET!,
       { expiresIn: '1h' }
     );
 
-    // Note: In SQLite schema, we don't have resetToken fields
-    // For now, we'll return the token in development mode
-    // In production, this would be sent via email
+    // ADDED: Send password reset notification
+    try {
+      const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+      await notificationService.sendToUser({
+        userId: user.id,
+        type: 'PASSWORD_RESET',
+        title: 'Reset della tua password',
+        message: `Hai richiesto il reset della password. Clicca sul link per procedere. Il link scadrà tra 1 ora.`,
+        priority: 'urgent',
+        data: {
+          resetUrl,
+          expiresIn: '1 ora'
+        },
+        channels: ['email'] // Solo email per sicurezza
+      });
+    } catch (error) {
+      logger.error('Error sending password reset notification:', error);
+    }
 
     logger.info(`Password reset requested for: ${email}`);
 
@@ -454,6 +540,23 @@ router.post('/reset-password',
           lockedUntil: null
         }
       });
+
+      // ADDED: Send password reset confirmation notification
+      try {
+        await notificationService.sendToUser({
+          userId: user.id,
+          type: 'PASSWORD_CHANGED',
+          title: 'Password modificata con successo',
+          message: `La tua password è stata modificata con successo. Se non sei stato tu, contatta immediatamente il supporto.`,
+          priority: 'high',
+          data: {
+            changedAt: new Date()
+          },
+          channels: ['websocket', 'email']
+        });
+      } catch (error) {
+        logger.error('Error sending password changed notification:', error);
+      }
 
       logger.info(`Password reset for User: ${user.email}`);
 

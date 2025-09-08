@@ -46,6 +46,7 @@ import OpenAIConfig from './pages/admin/api-keys/OpenAIConfig';
 import AdminTestsPage from './pages/admin/tests';
 // NUOVO: Import Sistema Notifiche
 import NotificationDashboard from './components/notifications/NotificationDashboard';
+import AdminNotificationsPage from './pages/admin/NotificationsPage';
 import Layout from './components/Layout';
 // NUOVO: Import per creazione richieste per conto clienti
 import CreateRequestForClient from './pages/admin/CreateRequestForClient';
@@ -56,6 +57,12 @@ import ProfessionalReportsPage from './pages/professional/reports/index';
 
 // NUOVO: Import Script Manager
 import { ScriptManager } from './pages/admin/ScriptManager';
+
+// SISTEMA AUDIT LOG - Added 07/01/2025
+import AuditDashboard from './components/admin/audit/AuditDashboard';
+
+// SISTEMA HEALTH CHECK - Added 07/01/2025
+import HealthCheckDashboard from './pages/admin/HealthCheckDashboard';
 import ReportsListPage from './pages/professional/reports/list';
 import NewReportPage from './pages/professional/reports/new';
 import ProfessionalPhrasesPage from './pages/professional/reports/phrases';
@@ -194,6 +201,20 @@ export default function AppRoutes() {
       <Route path="/admin/scripts" element={
         <AdminRoute>
           <Layout><ScriptManager /></Layout>
+        </AdminRoute>
+      } />
+      
+      {/* SISTEMA AUDIT LOG - Added 07/01/2025 (ADMIN e SUPER_ADMIN) */}
+      <Route path="/admin/audit" element={
+        <AdminRoute>
+          <Layout><AuditDashboard /></Layout>
+        </AdminRoute>
+      } />
+      
+      {/* SISTEMA HEALTH CHECK - Added 07/01/2025 (ADMIN e SUPER_ADMIN) */}
+      <Route path="/admin/health" element={
+        <AdminRoute>
+          <Layout><HealthCheckDashboard /></Layout>
         </AdminRoute>
       } />
       

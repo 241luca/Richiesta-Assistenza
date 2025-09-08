@@ -1,15 +1,15 @@
 /**
  * Notification Service
  * Gestisce l'invio di notifiche attraverso vari canali (WebSocket, Email, SMS)
+ * FIXED: Corretti tutti i problemi critici di nomenclatura database
  */
 
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma, NotificationPriority } from '@prisma/client';
 import { Server } from 'socket.io';
 import { logger } from '../utils/logger';
 import { sendNotificationToUser, broadcastNotificationToOrganization } from '../websocket/handlers/notification.handler';
 import { sendEmail } from './email.service';
 import { v4 as uuidv4 } from 'uuid';
-// AGGIUNTO: ResponseFormatter per formattazione consistente
 import { formatNotification, formatNotificationList } from '../utils/responseFormatter';
 import { getIO } from '../utils/socket';
 
@@ -52,23 +52,24 @@ export class NotificationService {
       const preferences = await this.getUserPreferences(data.userId);
       const channels = data.channels || this.getDefaultChannels(data.priority);
 
-      // Salva la notifica nel database
+      // FIXED: Campi database corretti con generazione UUID
       const notification = await prisma.notification.create({
         data: {
-          id: uuidv4(), // Genera UUID per la notifica
+          id: uuidv4(), // ✅ FIX 1: Genera sempre UUID
           type: data.type,
           title: data.title,
-          content: data.message, // Il campo si chiama 'content' non 'message'
-          recipientId: data.userId, // Il campo si chiama 'recipientId' non 'userId'
-          priority: (data.priority || 'NORMAL').toUpperCase(), // Deve essere maiuscolo
-          isRead: false
+          content: data.message, // ✅ FIX 2: Usa 'content' non 'message'
+          recipientId: data.userId,
+          priority: this.normalizePriority(data.priority), // ✅ FIX 3: Converti in MAIUSCOLO
+          isRead: false,
+          metadata: data.data || {} // Campo corretto per dati extra
         }
       });
 
       // Invia attraverso i canali abilitati
       const promises = [];
 
-      if (channels.includes('websocket') && preferences.inApp && this.io) {
+      if (channels.includes('websocket') && preferences.websocket && this.io) {
         promises.push(
           sendNotificationToUser(this.io, data.userId, {
             type: data.type,
@@ -95,7 +96,7 @@ export class NotificationService {
       await Promise.allSettled(promises);
       logger.info(`Notification sent to user ${data.userId}: ${data.title}`);
     } catch (error) {
-      logger.error('Error sending notification to User:', error);
+      logger.error('Error sending notification to user:', error);
       throw error;
     }
   }
@@ -141,13 +142,13 @@ export class NotificationService {
     try {
       const users = await prisma.user.findMany({
         where: { 
-          role
+          role: role as any
         },
         select: { id: true }
       });
 
       await Promise.allSettled(
-        users.map(user => this.sendToUser({ ...data, recipientId: user.id }))
+        users.map(user => this.sendToUser({ ...data, userId: user.id }))
       );
 
       logger.info(`Notification sent to role ${role}: ${data.title}`);
@@ -160,24 +161,46 @@ export class NotificationService {
   /**
    * Recupera le preferenze di notifica di un utente
    */
-  private async getUserPreferences(recipientId: string) {
+  private async getUserPreferences(userId: string) {
     const preferences = await prisma.notificationPreference.findUnique({
-      where: { userId: recipientId }
+      where: { userId: userId }
     });
 
     return preferences || {
       email: true,
       push: true,
       sms: false,
-      inApp: true
+      websocket: true, // Default: websocket enabled
+      emailNotifications: true,
+      pushNotifications: true,
+      smsNotifications: false
     };
+  }
+
+  /**
+   * Normalizza la priorità per il database (MAIUSCOLO)
+   * FIX 3: Converte sempre in maiuscolo per l'enum del database
+   */
+  private normalizePriority(priority?: string): NotificationPriority {
+    const normalizedPriority = (priority || 'normal').toUpperCase();
+    switch (normalizedPriority) {
+      case 'LOW':
+        return 'LOW';
+      case 'HIGH':
+        return 'HIGH';
+      case 'URGENT':
+        return 'URGENT';
+      case 'NORMAL':
+      default:
+        return 'NORMAL';
+    }
   }
 
   /**
    * Determina i canali di default basati sulla priorità
    */
   private getDefaultChannels(priority?: string): ('websocket' | 'email' | 'sms' | 'push')[] {
-    switch (priority) {
+    switch (priority?.toLowerCase()) {
       case 'urgent':
         return ['websocket', 'email', 'sms', 'push'];
       case 'high':
@@ -193,10 +216,10 @@ export class NotificationService {
   /**
    * Invia notifica via email
    */
-  private async sendEmailNotification(recipientId: string, data: NotificationData): Promise<void> {
+  private async sendEmailNotification(userId: string, data: NotificationData): Promise<void> {
     try {
       const user = await prisma.user.findUnique({
-        where: { id: recipientId },
+        where: { id: userId },
         select: { email: true, firstName: true, lastName: true }
       });
 
@@ -208,19 +231,49 @@ export class NotificationService {
         html: this.formatEmailContent(data, user)
       });
 
+      // FIXED: Log notifica email nel database
+      await prisma.notificationLog.create({
+        data: {
+          id: uuidv4(),
+          recipientId: userId,
+          recipientEmail: user.email,
+          channel: 'email',
+          status: 'sent',
+          subject: data.title,
+          content: data.message,
+          variables: data.data || {},
+          sentAt: new Date()
+        }
+      });
+
       logger.debug(`Email notification sent to ${user.email}`);
     } catch (error) {
       logger.error('Error sending email notification:', error);
+      
+      // Log errore nel database
+      await prisma.notificationLog.create({
+        data: {
+          id: uuidv4(),
+          recipientId: userId,
+          channel: 'email',
+          status: 'failed',
+          subject: data.title,
+          content: data.message,
+          variables: data.data || {},
+          failedAt: new Date(),
+          failureReason: error.message
+        }
+      });
     }
   }
 
   /**
    * Invia notifica via SMS
    */
-  private async sendSMSNotification(recipientId: string, data: NotificationData): Promise<void> {
+  private async sendSMSNotification(userId: string, data: NotificationData): Promise<void> {
     try {
       const user = await prisma.user.findUnique({
-        where: { id: recipientId },
+        where: { id: userId },
         select: { phone: true }
       });
 
@@ -228,6 +281,19 @@ export class NotificationService {
 
       // TODO: Implementare invio SMS con provider (Twilio, etc.)
       logger.debug(`SMS notification would be sent to ${user.phone}`);
+      
+      // Log nel database
+      await prisma.notificationLog.create({
+        data: {
+          id: uuidv4(),
+          recipientId: userId,
+          recipientPhone: user.phone,
+          channel: 'sms',
+          status: 'pending', // Cambierà quando SMS sarà implementato
+          content: data.message.substring(0, 160), // SMS ha limite caratteri
+          variables: data.data || {}
+        }
+      });
     } catch (error) {
       logger.error('Error sending SMS notification:', error);
     }
@@ -236,10 +302,23 @@ export class NotificationService {
   /**
    * Invia push notification
    */
-  private async sendPushNotification(recipientId: string, data: NotificationData): Promise<void> {
+  private async sendPushNotification(userId: string, data: NotificationData): Promise<void> {
     try {
       // TODO: Implementare push notifications (FCM, etc.)
-      logger.debug(`Push notification would be sent to user ${recipientId}`);
+      logger.debug(`Push notification would be sent to user ${userId}`);
+      
+      // Log nel database
+      await prisma.notificationLog.create({
+        data: {
+          id: uuidv4(),
+          recipientId: userId,
+          channel: 'push',
+          status: 'pending', // Cambierà quando push sarà implementato
+          subject: data.title,
+          content: data.message,
+          variables: data.data || {}
+        }
+      });
     } catch (error) {
       logger.error('Error sending push notification:', error);
     }
@@ -248,7 +327,7 @@ export class NotificationService {
   /**
    * Formatta il contenuto dell'email
    */
-  private formatEmailContent(data: NotificationData, User: any): string {
+  private formatEmailContent(data: NotificationData, user: any): string {
     return `
       <!DOCTYPE html>
       <html>
@@ -295,12 +374,12 @@ export class NotificationService {
   /**
    * Segna una notifica come letta
    */
-  async markAsRead(notificationId: string, recipientId: string): Promise<void> {
+  async markAsRead(notificationId: string, userId: string): Promise<void> {
     try {
       await prisma.notification.updateMany({
         where: {
           id: notificationId,
-          recipientId
+          recipientId: userId
         },
         data: {
           isRead: true,
@@ -316,11 +395,11 @@ export class NotificationService {
   /**
    * Segna tutte le notifiche come lette
    */
-  async markAllAsRead(recipientId: string): Promise<void> {
+  async markAllAsRead(userId: string): Promise<void> {
     try {
       await prisma.notification.updateMany({
         where: {
-          recipientId: recipientId,
+          recipientId: userId,
           isRead: false
         },
         data: {
@@ -337,11 +416,11 @@ export class NotificationService {
   /**
    * Recupera le notifiche non lette
    */
-  async getUnread(recipientId: string, limit: number = 50): Promise<any[]> {
+  async getUnread(userId: string, limit: number = 50): Promise<any[]> {
     try {
       const notifications = await prisma.notification.findMany({
         where: {
-          recipientId: recipientId,
+          recipientId: userId,
           isRead: false
         },
         orderBy: {
@@ -350,7 +429,6 @@ export class NotificationService {
         take: limit,
       });
       
-      // AGGIUNTO: Usa ResponseFormatter per output consistente
       return formatNotificationList(notifications);
     } catch (error) {
       logger.error('Error fetching unread notifications:', error);
@@ -361,11 +439,11 @@ export class NotificationService {
   /**
    * Conta le notifiche non lette
    */
-  async countUnread(recipientId: string): Promise<number> {
+  async countUnread(userId: string): Promise<number> {
     try {
       return await prisma.notification.count({
         where: {
-          recipientId: recipientId,
+          recipientId: userId,
           isRead: false
         }
       });
@@ -393,6 +471,42 @@ export class NotificationService {
       logger.info(`Cleaned up ${result.count} old notifications`);
     } catch (error) {
       logger.error('Error cleaning up old notifications:', error);
+    }
+  }
+
+  /**
+   * Crea una notifica diretta nel database (utility method)
+   */
+  async createNotification(params: {
+    recipientId: string;
+    type: string;
+    title: string;
+    content: string;
+    priority?: NotificationPriority;
+    metadata?: any;
+    senderId?: string;
+    entityType?: string;
+    entityId?: string;
+  }) {
+    try {
+      return await prisma.notification.create({
+        data: {
+          id: uuidv4(), // ✅ Sempre genera UUID
+          recipientId: params.recipientId,
+          type: params.type,
+          title: params.title,
+          content: params.content, // ✅ Campo corretto
+          priority: params.priority || 'NORMAL', // ✅ Default MAIUSCOLO
+          metadata: params.metadata || {},
+          senderId: params.senderId,
+          entityType: params.entityType,
+          entityId: params.entityId,
+          isRead: false
+        }
+      });
+    } catch (error) {
+      logger.error('Error creating notification:', error);
+      throw error;
     }
   }
 }

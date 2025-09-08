@@ -1,6 +1,6 @@
 {
   "name": "richiesta-assistenza-backend",
-  "version": "2.0.0",
+  "version": "4.1.0",
   "description": "Backend API for Sistema Richiesta Assistenza",
   "main": "dist/server.js",
   "prisma": {
@@ -53,6 +53,7 @@
     "handlebars": "^4.7.8",
     "helmet": "^8.1.0",
     "ioredis": "^5.7.0",
+    "json2csv": "^6.0.0-alpha.2",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
@@ -61,6 +62,7 @@
     "openai": "^5.16.0",
     "pdfkit": "^0.17.1",
     "pg": "^8.16.3",
+    "playwright": "^1.55.0",
     "prisma": "^6.14.0",
     "qrcode": "^1.5.4",
     "sharp": "^0.34.3",

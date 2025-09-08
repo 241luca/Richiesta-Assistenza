@@ -1,0 +1,26 @@
+{
+  "enabled": true,
+  "interval": "*/30 * * * *",
+  "modules": {
+    "auth-system": "*/15 * * * *",
+    "database-health": "*/5 * * * *",
+    "notification-system": "*/30 * * * *",
+    "backup-system": "0 */6 * * *",
+    "chat-system": "*/20 * * * *",
+    "payment-system": "0 * * * *",
+    "ai-system": "*/30 * * * *",
+    "request-system": "*/15 * * * *"
+  },
+  "alerts": {
+    "enabled": true,
+    "channels": ["email", "websocket"],
+    "thresholds": {
+      "critical": 60,
+      "warning": 80
+    }
+  },
+  "retention": {
+    "days": 30,
+    "compress": true
+  }
+}

@@ -11,7 +11,8 @@ import {
   ClockIcon,
   InformationCircleIcon,
   BookOpenIcon,
-  CogIcon
+  CogIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import { api } from '@/services/api';
 
@@ -109,7 +110,8 @@ export function ScriptManager() {
       'check-system': <ArrowPathIcon className="w-5 h-5" />,
       'pre-commit-check': <CheckCircleIcon className="w-5 h-5" />,
       'validate-work': <ExclamationTriangleIcon className="w-5 h-5" />,
-      'claude-help': <CommandLineIcon className="w-5 h-5" />
+      'claude-help': <CommandLineIcon className="w-5 h-5" />,
+      'audit-system-check': <BookOpenIcon className="w-5 h-5" />
     };
     return icons[scriptName] || <PlayIcon className="w-5 h-5" />;
   };
@@ -119,7 +121,8 @@ export function ScriptManager() {
       'check-system': 'blue',
       'pre-commit-check': 'green',
       'validate-work': 'yellow',
-      'claude-help': 'purple'
+      'claude-help': 'purple',
+      'audit-system-check': 'indigo'
     };
     return colors[scriptName] || 'gray';
   };
@@ -242,6 +245,96 @@ export function ScriptManager() {
         'È una guida di riferimento, non un controllo',
         'Consultala quando hai dubbi sulle best practices',
         'Contiene esempi di codice corretto vs sbagliato'
+      ]
+    },
+    'auth-system-check': {
+      title: 'Auth System Check',
+      purpose: '🔐 Verifica completa del sistema di autenticazione e sicurezza accessi',
+      icon: <ShieldCheckIcon className="w-8 h-8 text-blue-500" />,
+      whenToUse: 'Per verificare che il sistema di login, JWT, 2FA e sessioni funzioni correttamente',
+      whatItChecks: [
+        'File di autenticazione (middleware, service, routes)',
+        'Configurazione JWT e validità secret',
+        'Sistema 2FA con Speakeasy',
+        'Database utenti e conteggi',
+        'Rate limiting contro brute force',
+        'Gestione sessioni con Redis',
+        'Endpoint di autenticazione',
+        'Sicurezza password con bcrypt',
+        'Configurazione CORS'
+      ],
+      interpreteOutput: {
+        'Health Score': 'Punteggio totale di salute del modulo (0-100)',
+        '✅ Passati': 'Controlli completati con successo',
+        '⚠️ Warning': 'Problemi non bloccanti da migliorare',
+        '❌ Errori': 'Problemi critici da risolvere subito'
+      },
+      commonIssues: [
+        'JWT_SECRET troppo corto: Aumentare a minimo 32 caratteri',
+        'Redis non attivo: Avviare Redis per gestione sessioni',
+        '2FA non configurato: Installare speakeasy per maggiore sicurezza',
+        'Rate limiting mancante: Installare express-rate-limit'
+      ]
+    },
+    'run-all-health-checks': {
+      title: 'Run All Health Checks',
+      purpose: '🏥 Esegue TUTTI i controlli di sistema e genera un report completo dello stato di salute',
+      icon: <ArrowPathIcon className="w-8 h-8 text-green-500" />,
+      whenToUse: 'Per avere una panoramica completa dello stato del sistema, ideale per controlli periodici o prima di deploy',
+      whatItChecks: [
+        'TUTTI i moduli del sistema in sequenza',
+        'Autenticazione e sicurezza',
+        'Database e performance',
+        'Sistema notifiche',
+        'Sistema backup',
+        'Chat e WebSocket',
+        'Pagamenti e Stripe',
+        'AI e OpenAI',
+        'Workflow richieste'
+      ],
+      interpreteOutput: {
+        'OVERALL HEALTH SCORE': 'Media dei punteggi di tutti i moduli',
+        'Tabella riepilogativa': 'Stato e score di ogni modulo',
+        'Statistiche globali': 'Totale controlli, passati, warning, errori',
+        'Azioni richieste': 'Lista prioritizzata di interventi necessari'
+      },
+      commonIssues: [
+        'Score < 60: Sistema critico, intervento immediato',
+        'Score 60-79: Sistema con problemi minori',
+        'Score 80+: Sistema in salute',
+        'Moduli critici: Risolvere prima i moduli con stato CRITICAL'
+      ]
+    },
+    'audit-system-check': {
+      title: 'Audit System Check',
+      purpose: '🔍 Verifica completa e analisi del sistema di Audit Log per monitoraggio e sicurezza',
+      icon: <BookOpenIcon className="w-8 h-8 text-indigo-500" />,
+      whenToUse: 'Per verificare lo stato del sistema di audit, controllare che tutti i log vengano registrati correttamente, o dopo aver fatto modifiche al sistema di logging',
+      whatItChecks: [
+        '1. DATABASE: Connessione e tabelle AuditLog, AuditLogRetention, AuditLogAlert',
+        '2. STATISTICHE: Numero totale di log, distribuzione per categoria, ultimo log registrato',
+        '3. CODICE BACKEND: Presenza dei file middleware, service e routes per audit',
+        '4. INTEGRAZIONE: Verifica che il middleware sia attivo in server.ts',
+        '5. FRONTEND: Presenza dei componenti dashboard (8 componenti React)',
+        '6. DIPENDENZE: json2csv, lodash, helmet e altre librerie necessarie',
+        '7. TEST CREAZIONE: Crea e cancella un log di test per verificare scrittura',
+        '8. RETENTION POLICIES: Controlla le policy di pulizia automatica configurate',
+        '9. ALERT SYSTEM: Verifica gli alert configurati per eventi critici',
+        '10. PERFORMANCE: Statistiche ultimi 24h, 7 giorni, errori e log critici'
+      ],
+      interpreteOutput: {
+        '✅ SISTEMA OPERATIVO': 'Il sistema di audit è completamente funzionante',
+        '📊 Statistiche': 'Mostra il numero totale di log e la distribuzione',
+        '⚠️ Warning': 'Qualcosa può essere migliorato ma non è bloccante',
+        '❌ Errore': 'Problema critico che impedisce il logging',
+        '📋 Raccomandazioni': 'Suggerimenti per ottimizzare il sistema'
+      },
+      commonIssues: [
+        'Nessun log trovato: Il middleware potrebbe non essere integrato correttamente',
+        'json2csv non installato: Eseguire npm install json2csv nel backend',
+        'Tabelle mancanti: Eseguire npx prisma db push per creare le tabelle',
+        'Nessuna retention policy: Configurare le policy per pulizia automatica dei log vecchi',
+        'Alto numero di errori: Investigare i log di errore per trovare problemi nel sistema'
       ]
     }
   };
@@ -416,8 +509,13 @@ export function ScriptManager() {
                   outputRefs.current[selectedScript] = el;
                 }
               }}
-              className="p-4 h-96 overflow-y-auto font-mono text-xs text-gray-300"
-              style={{ backgroundColor: '#1a1a1a' }}
+              className="p-4 overflow-y-auto font-mono text-xs text-gray-300"
+              style={{ 
+                backgroundColor: '#1a1a1a',
+                minHeight: '500px',
+                maxHeight: '700px',
+                height: 'calc(100vh - 450px)'
+              }}
             >
               {selectedScript && outputs[selectedScript] ? (
                 <>
@@ -548,6 +646,7 @@ export function ScriptManager() {
             <li>• <strong>Pre Commit Check</strong>: Esegui tutti i controlli prima di un commit</li>
             <li>• <strong>Validate Work</strong>: Controlla le modifiche fatte al codice</li>
             <li>• <strong>Claude Help</strong>: Visualizza la guida rapida per sviluppatori</li>
+            <li>• <strong>Audit System Check</strong>: 🔍 Verifica completa del sistema di logging e audit trail</li>
           </ul>
         </div>
       )}

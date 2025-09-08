@@ -1,0 +1,115 @@
+#!/bin/bash
+
+# =================================================================
+# 🤖 CLAUDE HELP SCRIPT
+# =================================================================
+# Guida rapida per sviluppatori che usano Claude
+# Uso: ./scripts/claude-help.sh
+# =================================================================
+
+echo ""
+echo "======================================"
+echo "🤖 CLAUDE DEVELOPER GUIDE"
+echo "======================================"
+echo ""
+
+# Colori
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+echo -e "${BLUE}📋 LE 5 REGOLE D'ORO DA RICORDARE${NC}"
+echo "======================================"
+echo ""
+echo -e "${RED}1️⃣  ResponseFormatter SEMPRE nelle Routes${NC}"
+echo "    ✅ return res.json(ResponseFormatter.success(data))"
+echo "    ❌ res.json({ data })"
+echo ""
+echo -e "${RED}2️⃣  React Query per TUTTE le API${NC}"
+echo "    ✅ useQuery({ queryKey: ['items'], queryFn: ... })"
+echo "    ❌ fetch('/api/items')"
+echo ""
+echo -e "${RED}3️⃣  Relazioni Prisma con @relation${NC}"
+echo "    ✅ client User @relation(\"ClientRequests\")"
+echo "    ❌ User_AssistanceRequest_clientIdToUser"
+echo ""
+echo -e "${RED}4️⃣  Backup PRIMA di modifiche critiche${NC}"
+echo "    cp file.tsx file.backup-\$(date +%Y%m%d-%H%M%S).tsx"
+echo ""
+echo -e "${RED}5️⃣  Test PRIMA del commit${NC}"
+echo "    ./scripts/pre-commit-check.sh"
+echo ""
+
+echo -e "${BLUE}⚡ COMANDI RAPIDI${NC}"
+echo "======================================"
+echo ""
+echo -e "${GREEN}Iniziare a lavorare:${NC}"
+echo "  ./scripts/check-system.sh      # Verifica sistema"
+echo "  ./scripts/start-dev.sh         # Avvia tutto"
+echo ""
+echo -e "${GREEN}Durante lo sviluppo:${NC}"
+echo "  ./scripts/validate-work.sh     # Controlla modifiche"
+echo "  cd backend && npx tsc --noEmit # Check TypeScript"
+echo ""
+echo -e "${GREEN}Prima del commit:${NC}"
+echo "  ./scripts/pre-commit-check.sh  # Controlli completi"
+echo "  git status                     # Verifica files"
+echo ""
+
+echo -e "${BLUE}📁 FILE IMPORTANTI${NC}"
+echo "======================================"
+echo ""
+echo "ISTRUZIONI-PROGETTO.md         # LEGGERE SEMPRE!"
+echo "backend/prisma/schema.prisma   # Schema database"
+echo "backend/src/utils/responseFormatter.ts"
+echo "src/services/api.ts            # Client API"
+echo ""
+
+echo -e "${BLUE}🔧 TROUBLESHOOTING RAPIDO${NC}"
+echo "======================================"
+echo ""
+echo -e "${YELLOW}Errore TypeScript?${NC}"
+echo "  cd backend && npx prisma generate"
+echo "  npx tsc --noEmit"
+echo ""
+echo -e "${YELLOW}ResponseFormatter mancante?${NC}"
+echo "  Aggiungilo in TUTTE le routes (NON nei services!)"
+echo ""
+echo -e "${YELLOW}Porta già in uso?${NC}"
+echo "  lsof -i :3200"
+echo "  kill -9 [PID]"
+echo ""
+echo -e "${YELLOW}Database non connesso?${NC}"
+echo "  Controlla DATABASE_URL in backend/.env"
+echo "  cd backend && npx prisma db push"
+echo ""
+
+echo -e "${BLUE}⚠️  ERRORI COMUNI DA EVITARE${NC}"
+echo "======================================"
+echo ""
+echo -e "${RED}❌ MAI fare:${NC}"
+echo "  - res.json({ data }) senza ResponseFormatter"
+echo "  - fetch() invece di React Query"
+echo "  - console.log() in produzione"
+echo "  - Modifiche senza backup"
+echo "  - Commit con file .backup-*"
+echo ""
+echo -e "${GREEN}✅ SEMPRE fare:${NC}"
+echo "  - ResponseFormatter in OGNI route"
+echo "  - React Query per API calls"
+echo "  - Relazioni Prisma con @relation"
+echo "  - Test prima del commit"
+echo "  - Documentare le modifiche"
+echo ""
+
+echo -e "${BLUE}📞 AIUTO${NC}"
+echo "======================================"
+echo ""
+echo "Documentazione: ISTRUZIONI-PROGETTO.md"
+echo "Lead Dev: Luca Mambelli (lucamambelli@lmtecnologie.it)"
+echo ""
+echo "======================================"
+echo -e "${GREEN}Buon lavoro! 🚀${NC}"
+echo "======================================"
