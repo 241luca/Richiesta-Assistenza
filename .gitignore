@@ -40,3 +40,6 @@ node_modules/
 backend/backups/
 database-backups/
 *.backup*
+backend/backups/
+database-backups/
+*.backup*
