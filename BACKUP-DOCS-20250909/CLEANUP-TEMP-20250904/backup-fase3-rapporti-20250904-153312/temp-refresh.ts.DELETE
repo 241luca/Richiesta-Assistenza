@@ -1,2 +1,0 @@
-// Temporary file to force Vite refresh - DELETE ME
-export const FORCE_REFRESH = Date.now();
