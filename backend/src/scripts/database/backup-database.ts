@@ -29,7 +29,7 @@ export async function execute(params: BackupParams = {}) {
     }
     
     // Create backup directory if not exists
-    const backupDir = path.join(require('os').homedir(), 'RichiestaBackup', 'database');
+    const backupDir = path.join('/Users/lucamambelli/Desktop', 'backup-ra', 'database');
     await fs.mkdir(backupDir, { recursive: true });
     
     // Generate backup filename

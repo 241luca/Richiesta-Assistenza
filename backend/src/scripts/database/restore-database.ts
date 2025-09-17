@@ -20,7 +20,7 @@ export async function execute(params: RestoreParams) {
     logger.info('🔄 Starting database restore...', params);
     
     // Verifica che il file di backup esista
-    const backupPath = path.join(require('os').homedir(), 'RichiestaBackup', 'database', params.backupFile);
+    const backupPath = path.join('/Users/lucamambelli/Desktop', 'backup-ra', 'database', params.backupFile);
     
     try {
       await fs.access(backupPath);
