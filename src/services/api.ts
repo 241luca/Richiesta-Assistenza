@@ -3,8 +3,15 @@ import { io, Socket } from 'socket.io-client';
 import toast from 'react-hot-toast';
 
 // API Base URL - Port 3200 for backend
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3200';
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3200';
+// Usa l'hostname corrente quando non siamo in localhost
+const API_BASE_URL = import.meta.env.VITE_API_URL || 
+  (window.location.hostname === 'localhost' 
+    ? 'http://localhost:3200'
+    : `http://${window.location.hostname}:3200`);
+const WS_URL = import.meta.env.VITE_WS_URL || 
+  (window.location.hostname === 'localhost'
+    ? 'ws://localhost:3200'
+    : `ws://${window.location.hostname}:3200`);
 
 // Create axios instance
 export const apiClient = axios.create({
