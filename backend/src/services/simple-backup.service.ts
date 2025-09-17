@@ -30,9 +30,9 @@ class SimpleBackupService {
   private backupBaseDir: string;
   
   constructor() {
-    // Directory base per i backup - FUORI dal progetto
+    // Directory base per i backup - FUORI dal progetto con nome più semplice
     const homeDir = require('os').homedir();
-    this.backupBaseDir = path.join(homeDir, 'BACKUP-SICURI-RICHIESTA-ASSISTENZA');
+    this.backupBaseDir = path.join(homeDir, 'RichiestaBackup');
     this.ensureDirectories();
   }
 

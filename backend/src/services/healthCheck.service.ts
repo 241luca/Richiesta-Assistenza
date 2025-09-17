@@ -659,7 +659,7 @@ class HealthCheckService {
 
       // 3. Controlla spazio su disco per backup - SEMPRE AGGIUNTO
       try {
-        const backupPath = path.join(require('os').homedir(), 'BACKUP-SICURI-RICHIESTA-ASSISTENZA', 'database');
+        const backupPath = path.join(require('os').homedir(), 'RichiestaBackup', 'database');
         if (fs.existsSync(backupPath)) {
           const files = fs.readdirSync(backupPath);
           metrics.backup_files_count = files.length;
