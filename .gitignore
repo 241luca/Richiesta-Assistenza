@@ -36,3 +36,7 @@ Thumbs.db
 
 # Prisma
 backend/prisma/migrations/
+node_modules/
+backend/backups/
+database-backups/
+*.backup*
