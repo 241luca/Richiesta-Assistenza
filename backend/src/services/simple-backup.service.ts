@@ -30,8 +30,9 @@ class SimpleBackupService {
   private backupBaseDir: string;
   
   constructor() {
-    // Directory base per i backup - CORREZIONE: rimuovi 'backend' duplicato
-    this.backupBaseDir = path.join(process.cwd(), 'backups');
+    // Directory base per i backup - FUORI dal progetto
+    const homeDir = require('os').homedir();
+    this.backupBaseDir = path.join(homeDir, 'BACKUP-SICURI-RICHIESTA-ASSISTENZA');
     this.ensureDirectories();
   }
 
