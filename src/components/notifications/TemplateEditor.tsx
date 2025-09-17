@@ -61,13 +61,115 @@ const TemplateEditor: React.FC<TemplateEditorProps> = ({ template, onClose, onSa
   const [previewHtml, setPreviewHtml] = useState('');
   const [showVariableHelp, setShowVariableHelp] = useState(false);
 
+  // Valori di default per le variabili comuni
+  const defaultVariableValues: Record<string, any> = {
+    // Utente
+    nome: 'Mario',
+    cognome: 'Rossi',
+    fullName: 'Mario Rossi',
+    email: 'mario.rossi@example.com',
+    telefono: '+39 333 1234567',
+    
+    // Sistema
+    appName: 'Sistema Assistenza',
+    companyName: 'LM Tecnologie',
+    siteUrl: 'https://assistenza.example.com',
+    supportEmail: 'support@assistenza.it',
+    supportPhone: '+39 02 12345678',
+    
+    // Richieste
+    requestId: 'REQ-2025-001234',
+    requestTitle: 'Riparazione urgente impianto',
+    requestStatus: 'In attesa',
+    requestDate: new Date().toLocaleDateString('it-IT'),
+    requestTime: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+    
+    // Professionista
+    professionalName: 'Giovanni Bianchi',
+    professionalPhone: '+39 335 9876543',
+    professionalEmail: 'g.bianchi@pro.it',
+    
+    // Preventivo
+    quoteId: 'QUO-2025-004567',
+    quoteAmount: '€ 350,00',
+    quoteValidUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('it-IT'),
+    
+    // Intervento
+    interventionDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toLocaleDateString('it-IT'),
+    interventionTime: '14:30',
+    interventionAddress: 'Via Roma 123, Milano',
+    
+    // Pagamento
+    paymentAmount: '€ 350,00',
+    paymentMethod: 'Carta di credito',
+    invoiceNumber: 'FAT-2025-001234',
+    
+    // Altri
+    message: 'Questo è un messaggio di esempio',
+    link: 'https://assistenza.example.com/link',
+    code: 'ABC123',
+    password: 'TempPass123!',
+    otp: '123456'
+  };
+
+  // Funzione per estrarre variabili dal contenuto
+  const extractVariablesFromContent = (content: string): string[] => {
+    const regex = /{{\s*(\w+)\s*}}/g;
+    const variables = new Set<string>();
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+      variables.add(match[1]);
+    }
+    return Array.from(variables);
+  };
+
+  // Auto-popolamento delle variabili quando cambia il contenuto
+  useEffect(() => {
+    // Estrai tutte le variabili da tutti i contenuti
+    const allVariables = new Set<string>();
+    
+    if (formData.htmlContent) {
+      extractVariablesFromContent(formData.htmlContent).forEach(v => allVariables.add(v));
+    }
+    if (formData.textContent) {
+      extractVariablesFromContent(formData.textContent).forEach(v => allVariables.add(v));
+    }
+    if (formData.smsContent) {
+      extractVariablesFromContent(formData.smsContent).forEach(v => allVariables.add(v));
+    }
+    if (formData.whatsappContent) {
+      extractVariablesFromContent(formData.whatsappContent).forEach(v => allVariables.add(v));
+    }
+    if (formData.subject) {
+      extractVariablesFromContent(formData.subject).forEach(v => allVariables.add(v));
+    }
+
+    // Aggiorna automaticamente le variabili nel formData
+    const variablesList = Array.from(allVariables).map(name => ({
+      name,
+      description: name.charAt(0).toUpperCase() + name.slice(1).replace(/([A-Z])/g, ' $1'),
+      type: 'string',
+      required: false,
+      defaultValue: defaultVariableValues[name] || `[${name}]`
+    }));
+
+    setFormData(prev => ({ ...prev, variables: variablesList }));
+
+    // Auto-popola i valori di preview con i default
+    const newPreviewData: Record<string, any> = {};
+    allVariables.forEach(varName => {
+      newPreviewData[varName] = defaultVariableValues[varName] || `[${varName}]`;
+    });
+    setPreviewData(newPreviewData);
+  }, [formData.htmlContent, formData.textContent, formData.smsContent, formData.whatsappContent, formData.subject]);
+
   // Mutation per salvare il template - CORRETTA URL
   const saveMutation = useMutation({
     mutationFn: async (data: NotificationTemplate) => {
       if (data.id) {
-        return await api.put(`/api/notification-templates/templates/${data.id}`, data);
+        return await api.put(`/notification-templates/templates/${data.id}`, data);
       } else {
-        return await api.post('/api/notification-templates/templates', data);
+        return await api.post('/notification-templates/templates', data);
       }
     },
     onSuccess: () => {
@@ -82,13 +184,31 @@ const TemplateEditor: React.FC<TemplateEditorProps> = ({ template, onClose, onSa
   // Mutation per preview - CORRETTA URL
   const previewMutation = useMutation({
     mutationFn: async () => {
-      return await api.post(`/api/notification-templates/templates/${formData.code}/preview`, {
-        variables: previewData,
-        channel: activeTab === 'preview' ? 'email' : activeTab
-      });
+      // Log per debug
+      const requestData = {
+        htmlContent: formData.htmlContent || '',
+        textContent: formData.textContent || '',
+        smsContent: formData.smsContent || '',
+        whatsappContent: formData.whatsappContent || '',
+        subject: formData.subject || '',
+        variables: previewData || {}
+      };
+      
+      console.log('Sending preview request:', requestData);
+      
+      // Usa l'endpoint /preview generico invece di quello con code
+      return await api.post('/notification-templates/preview', requestData);
     },
     onSuccess: (response) => {
-      setPreviewHtml(response.data.data.content);
+      console.log('Preview response:', response.data);
+      // Mostra il contenuto HTML renderizzato
+      setPreviewHtml(response.data.data.html || '<p>Nessun contenuto HTML</p>');
+    },
+    onError: (error: any) => {
+      console.error('Preview error details:', error.response?.data);
+      const errorMessage = error.response?.data?.message || 'Errore nella generazione dell\'anteprima';
+      toast.error(errorMessage);
+      console.error('Preview error:', error);
     }
   });
 
@@ -462,9 +582,10 @@ const TemplateEditor: React.FC<TemplateEditorProps> = ({ template, onClose, onSa
             <div>
               <div className="mb-4">
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Anteprima Template</h3>
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                  <p className="text-sm text-yellow-800">
-                    ⚠️ Inserisci i valori delle variabili per vedere l'anteprima renderizzata
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-green-800">
+                    ✅ Le variabili sono state compilate automaticamente con valori di esempio.
+                    Puoi modificarle o cliccare direttamente su "Genera Anteprima".
                   </p>
                 </div>
               </div>
@@ -472,29 +593,37 @@ const TemplateEditor: React.FC<TemplateEditorProps> = ({ template, onClose, onSa
               {/* Input variabili per preview */}
               <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                 <h4 className="font-medium text-sm text-gray-700 mb-3">Valori Variabili per Preview:</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  {formData.variables.map((variable) => (
-                    <div key={variable.name}>
-                      <label className="block text-xs text-gray-600 mb-1">
-                        {variable.description || variable.name}
-                      </label>
-                      <input
-                        type="text"
-                        value={previewData[variable.name] || ''}
-                        onChange={(e) => setPreviewData({ ...previewData, [variable.name]: e.target.value })}
-                        placeholder={variable.defaultValue || `Valore per ${variable.name}`}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
-                      />
+                {formData.variables.length > 0 ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      {formData.variables.map((variable) => (
+                        <div key={variable.name}>
+                          <label className="block text-xs text-gray-600 mb-1">
+                            {variable.description || variable.name}
+                          </label>
+                          <input
+                            type="text"
+                            value={previewData[variable.name] || ''}
+                            onChange={(e) => setPreviewData({ ...previewData, [variable.name]: e.target.value })}
+                            placeholder={variable.defaultValue || `Valore per ${variable.name}`}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-white"
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                <button
-                  onClick={() => previewMutation.mutate()}
-                  disabled={previewMutation.isPending}
-                  className="mt-3 px-4 py-2 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {previewMutation.isPending ? 'Generazione...' : 'Genera Anteprima'}
-                </button>
+                    <button
+                      onClick={() => previewMutation.mutate()}
+                      disabled={previewMutation.isPending}
+                      className="mt-3 px-4 py-2 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                      {previewMutation.isPending ? 'Generazione...' : 'Genera Anteprima'}
+                    </button>
+                  </>
+                ) : (
+                  <div className="text-sm text-gray-500 italic">
+                    Nessuna variabile trovata nel template. Aggiungi variabili usando la sintassi {'{{nomeVariabile}}'}.
+                  </div>
+                )}
               </div>
 
               {/* Preview renderizzata */}

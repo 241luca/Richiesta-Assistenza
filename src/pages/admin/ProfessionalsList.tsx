@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   UserGroupIcon,
   CogIcon,
@@ -8,14 +8,24 @@ import {
   PlusIcon,
   MagnifyingGlassIcon,
   CheckCircleIcon,
-  XCircleIcon
+  XCircleIcon,
+  ClockIcon,
+  ExclamationTriangleIcon,
+  CheckIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { api } from '../../services/api';
 import { SelfAssignToggle } from '../../components/admin/SelfAssignToggle';
+import { toast } from 'react-hot-toast';
+import ProfessionalApprovalModal from '../../components/admin/ProfessionalApprovalModal';
 
 export default function ProfessionalsList() {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = React.useState('');
+  const queryClient = useQueryClient();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all'); // all, pending, approved, rejected
+  const [selectedProfessional, setSelectedProfessional] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const { data: professionals, isLoading } = useQuery({
     queryKey: ['professionals'],
@@ -27,7 +37,8 @@ export default function ProfessionalsList() {
         console.log('Professionals data:', profs.map((p: any) => ({ 
           id: p.id, 
           name: p.firstName + ' ' + p.lastName,
-          canSelfAssign: p.canSelfAssign 
+          canSelfAssign: p.canSelfAssign,
+          approvalStatus: p.approvalStatus 
         })));
         return profs;
       } catch (error) {
@@ -39,7 +50,54 @@ export default function ProfessionalsList() {
     }
   });
 
+  // Mutation per approvare un professionista
+  const approveMutation = useMutation({
+    mutationFn: async (professionalId: string) => {
+      return await api.put(`/users/${professionalId}/approve`, {
+        approvalStatus: 'APPROVED'
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['professionals'] });
+      toast.success('Professionista approvato con successo');
+    },
+    onError: () => {
+      toast.error('Errore durante l\'approvazione');
+    }
+  });
+
+  // Mutation per rifiutare un professionista
+  const rejectMutation = useMutation({
+    mutationFn: async ({ professionalId, reason }: { professionalId: string; reason: string }) => {
+      return await api.put(`/users/${professionalId}/reject`, {
+        approvalStatus: 'REJECTED',
+        rejectionReason: reason
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['professionals'] });
+      toast.success('Professionista rifiutato');
+    },
+    onError: () => {
+      toast.error('Errore durante il rifiuto');
+    }
+  });
+
+  // Conta i professionisti per stato
+  const counts = {
+    all: professionals?.length || 0,
+    pending: professionals?.filter((p: any) => p.approvalStatus === 'PENDING').length || 0,
+    approved: professionals?.filter((p: any) => p.approvalStatus === 'APPROVED').length || 0,
+    rejected: professionals?.filter((p: any) => p.approvalStatus === 'REJECTED').length || 0
+  };
+
   const filteredProfessionals = professionals?.filter((prof: any) => {
+    // Filtro per stato approvazione
+    if (filterStatus !== 'all' && prof.approvalStatus?.toLowerCase() !== filterStatus) {
+      return false;
+    }
+
+    // Filtro per ricerca
     const search = searchTerm.toLowerCase();
     return (
       prof.firstName?.toLowerCase().includes(search) ||
@@ -50,9 +108,37 @@ export default function ProfessionalsList() {
     );
   });
 
+  // Componente per il badge dello stato di approvazione
+  const ApprovalBadge = ({ status }: { status: string }) => {
+    switch (status) {
+      case 'APPROVED':
+        return (
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 flex items-center">
+            <CheckCircleIcon className="h-4 w-4 mr-1" />
+            Approvato
+          </span>
+        );
+      case 'REJECTED':
+        return (
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 flex items-center">
+            <XCircleIcon className="h-4 w-4 mr-1" />
+            Rifiutato
+          </span>
+        );
+      case 'PENDING':
+      default:
+        return (
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 flex items-center">
+            <ClockIcon className="h-4 w-4 mr-1" />
+            In attesa
+          </span>
+        );
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Header */}
+      {/* Header con notifica professionisti in attesa */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
@@ -64,9 +150,99 @@ export default function ProfessionalsList() {
               </p>
             </div>
           </div>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
-            <PlusIcon className="h-5 w-5 mr-2" />
-            Aggiungi Professionista
+          
+          <div className="flex items-center space-x-4">
+            {counts.pending > 0 && (
+              <>
+                <div className="flex items-center px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 mr-2" />
+                  <span className="text-yellow-800 font-medium">
+                    {counts.pending} in attesa di approvazione
+                  </span>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (confirm(`Vuoi approvare tutti i ${counts.pending} professionisti in attesa?`)) {
+                      const pendingProfs = professionals?.filter((p: any) => 
+                        p.approvalStatus === 'PENDING' || !p.approvalStatus
+                      );
+                      
+                      let approved = 0;
+                      for (const prof of pendingProfs || []) {
+                        try {
+                          await api.put(`/users/${prof.id}/approve`, {
+                            approvalStatus: 'APPROVED'
+                          });
+                          approved++;
+                        } catch (error) {
+                          console.error(`Errore approvazione ${prof.email}:`, error);
+                        }
+                      }
+                      
+                      queryClient.invalidateQueries({ queryKey: ['professionals'] });
+                      toast.success(`Approvati ${approved} professionisti`);
+                    }
+                  }}
+                  className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center text-sm"
+                  title="Approva tutti i professionisti in attesa"
+                >
+                  <CheckCircleIcon className="h-4 w-4 mr-1" />
+                  Approva tutti
+                </button>
+              </>
+            )}
+            
+            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
+              <PlusIcon className="h-5 w-5 mr-2" />
+              Aggiungi Professionista
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Filtri per stato */}
+      <div className="bg-white shadow rounded-lg p-4 mb-6">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => setFilterStatus('all')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              filterStatus === 'all'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Tutti ({counts.all})
+          </button>
+          <button
+            onClick={() => setFilterStatus('pending')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center ${
+              filterStatus === 'pending'
+                ? 'bg-yellow-600 text-white'
+                : 'bg-yellow-50 text-yellow-800 hover:bg-yellow-100'
+            }`}
+          >
+            <ClockIcon className="h-4 w-4 mr-2" />
+            In attesa ({counts.pending})
+          </button>
+          <button
+            onClick={() => setFilterStatus('approved')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              filterStatus === 'approved'
+                ? 'bg-green-600 text-white'
+                : 'bg-green-50 text-green-800 hover:bg-green-100'
+            }`}
+          >
+            Approvati ({counts.approved})
+          </button>
+          <button
+            onClick={() => setFilterStatus('rejected')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              filterStatus === 'rejected'
+                ? 'bg-red-600 text-white'
+                : 'bg-red-50 text-red-800 hover:bg-red-100'
+            }`}
+          >
+            Rifiutati ({counts.rejected})
           </button>
         </div>
       </div>
@@ -96,7 +272,9 @@ export default function ProfessionalsList() {
           {filteredProfessionals?.map((professional: any) => (
             <div
               key={professional.id}
-              className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6"
+              className={`bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6 ${
+                professional.approvalStatus === 'PENDING' ? 'border-l-4 border-yellow-500' : ''
+              }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1">
@@ -120,15 +298,37 @@ export default function ProfessionalsList() {
                 
                 <div className="flex items-center space-x-3">
                   {/* Status Badge */}
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    professional.isVerified 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {professional.isVerified ? 'Verificato' : 'Da verificare'}
-                  </span>
+                  <ApprovalBadge status={professional.approvalStatus || 'PENDING'} />
                   
-                  {/* Gestisci Button */}
+                  {/* Azioni SOLO per professionisti davvero in attesa */}
+                  {(professional.approvalStatus === 'PENDING' || !professional.approvalStatus) && (
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => approveMutation.mutate(professional.id)}
+                        className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors flex items-center"
+                        title="Approva"
+                      >
+                        <CheckIcon className="h-4 w-4 mr-1" />
+                        Approva
+                      </button>
+                      <button
+                        onClick={() => {
+                          const reason = prompt('Motivo del rifiuto (opzionale):');
+                          rejectMutation.mutate({ 
+                            professionalId: professional.id, 
+                            reason: reason || 'Rifiutato da admin' 
+                          });
+                        }}
+                        className="px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors flex items-center"
+                        title="Rifiuta"
+                      >
+                        <XMarkIcon className="h-4 w-4 mr-1" />
+                        Rifiuta
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* Gestisci Button - sempre presente */}
                   <button
                     onClick={() => {
                       console.log('Navigating to professional competenze:', professional.id);
@@ -163,28 +363,42 @@ export default function ProfessionalsList() {
                     </p>
                   </div>
                 </div>
-                
-                {/* Self Assign Toggle - NUOVO! */}
-                <div className="mt-3 pt-3 border-t flex items-center justify-between">
-                  <SelfAssignToggle
-                    professionalId={professional.id}
-                    canSelfAssign={professional.canSelfAssign === true || professional.canSelfAssign === null || professional.canSelfAssign === undefined}
-                    professionalName={`${professional.firstName} ${professional.lastName}`}
-                  />
-                  <div className="flex items-center space-x-2 text-sm">
-                    {(professional.canSelfAssign === false) ? (
-                      <>
-                        <XCircleIcon className="h-5 w-5 text-red-500" />
-                        <span className="text-red-700">Auto-assegnazione bloccata</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                        <span className="text-green-700">Può auto-assegnarsi</span>
-                      </>
-                    )}
+
+                {/* Mostra info approvazione se disponibili */}
+                {professional.approvedAt && (
+                  <div className="text-sm text-gray-500 mb-2">
+                    Approvato il {new Date(professional.approvedAt).toLocaleDateString('it-IT')}
                   </div>
-                </div>
+                )}
+                {professional.rejectionReason && (
+                  <div className="text-sm text-red-600 mb-2">
+                    Motivo rifiuto: {professional.rejectionReason}
+                  </div>
+                )}
+                
+                {/* Self Assign Toggle - solo per professionisti approvati */}
+                {professional.approvalStatus === 'APPROVED' && (
+                  <div className="mt-3 pt-3 border-t flex items-center justify-between">
+                    <SelfAssignToggle
+                      professionalId={professional.id}
+                      canSelfAssign={professional.canSelfAssign === true || professional.canSelfAssign === null || professional.canSelfAssign === undefined}
+                      professionalName={`${professional.firstName} ${professional.lastName}`}
+                    />
+                    <div className="flex items-center space-x-2 text-sm">
+                      {(professional.canSelfAssign === false) ? (
+                        <>
+                          <XCircleIcon className="h-5 w-5 text-red-500" />
+                          <span className="text-red-700">Auto-assegnazione bloccata</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                          <span className="text-green-700">Può auto-assegnarsi</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -195,11 +409,26 @@ export default function ProfessionalsList() {
               <p className="text-gray-600">
                 {searchTerm 
                   ? `Nessun professionista trovato per "${searchTerm}"`
-                  : 'Nessun professionista registrato'}
+                  : filterStatus !== 'all'
+                    ? `Nessun professionista ${filterStatus === 'pending' ? 'in attesa' : filterStatus === 'approved' ? 'approvato' : 'rifiutato'}`
+                    : 'Nessun professionista registrato'}
               </p>
             </div>
           )}
         </div>
+      )}
+
+      {/* Modal di Approvazione */}
+      {selectedProfessional && (
+        <ProfessionalApprovalModal
+          professional={selectedProfessional}
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedProfessional(null);
+            queryClient.invalidateQueries({ queryKey: ['professionals'] });
+          }}
+        />
       )}
     </div>
   );

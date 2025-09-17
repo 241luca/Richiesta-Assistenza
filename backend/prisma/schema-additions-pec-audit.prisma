@@ -1,0 +1,281 @@
+// Aggiungi queste tabelle al tuo schema.prisma esistente
+
+// === TABELLE PER SISTEMA PEC E RECLAMI ===
+
+model Complaint {
+  id          String   @id @default(cuid())
+  userId      String
+  requestId   String?  // Collegamento opzionale a richiesta assistenza
+  company     String   // ENEL, TIM, etc.
+  type        String   // Tipo di reclamo
+  details     String   @db.Text
+  status      ComplaintStatus @default(DRAFT)
+  
+  // PEC details
+  messageId   String?  // ID messaggio PEC
+  sentAt      DateTime?
+  receivedAt  DateTime? // Quando arriva ricevuta
+  response    Json?    // Risposta del fornitore
+  
+  // Metadata
+  contractNumber String?
+  customerCode   String?
+  metadata    Json     @default("{}")
+  attachments String[] // Path dei file allegati
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  user        User     @relation(fields: [userId], references: [id])
+  request     AssistanceRequest? @relation(fields: [requestId], references: [id])
+  
+  @@index([userId])
+  @@index([status])
+  @@index([company])
+}
+
+enum ComplaintStatus {
+  DRAFT
+  SENDING
+  SENT
+  RECEIVED     // Ricevuta PEC arrivata
+  RESPONDED    // Fornitore ha risposto
+  RESOLVED
+  REJECTED
+  CANCELLED
+}
+
+model ComplaintDraft {
+  id          String   @id @default(cuid())
+  userId      String
+  company     String
+  type        String
+  details     String   @db.Text
+  status      String   @default("DRAFT")
+  templateData Json
+  
+  sentAt      DateTime?
+  complaintId String?  // ID reclamo quando inviato
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id])
+  
+  @@index([userId, status])
+}
+
+// === TABELLE PER AUDIT WHATSAPP ===
+
+model WhatsAppAudit {
+  id          String   @id @default(cuid())
+  action      String   // MESSAGE_RECEIVED, MESSAGE_SENT, COMMAND_X, etc.
+  phoneNumber String
+  userId      String?
+  messageId   String?
+  
+  // Business data
+  intent      String?
+  category    String?
+  requestId   String?
+  complaintId String?
+  
+  // Performance
+  success     Boolean  @default(true)
+  responseTime Int?    // milliseconds
+  aiModel     String?
+  aiTokensUsed Int?
+  kbHit       Boolean  @default(false)
+  
+  // Metadata
+  metadata    Json     @default("{}")
+  errorMessage String?
+  
+  timestamp   DateTime @default(now())
+  
+  @@index([phoneNumber, timestamp])
+  @@index([userId, timestamp])
+  @@index([action, timestamp])
+  @@index([success, timestamp])
+}
+
+// === ESTENSIONE TABELLA USER ===
+// Aggiungi questi campi alla tabella User esistente
+
+model User {
+  // ... campi esistenti ...
+  
+  // WhatsApp fields
+  whatsappNumber    String?  @unique
+  whatsappVerified  Boolean  @default(false)
+  whatsappOptIn     Boolean  @default(true)
+  preferredChannel  PreferredChannel @default(EMAIL)
+  
+  // Legal/Complaint fields
+  fiscalCode        String?  // Codice fiscale per PEC
+  pecEmail          String?  // Indirizzo PEC personale
+  
+  // Relations
+  complaints        Complaint[]
+  complaintDrafts   ComplaintDraft[]
+}
+
+enum PreferredChannel {
+  EMAIL
+  WHATSAPP
+  SMS
+  PHONE
+  PEC
+}
+
+// === TABELLE PER NOTIFICHE AVANZATE ===
+
+model NotificationTemplate {
+  id          String   @id @default(cuid())
+  key         String   @unique // Identificatore univoco template
+  name        String   // Nome descrittivo
+  category    String   // SYSTEM, BUSINESS, LEGAL, etc.
+  
+  // Template per canale
+  emailSubject    String?
+  emailBody       String?  @db.Text
+  whatsappBody    String?  @db.Text
+  smsBody         String?
+  pecSubject      String?
+  pecBody         String?  @db.Text
+  
+  // Configurazione
+  channels        String[] // Canali abilitati per questo template
+  priority        NotificationPriority @default(MEDIUM)
+  requiresConfirm Boolean  @default(false)
+  
+  // Variabili disponibili
+  variables       Json     // {"USER_NAME": "string", "REQUEST_ID": "string", ...}
+  
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([key])
+  @@index([category])
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+model NotificationLog {
+  id          String   @id @default(cuid())
+  userId      String
+  templateId  String?
+  channel     String   // EMAIL, WHATSAPP, SMS, PEC
+  
+  // Content
+  recipient   String   // Email, phone number, etc.
+  subject     String?
+  body        String   @db.Text
+  
+  // Status
+  status      NotificationStatus @default(PENDING)
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  readAt      DateTime?
+  errorMessage String?
+  
+  // Metadata
+  metadata    Json     @default("{}")
+  priority    NotificationPriority @default(MEDIUM)
+  
+  createdAt   DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id])
+  template    NotificationTemplate? @relation(fields: [templateId], references: [id])
+  
+  @@index([userId, status])
+  @@index([channel, status])
+  @@index([createdAt])
+}
+
+enum NotificationStatus {
+  PENDING
+  SENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  CANCELLED
+}
+
+// === TABELLA PER GESTIONE NOTIFICHE BATCH ===
+
+model NotificationBatch {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  
+  // Target
+  targetType  String   // ALL_USERS, ROLE, CUSTOM
+  targetRole  Role?
+  targetIds   String[] // Se CUSTOM
+  
+  // Content
+  templateId  String
+  variables   Json     // Variabili per il template
+  channels    String[] // Canali da utilizzare
+  
+  // Scheduling
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  
+  // Stats
+  totalRecipients Int     @default(0)
+  sentCount      Int     @default(0)
+  deliveredCount Int     @default(0)
+  failedCount    Int     @default(0)
+  
+  status      BatchStatus @default(DRAFT)
+  createdBy   String
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  template    NotificationTemplate @relation(fields: [templateId], references: [id])
+  creator     User     @relation(fields: [createdBy], references: [id])
+  
+  @@index([status, scheduledAt])
+}
+
+enum BatchStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+// === INTEGRAZIONE CON AUDIT LOG ESISTENTE ===
+// Estendi la tabella AuditLog esistente se necessario
+
+model AuditLog {
+  // ... campi esistenti ...
+  
+  // Aggiungi categoria LEGAL per tracking reclami PEC
+  category    AuditCategory
+}
+
+enum AuditCategory {
+  AUTH
+  DATA
+  ADMIN
+  SYSTEM
+  SECURITY
+  BUSINESS
+  LEGAL         // Nuovo per PEC e reclami
+  COMMUNICATION // Nuovo per notifiche
+}

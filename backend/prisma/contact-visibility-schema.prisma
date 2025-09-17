@@ -1,0 +1,39 @@
+// Aggiungi questo al tuo schema.prisma
+
+model ContactVisibility {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  
+  // Visibilità telefoni
+  showPersonalPhone   Boolean @default(false)
+  showCompanyPhone    Boolean @default(true)
+  
+  // Visibilità email
+  showPersonalEmail   Boolean @default(false) 
+  showCompanyEmail    Boolean @default(true)
+  showPec             Boolean @default(false)
+  
+  // Visibilità indirizzi
+  showPersonalAddress Boolean @default(false)
+  showBusinessAddress Boolean @default(true)
+  
+  // Orari preferiti di contatto
+  preferredContactHours String? // Es: "Lun-Ven 9:00-18:00"
+  
+  // Note per i clienti
+  contactNotes        String? // Es: "Preferisco WhatsApp per urgenze"
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Aggiornamento model User
+model User {
+  // ... campi esistenti ...
+  
+  // Visibilità contatti
+  contactVisibility ContactVisibility?
+  
+  // ... resto del modello ...
+}

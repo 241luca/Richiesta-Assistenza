@@ -43,13 +43,15 @@ interface RequestChatProps {
     role: string;
     avatar?: string;
   }>;
+  suggestedMessage?: string; // NUOVO: Messaggio suggerito iniziale
 }
 
 const RequestChat: React.FC<RequestChatProps> = ({ 
   requestId, 
   requestTitle,
   requestStatus,
-  participants 
+  participants,
+  suggestedMessage 
 }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -62,6 +64,13 @@ const RequestChat: React.FC<RequestChatProps> = ({
   const [editingMessage, setEditingMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Imposta il messaggio suggerito quando viene passato
+  useEffect(() => {
+    if (suggestedMessage && message === '') {
+      setMessage(suggestedMessage);
+    }
+  }, [suggestedMessage]);
 
   // Query per recuperare i messaggi
   const { data: messages = [], isLoading, error } = useQuery({

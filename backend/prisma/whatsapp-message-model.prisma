@@ -1,0 +1,30 @@
+// Script per aggiungere il modello WhatsAppMessage al database
+
+// Aggiungi questo modello al file schema.prisma
+
+model WhatsAppMessage {
+  id              String    @id @default(cuid())
+  phoneNumber     String
+  message         String    @db.Text
+  direction       String    // 'incoming' o 'outgoing'
+  status          String?   // 'sent', 'delivered', 'read', 'failed'
+  messageId       String?   // ID del messaggio su WhatsApp
+  timestamp       DateTime  @default(now())
+  mediaUrl        String?
+  mediaType       String?
+  conversationId  String?
+  userId          String?   // ID utente associato (se registrato)
+  metadata        Json?     // Dati aggiuntivi
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  user            User?     @relation(fields: [userId], references: [id])
+  
+  @@index([phoneNumber])
+  @@index([direction])
+  @@index([timestamp])
+  @@index([userId])
+}
+
+// Aggiungi anche la relazione nel modello User:
+// whatsappMessages WhatsAppMessage[]

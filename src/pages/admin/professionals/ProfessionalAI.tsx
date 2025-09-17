@@ -28,8 +28,9 @@ export default function ProfessionalAI() {
   const { data: professional } = useQuery({
     queryKey: ['professional', professionalId],
     queryFn: async () => {
-      const response = await apiClient.get(`/users/${professionalId}`);
-      return response.data.data || response.data;
+      // Usa l'endpoint admin che ha più dati
+      const response = await apiClient.get(`/admin/users/${professionalId}`);
+      return response.data.data?.user || response.data.data || response.data;
     }
   });
 
@@ -190,10 +191,11 @@ export default function ProfessionalAI() {
         >
           <option value="">-- Seleziona una sottocategoria --</option>
           {subcategories.map((sub: any) => {
-            // La struttura ha Subcategory con S maiuscola
-            const subcategoryId = sub.subcategoryId || sub.Subcategory?.id;
-            const subcategoryName = sub.Subcategory?.name || 'Nome non disponibile';
-            const categoryName = sub.Subcategory?.category?.name || '';
+            // Gestisci entrambi i formati: subcategory (minuscolo) o Subcategory (maiuscolo)
+            const subcategory = sub.subcategory || sub.Subcategory;
+            const subcategoryId = sub.subcategoryId || subcategory?.id;
+            const subcategoryName = subcategory?.name || 'Nome non disponibile';
+            const categoryName = subcategory?.category?.name || '';
             
             return (
               <option key={subcategoryId} value={subcategoryId}>

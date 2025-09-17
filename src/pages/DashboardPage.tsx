@@ -18,7 +18,9 @@ import {
   CalendarIcon,
   CurrencyEuroIcon,
   BriefcaseIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  ExclamationTriangleIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 import { apiClient as api } from '@/services/api';
 
@@ -34,6 +36,8 @@ interface DashboardData {
     totalEarned?: number; // Solo per PROFESSIONAL
     averageRating?: number; // Solo per PROFESSIONAL
     completedJobs?: number; // Solo per PROFESSIONAL
+    pendingInterventions?: number; // NUOVO: Solo per CLIENT
+    pendingQuotes?: number; // NUOVO: Solo per CLIENT
   };
   recentRequests: Array<{
     id: string;
@@ -57,6 +61,41 @@ interface DashboardData {
     requestTitle: string;
     scheduledDate: string;
     address: string;
+  }>;
+  // NUOVO: Interventi da confermare
+  interventionsToConfirm?: Array<{
+    id: string;
+    requestId: string;
+    requestTitle: string;
+    proposedDate: string;
+    description?: string;
+    estimatedDuration?: number;
+    professionalName: string;
+    address: string;
+    status: string;
+    urgent: boolean;
+  }>;
+  // NUOVO: Preventivi da accettare
+  quotesToAccept?: Array<{
+    id: string;
+    requestId: string;
+    requestTitle: string;
+    requestDescription?: string;
+    amount: number;
+    professionalName: string;
+    professionalPhone?: string;
+    professionalEmail?: string;
+    items: Array<{
+      description: string;
+      quantity: number;
+      unitPrice: number;
+      totalPrice: number;
+    }>;
+    expiresAt?: string;
+    validUntil?: string;
+    createdAt: string;
+    status: string;
+    urgent: boolean;
   }>;
 }
 
@@ -140,12 +179,15 @@ export default function DashboardPage() {
     totalSpent: 0,
     totalEarned: 0,
     averageRating: 0,
-    completedJobs: 0
+    completedJobs: 0,
+    pendingInterventions: 0
   };
 
   const recentRequests = data?.recentRequests || [];
   const recentQuotes = data?.recentQuotes || [];
   const upcomingAppointments = data?.upcomingAppointments || [];
+  const interventionsToConfirm = data?.interventionsToConfirm || []; // NUOVO
+  const quotesToAccept = data?.quotesToAccept || []; // NUOVO
 
   const isClient = user?.role === 'CLIENT';
   const isProfessional = user?.role === 'PROFESSIONAL';
@@ -166,6 +208,232 @@ export default function DashboardPage() {
         </p>
       </div>
 
+      {/* NUOVO: Alert per interventi da confermare - SOLO PER CLIENTI */}
+      {isClient && interventionsToConfirm.length > 0 && (
+        <div className="mb-8">
+          <Alert className="border-orange-200 bg-orange-50">
+            <ExclamationTriangleIcon className="h-5 w-5 text-orange-600" />
+            <div className="ml-3">
+              <AlertDescription className="text-orange-800">
+                <span className="font-semibold">Attenzione!</span> Hai{' '}
+                <span className="font-bold text-orange-900">
+                  {interventionsToConfirm.length} {interventionsToConfirm.length === 1 ? 'intervento' : 'interventi'} da confermare
+                </span>
+              </AlertDescription>
+            </div>
+          </Alert>
+          
+          {/* Card con gli interventi da confermare */}
+          <Card className="mt-4 border-orange-200">
+            <CardHeader className="bg-orange-50">
+              <CardTitle className="flex items-center text-orange-900">
+                <CalendarIcon className="h-5 w-5 mr-2" />
+                Interventi Programmati da Confermare
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="space-y-3">
+                {interventionsToConfirm.slice(0, 3).map((intervention) => (
+                  <div
+                    key={intervention.id}
+                    className="p-4 bg-white border-2 border-orange-200 rounded-lg"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center mb-2">
+                          <Badge className="bg-orange-100 text-orange-800">
+                            DA CONFERMARE
+                          </Badge>
+                          <span className="ml-2 text-sm font-semibold text-gray-900">
+                            {intervention.requestTitle}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700 mb-1">
+                          <span className="font-medium">Data proposta:</span>{' '}
+                          <span className="font-semibold text-orange-900">
+                            {new Date(intervention.proposedDate).toLocaleString('it-IT', {
+                              weekday: 'long',
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          <span className="font-medium">Professionista:</span> {intervention.professionalName}
+                        </p>
+                        {intervention.description && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            <span className="font-medium">Descrizione:</span> {intervention.description}
+                          </p>
+                        )}
+                        {intervention.estimatedDuration && (
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Durata stimata:</span> {intervention.estimatedDuration} minuti
+                          </p>
+                        )}
+                        <p className="text-sm text-gray-600">
+                          <span className="font-medium">Luogo:</span> {intervention.address}
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Link to={`/requests/${intervention.requestId}`}>
+                          <Button 
+                            size="sm" 
+                            className="bg-orange-600 hover:bg-orange-700 text-white w-full"
+                          >
+                            Conferma ora
+                          </Button>
+                        </Link>
+                        <Link to={`/requests/${intervention.requestId}?openChat=true&reason=intervention`}>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="border-orange-400 text-orange-700 hover:bg-orange-50 w-full"
+                          >
+                            <ChatBubbleLeftRightIcon className="h-4 w-4 mr-1" />
+                            Proponi altra data
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {interventionsToConfirm.length > 3 && (
+                <div className="mt-4 text-center">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Ci sono altri {interventionsToConfirm.length - 3} interventi da confermare
+                  </p>
+                  <Link to="/requests">
+                    <Button variant="outline" className="border-orange-400 text-orange-700 hover:bg-orange-50">
+                      Vedi tutti gli interventi
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* NUOVO: Alert per preventivi da accettare - SOLO PER CLIENTI */}
+      {isClient && quotesToAccept.length > 0 && (
+        <div className="mb-8">
+          <Alert className="border-amber-200 bg-amber-50">
+            <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />
+            <div className="ml-3">
+              <AlertDescription className="text-amber-800">
+                <span className="font-semibold">Attenzione!</span> Hai{' '}
+                <span className="font-bold text-amber-900">
+                  {quotesToAccept.length} {quotesToAccept.length === 1 ? 'preventivo' : 'preventivi'} da valutare
+                </span>
+              </AlertDescription>
+            </div>
+          </Alert>
+          
+          {/* Card con i preventivi da accettare */}
+          <Card className="mt-4 border-amber-200">
+            <CardHeader className="bg-amber-50">
+              <CardTitle className="flex items-center text-amber-900">
+                <DocumentTextIcon className="h-5 w-5 mr-2" />
+                Preventivi da Valutare
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="space-y-3">
+                {quotesToAccept.slice(0, 3).map((quote) => (
+                  <div
+                    key={quote.id}
+                    className="p-4 bg-white border-2 border-amber-200 rounded-lg"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center mb-2">
+                          <Badge className="bg-amber-100 text-amber-800">
+                            DA VALUTARE
+                          </Badge>
+                          <span className="ml-2 text-sm font-semibold text-gray-900">
+                            {quote.requestTitle}
+                          </span>
+                        </div>
+                        <div className="mb-2">
+                          <span className="text-2xl font-bold text-amber-900">
+                            €{(quote.amount / 100).toFixed(2)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700 mb-1">
+                          <span className="font-medium">Professionista:</span> {quote.professionalName}
+                        </p>
+                        {quote.professionalPhone && (
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Tel:</span> {quote.professionalPhone}
+                          </p>
+                        )}
+                        {quote.items && quote.items.length > 0 && (
+                          <div className="mt-2 pt-2 border-t">
+                            <p className="text-xs font-medium text-gray-700 mb-1">Dettagli preventivo:</p>
+                            {quote.items.slice(0, 2).map((item, idx) => (
+                              <p key={idx} className="text-xs text-gray-600">
+                                • {item.description} - €{(item.totalPrice / 100).toFixed(2)}
+                              </p>
+                            ))}
+                            {quote.items.length > 2 && (
+                              <p className="text-xs text-gray-500 italic">
+                                ...e altri {quote.items.length - 2} elementi
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        {quote.expiresAt && (
+                          <p className="text-xs text-amber-700 mt-2 font-medium">
+                            ⏰ Scade il {new Date(quote.expiresAt).toLocaleDateString('it-IT')}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Link to={`/quotes/${quote.id}`}>
+                          <Button 
+                            size="sm" 
+                            className="bg-amber-600 hover:bg-amber-700 text-white w-full"
+                          >
+                            Valuta ora
+                          </Button>
+                        </Link>
+                        <Link to={`/requests/${quote.requestId}?openChat=true&reason=quote`}>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="border-amber-400 text-amber-700 hover:bg-amber-50 w-full"
+                          >
+                            <ChatBubbleLeftRightIcon className="h-4 w-4 mr-1" />
+                            Negozia preventivo
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {quotesToAccept.length > 3 && (
+                <div className="mt-4 text-center">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Ci sono altri {quotesToAccept.length - 3} preventivi da valutare
+                  </p>
+                  <Link to="/quotes">
+                    <Button variant="outline" className="border-amber-400 text-amber-700 hover:bg-amber-50">
+                      Vedi tutti i preventivi
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Quick Actions */}
       {isClient && (
         <div className="mb-8">
@@ -180,6 +448,7 @@ export default function DashboardPage() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+        {/* Card 1: Richieste Totali */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -192,13 +461,37 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
+        {/* Card 2: Interventi/Preventivi da confermare o In Attesa */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Attesa</CardTitle>
-            <ClockIcon className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">
+              {isClient && ((stats.pendingInterventions && stats.pendingInterventions > 0) || 
+                           (stats.pendingQuotes && stats.pendingQuotes > 0))
+                ? 'Da Confermare/Valutare' 
+                : 'In Attesa'}
+            </CardTitle>
+            {isClient && ((stats.pendingInterventions && stats.pendingInterventions > 0) || 
+                         (stats.pendingQuotes && stats.pendingQuotes > 0))
+              ? <ExclamationTriangleIcon className="h-4 w-4 text-orange-600" />
+              : <ClockIcon className="h-4 w-4 text-muted-foreground" />}
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingRequests}</div>
+            <div className="text-2xl font-bold">
+              {isClient && ((stats.pendingInterventions && stats.pendingInterventions > 0) || 
+                           (stats.pendingQuotes && stats.pendingQuotes > 0))
+                ? (stats.pendingInterventions || 0) + (stats.pendingQuotes || 0)
+                : stats.pendingRequests}
+            </div>
+            {isClient && stats.pendingInterventions && stats.pendingInterventions > 0 && (
+              <p className="text-xs text-orange-600 mt-1">
+                {stats.pendingInterventions} interventi
+              </p>
+            )}
+            {isClient && stats.pendingQuotes && stats.pendingQuotes > 0 && (
+              <p className="text-xs text-amber-600">
+                {stats.pendingQuotes} preventivi
+              </p>
+            )}
           </CardContent>
         </Card>
 

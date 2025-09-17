@@ -26,13 +26,6 @@ export default function BrevoConfig() {
       senderEmail: '',
       senderName: '',
       replyToEmail: '',
-      templates: {
-        welcome: '',
-        passwordReset: '',
-        requestCreated: '',
-        quoteReceived: '',
-        paymentConfirmed: ''
-      },
       dailyLimit: 300,
       testMode: false
     }
@@ -73,7 +66,12 @@ export default function BrevoConfig() {
       setFormData(prev => ({ ...prev, key: '' }));
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error || 'Errore nel salvataggio');
+      const errorMessage = typeof error.response?.data?.error === 'string' 
+        ? error.response.data.error 
+        : error.response?.data?.error?.details 
+        || error.response?.data?.message 
+        || 'Errore nel salvataggio';
+      toast.error(errorMessage);
     }
   });
 
@@ -89,8 +87,13 @@ export default function BrevoConfig() {
         toast.error(`Test fallito: ${data.data.message}`);
       }
     },
-    onError: () => {
-      toast.error('Errore durante il test della connessione');
+    onError: (error: any) => {
+      const errorMessage = typeof error?.response?.data?.error === 'string'
+        ? error.response.data.error
+        : error?.response?.data?.error?.details
+        || error?.response?.data?.message
+        || 'Errore durante il test della connessione';
+      toast.error(errorMessage);
     }
   });
 
@@ -280,44 +283,6 @@ export default function BrevoConfig() {
                   />
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Email Templates */}
-          <div className="bg-white shadow-sm rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Template Email (ID Template Brevo)</h3>
-            
-            <div className="space-y-4">
-              {Object.entries({
-                welcome: 'Email di Benvenuto',
-                passwordReset: 'Reset Password',
-                requestCreated: 'Richiesta Creata',
-                quoteReceived: 'Preventivo Ricevuto',
-                paymentConfirmed: 'Pagamento Confermato'
-              }).map(([key, label]) => (
-                <div key={key}>
-                  <label htmlFor={`template-${key}`} className="block text-sm font-medium text-gray-700">
-                    {label}
-                  </label>
-                  <input
-                    type="text"
-                    id={`template-${key}`}
-                    value={formData.configuration.templates[key as keyof typeof formData.configuration.templates]}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      configuration: {
-                        ...prev.configuration,
-                        templates: {
-                          ...prev.configuration.templates,
-                          [key]: e.target.value
-                        }
-                      }
-                    }))}
-                    placeholder="ID template da Brevo (es: 1)"
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              ))}
             </div>
           </div>
 

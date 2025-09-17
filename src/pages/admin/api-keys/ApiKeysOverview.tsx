@@ -110,6 +110,13 @@ export default function ApiKeysOverview() {
           color: 'bg-indigo-100 text-indigo-800',
           icon: '💳'
         };
+      case 'whatsapp':
+        return {
+          name: 'WhatsApp',
+          description: 'Messaggistica con SendApp Cloud',
+          color: 'bg-green-100 text-green-800',
+          icon: '💬'
+        };
       default:
         return {
           name: service,

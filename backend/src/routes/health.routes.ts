@@ -206,10 +206,12 @@ router.get('/ready', async (req, res) => {
     });
   } catch (error: any) {
     logger.error('Readiness check failed:', error);
-    return res.status(503).json({
-      ready: false,
-      reason: error.message
-    });
+    return res.status(503).json(
+      ResponseFormatter.error('Readiness check failed', 'CHECK_FAILED', {
+        ready: false,
+        reason: error.message
+      })
+    );
   }
 });
 
@@ -219,11 +221,13 @@ router.get('/ready', async (req, res) => {
  */
 router.get('/live', (req, res) => {
   // Se il server risponde, è vivo
-  res.status(200).json({
-    alive: true,
-    timestamp: new Date().toISOString(),
-    pid: process.pid
-  });
+  return res.status(200).json(
+    ResponseFormatter.success({
+      alive: true,
+      timestamp: new Date().toISOString(),
+      pid: process.pid
+    }, 'System alive')
+  );
 });
 
 export default router;

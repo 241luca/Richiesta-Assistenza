@@ -24,12 +24,16 @@ router.use(requireRole(['ADMIN', 'SUPER_ADMIN']));
 
 /**
  * GET /api/admin/health-check/status
- * Ottiene lo stato generale del sistema
+ * Ottiene lo stato generale del sistema dal servizio healthCheck reale
  */
 router.get('/status', async (req, res) => {
   try {
-    const status = await orchestrator.getSystemStatus();
-    return res.json(ResponseFormatter.success(status, 'System status retrieved'));
+    // Usa il servizio healthCheck reale invece dell'orchestrator
+    const { healthCheckService } = require('../../services/healthCheck.service');
+    
+    const summary = await healthCheckService.getLastSummary();
+    
+    return res.json(ResponseFormatter.success(summary, 'System status retrieved'));
   } catch (error) {
     logger.error('Error getting health check status:', error);
     return res.status(500).json(
@@ -39,15 +43,128 @@ router.get('/status', async (req, res) => {
 });
 
 /**
+ * GET /api/admin/health-check/modules
+ * Ottiene la lista dei moduli disponibili
+ */
+router.get('/modules', async (req, res) => {
+  try {
+    const modules = [
+      { 
+        id: 'auth', 
+        name: '🔐 Authentication System', 
+        description: 'Controlla JWT, 2FA, sessioni e sicurezza login',
+        checks: ['JWT Secret Configuration', '2FA Adoption', 'Session Store', 'Failed Login Monitoring']
+      },
+      { 
+        id: 'database', 
+        name: '📊 Database System', 
+        description: 'Verifica connessioni PostgreSQL, performance e dimensioni',
+        checks: ['Database Connection', 'Query Performance', 'Database Size', 'Active Connections']
+      },
+      { 
+        id: 'redis', 
+        name: '🔴 Redis Cache',  // NUOVO MODULO SEPARATO
+        description: 'Monitora il sistema di cache Redis per sessioni e dati temporanei',
+        checks: ['Redis Connection', 'Memory Usage', 'Key Count', 'Client Connections', 'Operations Performance', 'Data Persistence']
+      },
+      { 
+        id: 'websocket', 
+        name: '🔌 WebSocket Server',  // NUOVO MODULO SEPARATO
+        description: 'Verifica il server Socket.io per comunicazioni real-time',
+        checks: ['Socket.io Server', 'Active Connections', 'Namespaces', 'Active Rooms', 'Connection Latency', 'Socket Authentication']
+      },
+      { 
+        id: 'emailservice', 
+        name: '📧 Email Service',  // NUOVO MODULO SEPARATO
+        description: 'Controlla il servizio email Brevo per invio notifiche',
+        checks: ['Brevo API Configuration', 'API Connection', 'Email Quota', 'Delivery Rate', 'Email Templates', 'Verified Senders']
+      },
+      { 
+        id: 'notification', 
+        name: '📨 Notification System', 
+        description: 'Monitora il sistema notifiche multi-canale',
+        checks: ['Email Service Config', 'Delivery Rate', 'WebSocket Connections', 'Unread Notifications']
+      },
+      { 
+        id: 'backup', 
+        name: '💾 Backup System', 
+        description: 'Controlla backup automatici e manuali',
+        checks: ['Last Backup Time', 'Backup Schedule', 'Failed Backups', 'Storage Space']
+      },
+      { 
+        id: 'chat', 
+        name: '💬 Chat System', 
+        description: 'Analizza messaggi real-time e response time',
+        checks: ['Active Chats', 'Message Volume', 'Response Time', 'Unread Messages']
+      },
+      { 
+        id: 'payment', 
+        name: '💰 Payment System', 
+        description: 'Verifica integrazione Stripe e transazioni',
+        checks: ['Stripe Configuration', 'Payment Success Rate', 'Pending Payments', 'Transaction Volume']
+      },
+      { 
+        id: 'ai', 
+        name: '🤖 AI System', 
+        description: 'Monitora OpenAI, token usage e costi',
+        checks: ['OpenAI Configuration', 'Token Usage', 'Response Time', 'API Costs', 'Rate Limiting']
+      },
+      { 
+        id: 'request', 
+        name: '📋 Request System', 
+        description: 'Gestione richieste assistenza e preventivi',
+        checks: ['Active Requests', 'Pending Assignments', 'Completion Time', 'Quote Acceptance Rate']
+      }
+    ];
+    
+    return res.json(ResponseFormatter.success(modules, 'Modules list retrieved'));
+  } catch (error) {
+    logger.error('Error getting modules list:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Failed to get modules', 'MODULES_ERROR')
+    );
+  }
+});
+
+/**
  * POST /api/admin/health-check/run
- * Esegue un health check manuale
+ * Esegue un health check manuale per un modulo specifico o tutti
  */
 router.post('/run', async (req, res) => {
   try {
     const { module } = req.body;
-    const result = await orchestrator.runManualCheckWithRemediation(module);
     
-    return res.json(ResponseFormatter.success(result, 'Health check executed'));
+    // Importa il servizio healthCheck reale
+    const { healthCheckService } = require('../../services/healthCheck.service');
+    
+    let result;
+    if (module) {
+      // Esegue check singolo e ritorna il summary aggiornato
+      console.log(`[API] Running single check for module: ${module}`);
+      result = await healthCheckService.runSingleCheck(module);
+      
+      // runSingleCheck ora ritorna già il summary completo con solo il modulo aggiornato
+      // Aggiungiamo un flag per indicare quale modulo è stato appena testato
+      const summaryWithFlag = {
+        ...result,
+        singleModuleTest: {
+          module: module,
+          timestamp: new Date(),
+          // Trova il modulo appena testato nei risultati
+          moduleResult: result.modules.find(m => m.module === module)
+        }
+      };
+      
+      return res.json(ResponseFormatter.success(
+        summaryWithFlag,
+        `Health check executed for ${module}`
+      ));
+    } else {
+      // Esegue tutti i check
+      console.log('[API] Running all health checks');
+      result = await healthCheckService.runAllChecks();
+      return res.json(ResponseFormatter.success(result, 'All health checks executed'));
+    }
   } catch (error) {
     logger.error('Error running health check:', error);
     return res.status(500).json(

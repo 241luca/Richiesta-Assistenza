@@ -126,13 +126,22 @@ class UserService {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
-        Profession: true,
+        professionData: true,
+        professionalUserSubcategories: {
+          include: {
+            subcategory: {
+              include: {
+                category: true
+              }
+            }
+          }
+        },
         _count: {
           select: {
-            AssistanceRequest_AssistanceRequest_clientIdToUser: true,
-            AssistanceRequest_AssistanceRequest_professionalIdToUser: true,
-            Quote: true,
-            Payment: true
+            clientRequests: true,
+            professionalRequests: true,
+            quotes: true,
+            payments: true
           }
         }
       }
@@ -186,9 +195,9 @@ class UserService {
       include: {
         _count: {
           select: {
-            AssistanceRequest_AssistanceRequest_clientIdToUser: true,
-            AssistanceRequest_AssistanceRequest_professionalIdToUser: true,
-            Quote: true
+            clientRequests: true,
+            professionalRequests: true,
+            quotes: true
           }
         }
       },

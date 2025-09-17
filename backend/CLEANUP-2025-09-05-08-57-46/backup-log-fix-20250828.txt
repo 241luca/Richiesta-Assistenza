@@ -1,7 +1,0 @@
-Backup creato prima di correggere errori 500 nelle API
-Data: 2025-08-28
-File da modificare:
-- category.routes.ts
-- request.routes.ts  
-- quote.routes.ts
-- subcategory.routes.ts

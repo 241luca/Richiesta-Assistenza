@@ -29,7 +29,7 @@ router.get('/', async (req: Request, res: Response) => {
       orderBy: { displayOrder: 'asc' },
       include: {
         _count: {
-          select: { User: true }
+          select: { users: true }
         }
       }
     });
@@ -205,7 +205,7 @@ router.put('/:id', authenticate, async (req: any, res: Response) => {
       if (duplicate) {
         return res.status(409).json(ResponseFormatter.error(
           'Another profession with this name or slug already exists',
-          'DUPLICATE_ERROR'
+          'DUPLICATE'
         ));
       }
     }
@@ -213,11 +213,11 @@ router.put('/:id', authenticate, async (req: any, res: Response) => {
     const profession = await prisma.profession.update({
       where: { id },
       data: {
-        name,
-        slug,
-        description,
-        isActive,
-        displayOrder,
+        name: name ?? existing.name,
+        slug: slug ?? existing.slug,
+        description: description !== undefined ? description : existing.description,
+        isActive: isActive !== undefined ? isActive : existing.isActive,
+        displayOrder: displayOrder !== undefined ? displayOrder : existing.displayOrder,
         updatedAt: new Date()
       }
     });
@@ -252,14 +252,14 @@ router.delete('/:id', authenticate, async (req: any, res: Response) => {
 
     const { id } = req.params;
 
-    // Verifica se ci sono utenti collegati
+    // Verifica che non ci siano utenti con questa professione
     const usersCount = await prisma.user.count({
       where: { professionId: id }
     });
 
     if (usersCount > 0) {
-      return res.status(400).json(ResponseFormatter.error(
-        `Cannot delete profession: ${usersCount} users are using it`,
+      return res.status(409).json(ResponseFormatter.error(
+        `Cannot delete profession with ${usersCount} associated users`,
         'HAS_USERS'
       ));
     }
@@ -284,7 +284,7 @@ router.delete('/:id', authenticate, async (req: any, res: Response) => {
 
 /**
  * PUT /api/professions/user/:userId
- * Aggiorna la professione di un utente (solo admin)
+ * Aggiorna la professione di un utente E associa automaticamente le categorie (solo admin)
  */
 router.put('/user/:userId', authenticate, async (req: any, res: Response) => {
   try {
@@ -299,8 +299,8 @@ router.put('/user/:userId', authenticate, async (req: any, res: Response) => {
     const { userId } = req.params;
     const { professionId } = req.body;
     
-    console.log(`📝 Updating profession for user ${userId}`);
-    console.log(`   New professionId: ${professionId}`);
+    logger.info(`📝 Updating profession for user ${userId}`);
+    logger.info(`   New professionId: ${professionId}`);
 
     // Verifica che l'utente esista
     const user = await prisma.user.findUnique({
@@ -336,13 +336,38 @@ router.put('/user/:userId', authenticate, async (req: any, res: Response) => {
         updatedAt: new Date()
       },
       include: {
-        Profession: true
+        professionData: true
       }
     });
     
-    console.log(`✅ User updated successfully:`);
-    console.log(`   ProfessionId: ${updatedUser.professionId}`);
-    console.log(`   Profession: ${updatedUser.Profession?.name || 'none'}`);
+    logger.info(`✅ User updated successfully:`);
+    logger.info(`   ProfessionId: ${updatedUser.professionId}`);
+    logger.info(`   Profession: ${updatedUser.professionData?.name || 'none'}`);
+
+    // NOTA: Le categorie associate alla professione sono già definite nella tabella ProfessionCategory
+    // Non associamo automaticamente le sottocategorie - saranno selezionate manualmente
+    // dall'admin o dal professionista stesso
+    if (professionId && user.role === 'PROFESSIONAL') {
+      logger.info(`✅ Profession set for professional ${userId}`);
+      logger.info(`   The categories for this profession are defined in ProfessionCategory table`);
+      logger.info(`   Subcategories must be manually selected by admin or professional`);
+      
+      // Opzionale: possiamo restituire le categorie associate per informazione
+      const professionCategories = await prisma.professionCategory.findMany({
+        where: {
+          professionId: professionId,
+          isActive: true
+        },
+        include: {
+          category: true
+        }
+      });
+      
+      logger.info(`   This profession has ${professionCategories.length} associated categories:`);
+      professionCategories.forEach(pc => {
+        logger.info(`     - ${pc.category.name}`);
+      });
+    }
 
     return res.json(ResponseFormatter.success(
       updatedUser,

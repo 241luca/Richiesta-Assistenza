@@ -35,8 +35,36 @@ interface RegisterData {
   city: string;
   province: string;
   postalCode: string;
+  latitude?: number;
+  longitude?: number;
+  
+  // Campi personali
+  dateOfBirth?: string;
   codiceFiscale?: string;
+  professionId?: string;
+  profession?: string;
+  
+  // Campi aziendali (per professionisti)
+  businessName?: string;
+  businessAddress?: string;
+  businessCity?: string;
+  businessProvince?: string;
+  businessPostalCode?: string;
+  businessLatitude?: number;
+  businessLongitude?: number;
   partitaIva?: string;
+  businessCF?: string;
+  businessPhone?: string;
+  businessEmail?: string;
+  businessPec?: string;
+  businessSdi?: string;
+  
+  // Privacy
+  privacyAccepted?: boolean;
+  termsAccepted?: boolean;
+  marketingAccepted?: boolean;
+  
+  // Legacy
   organizationName?: string;
 }
 

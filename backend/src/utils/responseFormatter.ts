@@ -129,7 +129,8 @@ export function formatUser(user: any): any {
     country: user.country,
     profession: user.profession,
     professionId: user.professionId,  // AGGIUNTO per supportare professioni tabellate
-    professionData: user.Profession,  // AGGIUNTO per includere i dati della professione
+    professionData: user.professionData || user.Profession,  // FIX: Cerca sia professionData che Profession
+    professionalUserSubcategories: user.professionalUserSubcategories || [],  // AGGIUNTO: Include le sottocategorie!
     specializations: user.specializations,
     hourlyRate: user.hourlyRate ? Number(user.hourlyRate) : null,
     currency: user.currency,
@@ -275,10 +276,10 @@ export function formatProfessionalSubcategory(profSubcat: any): any {
 export function formatQuote(quote: any): any {
   if (!quote) return null;
   
-  // Calcola il totalAmount dai QuoteItem se presenti
+  // Calcola il totalAmount dai items se presenti
   let totalAmount = 0;
-  if (quote.QuoteItem && quote.QuoteItem.length > 0) {
-    totalAmount = quote.QuoteItem.reduce((sum: number, item: any) => {
+  if (quote.items && quote.items.length > 0) {
+    totalAmount = quote.items.reduce((sum: number, item: any) => {
       return sum + Number(item.totalPrice);
     }, 0);
   } else if (quote.amount) {
@@ -317,7 +318,7 @@ export function formatQuote(quote: any): any {
     // Formatta relazioni se presenti - USANDO I NOMI CORRETTI DI PRISMA
     professional: quote.User || quote.professional ? formatUser(quote.User || quote.professional) : null,
     request: quote.assistanceRequest || quote.request ? formatAssistanceRequest(quote.assistanceRequest || quote.request) : null,
-    items: quote.QuoteItem || quote.items ? (quote.QuoteItem || quote.items).map(formatQuoteItem) : [],
+    items: quote.items || quote.items ? (quote.items || quote.items).map(formatitems) : [],
     payments: quote.Payment || quote.payments ? (quote.Payment || quote.payments).map(formatPayment) : []
   };
 }
@@ -326,7 +327,7 @@ export function formatQuote(quote: any): any {
  * Formatta un item di preventivo
  * I prezzi sono già in centesimi nel database
  */
-export function formatQuoteItem(item: any): any {
+export function formatitems(item: any): any {
   if (!item) return null;
   
   return {

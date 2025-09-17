@@ -10,7 +10,8 @@ import {
   BriefcaseIcon,
   TableCellsIcon,
   CheckIcon,
-  XMarkIcon
+  XMarkIcon,
+  Cog6ToothIcon
 } from '@heroicons/react/24/outline';
 import { api, apiClient } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -21,9 +22,10 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { TextArea } from '../../components/ui/TextArea';
 import EnumsTab from '../../components/admin/EnumsTab';
+import ServiceConfigTab from '../../components/admin/ServiceConfigTab';
 
 // Tab per gestire le diverse tabelle
-type TabType = 'enums' | 'professions';
+type TabType = 'enums' | 'professions' | 'service';
 
 export default function SystemEnumsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('professions'); // Iniziamo con professioni
@@ -67,11 +69,26 @@ export default function SystemEnumsPage() {
               <span>Stati e Valori Sistema</span>
             </div>
           </button>
+          <button
+            onClick={() => setActiveTab('service')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'service'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <Cog6ToothIcon className="h-5 w-5" />
+              <span>Servizio</span>
+            </div>
+          </button>
         </nav>
       </div>
 
       {/* Content */}
-      {activeTab === 'professions' ? <ProfessionsTab /> : <EnumsTab />}
+      {activeTab === 'professions' && <ProfessionsTab />}
+      {activeTab === 'enums' && <EnumsTab />}
+      {activeTab === 'service' && <ServiceConfigTab />}
     </div>
   );
 }

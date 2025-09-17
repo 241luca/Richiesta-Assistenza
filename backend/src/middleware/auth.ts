@@ -33,11 +33,10 @@ export async function authenticate(
       process.env.JWT_SECRET!
     ) as any;
 
-    // Get user from database
+    // Get user from database - using only essential fields that exist
     const user = await prisma.user.findUnique({
       where: { 
         id: decoded.userId
-        // Removed isActive check as field doesn't exist
       }
     });
 
@@ -49,7 +48,7 @@ export async function authenticate(
     }
 
     // Check if user is locked out
-    if (user.lockoutUntil && user.lockoutUntil > new Date()) {
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
       // ✅ Uso ResponseFormatter per l'errore
       return res.status(423).json(
         ResponseFormatter.error('Too many failed login attempts. Please try again later.', 'ACCOUNT_LOCKED')

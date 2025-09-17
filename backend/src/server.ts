@@ -1,107 +1,33 @@
 import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
-import rateLimit from 'express-rate-limit';
-import dotenv from 'dotenv';
 import path from 'path';
+import rateLimit from 'express-rate-limit';
 
 // Load environment variables
 dotenv.config();
 
-// Import routes
-import authRoutes from './routes/auth.routes';
-import userRoutes from './routes/user.routes';
-import debugRoutes from './routes/debug.routes';
-import userSubcategoriesRoutes from './routes/user-subcategories.routes'; // NUOVO
-import requestRoutes from './routes/request.routes';
-import { quoteRoutes } from './routes/quote.routes';
-import paymentRoutes from './routes/payment.routes';
-import notificationRoutes from './routes/notification.routes';
-import notificationAdminRoutes from './routes/notificationAdmin.routes'; // ADMIN endpoints notifiche
-import notificationTemplateRoutes from './routes/notificationTemplate.routes'; // NUOVO SISTEMA NOTIFICHE
-import adminRoutes from './routes/admin.routes';
-import categoryRoutes from './routes/category.routes';
-import subcategoryRoutes from './routes/subcategory.routes';
-import testRoutes from './routes/test.routes';
-import attachmentRoutes from './routes/attachment.routes';
-import geocodingRoutes from './routes/geocoding.routes';
-import apiKeysRoutes from './routes/apiKeys.routes';
-import mapsRoutes from './routes/maps.routes';
-import adminTestRoutes from './routes/admin/tests';
-import adminDashboardRoutes from './routes/admin/dashboard.routes';
-import userDashboardRoutes from './routes/dashboard/user-dashboard.routes';
-import aiRoutes from './routes/ai-professional.routes';
-import adminSystemEnumsRoutes from './routes/systemEnum.routes';
-import adminSystemSettingsRoutes from './routes/systemSettings.routes';
-import kbDocumentsRoutes from './routes/kb-documents.routes';
-import adminUsersRoutes from './routes/admin-users.routes'; // NUOVO - Gestione utenti avanzata
-import professionalRoutes from './routes/professional.routes';
-import professionalPricingRoutes from './routes/professionalPricing.routes'; // NUOVO - Gestione tariffe
-import professionsRoutes from './routes/professions.routes'; // NUOVO - Gestione professioni tabellate
-import professionalSkillsCertRoutes from './routes/professionalSkillsCertifications.routes'; // NUOVO - Skills e Certificazioni
-
-// NUOVO SISTEMA RAPPORTI INTERVENTO - 04/01/2025
-import interventionReportConfigRoutes from './routes/intervention-report-config.routes';
-import interventionReportTemplateRoutes from './routes/intervention-report-template.routes';
-import interventionReportRoutes from './routes/intervention-report.routes';
-import interventionReportMaterialRoutes from './routes/intervention-report-material.routes';
-import interventionReportProfessionalRoutes from './routes/intervention-report-professional.routes';
-
-// NEW: Import new admin routes for system configuration
-import publicRoutes from './routes/public.routes';
-
-// NUOVA FUNZIONALITÀ: Import travel routes
-import travelRoutes from './routes/travel.routes';
-import travelCostRoutes from './routes/travelCostRoutes';
-
-// NUOVA FUNZIONALITÀ: Import chat routes
-// import requestChatRoutes from './routes/requestChat.routes'; // COMMENTATO - File non esiste
-
-// NUOVA FUNZIONALITÀ: Import backup routes
-import { chatRoutes } from './routes/chat.routes';
-
-// NUOVA FUNZIONALITÀ: Script Manager routes
-import scriptsRoutes from './routes/admin/scripts.routes';
-
-// SISTEMA AUDIT LOG - Added 07/01/2025
-import auditRoutes from './routes/audit.routes';
-import { auditLogger, auditAuth } from './middleware/auditLogger';
-
-// SISTEMA HEALTH CHECK - Added 07/01/2025
-import adminHealthCheckRoutes from './routes/admin/health-check.routes';
-
-// Import middleware
-import { errorHandler } from './middleware/errorHandler';
-import { authenticate } from './middleware/auth';
-import { requireRole } from './middleware/rbac';
-import { requestIdMiddleware } from './middleware/requestId';
-import { setupCompleteSecurity } from './middleware/security';
-import { setupResponseOptimization } from './middleware/compression';
-
-// Import ResponseFormatter for 404 handler
+// Import moduli essenziali
 import { ResponseFormatter } from './utils/responseFormatter';
-
-// Import services
-import { initializeWebSocket } from './services/websocket.service';
+import { logger } from './utils/logger';
 import { notificationService } from './services/notification.service';
 import { setIO } from './utils/socket';
-import { logger } from './utils/logger';
-import simpleBackupRoutes from './routes/simple-backup.routes';
-import testRequestIdRoutes from './routes/test-request-id.routes';
-import testPrismaRoutes from './routes/test-prisma.routes';
-import healthRoutes from './routes/health.routes';
-import scheduledInterventionsRoutes from './routes/scheduledInterventions';
+import { authenticate } from './middleware/auth';
+import { requireRole } from './middleware/rbac';
+import { errorHandler } from './middleware/errorHandler';
+import { requestIdMiddleware } from './middleware/requestId';
 
 // Create Express app
 const app = express();
 const httpServer = createServer(app);
 
-// Initialize Socket.io with CORS for frontend port 5193
+// Initialize Socket.io
 const io = new Server(httpServer, {
   cors: {
     origin: process.env.FRONTEND_URL || 'http://localhost:5193',
@@ -118,66 +44,41 @@ app.set('io', io);
 setIO(io);
 notificationService.setIO(io);
 
-// Security middleware
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" },
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      connectSrc: ["'self'", "http://localhost:5193", "ws://localhost:3200", "wss://localhost:3200"],
-      imgSrc: ["'self'", "data:", "https:"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-    }
-  }
-}));
-
-// Apply security headers FIRST (before any other middleware)
-setupCompleteSecurity(app);
-
-// Apply response optimization (compression + caching)
-setupResponseOptimization(app);
-
-// CORS configuration for frontend port 5193
+// CORS configuration
 app.use(cors({
   origin: function (origin, callback) {
     const allowedOrigins = [
       'http://localhost:5193',
-      'http://127.0.0.1:5193'
+      'http://127.0.0.1:5193',
+      'http://localhost:5173',
+      'http://127.0.0.1:5173'
     ];
     
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
+      console.warn('CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['X-Request-Id'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
-// Request ID middleware - DEVE essere il PRIMO dopo security
-app.use(requestIdMiddleware);
+// Security middleware
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: false
+}));
 
-// AUDIT LOG MIDDLEWARE - Registra TUTTE le operazioni API
-app.use('/api', (req, res, next) => {
-  // Skip per endpoint che non necessitano logging dettagliato
-  if (req.path.startsWith('/health') || 
-      req.path.startsWith('/public') ||
-      req.path.includes('/ws-test')) {
-    return next();
-  }
-  
-  // Applica audit logging globale
-  return auditLogger({
-    captureBody: req.method !== 'GET', // Cattura body solo per POST/PUT/DELETE
-    category: 'API' as any
-  })(req, res, next);
-});
+// Request ID middleware
+app.use(requestIdMiddleware);
 
 // Body parsing middleware
 app.use(compression());
@@ -188,39 +89,26 @@ app.use(cookieParser());
 // Logging
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
-} else {
-  app.use(morgan('combined'));
 }
 
 // Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-// Apply rate limiting to API routes (disabilitato temporaneamente per test)
-// app.use('/api', limiter);
-
-// Strict rate limiting for auth endpoints (temporaneamente aumentato per test)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50, // Aumentato temporaneamente da 5 a 50 per test
+  max: 50,
   message: 'Too many authentication attempts, please try again later.',
   skipSuccessfulRequests: true,
 });
 
-// Static files (for uploads)
+// Static files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '../../public/uploads')));
+app.use(express.static(path.join(__dirname, '../../public')));
 
 // Health check endpoint
 app.get('/health', (_, res) => {
   res.json({ 
     status: 'ok', 
     port: process.env.PORT || 3200,
-    environment: process.env.NODE_ENV,
     websocket: 'ready',
     timestamp: new Date().toISOString() 
   });
@@ -237,34 +125,13 @@ app.get('/ws-test', (_, res) => {
     <body>
       <h1>WebSocket Connection Test</h1>
       <div id="status">Disconnected</div>
-      <div id="messages"></div>
       <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
       <script>
         const socket = io('http://localhost:3200', {
-          transports: ['websocket', 'polling'],
-          auth: {
-            token: 'test-token' // Replace with actual JWT token
-          }
+          transports: ['websocket', 'polling']
         });
-        
         socket.on('connect', () => {
           document.getElementById('status').innerHTML = 'Connected: ' + socket.id;
-          console.log('Connected:', socket.id);
-        });
-        
-        socket.on('disconnect', () => {
-          document.getElementById('status').innerHTML = 'Disconnected';
-          console.log('Disconnected');
-        });
-        
-        socket.on('error', (error) => {
-          console.error('Socket error:', error);
-          document.getElementById('messages').innerHTML += '<p>Error: ' + error.message + '</p>';
-        });
-        
-        socket.on('connected', (data) => {
-          console.log('Authenticated:', data);
-          document.getElementById('messages').innerHTML += '<p>Authenticated as user: ' + data.userId + '</p>';
         });
       </script>
     </body>
@@ -272,119 +139,264 @@ app.get('/ws-test', (_, res) => {
   `);
 });
 
-// Public API routes (no authentication required)
+// ===== IMPORT ALL ROUTES =====
+
+// Base routes
+import authRoutes from './routes/auth.routes';
+import professionalRegistrationRoutes from './routes/professional-registration.routes';
+import userRoutes from './routes/user.routes';
+import professionalDetailsRoutes from './routes/professional-details.routes';
+import professionalAISettingsRoutes from './routes/professional-ai-settings.routes';
+import categoryRoutes from './routes/category.routes';
+import subcategoryRoutes from './routes/subcategory.routes';
+import publicRoutes from './routes/public.routes';
+import debugRoutes from './routes/debug.routes';
+import testRoutes from './routes/test.routes';
+import whatsappMainRoutes from './routes/whatsapp-main.routes';
+import whatsappConfigRoutes from './routes/admin/whatsapp-config.routes';
+import knowledgebaseRoutes from './routes/knowledgebase.routes';
+import knowledgeBaseRoutes from './routes/knowledge-base.routes'; // NUOVO IMPORT
+
+// Dashboard routes - IMPORTANTE!
+import userDashboardRoutes from './routes/dashboard/user-dashboard.routes';
+
+// Request Management routes
+import requestRoutes from './routes/request.routes';
+import { quoteRoutes } from './routes/quote.routes';
+import notificationRoutes from './routes/notification.routes';
+import notificationAdminRoutes from './routes/notificationAdmin.routes';
+import notificationTemplateRoutes from './routes/notificationTemplate.routes';
+import attachmentRoutes from './routes/attachment.routes';
+
+// Professional routes
+import professionalRoutes from './routes/professional.routes';
+import professionalsRoutes from './routes/professionals.routes'; // NUOVO per endpoint by-subcategory
+import professionalPricingRoutes from './routes/professionalPricing.routes';
+import professionsRoutes from './routes/professions.routes';
+import professionCategoriesRoutes from './routes/profession-categories.routes';
+import professionalSkillsCertRoutes from './routes/professionalSkillsCertifications.routes';
+import userSubcategoriesRoutes from './routes/user-subcategories.routes';
+
+// Travel routes
+import travelRoutes from './routes/travel.routes';
+import travelCostRoutes from './routes/travelCostRoutes';
+
+// Intervention Report routes
+import interventionReportConfigRoutes from './routes/intervention-report-config.routes';
+import interventionReportTemplateRoutes from './routes/intervention-report-template.routes';
+import interventionReportRoutes from './routes/intervention-report.routes';
+import interventionReportMaterialRoutes from './routes/intervention-report-material.routes';
+import interventionReportProfessionalRoutes from './routes/intervention-report-professional.routes';
+
+// AI & Maps routes
+import aiRoutes from './routes/ai-professional.routes';
+import mapsRoutes from './routes/maps.routes';
+import geocodingRoutes from './routes/geocoding.routes';
+
+// Admin routes
+import adminRoutes from './routes/admin.routes';
+import adminUsersRoutes from './routes/admin-users.routes';
+import apiKeysRoutes from './routes/apiKeys.routes';
+import emailTemplatesRoutes from './routes/emailTemplates.routes';
+import kbDocumentsRoutes from './routes/kb-documents.routes';
+
+// WhatsApp routes 
+import professionalWhatsappRoutes from './routes/professional-whatsapp.routes';
+import systemEnumRoutes from './routes/systemEnum.routes';
+
+// Admin Scripts routes - IMPORTANTE!
+import adminScriptsRoutes from './routes/admin/shell-scripts-simple.routes';
+import scriptConfigRoutes from './routes/admin/scriptConfig.routes';
+
+// Admin System Settings routes - IMPORTANTE!
+import adminSystemSettingsRoutes from './routes/admin/system-settings.routes';
+
+// Payment routes
+import paymentRoutes from './routes/payment.routes';
+
+// Upload routes
+import uploadRoutes from './routes/upload.routes';
+
+// Chat routes
+import { chatRoutes } from './routes/chat.routes';
+
+// System routes (con try-catch per route problematiche)
+let auditRoutes: any;
+let healthCheckRoutes: any;
+let cleanupConfigRoutes: any;
+let scheduledInterventionsRoutes: any;
+let simpleBackupRoutes: any;
+
+try {
+  auditRoutes = require('./routes/audit.routes').default;
+  logger.info('✅ Audit routes loaded');
+} catch (error) {
+  logger.warn('⚠️ Audit routes not loaded:', error);
+}
+
+try {
+  healthCheckRoutes = require('./routes/admin/health-check.routes').default;
+  logger.info('✅ Health check routes loaded');
+} catch (error) {
+  logger.warn('⚠️ Health check routes not loaded:', error);
+}
+
+try {
+  cleanupConfigRoutes = require('./routes/cleanup-config.routes').default;
+  logger.info('✅ Cleanup config routes loaded');
+} catch (error) {
+  logger.warn('⚠️ Cleanup config routes not loaded:', error);
+}
+
+try {
+  scheduledInterventionsRoutes = require('./routes/scheduledInterventions').default;
+  logger.info('✅ Scheduled interventions routes loaded');
+} catch (error) {
+  logger.warn('⚠️ Scheduled interventions routes not loaded:', error);
+}
+
+try {
+  simpleBackupRoutes = require('./routes/simple-backup.routes').default;
+  logger.info('✅ Simple backup routes loaded');
+} catch (error) {
+  logger.warn('⚠️ Simple backup routes not loaded:', error);
+}
+
+// ===== REGISTER ALL ROUTES =====
+
+// Public routes (no auth)
+import publicSystemSettingsRoutes from './routes/public/system-settings.routes';
 app.use('/api/public', publicRoutes);
+app.use('/api/public/system-settings', publicSystemSettingsRoutes);
 
-// API Routes
-// TEMPORANEAMENTE DISABILITATO IL RATE LIMITING PER TEST
-// Health check routes (public, no auth needed)
-app.use('/api/health', healthRoutes);
-logger.info('Health check routes enabled at /api/health');
+// Auth routes with rate limiting
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth', authLimiter, professionalRegistrationRoutes);
 
-// Authentication routes with rate limiting
-// app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/auth', authRoutes);  // Rate limiting disabilitato temporaneamente
+// User routes
 app.use('/api/users', authenticate, userRoutes);
-app.use('/api/user', authenticate, userSubcategoriesRoutes); // NUOVO - Gestione sottocategorie professionista
-app.use('/api/requests', authenticate, requestRoutes);
-app.use('/api/quotes', authenticate, quoteRoutes);
-app.use('/api/payments', authenticate, paymentRoutes);
-app.use('/api/notifications', authenticate, notificationRoutes);
-app.use('/api/notifications', authenticate, notificationAdminRoutes); // Admin endpoints notifiche
-app.use('/api/notification-templates', authenticate, notificationTemplateRoutes); // NUOVO SISTEMA NOTIFICHE PROFESSIONALE
+app.use('/api/user', authenticate, userSubcategoriesRoutes);
+
+// DASHBOARD ROUTE - IMPORTANTE! Deve essere dopo l'autenticazione
+app.use('/api/dashboard', authenticate, userDashboardRoutes);
+logger.info('📊 Dashboard routes registered at /api/dashboard');
+
+// Category routes
 app.use('/api/categories', authenticate, categoryRoutes);
 app.use('/api/subcategories', authenticate, subcategoryRoutes);
 
-// NUOVO SISTEMA RAPPORTI INTERVENTO - 04/01/2025
+// Request Management routes
+app.use('/api/requests', authenticate, requestRoutes);
+app.use('/api/quotes', authenticate, quoteRoutes);
+app.use('/api/payments', authenticate, paymentRoutes);
+
+// Notification routes - ORDINE IMPORTANTE: specific prima di generic
+app.use('/api/notification-templates', authenticate, notificationTemplateRoutes);
+app.use('/api/notifications', authenticate, notificationAdminRoutes); // Admin routes sono già protette internamente
+app.use('/api/notifications', authenticate, notificationRoutes);
+
+// Professional routes
+app.use('/api/professionals', authenticate, professionalRoutes);
+app.use('/api/professionals', authenticate, professionalsRoutes); // NUOVO - endpoint by-subcategory
+app.use('/api/professionals', authenticate, professionalPricingRoutes);
+app.use('/api/professionals', authenticate, professionalSkillsCertRoutes);
+app.use('/api/professionals', authenticate, professionalAISettingsRoutes);
+app.use('/api/professions', professionsRoutes);
+app.use('/api/profession-categories', authenticate, professionCategoriesRoutes);
+
+// Travel routes
+app.use('/api/travel', authenticate, travelRoutes);
+app.use('/api/travel', authenticate, travelCostRoutes);
+
+// Intervention Report routes
 app.use('/api/intervention-reports', authenticate, interventionReportConfigRoutes);
 app.use('/api/intervention-reports/templates', authenticate, interventionReportTemplateRoutes);
 app.use('/api/intervention-reports/materials', authenticate, interventionReportMaterialRoutes);
 app.use('/api/intervention-reports/professional', authenticate, interventionReportProfessionalRoutes);
 app.use('/api/intervention-reports', authenticate, interventionReportRoutes);
 
-// NUOVA FUNZIONALITÀ: Travel routes per professionisti
-app.use('/api/travel', authenticate, travelRoutes);
-app.use('/api/travel', authenticate, travelCostRoutes);
-
-// NUOVA FUNZIONALITÀ: Scheduled Interventions
-app.use('/api/scheduled-interventions', authenticate, scheduledInterventionsRoutes);
-logger.info('Scheduled interventions routes registered at /api/scheduled-interventions');
-
-  // Backup routes - Protected with authentication
-  app.use('/api/backup', authenticate, simpleBackupRoutes);
-
-// NUOVA FUNZIONALITÀ: Chat routes per le richieste
+// Chat routes
 app.use('/api/chat', authenticate, chatRoutes);
 
-// NUOVA FUNZIONALITÀ: Backup system routes
-
-// Admin test routes - CON AUTENTICAZIONE
-app.use('/api/admin/tests', adminTestRoutes); 
-
-// Admin dashboard routes
-app.use('/api/admin/dashboard', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), adminDashboardRoutes);
-
-// User dashboard routes (for clients and professionals)
-app.use('/api/dashboard', authenticate, userDashboardRoutes);
-
-// NEW: System configuration routes (SUPER_ADMIN only)
-app.use('/api/admin/system-enums', authenticate, requireRole(['SUPER_ADMIN']), adminSystemEnumsRoutes);
-app.use('/api/admin/system-settings', authenticate, requireRole(['SUPER_ADMIN']), adminSystemSettingsRoutes);
-
-// Admin users management routes - NUOVO
-app.use('/api/admin/users', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), adminUsersRoutes);
-
-// SISTEMA AUDIT LOG - Added 07/01/2025
-app.use('/api/audit', authenticate, auditRoutes);
-logger.info('Audit log system enabled at /api/audit');
-
-// SISTEMA HEALTH CHECK - Added 07/01/2025 - CORRECTED 08/09/2025
-app.use('/api/admin/health-check', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), adminHealthCheckRoutes);
-logger.info('Health check system enabled at /api/admin/health-check');
-
-// Existing admin routes
-app.use('/api/admin/api-keys', authenticate, requireRole(['SUPER_ADMIN']), apiKeysRoutes);
-app.use('/api/admin/scripts', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), scriptsRoutes);
-app.use('/api/admin', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), adminRoutes);
+// AI & Maps routes
+app.use('/api/ai', authenticate, aiRoutes);
 app.use('/api/maps', authenticate, mapsRoutes);
 app.use('/api/geocode', authenticate, geocodingRoutes);
-app.use('/api', attachmentRoutes);
-app.use('/api/test', testRoutes);
 
-// Debug routes (only in development - NO AUTHENTICATION)
-if (process.env.NODE_ENV !== 'production') {
-  app.use('/api/debug', debugRoutes);  // Senza authenticate per facilitare il debug
-  
-  // Test Request ID tracking (SOLO in development)
-  app.use('/api/test', testRequestIdRoutes);
-  logger.info('Test Request ID routes enabled at /api/test/request-id/*');
-  
-  // Test Prisma models (SOLO in development)
-  app.use('/api/test-prisma', testPrismaRoutes);
-  logger.info('Test Prisma routes enabled at /api/test-prisma/*');
-}
+// Admin routes
+app.use('/api/admin/users', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), adminUsersRoutes);
+app.use('/api/admin/api-keys', authenticate, requireRole(['SUPER_ADMIN']), apiKeysRoutes);
+app.use('/api/admin/email-templates', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), emailTemplatesRoutes);
+app.use('/api/admin/system-enums', authenticate, requireRole(['SUPER_ADMIN']), systemEnumRoutes);
 
-// Knowledge Base Documents routes
+// ADMIN SCRIPTS ROUTE - IMPORTANTE!
+app.use('/api/admin/scripts', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), adminScriptsRoutes);
+logger.info('🛠️ Admin scripts routes registered at /api/admin/scripts');
+
+// SCRIPT CONFIGURATION ROUTE
+app.use('/api/admin', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), scriptConfigRoutes);
+logger.info('⚙️ Script configuration routes registered at /api/admin/script-configs');
+
+// ADMIN SYSTEM SETTINGS ROUTE - IMPORTANTE!
+app.use('/api/admin/system-settings', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), adminSystemSettingsRoutes);
+logger.info('⚙️ Admin system settings routes registered at /api/admin/system-settings');
+
+// UPLOAD ROUTES - Per immagini e file
+app.use('/api/admin/upload', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), uploadRoutes);
+logger.info('📤 Upload routes registered at /api/admin/upload');
+
+app.use('/api/admin', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), adminRoutes);
 app.use('/api/kb-documents', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), kbDocumentsRoutes);
 
-// Professionals AI Settings routes
-app.use('/api/professionals', authenticate, professionalRoutes);
-app.use('/api/professionals', authenticate, professionalPricingRoutes); // NUOVO - Gestione tariffe professionisti
-app.use('/api/professions', professionsRoutes); // NUOVO - Gestione professioni tabellate (pubblico per GET)
-app.use('/api/professionals', authenticate, professionalSkillsCertRoutes); // NUOVO - Skills e Certificazioni
+// System routes (solo se caricate)
+if (auditRoutes) {
+  app.use('/api/audit', authenticate, auditRoutes);
+}
+if (healthCheckRoutes) {
+  app.use('/api/admin/health-check', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), healthCheckRoutes);
+}
+if (cleanupConfigRoutes) {
+  app.use('/api/cleanup', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), cleanupConfigRoutes);
+}
+if (scheduledInterventionsRoutes) {
+  app.use('/api/scheduled-interventions', authenticate, scheduledInterventionsRoutes);
+}
+if (simpleBackupRoutes) {
+  app.use('/api/backup', authenticate, simpleBackupRoutes);
+}
 
-// AI Routes
-app.use('/api/ai', authenticate, aiRoutes);
+// Professional AI Settings routes
+import professionalAiSettingsRoutes from './routes/professional-ai-settings.routes';
+import clientAiSettingsRoutes from './routes/client-ai-settings.routes';
+app.use('/api/professionals', professionalAiSettingsRoutes);
+app.use('/api/client-settings', clientAiSettingsRoutes);
 
-// WebSocket initialization
-initializeWebSocket(io);
+// WhatsApp e Knowledge Base routes
+import professionalWhatsappRoutes from './routes/professional-whatsapp.routes';
 
-// Error handling middleware (must be last)
+app.use('/api/professional/whatsapp', authenticate, professionalWhatsappRoutes);
+app.use('/api/whatsapp', whatsappMainRoutes);
+app.use('/api/admin/whatsapp', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), whatsappConfigRoutes);
+app.use('/api/kb', knowledgebaseRoutes);
+app.use('/api/knowledge-base', authenticate, knowledgeBaseRoutes); // NUOVA ROUTE AGGIUNTA
+logger.info('📱 WhatsApp routes registered at /api/whatsapp');
+logger.info('🤖 Professional WhatsApp AI routes registered at /api/professional/whatsapp');
+logger.info('📚 Knowledge Base routes registered at /api/kb and /api/knowledge-base');
+
+// Attachment routes (senza prefisso /api)
+app.use('/api', attachmentRoutes);
+
+// Test routes (solo in development)
+app.use('/api/test', testRoutes);
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api/debug', debugRoutes);
+}
+
+// Error handling middleware
 app.use(errorHandler);
 
 // 404 handler
 app.use((req, res) => {
-  // ✅ CORRETTO: Usa ResponseFormatter per il 404
   res.status(404).json(
     ResponseFormatter.error(
       `Cannot ${req.method} ${req.path}`,
@@ -393,15 +405,10 @@ app.use((req, res) => {
   );
 });
 
-// Export for testing
-export { app, httpServer };
+// Start server
+const PORT = process.env.PORT || 3200;
 
-// Only start server if not in test mode
-if (process.env.NODE_ENV !== 'test') {
-  // Start server on port 3200
-  const PORT = process.env.PORT || 3200;
-  
-  httpServer.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log('\n===========================================');
   console.log('🚀 RICHIESTA ASSISTENZA BACKEND STARTED');
   console.log('===========================================');
@@ -410,22 +417,24 @@ if (process.env.NODE_ENV !== 'test') {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🧪 WebSocket test: http://localhost:${PORT}/ws-test`);
-  console.log(`⚙️  System Config: http://localhost:${PORT}/api/admin/system-enums`);
-  console.log(`🔧 Public Settings: http://localhost:${PORT}/api/public/settings`);
-  console.log(`🚛 Travel API: http://localhost:${PORT}/api/travel/*`);
-  console.log(`📋 User Subcategories: http://localhost:${PORT}/api/user/subcategories`);
-  console.log(`🔔 Notification Templates: http://localhost:${PORT}/api/notification-templates/*`);
-  console.log(`📝 Rapporti Intervento: http://localhost:${PORT}/api/intervention-reports/*`);
+  console.log('');
+  console.log('📚 Main endpoints:');
+  console.log(`   Auth: ${PORT}/api/auth`);
+  console.log(`   Users: ${PORT}/api/users`);
+  console.log(`   Dashboard: ${PORT}/api/dashboard`);
+  console.log(`   Requests: ${PORT}/api/requests`);
+  console.log(`   Quotes: ${PORT}/api/quotes`);
+  console.log(`   Notifications: ${PORT}/api/notifications`);
+  console.log(`   Professionals: ${PORT}/api/professionals`);
+  console.log(`   Admin: ${PORT}/api/admin`);
+  console.log(`   Scripts: ${PORT}/api/admin/scripts`);
+  console.log(`   Settings: ${PORT}/api/admin/system-settings`);
+  console.log(`   Knowledge Base: ${PORT}/api/knowledge-base`);
   console.log('===========================================\n');
   
-  // Also log to file
-  logger.info(`🚀 Server running on port ${PORT}`);
-  logger.info(`📡 WebSocket server ready on port ${PORT}`);
+  logger.info(`🚀 Server fully operational on port ${PORT}`);
+  logger.info(`📡 WebSocket server ready`);
   logger.info(`🔗 Accepting connections from frontend at http://localhost:5193`);
-  logger.info(`🌍 Environment: ${process.env.NODE_ENV}`);
-  logger.info(`🚛 Travel API endpoints registered`);
-  logger.info(`📋 User subcategories endpoints registered`);
-  logger.info(`🔔 Notification template system registered`);
 });
 
 // Graceful shutdown
@@ -448,10 +457,7 @@ process.on('SIGINT', () => {
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  // Application specific logging, throwing an error, or other logic here
-  });
-}
+});
 
-export { io };
-
-// Forced reload - Response Formatter fix applied - Travel functionality added - User Subcategories added - Notification Templates added
+export { app, httpServer, io };// Adding route manually at line 250
+app.use('/api/professional-details', professionalDetailsRoutes);

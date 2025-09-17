@@ -5,6 +5,7 @@ import {
   MapIcon, 
   EnvelopeIcon, 
   CpuChipIcon,
+  ChatBubbleLeftRightIcon,
   ChevronLeftIcon,
   ShieldCheckIcon
 } from '@heroicons/react/24/outline';
@@ -22,6 +23,7 @@ export default function ApiKeysLayout({ children }: ApiKeysLayoutProps) {
     if (location.pathname.includes('google-maps')) return 'google-maps';
     if (location.pathname.includes('brevo')) return 'brevo';
     if (location.pathname.includes('openai')) return 'openai';
+    if (location.pathname.includes('whatsapp')) return 'whatsapp';
     return 'overview';
   });
 
@@ -75,6 +77,13 @@ export default function ApiKeysLayout({ children }: ApiKeysLayoutProps) {
       icon: CpuChipIcon,
       href: '/admin/api-keys/openai',
       color: 'bg-purple-500'
+    },
+    {
+      id: 'whatsapp',
+      name: 'WhatsApp',
+      icon: ChatBubbleLeftRightIcon,
+      href: '/admin/api-keys/whatsapp',
+      color: 'bg-green-600'
     }
   ];
 

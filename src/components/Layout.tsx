@@ -26,13 +26,19 @@ import {
   ServerIcon,
   CommandLineIcon,
   ShieldCheckIcon,
-  HeartIcon
+  HeartIcon,
+  ChatBubbleBottomCenterTextIcon,
+  ChatBubbleLeftRightIcon,
+  CpuChipIcon
 } from '@heroicons/react/24/outline';
 import { BellIcon as BellIconSolid } from '@heroicons/react/24/solid';
 // CAMBIATO: Ora usa il hook invece del context
 import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
 import { NotificationCenter } from "./notifications";
+import InfoPanel from './InfoPanel';
+import MinimalFooter from './MinimalFooter';
+import { InformationCircleIcon } from '@heroicons/react/24/outline';
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -40,6 +46,7 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const { user, logout } = useAuth();
+  const [showInfoPanel, setShowInfoPanel] = React.useState(false);
 
   const handleLogout = async () => {
     try {
@@ -87,6 +94,7 @@ export default function Layout({ children }: LayoutProps) {
           { name: 'Categorie', href: '/admin/categories', icon: BuildingOfficeIcon },
           { name: 'Tabelle Sistema', href: '/admin/system-enums', icon: SwatchIcon },
           { name: 'Gestione Professionisti', href: '/admin/professionals', icon: UserGroupIcon },
+          { name: 'Gestione Professioni-Categorie', href: '/admin/profession-categories', icon: TagIcon },
           { 
             name: 'Health Check', 
             href: '/admin/health', 
@@ -104,6 +112,12 @@ export default function Layout({ children }: LayoutProps) {
           },
           { name: 'Sistema AI', href: '/admin/ai', icon: SparklesIcon },
           { 
+            name: 'AI Duale WhatsApp', 
+            href: '/admin/ai-duale', 
+            icon: CpuChipIcon,
+            isNew: true // Badge "NEW"
+          },
+          { 
             name: 'Sistema Backup', 
             href: '/admin/backup', 
             icon: ServerIcon,
@@ -117,6 +131,24 @@ export default function Layout({ children }: LayoutProps) {
           { name: 'Sottocategorie', href: '/admin/subcategories', icon: TagIcon },
           { name: 'Test Sistema', href: '/admin/test', icon: BeakerIcon },
           { name: 'Utenti', href: '/admin/users', icon: UserGroupIcon },
+          { 
+            name: 'WhatsApp', 
+            href: '/admin/whatsapp', 
+            icon: ChatBubbleBottomCenterTextIcon,
+            isNew: true // Badge "NEW"
+          },
+          { 
+            name: 'WhatsApp Dashboard', 
+            href: '/admin/whatsapp/dashboard', 
+            icon: ChatBubbleLeftRightIcon,
+            isNew: true // Badge "NEW"
+          },
+          { 
+            name: 'WhatsApp Impostazioni', 
+            href: '/admin/whatsapp/settings', 
+            icon: Cog6ToothIcon,
+            isNew: true // Badge "NEW"
+          },
         ];
       case 'ADMIN':
         return [
@@ -153,6 +185,30 @@ export default function Layout({ children }: LayoutProps) {
             name: 'Sistema Backup', 
             href: '/admin/backup', 
             icon: ServerIcon,
+            isNew: true // Badge "NEW"
+          },
+          
+          // NUOVO: WhatsApp (anche per ADMIN)
+          { 
+            name: 'WhatsApp', 
+            href: '/admin/whatsapp', 
+            icon: ChatBubbleBottomCenterTextIcon,
+            isNew: true // Badge "NEW"
+          },
+          
+          // NUOVO: WhatsApp Dashboard per vedere i messaggi
+          { 
+            name: 'WhatsApp Dashboard', 
+            href: '/admin/whatsapp/dashboard', 
+            icon: ChatBubbleLeftRightIcon,
+            isNew: true // Badge "NEW"
+          },
+          
+          // NUOVO: WhatsApp Impostazioni per configurare il sistema
+          { 
+            name: 'WhatsApp Impostazioni', 
+            href: '/admin/whatsapp/settings', 
+            icon: Cog6ToothIcon,
             isNew: true // Badge "NEW"
           },
           
@@ -322,6 +378,15 @@ export default function Layout({ children }: LayoutProps) {
               {/* Notifications - Con indicatore per SUPER_ADMIN */}
               <NotificationCenter />
               
+              {/* Info Button */}
+              <button
+                onClick={() => setShowInfoPanel(true)}
+                className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+                title="Informazioni Sistema"
+              >
+                <InformationCircleIcon className="h-6 w-6" />
+              </button>
+              
               {/* Profile */}
               <Link 
                 to="/profile"
@@ -340,16 +405,12 @@ export default function Layout({ children }: LayoutProps) {
           </div>
         </main>
 
-        {/* Footer */}
-        <footer className="bg-white border-t border-gray-200 mt-auto">
-          <div className="px-6 py-4">
-            <p className="text-center text-xs text-gray-500">
-              © 2025 Sistema Richiesta Assistenza v2.0 | Enterprise Edition
-              {user?.role === 'SUPER_ADMIN' && ' | 🔔 Sistema Notifiche Attivo'}
-            </p>
-          </div>
-        </footer>
+        {/* Minimal Footer */}
+        <MinimalFooter />
       </div>
+      
+      {/* Info Panel */}
+      <InfoPanel isOpen={showInfoPanel} onClose={() => setShowInfoPanel(false)} />
     </div>
   );
 }

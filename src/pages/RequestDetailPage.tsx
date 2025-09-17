@@ -3,7 +3,7 @@ import ScheduleIntervention from '../components/professional/ScheduleInterventio
 import ProposeInterventions from '../components/professional/ProposeInterventions';
 import ScheduledInterventions from '../components/interventions/ScheduledInterventions';
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   ArrowLeftIcon,
@@ -184,6 +184,7 @@ const priorityConfig = {
 export default function RequestDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showAddQuoteModal, setShowAddQuoteModal] = useState(false);
@@ -198,6 +199,31 @@ export default function RequestDetailPage() {
   const [selectedProfessional, setSelectedProfessional] = useState<string>('');
   const [assignmentNotes, setAssignmentNotes] = useState<string>('');
   const [showProposeInterventions, setShowProposeInterventions] = useState(false);
+  const [suggestedMessage, setSuggestedMessage] = useState<string>('');
+
+  // Effetto per aprire automaticamente la chat se c'è il parametro openChat nell'URL
+  useEffect(() => {
+    const openChat = searchParams.get('openChat');
+    const reason = searchParams.get('reason');
+    
+    if (openChat === 'true') {
+      // Prepara un messaggio suggerito basato sul motivo
+      if (reason === 'intervention') {
+        setSuggestedMessage('Buongiorno, ho visto la data proposta per l\'intervento. Vorrei proporre una data alternativa perché...');
+      } else if (reason === 'quote') {
+        setSuggestedMessage('Buongiorno, ho ricevuto il preventivo. Vorrei chiarire alcuni punti prima di accettarlo...');
+      }
+      
+      setShowChat(true);
+      
+      // Rimuovi i parametri dall'URL dopo aver aperto la chat
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete('openChat');
+      newSearchParams.delete('reason');
+      const newSearch = newSearchParams.toString();
+      navigate(`/requests/${id}${newSearch ? `?${newSearch}` : ''}`, { replace: true });
+    }
+  }, [searchParams, id, navigate]);
 
   // Fetch request details
   const { data: responseData, isLoading, error } = useQuery({
@@ -1207,7 +1233,10 @@ export default function RequestDetailPage() {
             <div className="p-4 border-b flex justify-between items-center">
               <h3 className="text-lg font-semibold">Chat Richiesta</h3>
               <button
-                onClick={() => setShowChat(false)}
+                onClick={() => {
+                  setShowChat(false);
+                  setSuggestedMessage(''); // Reset del messaggio suggerito
+                }}
                 className="p-2 hover:bg-gray-100 rounded-lg"
               >
                 <XMarkIcon className="h-5 w-5" />
@@ -1219,6 +1248,7 @@ export default function RequestDetailPage() {
                 requestId={request.id}
                 requestTitle={request.title}
                 requestStatus={request.status}
+                suggestedMessage={suggestedMessage}
                 participants={[
                   {
                     id: request.client.id,

@@ -4,12 +4,6 @@ import { logger } from '../utils/logger';
 import { notificationService } from './notification.service';
 import { getIO } from '../utils/socket';
 import { GoogleMapsService } from './googleMaps.service';
-// AGGIUNTO: ResponseFormatter per formattazione consistente
-import { 
-  formatAssistanceRequest, 
-  formatAssistanceRequestList,
-  formatUser 
-} from '../utils/responseFormatter';
 
 export class RequestService {
   async findAll(filters?: {
@@ -19,11 +13,11 @@ export class RequestService {
     clientId?: string;
     professionalId?: string;
     search?: string;
-    userId?: string; // Aggiunto per sapere chi sta richiedendo
-    userRole?: string; // Aggiunto per sapere il ruolo
+    userId?: string;
+    userRole?: string;
   }) {
     try {
-      const where: Prisma.assistanceRequestWhereInput = {};
+      const where: Prisma.AssistanceRequestWhereInput = {};
 
       if (filters?.status) {
         where.status = filters.status as any;
@@ -55,7 +49,7 @@ export class RequestService {
               id: true,
               firstName: true,
               lastName: true,
-              fullName: true,  // Added fullName
+              fullName: true,
               email: true,
               phone: true,
             },
@@ -65,10 +59,10 @@ export class RequestService {
               id: true,
               firstName: true,
               lastName: true,
-              fullName: true,  // Added fullName
+              fullName: true,
               email: true,
               phone: true,
-              profession: true,  // Added profession
+              profession: true,
             },
           },
           category: {
@@ -86,36 +80,29 @@ export class RequestService {
               slug: true,
             },
           },
-          _count: {
-            select: {
-              quotes: true,
-              attachments: true,
-            },
-          },
+          attachments: true,
+          quotes: true,
         },
         orderBy: {
           createdAt: 'desc',
         },
       });
 
-      // NUOVO: Se è un professionista, calcola le distanze
+      // Se è un professionista, calcola le distanze
       let requestsWithDistance = requests;
       if (filters?.userRole === 'PROFESSIONAL' && filters?.userId) {
         requestsWithDistance = await this.addDistancesToRequests(requests, filters.userId);
       }
 
-      // AGGIUNTO: Usa ResponseFormatter per output consistente
-      return formatAssistanceRequestList(requestsWithDistance);
+      return requestsWithDistance;
     } catch (error) {
       logger.error('Error fetching requests:', error);
       throw error;
     }
   }
 
-  // NUOVO: Metodo per aggiungere le distanze alle richieste
   private async addDistancesToRequests(requests: any[], professionalId: string) {
     try {
-      // Recupera l'indirizzo del professionista
       const professional = await prisma.user.findUnique({
         where: { id: professionalId },
         select: {
@@ -123,10 +110,11 @@ export class RequestService {
           city: true,
           province: true,
           postalCode: true,
-          operationalAddress: true,
-          operationalCity: true,
-          operationalProvince: true,
-          operationalPostalCode: true,
+          workAddress: true,
+          workCity: true,
+          workProvince: true,
+          workPostalCode: true,
+          useResidenceAsWorkAddress: true,
         }
       });
 
@@ -134,18 +122,16 @@ export class RequestService {
         return requests;
       }
 
-      // Usa l'indirizzo operativo se disponibile, altrimenti quello principale
-      const professionalAddress = professional.operationalAddress 
-        ? `${professional.operationalAddress}, ${professional.operationalCity} ${professional.operationalProvince} ${professional.operationalPostalCode}`
+      // Usa l'indirizzo di lavoro se disponibile e non usa la residenza, altrimenti usa quello principale
+      const professionalAddress = (!professional.useResidenceAsWorkAddress && professional.workAddress)
+        ? `${professional.workAddress}, ${professional.workCity} ${professional.workProvince} ${professional.workPostalCode}`
         : `${professional.address}, ${professional.city} ${professional.province} ${professional.postalCode}`;
 
-      // Calcola le distanze per ogni richiesta
       const requestsWithDistance = await Promise.all(
         requests.map(async (request) => {
           try {
             const requestAddress = `${request.address}, ${request.city} ${request.province} ${request.postalCode}`;
             
-            // Calcola la distanza usando Google Maps
             const distanceData = await GoogleMapsService.calculateDistance(
               professionalAddress,
               requestAddress
@@ -154,9 +140,9 @@ export class RequestService {
             if (distanceData) {
               return {
                 ...request,
-                distance: distanceData.distance, // in km
+                distance: distanceData.distance,
                 distanceText: `${distanceData.distance.toFixed(1)} km`,
-                duration: distanceData.duration, // in secondi
+                duration: distanceData.duration,
                 durationText: distanceData.duration 
                   ? `${Math.round(distanceData.duration / 60)} min`
                   : undefined,
@@ -170,7 +156,6 @@ export class RequestService {
         })
       );
 
-      // Ordina per distanza (i più vicini prima)
       return requestsWithDistance.sort((a, b) => {
         if (a.distance && b.distance) {
           return a.distance - b.distance;
@@ -238,8 +223,7 @@ export class RequestService {
         return null;
       }
 
-      // AGGIUNTO: Usa ResponseFormatter per output consistente
-      return formatAssistanceRequest(request);
+      return request;
     } catch (error) {
       logger.error('Error fetching request by id:', error);
       throw error;
@@ -261,15 +245,34 @@ export class RequestService {
     clientId: string;
   }) {
     try {
+      // Prepara i dati per la creazione
+      const createData: any = {
+        title: data.title,
+        description: data.description,
+        categoryId: data.categoryId,
+        subcategoryId: data.subcategoryId,
+        clientId: data.clientId,
+        address: data.address,
+        city: data.city,
+        province: data.province,
+        postalCode: data.postalCode,
+        status: 'PENDING',
+        priority: data.priority as any,
+        requestedDate: data.requestedDate ? new Date(data.requestedDate) : undefined,
+        publicNotes: data.notes,
+      };
+
+      // Rimuovi campi undefined
+      Object.keys(createData).forEach(key => {
+        if (createData[key] === undefined) {
+          delete createData[key];
+        }
+      });
+
       const request = await prisma.assistanceRequest.create({
-        data: {
-          ...data,
-          status: 'PENDING',
-          priority: data.priority as any,
-          requestedDate: data.requestedDate ? new Date(data.requestedDate) : undefined,
-        },
+        data: createData,
         include: {
-          Client: {
+          client: {
             select: {
               id: true,
               firstName: true,
@@ -279,46 +282,38 @@ export class RequestService {
               phone: true,
             },
           },
-          Category: true,
-          SubCategory: true,
+          category: true,
+          subcategory: true,
         },
       });
 
-      // Ensure fullName for client
-      if (request.User_AssistanceRequest_clientIdToUser && !request.User_AssistanceRequest_clientIdToUser.fullName) {
-        request.User_AssistanceRequest_clientIdToUser.fullName = `${request.User_AssistanceRequest_clientIdToUser.firstName || ''} ${request.User_AssistanceRequest_clientIdToUser.lastName || ''}`.trim();
-      }
-
       // Send notification to admins about new request
       try {
-        // Get all admin users
         const admins = await prisma.user.findMany({
           where: {
             role: { in: ['ADMIN', 'SUPER_ADMIN'] }
           }
         });
 
-        // Send notification to each admin - FIXED: usa userId
         for (const admin of admins) {
           await notificationService.sendToUser({
-            userId: admin.id, // FIXED: usa userId non recipientId
+            userId: admin.id,
             type: 'NEW_REQUEST',
             title: 'Nuova richiesta di assistenza',
-            message: `Una nuova richiesta "${request.title}" è stata creata da ${request.User_AssistanceRequest_clientIdToUser.fullName || request.User_AssistanceRequest_clientIdToUser.email}`,
+            message: `Una nuova richiesta "${request.title}" è stata creata da ${request.client.fullName || request.client.email}`,
             priority: data.priority === 'URGENT' ? 'high' : 'normal',
             data: {
               requestId: request.id,
-              clientName: request.User_AssistanceRequest_clientIdToUser.fullName || request.User_AssistanceRequest_clientIdToUser.email,
-              category: request.Category?.name,
+              clientName: request.client.fullName || request.client.email,
+              category: request.category?.name,
               priority: request.priority
             },
             channels: ['websocket', 'email']
           });
         }
 
-        // Send confirmation to client - FIXED: usa userId
         await notificationService.sendToUser({
-          userId: data.clientId, // FIXED: usa userId non recipientId
+          userId: data.clientId,
           type: 'REQUEST_CREATED',
           title: 'Richiesta creata con successo',
           message: `La tua richiesta "${request.title}" è stata creata ed è in attesa di assegnazione`,
@@ -329,7 +324,6 @@ export class RequestService {
           channels: ['websocket']
         });
 
-        // Emit real-time event
         const io = getIO();
         if (io) {
           io.emit('request:created', {
@@ -338,14 +332,10 @@ export class RequestService {
           });
         }
       } catch (notificationError) {
-        // Log error but don't fail the request creation
         logger.error('Error sending notifications for new request:', notificationError);
       }
 
-      // TODO: Match with available professionals based on category and location
-
-      // AGGIUNTO: Usa ResponseFormatter per output consistente
-      return formatAssistanceRequest(request);
+      return request;
     } catch (error) {
       logger.error('Error creating request:', error);
       throw error;
@@ -368,14 +358,13 @@ export class RequestService {
     professionalId: string;
   }>) {
     try {
-      // First check if request exists
       const existing = await prisma.assistanceRequest.findUnique({
         where: {
           id,
         },
         include: {
-          User_AssistanceRequest_clientIdToUser: true,
-          User_AssistanceRequest_professionalIdToUser: true,
+          client: true,
+          professional: true,
         }
       });
 
@@ -383,17 +372,35 @@ export class RequestService {
         throw new Error('Request not found');
       }
 
+      const updateData: any = {};
+      
+      // Aggiungi solo i campi che sono stati passati
+      if (data.title !== undefined) updateData.title = data.title;
+      if (data.description !== undefined) updateData.description = data.description;
+      if (data.categoryId !== undefined) updateData.categoryId = data.categoryId;
+      if (data.subcategoryId !== undefined) updateData.subcategoryId = data.subcategoryId;
+      if (data.priority !== undefined) updateData.priority = data.priority as any;
+      if (data.status !== undefined) updateData.status = data.status as any;
+      if (data.address !== undefined) updateData.address = data.address;
+      if (data.city !== undefined) updateData.city = data.city;
+      if (data.province !== undefined) updateData.province = data.province;
+      if (data.postalCode !== undefined) updateData.postalCode = data.postalCode;
+      if (data.professionalId !== undefined) updateData.professionalId = data.professionalId;
+      if (data.requestedDate !== undefined) {
+        updateData.requestedDate = new Date(data.requestedDate);
+      }
+      if (data.notes !== undefined) {
+        updateData.publicNotes = data.notes;
+      }
+      if (data.professionalId && !existing.professionalId) {
+        updateData.assignedAt = new Date();
+      }
+
       const request = await prisma.assistanceRequest.update({
         where: { id },
-        data: {
-          ...data,
-          priority: data.priority as any,
-          status: data.status as any,
-          requestedDate: data.requestedDate ? new Date(data.requestedDate) : undefined,
-          assignedAt: data.professionalId && !existing.professionalId ? new Date() : undefined,
-        },
+        data: updateData,
         include: {
-          Client: {
+          client: {
             select: {
               id: true,
               firstName: true,
@@ -403,7 +410,7 @@ export class RequestService {
               phone: true,
             },
           },
-          Professional: {
+          professional: {
             select: {
               id: true,
               firstName: true,
@@ -414,32 +421,20 @@ export class RequestService {
               profession: true,
             },
           },
-          Category: true,
-          SubCategory: true,
+          category: true,
+          subcategory: true,
         },
       });
 
-      // Ensure fullName fields
-      if (request.User_AssistanceRequest_clientIdToUser && !request.User_AssistanceRequest_clientIdToUser.fullName) {
-        request.User_AssistanceRequest_clientIdToUser.fullName = `${request.User_AssistanceRequest_clientIdToUser.firstName || ''} ${request.User_AssistanceRequest_clientIdToUser.lastName || ''}`.trim();
-      }
-      if (request.User_AssistanceRequest_professionalIdToUser && !request.User_AssistanceRequest_professionalIdToUser.fullName) {
-        request.User_AssistanceRequest_professionalIdToUser.fullName = `${request.User_AssistanceRequest_professionalIdToUser.firstName || ''} ${request.User_AssistanceRequest_professionalIdToUser.lastName || ''}`.trim();
-      }
-
-      // Send notifications based on changes
       try {
-        // If status changed
         if (data.status && data.status !== existing.status) {
           await this.sendStatusChangeNotification(request, existing.status, data.status);
         }
 
-        // If professional assigned
         if (data.professionalId && !existing.professionalId) {
           await this.sendAssignmentNotification(request);
         }
 
-        // Emit real-time event
         const io = getIO();
         if (io) {
           io.emit('request:updated', {
@@ -452,8 +447,7 @@ export class RequestService {
         logger.error('Error sending update notifications:', notificationError);
       }
 
-      // AGGIUNTO: Usa ResponseFormatter per output consistente
-      return formatAssistanceRequest(request);
+      return request;
     } catch (error) {
       logger.error('Error updating request:', error);
       throw error;
@@ -467,8 +461,8 @@ export class RequestService {
           id,
         },
         include: {
-          User_AssistanceRequest_clientIdToUser: true,
-          User_AssistanceRequest_professionalIdToUser: true,
+          client: true,
+          professional: true,
         }
       });
 
@@ -476,15 +470,23 @@ export class RequestService {
         throw new Error('Request not found');
       }
 
+      const updateData: any = {
+        status: status as any,
+      };
+      
+      if (status === 'COMPLETED') {
+        updateData.completedDate = new Date();
+      }
+      
+      if (notes) {
+        updateData.publicNotes = notes;
+      }
+
       const request = await prisma.assistanceRequest.update({
         where: { id },
-        data: {
-          status: status as any,
-          notes: notes || existing.notes,
-          completionDate: status === 'COMPLETED' ? new Date() : undefined,
-        },
+        data: updateData,
         include: {
-          Client: {
+          client: {
             select: {
               id: true,
               firstName: true,
@@ -494,7 +496,7 @@ export class RequestService {
               phone: true,
             },
           },
-          Professional: {
+          professional: {
             select: {
               id: true,
               firstName: true,
@@ -505,23 +507,13 @@ export class RequestService {
               profession: true,
             },
           },
-          Category: true,
+          category: true,
         },
       });
 
-      // Ensure fullName fields
-      if (request.User_AssistanceRequest_clientIdToUser && !request.User_AssistanceRequest_clientIdToUser.fullName) {
-        request.User_AssistanceRequest_clientIdToUser.fullName = `${request.User_AssistanceRequest_clientIdToUser.firstName || ''} ${request.User_AssistanceRequest_clientIdToUser.lastName || ''}`.trim();
-      }
-      if (request.User_AssistanceRequest_professionalIdToUser && !request.User_AssistanceRequest_professionalIdToUser.fullName) {
-        request.User_AssistanceRequest_professionalIdToUser.fullName = `${request.User_AssistanceRequest_professionalIdToUser.firstName || ''} ${request.User_AssistanceRequest_professionalIdToUser.lastName || ''}`.trim();
-      }
-
-      // Send notification about status change
       try {
         await this.sendStatusChangeNotification(request, existing.status, status);
         
-        // Emit real-time event
         const io = getIO();
         if (io) {
           io.emit('request:statusChanged', {
@@ -535,8 +527,7 @@ export class RequestService {
         logger.error('Error sending status change notification:', notificationError);
       }
 
-      // AGGIUNTO: Usa ResponseFormatter per output consistente
-      return formatAssistanceRequest(request);
+      return request;
     } catch (error) {
       logger.error('Error updating request status:', error);
       throw error;
@@ -553,7 +544,7 @@ export class RequestService {
           assignedAt: new Date(),
         },
         include: {
-          Client: {
+          client: {
             select: {
               id: true,
               firstName: true,
@@ -563,7 +554,7 @@ export class RequestService {
               phone: true,
             },
           },
-          Professional: {
+          professional: {
             select: {
               id: true,
               firstName: true,
@@ -574,25 +565,15 @@ export class RequestService {
               profession: true,
             },
           },
-          Category: true,
+          category: true,
         },
       });
 
-      // Ensure fullName fields
-      if (request.User_AssistanceRequest_clientIdToUser && !request.User_AssistanceRequest_clientIdToUser.fullName) {
-        request.User_AssistanceRequest_clientIdToUser.fullName = `${request.User_AssistanceRequest_clientIdToUser.firstName || ''} ${request.User_AssistanceRequest_clientIdToUser.lastName || ''}`.trim();
-      }
-      if (request.User_AssistanceRequest_professionalIdToUser && !request.User_AssistanceRequest_professionalIdToUser.fullName) {
-        request.User_AssistanceRequest_professionalIdToUser.fullName = `${request.User_AssistanceRequest_professionalIdToUser.firstName || ''} ${request.User_AssistanceRequest_professionalIdToUser.lastName || ''}`.trim();
-      }
-
-      // Send assignment notification
       await this.sendAssignmentNotification(request);
 
-      // AGGIUNTO: Usa ResponseFormatter per output consistente
-      return formatAssistanceRequest(request);
+      return request;
     } catch (error) {
-      logger.error('Error assigning Professional:', error);
+      logger.error('Error assigning professional:', error);
       throw error;
     }
   }
@@ -604,7 +585,7 @@ export class RequestService {
           requestId,
         },
         include: {
-          Professional: {
+          professional: {
             select: {
               id: true,
               firstName: true,
@@ -621,14 +602,7 @@ export class RequestService {
         },
       });
 
-      // Ensure fullName for professionals in quotes
-      return quotes.map(quote => ({
-        ...quote,
-        Professional: quote.User_AssistanceRequest_professionalIdToUser ? {
-          ...quote.User_AssistanceRequest_professionalIdToUser,
-          fullName: quote.User_AssistanceRequest_professionalIdToUser.fullName || `${quote.User_AssistanceRequest_professionalIdToUser.firstName || ''} ${quote.User_AssistanceRequest_professionalIdToUser.lastName || ''}`.trim()
-        } : null,
-      }));
+      return quotes;
     } catch (error) {
       logger.error('Error fetching quotes for request:', error);
       throw error;
@@ -637,7 +611,7 @@ export class RequestService {
 
   async getAttachments(requestId: string) {
     try {
-      const attachments = await prisma.attachment.findMany({
+      const attachments = await prisma.requestAttachment.findMany({
         where: {
           requestId,
         },
@@ -662,9 +636,8 @@ export class RequestService {
       'CANCELLED': 'annullata'
     };
 
-    // Notify client - FIXED: usa userId
     await notificationService.sendToUser({
-      userId: request.clientId, // FIXED: usa userId non recipientId
+      userId: request.clientId,
       type: 'STATUS_CHANGED',
       title: 'Stato richiesta aggiornato',
       message: `La tua richiesta "${request.title}" è ora ${statusMessages[newStatus]}`,
@@ -678,10 +651,9 @@ export class RequestService {
       channels: ['websocket', 'email']
     });
 
-    // If assigned to professional, notify them too - FIXED: usa userId
     if (request.professionalId) {
       await notificationService.sendToUser({
-        userId: request.professionalId, // FIXED: usa userId non recipientId
+        userId: request.professionalId,
         type: 'STATUS_CHANGED',
         title: 'Stato richiesta aggiornato',
         message: `La richiesta "${request.title}" è ora ${statusMessages[newStatus]}`,
@@ -697,18 +669,17 @@ export class RequestService {
   }
 
   private async sendAssignmentNotification(request: any) {
-    const professionalName = request.User_AssistanceRequest_professionalIdToUser?.fullName || 
-                            `${request.User_AssistanceRequest_professionalIdToUser?.firstName || ''} ${request.User_AssistanceRequest_professionalIdToUser?.lastName || ''}`.trim() ||
+    const professionalName = request.professional?.fullName || 
+                            `${request.professional?.firstName || ''} ${request.professional?.lastName || ''}`.trim() ||
                             'Professionista';
     
-    const clientName = request.User_AssistanceRequest_clientIdToUser?.fullName || 
-                      `${request.User_AssistanceRequest_clientIdToUser?.firstName || ''} ${request.User_AssistanceRequest_clientIdToUser?.lastName || ''}`.trim() ||
-                      request.User_AssistanceRequest_clientIdToUser?.email || 'Cliente';
+    const clientName = request.client?.fullName || 
+                      `${request.client?.firstName || ''} ${request.client?.lastName || ''}`.trim() ||
+                      request.client?.email || 'Cliente';
 
-    // Notify professional - FIXED: usa userId
     if (request.professionalId) {
       await notificationService.sendToUser({
-        userId: request.professionalId, // FIXED: usa userId non recipientId
+        userId: request.professionalId,
         type: 'REQUEST_ASSIGNED',
         title: 'Nuova richiesta assegnata',
         message: `Ti è stata assegnata la richiesta "${request.title}"`,
@@ -724,9 +695,8 @@ export class RequestService {
       });
     }
 
-    // Notify client - FIXED: usa userId
     await notificationService.sendToUser({
-      userId: request.clientId, // FIXED: usa userId non recipientId
+      userId: request.clientId,
       type: 'PROFESSIONAL_ASSIGNED',
       title: 'Professionista assegnato',
       message: `Un professionista è stato assegnato alla tua richiesta "${request.title}"`,
@@ -740,7 +710,6 @@ export class RequestService {
 
   async delete(id: string) {
     try {
-      // Check if request exists and can be deleted
       const existing = await prisma.assistanceRequest.findUnique({
         where: {
           id,
@@ -755,8 +724,7 @@ export class RequestService {
         throw new Error('Cannot delete request in progress or completed');
       }
 
-      // Delete related data first
-      await prisma.attachment.deleteMany({
+      await prisma.requestAttachment.deleteMany({
         where: { requestId: id },
       });
 
@@ -764,12 +732,10 @@ export class RequestService {
         where: { requestId: id },
       });
 
-      // Then delete the request
       await prisma.assistanceRequest.delete({
         where: { id },
       });
 
-      // Emit real-time event
       const io = getIO();
       if (io) {
         io.emit('request:deleted', {

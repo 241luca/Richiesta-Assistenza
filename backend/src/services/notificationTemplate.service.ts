@@ -297,6 +297,9 @@ export class NotificationTemplateService {
         data: {
           id: uuidv4(),
           ...data
+        },
+        include: {
+          NotificationTemplate: true
         }
       });
 
@@ -778,6 +781,55 @@ export class NotificationTemplateService {
       };
     } catch (error) {
       logger.error('Error getting statistics:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Aggiorna un evento esistente
+   */
+  async updateEvent(id: string, data: Partial<CreateEventDto>) {
+    try {
+      const event = await prisma.notificationEvent.update({
+        where: { id },
+        data: {
+          ...data,
+          updatedAt: new Date()
+        },
+        include: {
+          NotificationTemplate: true
+        }
+      });
+
+      logger.info(`Event updated: ${event.code}`);
+      return event;
+    } catch (error) {
+      logger.error(`Error updating event ${id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Elimina un evento
+   */
+  async deleteEvent(id: string) {
+    try {
+      const event = await prisma.notificationEvent.findUnique({
+        where: { id }
+      });
+
+      if (!event) {
+        throw new Error(`Event with id ${id} not found`);
+      }
+
+      await prisma.notificationEvent.delete({
+        where: { id }
+      });
+
+      logger.info(`Event deleted: ${event.code}`);
+      return { success: true };
+    } catch (error) {
+      logger.error(`Error deleting event ${id}:`, error);
       throw error;
     }
   }

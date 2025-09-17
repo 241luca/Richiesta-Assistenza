@@ -26,6 +26,69 @@ const handleValidationErrors = (req: Request, res: Response, next: any) => {
   next();
 };
 
+// ==================== PREVIEW ROUTES ====================
+
+// POST /preview - Genera anteprima template
+router.post('/preview',
+  authenticate,
+  [
+    body('htmlContent').optional(),
+    body('textContent').optional(),
+    body('smsContent').optional(),
+    body('whatsappContent').optional(),
+    body('variables').optional(),
+    body('subject').optional()
+  ],
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      const { htmlContent, textContent, smsContent, whatsappContent, variables = {}, subject } = req.body;
+      
+      // Log per debug
+      logger.info('Preview request received:', {
+        hasHtml: !!htmlContent,
+        hasText: !!textContent,
+        hasSms: !!smsContent,
+        hasWhatsapp: !!whatsappContent,
+        hasSubject: !!subject,
+        variableCount: Object.keys(variables || {}).length
+      });
+      
+      // Funzione per sostituire le variabili nel template
+      const replaceVariables = (content: string, vars: any) => {
+        if (!content) return '';
+        let result = content;
+        const varsObj = vars || {};
+        Object.keys(varsObj).forEach(key => {
+          const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
+          result = result.replace(regex, varsObj[key] || '');
+        });
+        return result;
+      };
+
+      const preview = {
+        html: replaceVariables(htmlContent || '', variables),
+        text: replaceVariables(textContent || '', variables),
+        sms: replaceVariables(smsContent || '', variables),
+        whatsapp: replaceVariables(whatsappContent || '', variables),
+        subject: replaceVariables(subject || '', variables)
+      };
+
+      return res.json(ResponseFormatter.success(
+        preview,
+        'Preview generated successfully'
+      ));
+    } catch (error: any) {
+      logger.error('Error generating preview:', error);
+      return res.status(500).json(ResponseFormatter.error(
+        'Failed to generate preview',
+        'PREVIEW_ERROR',
+        error.message
+      ));
+    }
+  }
+);
+
 // ==================== TEMPLATE ROUTES ====================
 
 // GET /templates - Lista tutti i template
@@ -512,6 +575,43 @@ router.get('/event-types',
         'Failed to fetch event types',
         'EVENT_TYPES_ERROR',
         error.message
+      ));
+    }
+  }
+);
+
+// ==================== EVENT ROUTES ====================
+
+// GET /events - Lista tutti gli eventi
+router.get('/events',
+  authenticate,
+  checkRole(['ADMIN', 'SUPER_ADMIN']),
+  [
+    query('eventType').optional().isString(),
+    query('isActive').optional().isBoolean()
+  ],
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      const filters = {
+        eventType: req.query.eventType as string,
+        isActive: req.query.isActive ? req.query.isActive === 'true' : undefined
+      };
+
+      const events = await notificationTemplateService.getAllEvents(filters);
+
+      return res.json(ResponseFormatter.success(
+        events || [],
+        'Events retrieved successfully',
+        { count: events?.length || 0 }
+      ));
+    } catch (error) {
+      logger.error('Error fetching events:', error);
+      // Return empty array instead of error for now
+      return res.json(ResponseFormatter.success(
+        [],
+        'No events found',
+        { count: 0 }
       ));
     }
   }

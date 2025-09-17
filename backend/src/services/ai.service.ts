@@ -94,3 +94,55 @@ class AiService {
 }
 
 export const aiService = new AiService();
+
+// Funzioni esportate per compatibilità
+export async function generateAIResponse(prompt: string, model: string = 'gpt-3.5-turbo') {
+  try {
+    if (!aiService.openaiClient) {
+      await aiService.initializeOpenAI();
+    }
+
+    const completion = await callOpenAIWithRetry(() => 
+      aiService.openaiClient!.chat.completions.create({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content: 'Sei un assistente AI per un servizio di assistenza tecnica. Rispondi in modo professionale e utile.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 2048
+      })
+    );
+
+    return completion.choices[0].message.content || '';
+  } catch (error) {
+    logger.error('Error generating AI response:', error);
+    throw error;
+  }
+}
+
+export async function generateEmbedding(text: string) {
+  try {
+    if (!aiService.openaiClient) {
+      await aiService.initializeOpenAI();
+    }
+
+    const response = await callOpenAIWithRetry(() => 
+      aiService.openaiClient!.embeddings.create({
+        model: 'text-embedding-ada-002',
+        input: text
+      })
+    );
+
+    return response.data[0].embedding;
+  } catch (error) {
+    logger.error('Error generating embedding:', error);
+    return null;
+  }
+}

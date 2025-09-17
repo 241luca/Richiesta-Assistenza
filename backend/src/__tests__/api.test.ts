@@ -21,7 +21,7 @@ const prisma = new PrismaClient({
 describe('API Endpoints', () => {
   let authToken: string;
   let testUser: any;
-  let testProfessional: any;
+  let testprofessional: any;
   let testAdmin: any;
   let testRequest: any;
   let testcategory: any;

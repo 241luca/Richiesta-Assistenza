@@ -119,9 +119,9 @@ router.get('/', authenticate, requireAdmin, async (req: any, res) => {
       isActive: user.status !== 'offline' && user.status !== 'deleted' && 
                 (!user.lockedUntil || new Date(user.lockedUntil) <= new Date()),
       blocked: user.lockedUntil ? new Date(user.lockedUntil) > new Date() : false,
-      requestsCount: user._count.AssistanceRequest_AssistanceRequest_clientIdToUser + 
-                     user._count.AssistanceRequest_AssistanceRequest_professionalIdToUser,
-      quotesCount: user._count.Quote
+      requestsCount: user._count.clientRequests + 
+                     user._count.professionalRequests,
+      quotesCount: user._count.quotes
     }));
 
     // Ottieni statistiche
@@ -174,7 +174,7 @@ router.get('/:id', authenticate, requireAdmin, async (req: any, res) => {
         orderBy: { createdAt: 'desc' },
         take: 10,
         include: {
-          AssistanceRequest: {
+          request: {
             select: { id: true, title: true }
           }
         }
@@ -184,8 +184,8 @@ router.get('/:id', authenticate, requireAdmin, async (req: any, res) => {
     // Calcola statistiche utente
     const stats = {
       totalRequests: requestsCount,
-      totalQuotes: user._count.Quote || 0,
-      totalPayments: user._count.Payment || 0,
+      totalQuotes: user._count.quotes || 0,
+      totalPayments: user._count.payments || 0,
       lastActivity: loginHistory[0]?.createdAt || user.updatedAt,
       accountAge: Math.floor((Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24)), // giorni
       unreadNotifications: notifications.filter(n => !n.isRead).length
@@ -587,6 +587,133 @@ router.get('/export', authenticate, requireAdmin, async (req: any, res) => {
       'Errore nell\'export degli utenti',
       'EXPORT_ERROR'
     ));
+  }
+});
+
+// GET /api/admin/users/professionals-by-subcategory/:subcategoryId
+// Ottiene i professionisti abilitati per una sottocategoria
+router.get('/professionals-by-subcategory/:subcategoryId', authenticate, requireAdmin, async (req: any, res) => {
+  try {
+    const { subcategoryId } = req.params;
+    
+    logger.info(`Admin searching professionals for subcategory: ${subcategoryId}`);
+    
+    // Approccio semplificato: trova TUTTE le associazioni senza filtri
+    const associations = await prisma.professionalUserSubcategory.findMany({
+      where: { 
+        subcategoryId: subcategoryId 
+      },
+      include: {
+        user: true
+      }
+    });
+    
+    logger.info(`Raw associations found: ${associations.length}`);
+    
+    if (associations.length > 0) {
+      // Mappa tutti i professionisti trovati
+      const professionals = associations.map(assoc => {
+        logger.info(`Professional: ${assoc.user.firstName} ${assoc.user.lastName}, Status: ${assoc.user.status}, Role: ${assoc.user.role}`);
+        
+        return {
+          id: assoc.user.id,
+          firstName: assoc.user.firstName,
+          lastName: assoc.user.lastName,
+          email: assoc.user.email,
+          phone: assoc.user.phone,
+          city: assoc.user.city,
+          province: assoc.user.province,
+          hourlyRate: assoc.user.hourlyRate ? Number(assoc.user.hourlyRate) : null,
+          profession: assoc.user.profession,
+          experienceYears: assoc.experienceYears || 0,
+          hasCertifications: !!assoc.certifications,
+          isGeneric: false,
+          status: assoc.user.status,  // Includiamo lo status per debug
+          role: assoc.user.role        // Includiamo il role per debug
+        };
+      });
+      
+      logger.info(`Returning ${professionals.length} professionals for subcategory`);
+      
+      return res.json(ResponseFormatter.success(
+        professionals,
+        `Trovati ${professionals.length} professionisti per questa sottocategoria`
+      ));
+    }
+    
+    // Se non ci sono professionisti specifici, NON mostrare nulla o mostrare un messaggio
+    logger.info(`No professionals found for subcategory ${subcategoryId}`);
+    
+    return res.json(ResponseFormatter.success(
+      [],  // Array vuoto invece di mostrare tutti
+      `Nessun professionista abilitato per questa sottocategoria`
+    ));
+    
+  } catch (error) {
+    logger.error('Error fetching professionals by subcategory:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nel recupero dei professionisti',
+      'FETCH_ERROR'
+    ));
+  }
+});
+
+// TEMPORANEO: Debug endpoint per verificare associazioni
+router.get('/debug-subcategory/:subcategoryId', authenticate, requireAdmin, async (req: any, res) => {
+  try {
+    const { subcategoryId } = req.params;
+    
+    // 1. Verifica sottocategoria
+    const subcategory = await prisma.subcategory.findUnique({
+      where: { id: subcategoryId },
+      include: {
+        category: true
+      }
+    });
+    
+    // 2. Conta associazioni
+    const associations = await prisma.professionalUserSubcategory.findMany({
+      where: { subcategoryId },
+      include: {
+        user: true,
+        subcategory: true
+      }
+    });
+    
+    // 3. Trova tutti i professionisti
+    const allProfessionals = await prisma.user.findMany({
+      where: { role: 'PROFESSIONAL' },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        status: true,
+        role: true
+      }
+    });
+    
+    return res.json(ResponseFormatter.success({
+      subcategory: subcategory || 'NOT FOUND',
+      associationsCount: associations.length,
+      associations: associations.map(a => ({
+        userId: a.userId,
+        userName: `${a.user.firstName} ${a.user.lastName}`,
+        userStatus: a.user.status,
+        userRole: a.user.role,
+        experienceYears: a.experienceYears
+      })),
+      allProfessionalsCount: allProfessionals.length,
+      allProfessionals: allProfessionals.map(p => ({
+        id: p.id,
+        name: `${p.firstName} ${p.lastName}`,
+        status: p.status,
+        role: p.role
+      }))
+    }, 'Debug info'));
+    
+  } catch (error) {
+    logger.error('Debug error:', error);
+    return res.status(500).json(ResponseFormatter.error('Debug error', 'ERROR'));
   }
 });
 

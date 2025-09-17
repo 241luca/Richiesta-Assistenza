@@ -1,0 +1,159 @@
+// Schema Prisma aggiornato con vincoli di unicità
+
+model User {
+  id                String   @id @default(cuid())
+  
+  // Dati personali
+  firstName         String
+  lastName          String
+  email             String   @unique  // Email unica
+  personalFiscalCode String  @unique  // Codice Fiscale UNICO nel sistema
+  
+  // Contatti personali
+  personalPhone     String
+  personalEmail     String?  // Email personale secondaria
+  
+  // Indirizzi personali
+  personalAddress   String?
+  personalCity      String?
+  personalProvince  String?
+  personalPostalCode String?
+  
+  // Autenticazione
+  password          String
+  role              Role     @default(PROFESSIONAL)
+  isActive          Boolean  @default(false)
+  isApproved        Boolean  @default(false)
+  approvalStatus    ApprovalStatus @default(PENDING)
+  
+  // Professione
+  professionId      String?
+  profession        Profession? @relation(fields: [professionId], references: [id])
+  yearsExperience   String?
+  
+  // Relazione con azienda/ditta
+  company           Company? @relation(fields: [companyId], references: [id])
+  companyId         String?
+  companyRole       CompanyRole? // OWNER, EMPLOYEE, COLLABORATOR
+  
+  // Se è proprietario di un'azienda
+  ownedCompany      Company? @relation("CompanyOwner")
+  
+  // Tipo di attività
+  activityType      ActivityType // OCCASIONAL, INDIVIDUAL, COMPANY
+  
+  // Visibilità contatti
+  contactVisibility ContactVisibility?
+  
+  // Relazioni
+  clientRequests       AssistanceRequest[] @relation("ClientRequests")
+  professionalRequests AssistanceRequest[] @relation("ProfessionalRequests")
+  quotes              Quote[]
+  notifications       Notification[]
+  auditLogs          AuditLog[]
+  
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  registeredAt      DateTime @default(now())
+  lastLogin         DateTime?
+  
+  @@index([email])
+  @@index([personalFiscalCode])
+  @@index([approvalStatus])
+}
+
+model Company {
+  id                String   @id @default(cuid())
+  
+  // Dati fiscali aziendali - TUTTI UNICI
+  businessName      String   @unique  // Ragione sociale UNICA
+  vatNumber         String   @unique  // Partita IVA UNICA
+  companyFiscalCode String?  @unique  // CF azienda UNICO (se diverso da P.IVA)
+  
+  // Per ditte individuali che usano CF personale come P.IVA
+  usePersonalCF     Boolean  @default(false)
+  
+  // Contatti aziendali
+  companyPhone      String
+  companyEmail      String
+  pec               String?
+  sdiCode           String?  // Codice SDI per fatturazione elettronica
+  
+  // Sede legale
+  legalAddress      String
+  legalCity         String
+  legalProvince     String
+  legalPostalCode   String
+  legalCountry      String   @default("IT")
+  
+  // Sede operativa (se diversa)
+  hasOperativeAddress  Boolean @default(false)
+  operativeAddress     String?
+  operativeCity        String?
+  operativeProvince    String?
+  operativePostalCode  String?
+  
+  // Dati amministrativi
+  atecoCode         String?  // Codice ATECO attività
+  insuranceNumber   String?  // Numero polizza RC
+  insuranceExpiry   DateTime? // Scadenza assicurazione
+  
+  // Documenti aziendali
+  vatCertificate       String? // Certificato P.IVA
+  chamberOfCommerceDoc String? // Visura camerale
+  insuranceDoc         String? // Documento assicurazione
+  durcDoc              String? // DURC
+  
+  // Stato e verifiche
+  isVerified        Boolean  @default(false)
+  verifiedAt        DateTime?
+  verifiedBy        String?
+  isActive          Boolean  @default(true)
+  notes             String?  // Note interne admin
+  
+  // Relazioni
+  professionals     User[]   // Professionisti che lavorano per questa azienda
+  owner             User?    @relation("CompanyOwner", fields: [ownerId], references: [id])
+  ownerId           String?  @unique
+  
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([businessName])
+  @@index([vatNumber])
+  @@index([companyFiscalCode])
+}
+
+// Enums
+enum Role {
+  CLIENT
+  PROFESSIONAL
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum ActivityType {
+  OCCASIONAL   // Lavoratore occasionale (no P.IVA)
+  INDIVIDUAL   // Ditta individuale (P.IVA personale)
+  COMPANY      // Società (P.IVA aziendale)
+}
+
+enum CompanyRole {
+  OWNER        // Titolare/Amministratore
+  EMPLOYEE     // Dipendente
+  COLLABORATOR // Collaboratore/Freelance
+}
+
+// Validazione unicità cross-table per CF
+// NOTA: In produzione, creare un trigger o check constraint per verificare che:
+// - Un CF personale in User non sia usato come CF aziendale in Company
+// - Una P.IVA in Company non sia uguale a un CF in User (tranne per ditte individuali)

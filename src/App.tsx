@@ -1,13 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Navigate, BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { GoogleMapsProvider } from './contexts/GoogleMapsContext';
 import Router from './routes';
 
 // Professional Management Pages
 import ProfessionalLayout from './pages/admin/professionals/ProfessionalLayout';
 import ProfessionalCompetenze from './pages/admin/professionals/competenze/ProfessionalCompetenze';
 import ProfessionalTariffe from './pages/admin/professionals/tariffe/ProfessionalTariffe';
-import ProfessionalAiSettings from './pages/admin/professionals/ai-settings/ProfessionalAiSettings';
 import ProfessionalSkills from './pages/admin/professionals/skills/ProfessionalSkills';
 import SimpleBackupPage from './pages/admin/SimpleBackupPage';
 
@@ -25,7 +25,9 @@ function App() {
   return (
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
-        <Router />
+        <GoogleMapsProvider>
+          <Router />
+        </GoogleMapsProvider>
         <Toaster 
           position="top-right"
           toastOptions={{

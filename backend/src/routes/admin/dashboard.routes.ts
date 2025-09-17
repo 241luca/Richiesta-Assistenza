@@ -101,7 +101,7 @@ router.get('/', async (req: any, res: any) => {
           title: true,
           status: true,
           createdAt: true,
-          User_AssistanceRequest_clientIdToUser: {
+          client: {
             select: {
               firstName: true,
               lastName: true,
@@ -119,7 +119,7 @@ router.get('/', async (req: any, res: any) => {
           amount: true,
           status: true,
           createdAt: true,
-          AssistanceRequest: {
+          request: {
             select: {
               title: true
             }
@@ -168,8 +168,8 @@ router.get('/', async (req: any, res: any) => {
           title: request.title,
           status: request.status.toLowerCase(),
           createdAt: request.createdAt.toISOString(),
-          clientName: request.User_AssistanceRequest_clientIdToUser ? 
-            (request.User_AssistanceRequest_clientIdToUser.fullName || `${request.User_AssistanceRequest_clientIdToUser.firstName} ${request.User_AssistanceRequest_clientIdToUser.lastName}`) : null
+          clientName: request.client ? 
+            (request.client.fullName || `${request.client.firstName} ${request.client.lastName}`) : null
         })),
         recentQuotes: recentQuotes.map(quote => ({
           id: quote.id,

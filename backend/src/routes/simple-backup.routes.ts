@@ -86,9 +86,10 @@ router.get('/cleanup-dirs', async (req: Request, res: Response) => {
  * DELETE /api/backup/cleanup-dirs/:name
  * Elimina definitivamente una cartella di cleanup
  */
-router.delete('/cleanup-dirs/:name', async (req: Request, res: Response) => {
+router.delete('/cleanup-dirs/:name', async (req: any, res: Response) => {
   try {
     const { name } = req.params;
+    const userId = req.user?.id;
     
     // Richiede conferma esplicita
     if (!req.body.confirm) {
@@ -99,7 +100,7 @@ router.delete('/cleanup-dirs/:name', async (req: Request, res: Response) => {
       ));
     }
     
-    await simpleBackupService.deleteCleanupDir(name);
+    await simpleBackupService.deleteCleanupDir(name, userId);
     
     // ✅ USO RESPONSEFORMATTER
     return res.json(ResponseFormatter.success(
@@ -402,7 +403,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
 /**
  * GET /api/backup/:id/download
- * Scarica un backup
+ * Scarica un backup - Richiede autenticazione standard
  */
 router.get('/:id/download', async (req: Request, res: Response) => {
   try {
@@ -410,7 +411,6 @@ router.get('/:id/download', async (req: Request, res: Response) => {
     const backup = await simpleBackupService.getBackup(id);
     
     if (!backup) {
-      // ✅ USO RESPONSEFORMATTER
       return res.status(404).json(ResponseFormatter.error(
         'Backup not found',
         'NOT_FOUND'
@@ -418,8 +418,7 @@ router.get('/:id/download', async (req: Request, res: Response) => {
     }
 
     // Verifica che il file esista
-    if (!fs.existsSync(backup.filepath)) {
-      // ✅ USO RESPONSEFORMATTER
+    if (!fs.existsSync(backup.filePath)) {
       return res.status(404).json(ResponseFormatter.error(
         'Backup file not found on disk',
         'FILE_NOT_FOUND'
@@ -427,10 +426,9 @@ router.get('/:id/download', async (req: Request, res: Response) => {
     }
 
     // Invia il file
-    res.download(backup.filepath, backup.filename);
+    res.download(backup.filePath, backup.name || backup.filePath.split('/').pop());
   } catch (error: any) {
     logger.error('Error downloading backup:', error);
-    // ✅ USO RESPONSEFORMATTER
     return res.status(500).json(ResponseFormatter.error(
       'Failed to download backup',
       'DOWNLOAD_ERROR',

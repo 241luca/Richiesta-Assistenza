@@ -1,0 +1,1804 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AiConversation {
+  id                    String                 @id
+  userId                String
+  requestId             String?
+  subcategoryId         String?
+  conversationType      String
+  messages              Json
+  totalTokens           Int                    @default(0)
+  model                 String
+  startedAt             DateTime               @default(now())
+  endedAt               DateTime?
+  rating                Int?
+  feedback              String?
+  metadata              Json?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime
+  request               AssistanceRequest?     @relation(fields: [requestId], references: [id])
+  subcategorySettings   SubcategoryAiSettings? @relation(fields: [subcategoryId], references: [id])
+  user                  User                   @relation(fields: [userId], references: [id])
+}
+
+model AiSystemSettings {
+  id                   String   @id
+  name                 String   @unique @default("system")
+  systemHelpModel      String   @default("gpt-3.5-turbo")
+  systemHelpPrompt     String
+  systemHelpKnowledge  Json?
+  fallbackModel        String   @default("gpt-3.5-turbo")
+  fallbackPrompt       String
+  maxTokensPerRequest  Int      @default(2048)
+  maxRequestsPerUser   Int      @default(100)
+  maxRequestsPerMinute Int      @default(10)
+  enableClientAi       Boolean  @default(true)
+  enableProfessionalAi Boolean  @default(true)
+  enableSystemHelp     Boolean  @default(true)
+  logConversations     Boolean  @default(true)
+  metadata             Json?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime
+}
+
+model ApiKey {
+  id          String    @id
+  key         String    @unique
+  name        String
+  service     String    @unique
+  userId      String?
+  permissions Json?
+  rateLimit   Int       @default(1000)
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime
+  user        User?     @relation(fields: [userId], references: [id])
+
+  @@index([isActive])
+  @@index([key])
+  @@index([service])
+  @@index([userId])
+}
+
+model AssistanceRequest {
+  id                                          String                  @id
+  title                                       String
+  description                                 String
+  priority                                    Priority                @default(MEDIUM)
+  status                                      RequestStatus           @default(PENDING)
+  clientId                                    String
+  professionalId                              String?
+  categoryId                                  String
+  subcategoryId                               String?
+  address                                     String?
+  city                                        String?
+  province                                    String?
+  postalCode                                  String?
+  latitude                                    Float?
+  longitude                                   Float?
+  requestedDate                               DateTime?
+  scheduledDate                               DateTime?
+  completedDate                               DateTime?
+  estimatedHours                              Float?
+  actualHours                                 Float?
+  internalNotes                               String?
+  publicNotes                                 String?
+  tags                                        Json?
+  customFields                                Json?
+  createdAt                                   DateTime                @default(now())
+  updatedAt                                   DateTime
+  assignedAt                                  DateTime?
+  assignedBy                                  String?
+  assignmentType                              AssignmentType?
+  aiConversations                             AiConversation[]
+  assignedByUser                              User?                   @relation("RequestAssignedBy", fields: [assignedBy], references: [id])
+  category                                    Category                @relation(fields: [categoryId], references: [id])
+  client                                      User                    @relation("ClientRequests", fields: [clientId], references: [id])
+  professional                                User?                   @relation("ProfessionalRequests", fields: [professionalId], references: [id])
+  subcategory                                 Subcategory?            @relation(fields: [subcategoryId], references: [id])
+  interventionReports                         InterventionReport[]
+  messages                                    Message[]
+  quotes                                      Quote[]
+  attachments                                 RequestAttachment[]
+  chatMessages                                RequestChatMessage[]
+  updates                                     RequestUpdate[]
+  scheduledInterventions                      ScheduledIntervention[]
+
+  @@index([categoryId])
+  @@index([clientId])
+  @@index([priority])
+  @@index([professionalId])
+  @@index([status])
+  @@index([subcategoryId])
+}
+
+model AuditLog {
+  id           String      @id
+  userId       String?
+  userEmail    String?
+  userRole     String?
+  ipAddress    String
+  userAgent    String
+  sessionId    String?
+  action       AuditAction
+  entityType   String
+  entityId     String?
+  timestamp    DateTime    @default(now())
+  endpoint     String?
+  method       String?
+  requestId    String?
+  oldValues    Json?
+  newValues    Json?
+  changes      Json?
+  metadata     Json?
+  success      Boolean
+  errorMessage String?
+  responseTime Int?
+  statusCode   Int?
+  severity     LogSeverity
+  category     LogCategory
+  user         User?       @relation(fields: [userId], references: [id])
+
+  @@index([action, timestamp])
+  @@index([category, severity])
+  @@index([entityType, entityId])
+  @@index([sessionId])
+  @@index([timestamp])
+  @@index([userId, timestamp])
+}
+
+model AuditLogAlert {
+  id            String      @id
+  name          String
+  description   String?
+  condition     Json
+  severity      LogSeverity
+  isActive      Boolean     @default(true)
+  lastTriggered DateTime?
+  triggerCount  Int         @default(0)
+  notifyEmails  Json?
+  notifyWebhook String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime
+
+  @@index([isActive])
+}
+
+model AuditLogRetention {
+  id            String      @id
+  category      LogCategory @unique
+  retentionDays Int
+  isActive      Boolean     @default(true)
+  description   String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime
+}
+
+model AutoRemediationLog {
+  id                String   @id @default(dbgenerated("gen_random_uuid()"))
+  ruleId            String
+  module            String
+  success           Boolean
+  actionsExecuted   String[] @default([])
+  error             String?
+  healthScoreBefore Int
+  healthScoreAfter  Int?
+  timestamp         DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now())
+
+  @@index([module])
+  @@index([timestamp])
+}
+
+model BackupExecution {
+  id             String         @id
+  scheduleId     String
+  backupId       String?
+  status         BackupStatus
+  startedAt      DateTime
+  completedAt    DateTime?
+  duration       Int?
+  errorMessage   String?
+  errorDetails   Json?
+  metadata       Json?
+  createdAt      DateTime       @default(now())
+  schedule       BackupSchedule @relation(fields: [scheduleId], references: [id])
+
+  @@index([scheduleId])
+  @@index([startedAt])
+  @@index([status])
+}
+
+model BackupLog {
+  id           String       @id
+  backupId     String
+  level        LogLevel
+  message      String
+  details      Json?
+  createdAt    DateTime     @default(now())
+  systemBackup SystemBackup @relation(fields: [backupId], references: [id], onDelete: Cascade)
+
+  @@index([backupId])
+  @@index([createdAt])
+  @@index([level])
+}
+
+model BackupRestore {
+  id                String        @id
+  backupId          String
+  status            RestoreStatus @default(PENDING)
+  restorePoint      DateTime
+  targetEnvironment String?
+  includeDatabase   Boolean       @default(true)
+  includeUploads    Boolean       @default(true)
+  includeCode       Boolean       @default(false)
+  preRestoreBackup  String?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  failedAt          DateTime?
+  errorMessage      String?
+  errorDetails      Json?
+  restoredTables    Json?
+  restoredFiles     Json?
+  rollbackAvailable Boolean       @default(false)
+  metadata          Json?
+  restoredById      String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime
+  restoredBy        User          @relation(fields: [restoredById], references: [id])
+
+  @@index([createdAt])
+  @@index([status])
+}
+
+model BackupSchedule {
+  id              String            @id
+  name            String
+  description     String?
+  type            BackupType
+  frequency       BackupFrequency
+  cronExpression  String?
+  timeOfDay       String?
+  dayOfWeek       Int?
+  dayOfMonth      Int?
+  timezone        String            @default("Europe/Rome")
+  isActive        Boolean           @default(true)
+  includeUploads  Boolean           @default(true)
+  includeDatabase Boolean           @default(true)
+  includeCode     Boolean           @default(false)
+  compression     Boolean           @default(true)
+  encrypted       Boolean           @default(false)
+  retentionDays   Int               @default(30)
+  maxBackups      Int               @default(10)
+  notifyOnSuccess Boolean           @default(true)
+  notifyOnFailure Boolean           @default(true)
+  notifyEmails    Json?
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  metadata        Json?
+  createdById     String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime
+  executions      BackupExecution[]
+  createdBy       User              @relation(fields: [createdById], references: [id])
+  systemBackups   SystemBackup[]
+
+  @@index([frequency])
+  @@index([isActive])
+  @@index([nextRunAt])
+}
+
+model Category {
+  id                         String                       @id
+  name                       String
+  slug                       String                       @unique
+  description                String?
+  icon                       String?
+  color                      String                       @default("#3B82F6")
+  textColor                  String                       @default("#FFFFFF")
+  isActive                   Boolean                      @default(true)
+  displayOrder               Int                          @default(0)
+  createdAt                  DateTime                     @default(now())
+  updatedAt                  DateTime
+  requests                   AssistanceRequest[]
+  depositRules               DepositRule[]
+  reportTemplates            InterventionReportTemplate[]
+  subcategories              Subcategory[]
+
+  @@index([isActive])
+  @@index([slug])
+}
+
+model DepositRule {
+  id               String    @id
+  name             String
+  description      String?
+  categoryId       String?
+  depositType      String
+  fixedAmount      Decimal?  @db.Decimal(10, 2)
+  percentageAmount Float?
+  rangeRules       Json?
+  conditions       Json?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime
+  category         Category? @relation(fields: [categoryId], references: [id])
+
+  @@index([categoryId])
+  @@index([isActive])
+}
+
+model HealthCheckResult {
+  id            String   @id @default(dbgenerated("gen_random_uuid()"))
+  module        String
+  status        String
+  score         Int
+  checks        Json     @default("[]")
+  warnings      String[] @default([])
+  errors        String[] @default([])
+  metrics       Json?    @default("{}")
+  executionTime Int      @default(0)
+  timestamp     DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now())
+
+  @@index([module])
+  @@index([status])
+  @@index([timestamp])
+}
+
+model InterventionFieldType {
+  id                        String                      @id
+  code                      String                      @unique
+  name                      String
+  description               String?
+  icon                      String?
+  component                 String
+  validationRules           Json?
+  defaultConfig             Json?
+  isActive                  Boolean                     @default(true)
+  isSystem                  Boolean                     @default(false)
+  displayOrder              Int                         @default(0)
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime
+  templateFields            InterventionTemplateField[]
+
+  @@index([code])
+  @@index([isActive])
+}
+
+model InterventionMaterial {
+  id             String   @id
+  code           String   @unique
+  name           String
+  description    String?
+  category       String?
+  subcategory    String?
+  brand          String?
+  model          String?
+  unit           String   @default("pz")
+  defaultPrice   Decimal? @db.Decimal(10, 2)
+  vatRate        Float    @default(22)
+  supplierCode   String?
+  supplierName   String?
+  barcode        String?  @unique
+  qrcode         String?
+  imageUrl       String?
+  technicalSheet String?
+  stockQuantity  Float?
+  stockMin       Float?
+  stockMax       Float?
+  isActive       Boolean  @default(true)
+  isService      Boolean  @default(false)
+  usageCount     Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
+
+  @@index([barcode])
+  @@index([category])
+  @@index([code])
+  @@index([name])
+}
+
+model InterventionReport {
+  id                                           String                      @id
+  reportNumber                                 String                      @unique
+  requestId                                    String
+  professionalId                               String
+  clientId                                     String
+  templateId                                   String?
+  statusId                                     String
+  typeId                                       String
+  interventionDate                             DateTime
+  startTime                                    DateTime
+  endTime                                      DateTime?
+  totalHours                                   Float?
+  travelTime                                   Float?
+  formData                                     Json
+  materials                                    Json?
+  materialsTotal                               Decimal?                    @db.Decimal(10, 2)
+  photos                                       Json?
+  signatures                                   Json?
+  professionalSignedAt                         DateTime?
+  clientSignedAt                               DateTime?
+  gpsData                                      Json?
+  weatherData                                  Json?
+  internalNotes                                String?
+  clientNotes                                  String?
+  followUpRequired                             Boolean                     @default(false)
+  followUpNotes                                String?
+  pdfUrl                                       String?
+  pdfGeneratedAt                               DateTime?
+  isDraft                                      Boolean                     @default(true)
+  sentToClientAt                               DateTime?
+  viewedByClientAt                             DateTime?
+  clientIp                                     String?
+  clientUserAgent                              String?
+  metadata                                     Json?
+  version                                      Int                         @default(1)
+  createdAt                                    DateTime                    @default(now())
+  updatedAt                                    DateTime
+  client                                       User                        @relation("ClientReports", fields: [clientId], references: [id])
+  professional                                 User                        @relation("ProfessionalReports", fields: [professionalId], references: [id])
+  request                                      AssistanceRequest           @relation(fields: [requestId], references: [id])
+  status                                       InterventionReportStatus    @relation(fields: [statusId], references: [id])
+  template                                     InterventionReportTemplate? @relation(fields: [templateId], references: [id])
+  type                                         InterventionType            @relation(fields: [typeId], references: [id])
+
+  @@index([clientId])
+  @@index([interventionDate])
+  @@index([isDraft])
+  @@index([professionalId])
+  @@index([reportNumber])
+  @@index([requestId])
+  @@index([statusId])
+}
+
+model InterventionReportConfig {
+  id                       String   @id
+  name                     String   @default("Configurazione Rapporti")
+  numberingPrefix          String   @default("RI")
+  numberingFormat          String   @default("RI-{YEAR}-{NUMBER:5}")
+  currentNumber            Int      @default(0)
+  resetYearly              Boolean  @default(true)
+  lastResetYear            Int?
+  requireSignatures        Boolean  @default(false)
+  allowDraftSave           Boolean  @default(true)
+  autoSendToClient         Boolean  @default(false)
+  enableGPS                Boolean  @default(false)
+  enableTimer              Boolean  @default(true)
+  enableMaterials          Boolean  @default(true)
+  enablePhotos             Boolean  @default(false)
+  maxPhotosPerType         Int      @default(5)
+  photoTypes               Json?    @default("[\"prima\", \"durante\", \"dopo\"]")
+  photoCompressionQuality  Int      @default(80)
+  pdfLogo                  String?
+  pdfHeader                String?
+  pdfFooter                String?
+  pdfWatermark             String?
+  pdfOrientation           String   @default("portrait")
+  pdfFormat                String   @default("A4")
+  notifyProfessionalOnSign Boolean  @default(true)
+  notifyClientOnCreate     Boolean  @default(true)
+  notifyAdminOnIssue       Boolean  @default(false)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime
+
+  @@index([name])
+}
+
+model InterventionReportStatus {
+  id                 String               @id
+  code               String               @unique
+  name               String
+  description        String?
+  color              String               @default("#808080")
+  bgColor            String               @default("#F3F4F6")
+  icon               String?
+  allowEdit          Boolean              @default(true)
+  allowDelete        Boolean              @default(true)
+  requireSignature   Boolean              @default(false)
+  notifyClient       Boolean              @default(false)
+  isFinal            Boolean              @default(false)
+  isDefault          Boolean              @default(false)
+  nextStatuses       Json?
+  permissions        Json?
+  isActive           Boolean              @default(true)
+  displayOrder       Int                  @default(0)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime
+  reports            InterventionReport[]
+
+  @@index([code])
+  @@index([isActive])
+  @@index([isDefault])
+}
+
+model InterventionReportTemplate {
+  id                                               String                       @id
+  name                                             String
+  description                                      String?
+  code                                             String?                      @unique
+  subcategoryId                                    String?
+  categoryId                                       String?
+  isGeneric                                        Boolean                      @default(false)
+  isActive                                         Boolean                      @default(true)
+  isDefault                                        Boolean                      @default(false)
+  isPublic                                         Boolean                      @default(true)
+  createdBy                                        String?
+  approvedBy                                       String?
+  approvedAt                                       DateTime?
+  version                                          Int                          @default(1)
+  settings                                         Json?
+  requiredSections                                 Json?
+  layout                                           Json?
+  usageCount                                       Int                          @default(0)
+  lastUsedAt                                       DateTime?
+  rating                                           Float?
+  createdAt                                        DateTime                     @default(now())
+  updatedAt                                        DateTime
+  reports                                          InterventionReport[]
+  approvedByUser                                   User?                        @relation("TemplatesApproved", fields: [approvedBy], references: [id])
+  category                                         Category?                    @relation(fields: [categoryId], references: [id])
+  createdByUser                                    User?                        @relation("TemplatesCreated", fields: [createdBy], references: [id])
+  subcategory                                      Subcategory?                 @relation(fields: [subcategoryId], references: [id])
+  templateFields                                   InterventionTemplateField[]
+  professionalTemplates                            ProfessionalReportTemplate[]
+
+  @@index([categoryId])
+  @@index([code])
+  @@index([isActive])
+  @@index([isDefault])
+  @@index([subcategoryId])
+}
+
+model InterventionTemplateField {
+  id                         String                     @id
+  templateId                 String
+  code                       String
+  label                      String
+  placeholder                String?
+  helpText                   String?
+  tooltip                    String?
+  fieldTypeId                String
+  sectionCode                String?
+  displayOrder               Int                        @default(100)
+  columnSpan                 Int                        @default(12)
+  rowNumber                  Int                        @default(1)
+  groupName                  String?
+  isRequired                 Boolean                    @default(false)
+  isReadonly                 Boolean                    @default(false)
+  isHidden                   Boolean                    @default(false)
+  showOnPDF                  Boolean                    @default(true)
+  showOnClient               Boolean                    @default(true)
+  showOnMobile               Boolean                    @default(true)
+  config                     Json?
+  dependencies               Json?
+  calculations               Json?
+  validationRules            Json?
+  defaultValue               String?
+  possibleValues             Json?
+  showIf                     Json?
+  requiredIf                 Json?
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime
+  fieldType                  InterventionFieldType      @relation(fields: [fieldTypeId], references: [id])
+  template                   InterventionReportTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, code])
+  @@index([displayOrder])
+  @@index([sectionCode])
+  @@index([templateId])
+}
+
+model InterventionTemplateSection {
+  id              String   @id
+  code            String   @unique
+  name            String
+  description     String?
+  icon            String?
+  isSystem        Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  isCollapsible   Boolean  @default(true)
+  defaultExpanded Boolean  @default(true)
+  defaultOrder    Int      @default(100)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime
+
+  @@index([code])
+  @@index([isActive])
+}
+
+model InterventionType {
+  id                 String               @id
+  code               String               @unique
+  name               String
+  description        String?
+  icon               String?
+  color              String               @default("#3B82F6")
+  requiresQuote      Boolean              @default(false)
+  requiresPhotos     Boolean              @default(false)
+  requiresMaterials  Boolean              @default(false)
+  averageDuration    Float?
+  isActive           Boolean              @default(true)
+  displayOrder       Int                  @default(0)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime
+  reports            InterventionReport[]
+
+  @@index([code])
+  @@index([isActive])
+}
+
+model KbDocument {
+  id               String            @id
+  title            String
+  description      String?
+  documentType     String
+  filePath         String
+  fileType         String
+  fileName         String
+  fileSize         Int
+  processingStatus String            @default("pending")
+  textLength       Int?
+  chunkCount       Int?
+  errorMessage     String?
+  subcategoryId    String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime
+  subcategory      Subcategory?      @relation(fields: [subcategoryId], references: [id])
+  chunks           KbDocumentChunk[]
+
+  @@index([processingStatus])
+  @@index([subcategoryId])
+}
+
+model KbDocumentChunk {
+  id         String     @id
+  documentId String
+  chunkIndex Int
+  content    String
+  metadata   Json?
+  embedding  Json?
+  createdAt  DateTime   @default(now())
+  document   KbDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([chunkIndex])
+  @@index([documentId])
+}
+
+model KnowledgeBaseDocument {
+  id             String   @id
+  title          String
+  description    String?
+  documentType   String
+  category       String?
+  subcategoryIds Json?
+  filePath       String?
+  content        String?
+  embeddings     Json?
+  language       String   @default("it")
+  tags           Json?
+  version        String?
+  author         String?
+  isActive       Boolean  @default(true)
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
+  uploadedById   String?
+  uploadedBy     User?    @relation(fields: [uploadedById], references: [id])
+}
+
+model LoginHistory {
+  id         String   @id
+  userId     String
+  ipAddress  String?
+  userAgent  String?
+  success    Boolean
+  failReason String?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([userId])
+}
+
+model Message {
+  id                             String             @id
+  requestId                      String?
+  senderId                       String
+  recipientId                    String
+  content                        String
+  attachments                    Json?
+  isRead                         Boolean            @default(false)
+  readAt                         DateTime?
+  editedAt                       DateTime?
+  deletedAt                      DateTime?
+  createdAt                      DateTime           @default(now())
+  recipient                      User               @relation("MessagesReceived", fields: [recipientId], references: [id])
+  request                        AssistanceRequest? @relation(fields: [requestId], references: [id])
+  sender                         User               @relation("MessagesSent", fields: [senderId], references: [id])
+
+  @@index([isRead])
+  @@index([recipientId])
+  @@index([requestId])
+  @@index([senderId])
+}
+
+model Notification {
+  id                                  String               @id
+  type                                String
+  title                               String
+  content                             String
+  priority                            NotificationPriority @default(NORMAL)
+  recipientId                         String
+  senderId                            String?
+  entityType                          String?
+  entityId                            String?
+  isRead                              Boolean              @default(false)
+  readAt                              DateTime?
+  metadata                            Json?
+  createdAt                           DateTime             @default(now())
+  recipient                           User                 @relation("NotificationsReceived", fields: [recipientId], references: [id])
+  sender                              User?                @relation("NotificationsSent", fields: [senderId], references: [id])
+
+  @@index([isRead])
+  @@index([recipientId])
+  @@index([senderId])
+  @@index([type])
+}
+
+model NotificationChannel {
+  id            String   @id
+  code          String   @unique
+  name          String
+  type          String
+  provider      String?
+  configuration Json
+  isActive      Boolean  @default(true)
+  isDefault     Boolean  @default(false)
+  priority      Int      @default(0)
+  rateLimit     Json?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime
+
+  @@index([code])
+  @@index([isActive])
+  @@index([type])
+}
+
+model NotificationEvent {
+  id                   String               @id
+  code                 String               @unique
+  name                 String
+  description          String?
+  eventType            String
+  entityType           String?
+  conditions           Json?
+  templateId           String
+  isActive             Boolean              @default(true)
+  delay                Int                  @default(0)
+  retryPolicy          Json?
+  metadata             Json?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime
+  template             NotificationTemplate @relation(fields: [templateId], references: [id])
+
+  @@index([code])
+  @@index([eventType])
+  @@index([isActive])
+  @@index([templateId])
+}
+
+model NotificationLog {
+  id                   String                @id
+  notificationId       String?
+  templateId           String?
+  eventId              String?
+  recipientId          String
+  recipientEmail       String?
+  recipientPhone       String?
+  channel              String
+  status               String
+  subject              String?
+  content              String
+  variables            Json?
+  sentAt               DateTime?
+  deliveredAt          DateTime?
+  readAt               DateTime?
+  failedAt             DateTime?
+  failureReason        String?
+  retryCount           Int                   @default(0)
+  metadata             Json?
+  createdAt            DateTime              @default(now())
+  recipient            User                  @relation(fields: [recipientId], references: [id])
+  template             NotificationTemplate? @relation(fields: [templateId], references: [id])
+
+  @@index([channel])
+  @@index([createdAt])
+  @@index([recipientId])
+  @@index([sentAt])
+  @@index([status])
+  @@index([templateId])
+}
+
+model NotificationPreference {
+  id                 String   @id
+  userId             String   @unique
+  emailNotifications Boolean  @default(true)
+  pushNotifications  Boolean  @default(true)
+  smsNotifications   Boolean  @default(false)
+  notificationTypes  Json?
+  quietHoursStart    String?
+  quietHoursEnd      String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime
+  user               User     @relation(fields: [userId], references: [id])
+}
+
+model NotificationQueue {
+  id            String               @id
+  templateId    String
+  eventId       String?
+  recipientId   String
+  channel       String
+  priority      NotificationPriority
+  scheduledFor  DateTime
+  status        String               @default("pending")
+  attempts      Int                  @default(0)
+  maxAttempts   Int                  @default(3)
+  lastAttemptAt DateTime?
+  nextRetryAt   DateTime?
+  data          Json
+  error         String?
+  createdAt     DateTime             @default(now())
+  processedAt   DateTime?
+
+  @@index([channel])
+  @@index([priority])
+  @@index([recipientId])
+  @@index([scheduledFor])
+  @@index([status])
+}
+
+model NotificationTemplate {
+  id                String               @id
+  code              String               @unique
+  name              String
+  description       String?
+  category          String
+  subject           String?
+  htmlContent       String
+  textContent       String?
+  smsContent        String?
+  whatsappContent   String?
+  variables         Json
+  channels          Json
+  priority          NotificationPriority @default(NORMAL)
+  isActive          Boolean              @default(true)
+  isSystem          Boolean              @default(false)
+  version           Int                  @default(1)
+  createdBy         String?
+  updatedBy         String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime
+  events            NotificationEvent[]
+  logs              NotificationLog[]
+
+  @@index([category])
+  @@index([code])
+  @@index([isActive])
+}
+
+model Payment {
+  id              String        @id
+  quoteId         String?
+  userId          String
+  amount          Decimal       @db.Decimal(10, 2)
+  currency        String        @default("EUR")
+  status          PaymentStatus @default(PENDING)
+  type            PaymentType   @default(FULL_PAYMENT)
+  method          String?
+  transactionId   String?       @unique
+  stripePaymentId String?       @unique
+  receiptUrl      String?
+  description     String?
+  notes           String?
+  metadata        Json?
+  processedAt     DateTime?
+  failedAt        DateTime?
+  failureReason   String?
+  refundedAt      DateTime?
+  refundAmount    Decimal?      @db.Decimal(10, 2)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime
+  quote           Quote?        @relation(fields: [quoteId], references: [id])
+  user            User          @relation(fields: [userId], references: [id])
+
+  @@index([quoteId])
+  @@index([status])
+  @@index([stripePaymentId])
+  @@index([transactionId])
+  @@index([userId])
+}
+
+model PerformanceMetrics {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()"))
+  timestamp           DateTime @default(now())
+  cpuUsage            Int
+  memoryUsage         Int
+  databaseConnections Int
+  apiResponseTime     Int
+  requestsPerMinute   Int
+  errorRate           Float
+  metrics             Json?    @default("{}")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now())
+
+  @@index([timestamp])
+}
+
+model Profession {
+  id           String   @id
+  name         String   @unique
+  slug         String   @unique
+  description  String?
+  isActive     Boolean  @default(true)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
+  users        User[]
+
+  @@index([isActive])
+  @@index([slug])
+}
+
+model ProfessionalAiCustomization {
+  id                    String                @id
+  professionalId        String
+  subcategoryId         String
+  settingsId            String
+  customSystemPrompt    String?
+  customKnowledgeBase   Json?
+  customTone            String?
+  customInitialMessage  String?
+  customTemperature     Float?
+  customMaxTokens       Int?
+  preferredExamples     Json?
+  avoidTopics           Json?
+  specializations       Json?
+  isActive              Boolean               @default(true)
+  metadata              Json?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime
+  professional          User                  @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  settings              SubcategoryAiSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+
+  @@unique([professionalId, subcategoryId])
+}
+
+model ProfessionalAiSettings {
+  id               String      @id
+  userId           String
+  subcategoryId    String
+  modelName        String      @default("gpt-3.5-turbo")
+  temperature      Float       @default(0.7)
+  maxTokens        Int         @default(2000)
+  responseStyle    String      @default("formal")
+  detailLevel      String      @default("intermediate")
+  useKnowledgeBase Boolean     @default(true)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime
+  systemPrompt     String?
+  subcategory      Subcategory @relation(fields: [subcategoryId], references: [id], onDelete: Cascade)
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, subcategoryId])
+}
+
+model ProfessionalCertification {
+  id         String    @id
+  userId     String
+  name       String
+  issuer     String
+  validUntil DateTime?
+  isVerified Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ProfessionalMaterial {
+  id              String    @id
+  professionalId  String
+  baseMaterialId  String?
+  code            String
+  name            String
+  description     String?
+  unit            String    @default("pz")
+  defaultQuantity Float     @default(1)
+  price           Decimal   @db.Decimal(10, 2)
+  vatRate         Float     @default(22)
+  supplierName    String?
+  supplierCode    String?
+  notes           String?
+  category        String?
+  isFavorite      Boolean   @default(false)
+  usageCount      Int       @default(0)
+  lastUsedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime
+  professional    User      @relation(fields: [professionalId], references: [id])
+
+  @@unique([professionalId, code])
+  @@index([professionalId, category])
+  @@index([professionalId, isFavorite])
+}
+
+model ProfessionalPricing {
+  id          String   @id
+  userId      String   @unique
+  hourlyRate  Float    @default(50.00)
+  minimumRate Float    @default(30.00)
+  costPerKm   Float    @default(0.50)
+  freeKm      Int      @default(10)
+  supplements Json     @default("{\"festivo\": 50, \"urgente\": 30, \"weekend\": 20, \"notturno\": 30}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ProfessionalReportFolder {
+  id             String   @id
+  professionalId String
+  name           String
+  description    String?
+  color          String   @default("#808080")
+  icon           String?
+  isDefault      Boolean  @default(false)
+  isArchive      Boolean  @default(false)
+  displayOrder   Int      @default(0)
+  reportCount    Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
+  professional   User     @relation(fields: [professionalId], references: [id])
+
+  @@unique([professionalId, name])
+  @@index([displayOrder])
+  @@index([professionalId])
+}
+
+model ProfessionalReportPhrase {
+  id             String    @id
+  professionalId String
+  category       String
+  code           String
+  title          String
+  content        String
+  tags           Json?
+  usageCount     Int       @default(0)
+  lastUsedAt     DateTime?
+  isActive       Boolean   @default(true)
+  isFavorite     Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime
+  professional   User      @relation(fields: [professionalId], references: [id])
+
+  @@unique([professionalId, code])
+  @@index([isFavorite])
+  @@index([professionalId, category])
+}
+
+model ProfessionalReportSettings {
+  id                   String   @id
+  professionalId       String   @unique
+  businessName         String?
+  businessLogo         String?
+  businessAddress      String?
+  businessPhone        String?
+  businessEmail        String?
+  businessWebsite      String?
+  vatNumber            String?
+  fiscalCode           String?
+  reaNumber            String?
+  defaultTemplateId    String?
+  autoStartTimer       Boolean  @default(false)
+  autoGpsLocation      Boolean  @default(false)
+  autoWeather          Boolean  @default(false)
+  quickPhrases         Boolean  @default(true)
+  quickMaterials       Boolean  @default(true)
+  showLastReports      Boolean  @default(true)
+  defaultLanguage      String   @default("it")
+  signatureImage       String?
+  signatureName        String?
+  signatureTitle       String?
+  notifyOnSign         Boolean  @default(true)
+  notifyOnView         Boolean  @default(false)
+  dailySummary         Boolean  @default(false)
+  weeklyReport         Boolean  @default(false)
+  pdfTemplate          String   @default("professional")
+  includeTerms         Boolean  @default(false)
+  termsText            String?
+  includePrivacy       Boolean  @default(false)
+  privacyText          String?
+  invoicePrefix        String   @default("FT")
+  invoiceStartNumber   Int      @default(1)
+  currentInvoiceNumber Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime
+  professional         User     @relation(fields: [professionalId], references: [id])
+}
+
+model ProfessionalReportTemplate {
+  id                         String                      @id
+  professionalId             String
+  baseTemplateId             String?
+  name                       String
+  description                String?
+  isDefault                  Boolean                     @default(false)
+  customSettings             Json?
+  customFields               Json?
+  customLayout               Json?
+  isActive                   Boolean                     @default(true)
+  usageCount                 Int                         @default(0)
+  lastUsedAt                 DateTime?
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime
+  baseTemplate               InterventionReportTemplate? @relation(fields: [baseTemplateId], references: [id])
+  professional               User                        @relation(fields: [professionalId], references: [id])
+
+  @@index([isActive])
+  @@index([isDefault])
+  @@index([professionalId])
+}
+
+model ProfessionalSkill {
+  id        String   @id
+  userId    String
+  name      String
+  level     String   @default("intermediate")
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ProfessionalUserSubcategory {
+  id              String      @id
+  userId          String
+  subcategoryId   String
+  experienceYears Int?
+  certifications  Json?
+  portfolio       Json?
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime
+  experienceLevel String      @default("INTERMEDIATE")
+  subcategory     Subcategory @relation(fields: [subcategoryId], references: [id])
+  user            User        @relation(fields: [userId], references: [id])
+
+  @@unique([userId, subcategoryId])
+  @@index([subcategoryId])
+  @@index([userId])
+}
+
+model Quote {
+  id                String            @id
+  requestId         String
+  professionalId    String
+  title             String
+  description       String?
+  amount            Decimal           @db.Decimal(10, 2)
+  currency          String            @default("EUR")
+  status            QuoteStatus       @default(DRAFT)
+  version           Int               @default(1)
+  validUntil        DateTime?
+  expiresAt         DateTime?
+  acceptedAt        DateTime?
+  rejectedAt        DateTime?
+  rejectionReason   String?
+  terms             String?
+  notes             String?
+  internalNotes     String?
+  attachments       Json?
+  customFields      Json?
+  depositRequired   Boolean           @default(false)
+  depositAmount     Decimal?          @db.Decimal(10, 2)
+  depositPaid       Boolean           @default(false)
+  depositPaidAt     DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime
+  payments          Payment[]
+  professional      User              @relation(fields: [professionalId], references: [id])
+  request           AssistanceRequest @relation(fields: [requestId], references: [id])
+  items             QuoteItem[]
+  revisions         QuoteRevision[]
+
+  @@index([professionalId])
+  @@index([requestId])
+  @@index([status])
+}
+
+model QuoteItem {
+  id          String   @id
+  quoteId     String
+  description String
+  quantity    Float    @default(1)
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  totalPrice  Decimal  @db.Decimal(10, 2)
+  taxRate     Float    @default(0)
+  taxAmount   Decimal  @default(0) @db.Decimal(10, 2)
+  discount    Decimal  @default(0) @db.Decimal(10, 2)
+  order       Int      @default(1)
+  notes       String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  quote       Quote    @relation(fields: [quoteId], references: [id])
+
+  @@index([quoteId])
+}
+
+model QuoteRevision {
+  id        String   @id
+  quoteId   String
+  userId    String
+  version   Int
+  changes   Json
+  reason    String?
+  createdAt DateTime @default(now())
+  quote     Quote    @relation(fields: [quoteId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([quoteId])
+  @@index([userId])
+}
+
+model QuoteTemplate {
+  id          String   @id
+  userId      String
+  name        String
+  description String?
+  template    Json
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model RequestAttachment {
+  id                String            @id
+  requestId         String
+  userId            String
+  fileName          String
+  originalName      String
+  filePath          String
+  fileType          String
+  fileSize          Int
+  isPublic          Boolean           @default(true)
+  description       String?
+  metadata          Json?
+  createdAt         DateTime          @default(now())
+  request           AssistanceRequest @relation(fields: [requestId], references: [id])
+  user              User              @relation(fields: [userId], references: [id])
+
+  @@index([requestId])
+  @@index([userId])
+}
+
+model RequestChatMessage {
+  id                String            @id
+  requestId         String
+  userId            String
+  message           String
+  messageType       MessageType       @default(TEXT)
+  attachments       Json?
+  isEdited          Boolean           @default(false)
+  editedAt          DateTime?
+  isDeleted         Boolean           @default(false)
+  deletedAt         DateTime?
+  isRead            Boolean           @default(false)
+  readBy            Json?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime
+  request           AssistanceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user              User              @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([isDeleted])
+  @@index([requestId])
+  @@index([userId])
+}
+
+model RequestUpdate {
+  id                String            @id
+  requestId         String
+  userId            String
+  updateType        String
+  description       String
+  metadata          Json?
+  createdAt         DateTime          @default(now())
+  request           AssistanceRequest @relation(fields: [requestId], references: [id])
+  user              User              @relation(fields: [userId], references: [id])
+
+  @@index([requestId])
+  @@index([userId])
+}
+
+model ScheduledIntervention {
+  id                                              String            @id
+  requestId                                       String
+  professionalId                                  String
+  proposedDate                                    DateTime
+  confirmedDate                                   DateTime?
+  status                                          String            @default("PROPOSED")
+  description                                     String?
+  estimatedDuration                               Int?
+  actualDuration                                  Int?
+  notes                                           String?
+  clientConfirmed                                 Boolean           @default(false)
+  clientDeclineReason                             String?
+  createdAt                                       DateTime          @default(now())
+  updatedAt                                       DateTime
+  createdBy                                       String?
+  createdByUser                                   User?             @relation("InterventionsCreated", fields: [createdBy], references: [id])
+  professional                                    User              @relation("ProfessionalInterventions", fields: [professionalId], references: [id])
+  request                                         AssistanceRequest @relation(fields: [requestId], references: [id])
+
+  @@index([professionalId])
+  @@index([proposedDate])
+  @@index([requestId])
+  @@index([status])
+}
+
+model Subcategory {
+  id                          String                        @id
+  name                        String
+  slug                        String
+  description                 String?
+  requirements                String?
+  color                       String?
+  textColor                   String?
+  isActive                    Boolean                       @default(true)
+  displayOrder                Int                           @default(0)
+  categoryId                  String
+  createdAt                   DateTime                      @default(now())
+  updatedAt                   DateTime
+  requests                    AssistanceRequest[]
+  reportTemplates             InterventionReportTemplate[]
+  kbDocuments                 KbDocument[]
+  professionalAiSettings      ProfessionalAiSettings[]
+  professionalUserSubcategories ProfessionalUserSubcategory[]
+  category                    Category                      @relation(fields: [categoryId], references: [id])
+  aiSettings                  SubcategoryAiSettings?
+
+  @@unique([categoryId, slug])
+  @@index([categoryId])
+  @@index([isActive])
+}
+
+model SubcategoryAiSettings {
+  id                          String                        @id
+  subcategoryId               String                        @unique
+  modelName                   String                        @default("gpt-3.5-turbo")
+  temperature                 Float                         @default(0.7)
+  maxTokens                   Int                           @default(2048)
+  topP                        Float                         @default(1)
+  frequencyPenalty            Float                         @default(0)
+  presencePenalty             Float                         @default(0)
+  systemPrompt                String
+  knowledgeBasePrompt         String?
+  responseStyle               ResponseStyle                 @default(FORMAL)
+  detailLevel                 DetailLevel                   @default(INTERMEDIATE)
+  includeDiagrams             Boolean                       @default(false)
+  includeReferences           Boolean                       @default(false)
+  useKnowledgeBase            Boolean                       @default(false)
+  isActive                    Boolean                       @default(true)
+  metadata                    Json?
+  createdAt                   DateTime                      @default(now())
+  updatedAt                   DateTime
+  aiConversations             AiConversation[]
+  professionalCustomizations  ProfessionalAiCustomization[]
+  subcategory                 Subcategory                   @relation(fields: [subcategoryId], references: [id])
+
+  @@index([subcategoryId])
+}
+
+model SystemBackup {
+  id              String          @id
+  name            String
+  description     String?
+  type            BackupType
+  status          BackupStatus    @default(PENDING)
+  fileSize        BigInt?
+  filePath        String?
+  downloadUrl     String?
+  compression     Boolean         @default(true)
+  encrypted       Boolean         @default(false)
+  encryptionKey   String?
+  checksum        String?
+  includeUploads  Boolean         @default(true)
+  includeDatabase Boolean         @default(true)
+  includeCode     Boolean         @default(false)
+  databaseTables  Json?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  failedAt        DateTime?
+  errorMessage    String?
+  errorDetails    Json?
+  retentionDays   Int             @default(30)
+  expiresAt       DateTime?
+  deletedAt       DateTime?
+  metadata        Json?
+  createdById     String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime
+  scheduleId      String?
+  logs            BackupLog[]
+  createdBy       User            @relation(fields: [createdById], references: [id])
+  schedule        BackupSchedule? @relation(fields: [scheduleId], references: [id])
+
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@index([expiresAt])
+  @@index([status])
+  @@index([type])
+}
+
+model SystemSetting {
+  id          String   @id
+  key         String   @unique
+  value       String
+  type        String   @default("string")
+  label       String
+  description String?
+  category    String   @default("general")
+  isEditable  Boolean  @default(true)
+  isPublic    Boolean  @default(false)
+  validation  Json?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+
+  @@index([category])
+  @@index([isPublic])
+  @@index([key])
+}
+
+model TestHistory {
+  id          Int      @id @default(autoincrement())
+  category    String
+  passed      Int      @default(0)
+  failed      Int      @default(0)
+  skipped     Int      @default(0)
+  totalTests  Int      @default(0)
+  duration    Float    @default(0)
+  successRate Int      @default(0)
+  timestamp   String
+  reportData  Json?
+  createdAt   DateTime @default(now())
+
+  @@index([category])
+  @@index([createdAt])
+  @@index([successRate])
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model User {
+  id                                                                     String                        @id
+  email                                                                  String                        @unique
+  username                                                               String                        @unique
+  password                                                               String
+  firstName                                                              String
+  lastName                                                               String
+  fullName                                                               String
+  phone                                                                  String?
+  role                                                                   Role                          @default(CLIENT)
+  avatar                                                                 String?
+  bio                                                                    String?
+  status                                                                 String                        @default("offline")
+  lastSeenAt                                                             DateTime?
+  codiceFiscale                                                          String?
+  partitaIva                                                             String?
+  ragioneSociale                                                         String?
+  pec                                                                    String?
+  sdi                                                                    String?
+  address                                                                String?
+  city                                                                   String?
+  province                                                               String?
+  postalCode                                                             String?
+  country                                                                String                        @default("IT")
+  profession                                                             String?
+  specializations                                                        Json?
+  hourlyRate                                                             Decimal?                      @db.Decimal(10, 2)
+  currency                                                               String                        @default("EUR")
+  serviceAreas                                                           Json?
+  workAddress                                                            String?
+  workCity                                                               String?
+  workProvince                                                           String?
+  workPostalCode                                                         String?
+  workLatitude                                                           Float?
+  workLongitude                                                          Float?
+  useResidenceAsWorkAddress                                              Boolean                       @default(false)
+  travelRatePerKm                                                        Decimal?                      @db.Decimal(10, 2)
+  twoFactorSecret                                                        String?
+  twoFactorEnabled                                                       Boolean                       @default(false)
+  emailVerified                                                          Boolean                       @default(false)
+  emailVerifiedAt                                                        DateTime?
+  lastLoginAt                                                            DateTime?
+  loginAttempts                                                          Int                           @default(0)
+  lockedUntil                                                            DateTime?
+  createdAt                                                              DateTime                      @default(now())
+  updatedAt                                                              DateTime
+  latitude                                                               Float?
+  longitude                                                              Float?
+  canSelfAssign                                                          Boolean                       @default(true)
+  pricingData                                                            Json?
+  professionId                                                           String?
+  
+  // Relazioni rinominate con nomi puliti
+  aiConversations                                                        AiConversation[]
+  apiKeys                                                                ApiKey[]
+  assignedRequests                                                       AssistanceRequest[]           @relation("RequestAssignedBy")
+  clientRequests                                                         AssistanceRequest[]           @relation("ClientRequests")
+  professionalRequests                                                   AssistanceRequest[]           @relation("ProfessionalRequests")
+  auditLogs                                                              AuditLog[]
+  backupRestores                                                         BackupRestore[]
+  backupSchedules                                                        BackupSchedule[]
+  clientReports                                                          InterventionReport[]          @relation("ClientReports")
+  professionalReports                                                    InterventionReport[]          @relation("ProfessionalReports")
+  approvedTemplates                                                      InterventionReportTemplate[]  @relation("TemplatesApproved")
+  createdTemplates                                                       InterventionReportTemplate[]  @relation("TemplatesCreated")
+  knowledgeBaseDocuments                                                 KnowledgeBaseDocument[]
+  loginHistory                                                           LoginHistory[]
+  messagesReceived                                                       Message[]                     @relation("MessagesReceived")
+  messagesSent                                                           Message[]                     @relation("MessagesSent")
+  notificationsReceived                                                  Notification[]                @relation("NotificationsReceived")
+  notificationsSent                                                      Notification[]                @relation("NotificationsSent")
+  notificationLogs                                                       NotificationLog[]
+  notificationPreference                                                 NotificationPreference?
+  payments                                                               Payment[]
+  professionalAiCustomizations                                           ProfessionalAiCustomization[]
+  professionalAiSettings                                                 ProfessionalAiSettings[]
+  professionalCertifications                                             ProfessionalCertification[]
+  professionalMaterials                                                  ProfessionalMaterial[]
+  professionalPricing                                                    ProfessionalPricing?
+  professionalReportFolders                                              ProfessionalReportFolder[]
+  professionalReportPhrases                                              ProfessionalReportPhrase[]
+  professionalReportSettings                                             ProfessionalReportSettings?
+  professionalReportTemplates                                            ProfessionalReportTemplate[]
+  professionalSkills                                                     ProfessionalSkill[]
+  professionalUserSubcategories                                          ProfessionalUserSubcategory[]
+  quotes                                                                 Quote[]
+  quoteRevisions                                                         QuoteRevision[]
+  quoteTemplates                                                         QuoteTemplate[]
+  requestAttachments                                                     RequestAttachment[]
+  requestChatMessages                                                    RequestChatMessage[]
+  requestUpdates                                                         RequestUpdate[]
+  interventionsCreated                                                   ScheduledIntervention[]       @relation("InterventionsCreated")
+  professionalInterventions                                              ScheduledIntervention[]       @relation("ProfessionalInterventions")
+  systemBackups                                                          SystemBackup[]
+  professionData                                                         Profession?                   @relation(fields: [professionId], references: [id])
+
+  @@index([email])
+  @@index([latitude, longitude])
+  @@index([role])
+  @@index([workLatitude, workLongitude])
+}
+
+model backups {
+  id         String   @id
+  type       String   @db.VarChar(20)
+  filename   String   @db.VarChar(255)
+  filepath   String   @db.VarChar(500)
+  file_size  BigInt
+  created_at DateTime @default(now())
+  created_by String?  @db.VarChar(100)
+
+  @@index([created_at])
+  @@index([type])
+}
+
+// ENUMS rimangono uguali
+enum AssignmentType {
+  STAFF
+  SELF
+  AUTOMATIC
+}
+
+enum AuditAction {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+  PASSWORD_CHANGED
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_COMPLETED
+  TWO_FA_ENABLED
+  TWO_FA_DISABLED
+  TWO_FA_FAILED
+  SESSION_EXPIRED
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  BULK_CREATE
+  BULK_UPDATE
+  BULK_DELETE
+  REQUEST_CREATED
+  REQUEST_ASSIGNED
+  REQUEST_UPDATED
+  REQUEST_CANCELLED
+  REQUEST_COMPLETED
+  QUOTE_CREATED
+  QUOTE_SENT
+  QUOTE_ACCEPTED
+  QUOTE_REJECTED
+  PAYMENT_INITIATED
+  PAYMENT_PROCESSED
+  PAYMENT_FAILED
+  PAYMENT_REFUNDED
+  PERMISSION_GRANTED
+  PERMISSION_REVOKED
+  ROLE_CHANGED
+  SUSPICIOUS_ACTIVITY
+  RATE_LIMIT_EXCEEDED
+  UNAUTHORIZED_ACCESS
+  API_KEY_CREATED
+  API_KEY_REVOKED
+  BACKUP_CREATED
+  BACKUP_RESTORED
+  SYSTEM_ERROR
+  INTEGRATION_FAILED
+  EMAIL_SENT
+  EMAIL_FAILED
+  EXPORT_DATA
+  IMPORT_DATA
+  DATA_ANONYMIZED
+  DATA_DELETED
+}
+
+enum BackupFrequency {
+  MANUAL
+  HOURLY
+  DAILY
+  WEEKLY
+  MONTHLY
+  CUSTOM
+}
+
+enum BackupStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+  EXPIRED
+  DELETED
+}
+
+enum BackupType {
+  FULL
+  DATABASE
+  FILES
+  CODE
+  INCREMENTAL
+  DIFFERENTIAL
+}
+
+enum DetailLevel {
+  BASIC
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum LogCategory {
+  SECURITY
+  BUSINESS
+  SYSTEM
+  COMPLIANCE
+  PERFORMANCE
+  USER_ACTIVITY
+  API
+  INTEGRATION
+}
+
+enum LogLevel {
+  DEBUG
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+enum LogSeverity {
+  DEBUG
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  DOCUMENT
+  SYSTEM
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentType {
+  DEPOSIT
+  FULL_PAYMENT
+  PARTIAL_PAYMENT
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum QuoteStatus {
+  DRAFT
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum RequestStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ResponseStyle {
+  FORMAL
+  INFORMAL
+  TECHNICAL
+  EDUCATIONAL
+}
+
+enum RestoreStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+  ROLLED_BACK
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  PROFESSIONAL
+  CLIENT
+}

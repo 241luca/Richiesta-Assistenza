@@ -24,7 +24,7 @@ describe('Complete User Journey', () => {
   let adminToken: string;
   
   let testClient: any;
-  let testProfessional: any;
+  let testprofessional: any;
   let testAdmin: any;
   let testcategory: any;
   let testsubcategories: any;
@@ -291,7 +291,7 @@ describe('Complete User Journey', () => {
       expect(response.body.requestId).toBe(testRequest.id);
       expect(response.body.professionalId).toBe(testProfessional.id);
       expect(response.body.status).toBe('DRAFT');
-      expect(response.body.QuoteItem).toHaveLength(2);
+      expect(response.body.items).toHaveLength(2);
 
       testQuote = response.body;
     });
@@ -429,13 +429,13 @@ describe('Complete User Journey', () => {
       const quote = await prisma.quote.findUnique({
         where: { id: testQuote.id },
         include: {
-          QuoteItem: true
+          items: true
         }
       });
 
       expect(quote).toBeDefined();
       expect(quote?.status).toBe('ACCEPTED');
-      expect(quote?.QuoteItem).toHaveLength(2);
+      expect(quote?.items).toHaveLength(2);
     });
   });
 

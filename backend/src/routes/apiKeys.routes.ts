@@ -12,7 +12,7 @@ const router = Router();
 // Schema di validazione
 const apiKeySchema = z.object({
   body: z.object({
-    service: z.enum(['GOOGLE_MAPS', 'BREVO', 'OPENAI']),
+    service: z.enum(['GOOGLE_MAPS', 'BREVO', 'OPENAI', 'whatsapp']),
     key: z.string().min(10),
     configuration: z.record(z.any()).optional(),
     isActive: z.boolean().optional()
@@ -21,7 +21,7 @@ const apiKeySchema = z.object({
 
 const testApiKeySchema = z.object({
   params: z.object({
-    service: z.enum(['GOOGLE_MAPS', 'BREVO', 'OPENAI'])
+    service: z.enum(['GOOGLE_MAPS', 'BREVO', 'OPENAI', 'whatsapp'])
   })
 });
 
@@ -61,9 +61,11 @@ router.get(
   requireRole(['SUPER_ADMIN']),
   async (req, res, next) => {
     try {
-      const service = req.params.service.toUpperCase() as 'GOOGLE_MAPS' | 'BREVO' | 'OPENAI';
+      // Gestisce sia maiuscolo che minuscolo
+      const serviceParam = req.params.service;
+      const service = serviceParam === 'whatsapp' ? 'whatsapp' : serviceParam.toUpperCase();
       
-      if (!['GOOGLE_MAPS', 'BREVO', 'OPENAI'].includes(service)) {
+      if (!['GOOGLE_MAPS', 'BREVO', 'OPENAI', 'whatsapp'].includes(service)) {
         return res.status(400).json(ResponseFormatter.error(
           'Invalid service', 
           400,
@@ -138,7 +140,6 @@ router.post(
           configuration,
           isActive
         },
-        'default',
         req.user!.id
       );
 
@@ -218,9 +219,11 @@ router.post(
   requireRole(['SUPER_ADMIN']),
   async (req, res, next) => {
     try {
-      const service = req.params.service.toUpperCase() as 'GOOGLE_MAPS' | 'BREVO' | 'OPENAI';
+      // Gestisce sia maiuscolo che minuscolo
+      const serviceParam = req.params.service;
+      const service = serviceParam === 'whatsapp' ? 'whatsapp' : serviceParam.toUpperCase();
 
-      if (!['GOOGLE_MAPS', 'BREVO', 'OPENAI'].includes(service)) {
+      if (!['GOOGLE_MAPS', 'BREVO', 'OPENAI', 'whatsapp'].includes(service)) {
         return res.status(400).json(ResponseFormatter.error(
           'Invalid service',
           400,
@@ -229,7 +232,7 @@ router.post(
       }
 
       const result = await apiKeyService.testApiKey(
-        service,
+        service as any,
         'default'
       );
 

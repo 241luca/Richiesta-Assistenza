@@ -11,6 +11,7 @@ echo ""
 echo "======================================"
 echo "🔍 PRE-COMMIT CHECKS"
 echo "======================================"
+echo "📚 REMINDER: All documentation goes in DOCUMENTAZIONE/"
 echo ""
 
 # Colori per output
@@ -132,10 +133,41 @@ else
 fi
 
 # =================================================================
-# 7. BUILD CHECK
+# 7. DOCUMENTATION CHECK
 # =================================================================
 echo ""
-echo "📝 [7/7] Checking build..."
+echo "📝 [7/8] Checking documentation structure..."
+
+# Check for unauthorized .md files in root
+ROOT_MD=$(ls *.md 2>/dev/null | grep -v -E "^(README|ISTRUZIONI-PROGETTO|CHANGELOG|LEGGIMI-DOCUMENTAZIONE)\.md$")
+if [ ! -z "$ROOT_MD" ]; then
+  echo -e "${RED}❌ Unauthorized .md files found in root!${NC}"
+  echo "   These files must be moved to DOCUMENTAZIONE/:"
+  echo "$ROOT_MD" | sed 's/^/     - /'
+  echo ""
+  echo "   Move them to appropriate folder:"
+  echo "     - Reports → DOCUMENTAZIONE/REPORT-SESSIONI/"
+  echo "     - Active docs → DOCUMENTAZIONE/ATTUALE/"
+  echo "     - Old docs → DOCUMENTAZIONE/ARCHIVIO/"
+  ERRORS=$((ERRORS + 1))
+else
+  echo -e "${GREEN}✅ Documentation structure: OK${NC}"
+fi
+
+# Check if today's session has a report (warning only)
+TODAY=$(date +%Y-%m-%d)
+TODAY_REPORT=$(find DOCUMENTAZIONE/REPORT-SESSIONI -name "*$TODAY*.md" 2>/dev/null | head -1)
+if [ -z "$TODAY_REPORT" ]; then
+  echo -e "${YELLOW}⚠️  No report found for today ($TODAY)${NC}"
+  echo "   Remember to create: DOCUMENTAZIONE/REPORT-SESSIONI/$TODAY-descrizione.md"
+  WARNINGS=$((WARNINGS + 1))
+fi
+
+# =================================================================
+# 8. BUILD CHECK
+# =================================================================
+echo ""
+echo "📝 [8/8] Checking build..."
 
 # Quick build test (frontend)
 npm run build > /dev/null 2>&1

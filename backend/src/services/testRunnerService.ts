@@ -222,7 +222,7 @@ export class TestRunnerService {
         WHERE table_schema = 'public'
       ` as any[];
 
-      const requiredTables = ['User', 'AssistanceRequest', 'Quote', 'QuoteItem', 'Category'];
+      const requiredTables = ['User', 'AssistanceRequest', 'Quote', 'items', 'Category'];
       const existingTables = tables.map(t => t.table_name);
 
       for (const table of requiredTables) {
@@ -927,9 +927,9 @@ export class TestRunnerService {
     this.testResults = [];
     this.startTime = Date.now();
 
-    console.log(`🚀 Esecuzione test per categoria: ${category}\n`);
+    console.log(`🚀 Esecuzione test per categoria: ${Category}\n`);
 
-    switch (category) {
+    switch (Category) {
       case 'database':
         await this.runDatabaseTests();
         break;

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { aiProfessionalService } from '../services/ai-professional.service';
+import aiProfessionalService from '../services/ai-professional.service';
 import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/rbac';
 import { ResponseFormatter } from '../utils/responseFormatter';
@@ -15,7 +15,9 @@ const chatSchema = z.object({
   message: z.string().min(1).max(4000),
   requestId: z.string().optional(),
   subcategoryId: z.string().optional(),
-  conversationType: z.enum(['client_help', 'professional_help', 'system_help']).default('client_help'),
+  professionalId: z.string().optional(),
+  mode: z.enum(['professional', 'client']).optional(),
+  conversationType: z.enum(['client_help', 'professional_help', 'system_help']).optional(),
   conversationId: z.string().optional()
 });
 
@@ -38,9 +40,16 @@ router.post('/chat', authenticate, async (req: any, res) => {
     const validatedData = chatSchema.parse(req.body);
     const userId = req.user.id;
 
+    // Converti mode in conversationType se presente
+    let conversationType = validatedData.conversationType;
+    if (validatedData.mode) {
+      conversationType = validatedData.mode === 'professional' ? 'professional_help' : 'client_help';
+    }
+
     const response = await aiProfessionalService.sendMessage({
       userId,
-      ...validatedData
+      ...validatedData,
+      conversationType: conversationType || 'client_help'
     });
 
     return res.json(ResponseFormatter.success(

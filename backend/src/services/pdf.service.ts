@@ -30,9 +30,9 @@ class PDFService {
       const rawQuote = await prisma.quote.findUnique({
         where: { id: quoteId },
         include: {
-          QuoteItem: { orderBy: { order: 'asc' } },
+          items: { orderBy: { order: 'asc' } },
           professional: true, // Professional con nome relazione corretto
-          AssistanceRequest: {  // AssistanceRequest con A maiuscola!
+          request: {  // AssistanceRequest con A maiuscola!
             include: {
               client: true, // Cliente della richiesta (minuscolo!)
               category: true, // categoria (minuscolo!)
@@ -325,7 +325,7 @@ class PDFService {
           professional: true, // Professionista assegnato (minuscolo!)
           category: true, // categoria (minuscolo!)
           subcategory: true, // sottocategoria (minuscolo!)
-          RequestAttachment: true // Allegati con nome corretto Prisma
+          attachments: true // Allegati con nome corretto Prisma
         }
       });
 
@@ -465,7 +465,7 @@ class PDFService {
           status: { in: ['PENDING', 'ACCEPTED'] }
         },
         include: {
-          QuoteItem: { orderBy: { order: 'asc' } },
+          items: { orderBy: { order: 'asc' } },
           professional: true  // professional con nome relazione corretto
         },
         orderBy: { totalAmount: 'asc' }

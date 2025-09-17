@@ -3,10 +3,13 @@ import { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/rbac';
+import { checkRole } from '../middleware/checkRole';
 import { ResponseFormatter } from '../utils/responseFormatter';
 import { formatAssistanceRequestList } from '../utils/responseFormatter';
 import { logger } from '../utils/logger';
 import GoogleMapsService from '../services/googleMaps.service';
+import * as notificationService from '../services/notification.service';
+import * as emailService from '../services/email.service';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -42,7 +45,7 @@ router.get(
       });
 
       if (!professional?.canSelfAssign) {
-        return res.status('403').json(
+        return res.status(403).json(
           ResponseFormatter.error(
             'Non sei autorizzato ad auto-assegnarti richieste',
             'SELF_ASSIGN_DISABLED'
@@ -51,7 +54,7 @@ router.get(
       }
 
       // Ottieni le sottocategorie del professionista
-      const professionalSubcategories = await prisma.User_AssistanceRequest_professionalIdToUserUserSubcategory.findMany({
+      const professionalSubcategories = await prisma.professionalUserSubcategory.findMany({
         where: {
           userId,
           isActive: true
@@ -76,13 +79,13 @@ router.get(
       const availableRequests = await prisma.assistanceRequest.findMany({
         where: {
           status: 'PENDING',
-          Professional: null, // Usa la relazione invece di professionalId
+          professional: null, // Usa la relazione invece di professionalId
           subcategoryId: {
             in: subcategoryIds
           }
         },
         include: {
-          Client: {
+          client: {
             select: {
               id: true,
               fullName: true,
@@ -90,8 +93,8 @@ router.get(
               province: true
             }
           },
-          Category: true,
-          SubCategory: true
+          category: true,
+          subcategory: true
         },
         orderBy: [
           { priority: 'desc' }, // Prima le urgenti
@@ -193,7 +196,7 @@ router.get(
       const myRequests = await prisma.assistanceRequest.findMany({
         where: whereClause,
         include: {
-          Client: {
+          client: {
             select: {
               id: true,
               fullName: true,
@@ -203,8 +206,8 @@ router.get(
               province: true
             }
           },
-          Category: true,
-          SubCategory: true,
+          category: true,
+          subcategory: true,
           quotes: {
             select: {
               id: true,
@@ -272,7 +275,7 @@ router.post(
       });
 
       if (!professional?.canSelfAssign) {
-        return res.status('403').json(
+        return res.status(403).json(
           ResponseFormatter.error(
             'Non sei autorizzato ad auto-assegnarti richieste',
             'SELF_ASSIGN_DISABLED'
@@ -284,13 +287,13 @@ router.post(
       const request = await prisma.assistanceRequest.findUnique({
         where: { id: requestId },
         include: {
-          Category: true,
-          SubCategory: true
+          category: true,
+          subcategory: true
         }
       });
 
       if (!request) {
-        return res.status('404').json(
+        return res.status(404).json(
           ResponseFormatter.error(
             'Richiesta non trovata',
             'REQUEST_NOT_FOUND'
@@ -299,7 +302,7 @@ router.post(
       }
 
       if (request.professionalId) {
-        return res.status('400').json(
+        return res.status(400).json(
           ResponseFormatter.error(
             'La richiesta è già assegnata',
             'REQUEST_ALREADY_ASSIGNED'
@@ -308,7 +311,7 @@ router.post(
       }
 
       if (request.status !== 'PENDING') {
-        return res.status('400').json(
+        return res.status(400).json(
           ResponseFormatter.error(
             'La richiesta non è disponibile per l\'assegnazione',
             'REQUEST_NOT_AVAILABLE'
@@ -317,7 +320,7 @@ router.post(
       }
 
       // Verifica che il professionista abbia la sottocategoria abilitata
-      const hasSubcategory = await prisma.User_AssistanceRequest_professionalIdToUserUserSubcategory.findFirst({
+      const hasSubcategory = await prisma.professionalUserSubcategory.findFirst({
         where: {
           userId,
           subcategoryId: request.subcategoryId!,
@@ -326,7 +329,7 @@ router.post(
       });
 
       if (!hasSubcategory) {
-        return res.status('403').json(
+        return res.status(403).json(
           ResponseFormatter.error(
             'Non sei abilitato per questa sottocategoria',
             'SUBCATEGORY_NOT_ENABLED'
@@ -351,8 +354,8 @@ router.post(
               phone: true
             }
           },
-          Category: true,
-          SubCategory: true
+          category: true,
+          subcategory: true
         }
       });
 
@@ -384,5 +387,154 @@ router.post(
     }
   }
 );
+
+/**
+ * PUT /api/professionals/:id/approve
+ * Approva un professionista (solo admin)
+ */
+router.put('/:id/approve', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    const { notes } = req.body;
+
+    const user = await prisma.user.update({
+      where: { id },
+      data: {
+        approvalStatus: 'APPROVED',
+        approvedAt: new Date(),
+        approvedBy: req.user.id,
+        approvalNotes: notes
+      }
+    });
+
+    // Invia notifica al professionista
+    await notificationService.sendToUser(id, {
+      title: 'Account Approvato',
+      message: 'Il tuo account professionista è stato approvato! Ora puoi iniziare a ricevere richieste.',
+      type: 'APPROVAL',
+      priority: 'HIGH'
+    });
+
+    return res.json(ResponseFormatter.success(user, 'Professionista approvato'));
+  } catch (error) {
+    logger.error('Errore approvazione:', error);
+    return res.status(500).json(ResponseFormatter.error('Errore approvazione', 'APPROVAL_ERROR'));
+  }
+});
+
+/**
+ * PUT /api/professionals/:id/reject
+ * Rifiuta un professionista (solo admin)
+ */
+router.put('/:id/reject', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const user = await prisma.user.update({
+      where: { id },
+      data: {
+        approvalStatus: 'REJECTED',
+        rejectedAt: new Date(),
+        rejectedBy: req.user.id,
+        rejectionReason: reason
+      }
+    });
+
+    // Invia notifica al professionista
+    await notificationService.sendToUser(id, {
+      title: 'Registrazione Non Approvata',
+      message: `La tua registrazione come professionista non è stata approvata. Motivo: ${reason}`,
+      type: 'REJECTION',
+      priority: 'HIGH'
+    });
+
+    return res.json(ResponseFormatter.success(user, 'Professionista rifiutato'));
+  } catch (error) {
+    logger.error('Errore rifiuto:', error);
+    return res.status(500).json(ResponseFormatter.error('Errore rifiuto', 'REJECTION_ERROR'));
+  }
+});
+
+/**
+ * POST /api/professionals/:id/request-documents
+ * Richiedi documenti mancanti (solo admin)
+ */
+router.post('/:id/request-documents', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    const { missingDocuments, customMessage } = req.body;
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        email: true,
+        firstName: true,
+        lastName: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json(ResponseFormatter.error('Utente non trovato', 'USER_NOT_FOUND'));
+    }
+
+    // Prepara l'email
+    const documentList = missingDocuments.map((doc: any) => `- ${doc.label}`).join('\n');
+    
+    const emailBody = `
+      Gentile ${user.firstName} ${user.lastName},
+      
+      Per completare la sua registrazione come professionista sulla piattaforma Richiesta Assistenza,
+      la preghiamo di fornire i seguenti documenti:
+      
+      ${documentList}
+      
+      ${customMessage ? `\n${customMessage}\n` : ''}
+      
+      Può caricare i documenti accedendo al suo profilo o inviandoli in risposta a questa email.
+      
+      Cordiali saluti,
+      Il Team di Richiesta Assistenza
+    `;
+
+    // Invia email
+    await emailService.sendEmail({
+      to: user.email,
+      subject: 'Richiesta Documenti - Completamento Registrazione',
+      text: emailBody,
+      html: emailBody.replace(/\n/g, '<br>')
+    });
+
+    // Registra l'azione
+    await prisma.auditLog.create({
+      data: {
+        action: 'REQUEST_DOCUMENTS',
+        entityType: 'User',
+        entityId: id,
+        userId: req.user.id,
+        details: {
+          missingDocuments,
+          customMessage
+        },
+        success: true,
+        severity: 'INFO',
+        category: 'ADMIN'
+      }
+    });
+
+    // Invia notifica in-app
+    await notificationService.sendToUser(id, {
+      title: 'Documenti Richiesti',
+      message: 'Ti abbiamo inviato un\'email con la lista dei documenti necessari per completare la registrazione.',
+      type: 'DOCUMENT_REQUEST',
+      priority: 'HIGH'
+    });
+
+    return res.json(ResponseFormatter.success(null, 'Email inviata con successo'));
+  } catch (error) {
+    logger.error('Errore invio richiesta documenti:', error);
+    return res.status(500).json(ResponseFormatter.error('Errore invio email', 'EMAIL_ERROR'));
+  }
+});
 
 export default router;

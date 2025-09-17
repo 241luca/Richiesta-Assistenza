@@ -245,7 +245,7 @@ class ProfessionalPhrasesService {
           isActive: true
         },
         select: {
-          Category: true,
+          category: true,
           code: true,
           title: true,
           content: true,

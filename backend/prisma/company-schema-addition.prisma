@@ -1,0 +1,83 @@
+// Aggiungi questo al tuo schema.prisma
+
+model Company {
+  id                String   @id @default(cuid())
+  
+  // Dati aziendali
+  businessName      String   @unique // Ragione sociale UNICA
+  vatNumber         String   @unique // Partita IVA UNICA
+  fiscalCode        String?  // Codice fiscale azienda (se diverso da P.IVA)
+  
+  // Indirizzo sede legale
+  legalAddress      String
+  legalCity         String
+  legalProvince     String
+  legalPostalCode   String
+  legalCountry      String   @default("IT")
+  
+  // Indirizzo sede operativa (se diverso)
+  operativeAddress     String?
+  operativeCity        String?
+  operativeProvince    String?
+  operativePostalCode  String?
+  useOperativeAddress  Boolean @default(false)
+  
+  // Contatti aziendali
+  companyEmail      String?
+  companyPhone      String
+  companyWebsite    String?
+  pec               String?  // PEC aziendale
+  
+  // Dati amministrativi
+  sdiCode           String?  // Codice SDI per fatturazione elettronica
+  atecoCode         String?  // Codice ATECO attività
+  insuranceNumber   String?  // Numero polizza RC
+  insuranceExpiry   DateTime? // Scadenza assicurazione
+  
+  // Documenti aziendali
+  chamberOfCommerceDoc String? // Visura camerale
+  insuranceDoc         String? // Documento assicurazione
+  durcDoc              String? // DURC
+  
+  // Stato e verifiche
+  isVerified        Boolean  @default(false)
+  verifiedAt        DateTime?
+  verifiedBy        String?
+  isActive          Boolean  @default(true)
+  notes             String?  // Note interne admin
+  
+  // Relazioni
+  professionals     User[]   // Professionisti che lavorano per questa azienda
+  owner             User?    @relation("CompanyOwner", fields: [ownerId], references: [id])
+  ownerId           String?  
+  
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([businessName])
+  @@index([vatNumber])
+}
+
+// Aggiornamento model User per collegamento azienda
+model User {
+  // ... campi esistenti ...
+  
+  // Relazione con azienda (per professionisti)
+  company           Company? @relation(fields: [companyId], references: [id])
+  companyId         String?
+  
+  // Se è proprietario di un'azienda
+  ownedCompany      Company? @relation("CompanyOwner")
+  
+  // Ruolo nell'azienda
+  companyRole       CompanyRole? // OWNER, EMPLOYEE, COLLABORATOR
+  
+  // ... resto del modello ...
+}
+
+enum CompanyRole {
+  OWNER        // Titolare
+  EMPLOYEE     // Dipendente
+  COLLABORATOR // Collaboratore/Freelance
+}

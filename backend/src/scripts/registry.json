@@ -1,6 +1,132 @@
 {
   "scripts": [
     {
+      "id": "test-typescript",
+      "name": "Test TypeScript Completo",
+      "description": "Verifica tutti gli errori TypeScript nel progetto backend",
+      "category": "testing",
+      "path": "testing/test-typescript.js",
+      "risk": "low",
+      "parameters": [],
+      "requireConfirmation": false,
+      "minRole": "ADMIN",
+      "timeout": 60000,
+      "enabled": true
+    },
+    {
+      "id": "test-request-service",
+      "name": "Test Request Service",
+      "description": "Esegue test unitari sul servizio delle richieste di assistenza",
+      "category": "testing",
+      "path": "testing/test-request-service.js",
+      "risk": "low",
+      "parameters": [
+        {
+          "name": "verbose",
+          "type": "boolean",
+          "default": false,
+          "description": "Output dettagliato dei test"
+        }
+      ],
+      "requireConfirmation": false,
+      "minRole": "ADMIN",
+      "timeout": 120000,
+      "enabled": true
+    },
+    {
+      "id": "test-api-endpoints",
+      "name": "Test API Endpoints",
+      "description": "Verifica che tutti gli endpoint API rispondano correttamente",
+      "category": "testing",
+      "path": "testing/test-api-endpoints.js",
+      "risk": "low",
+      "parameters": [
+        {
+          "name": "category",
+          "type": "select",
+          "options": ["all", "auth", "requests", "quotes", "users", "notifications"],
+          "default": "all",
+          "description": "Categoria di endpoint da testare"
+        }
+      ],
+      "requireConfirmation": false,
+      "minRole": "ADMIN",
+      "timeout": 180000,
+      "enabled": true
+    },
+    {
+      "id": "test-system-complete",
+      "name": "Test Sistema Completo",
+      "description": "Esegue una suite completa di test su tutto il sistema",
+      "category": "testing",
+      "path": "testing/test-system-complete.js",
+      "risk": "low",
+      "parameters": [],
+      "requireConfirmation": false,
+      "minRole": "ADMIN",
+      "timeout": 300000,
+      "enabled": true
+    },
+    {
+      "id": "typescript-errors-check",
+      "name": "TypeScript Errors Check",
+      "description": "Controlla errori TypeScript in backend e frontend, ordinati per numero di errori",
+      "category": "testing",
+      "path": "testing/typescript-errors-check.ts",
+      "risk": "low",
+      "parameters": [
+        {
+          "name": "area",
+          "type": "select",
+          "options": ["all", "backend", "frontend"],
+          "default": "all",
+          "description": "Area da controllare"
+        },
+        {
+          "name": "showDetails",
+          "type": "boolean",
+          "default": true,
+          "description": "Mostra dettagli degli errori"
+        },
+        {
+          "name": "limit",
+          "type": "number",
+          "default": 20,
+          "description": "Numero massimo di file da mostrare per area"
+        }
+      ],
+      "requireConfirmation": false,
+      "minRole": "ADMIN",
+      "timeout": 120000,
+      "enabled": true
+    },
+    {
+      "id": "check-response-formatter",
+      "name": "Check ResponseFormatter Usage",
+      "description": "Verifica che tutte le routes usino ResponseFormatter e che i services NON lo usino",
+      "category": "testing",
+      "path": "testing/check-response-formatter.ts",
+      "risk": "low",
+      "parameters": [
+        {
+          "name": "showCode",
+          "type": "boolean",
+          "default": true,
+          "description": "Mostra il codice delle violazioni"
+        },
+        {
+          "name": "checkServices",
+          "type": "boolean",
+          "default": true,
+          "description": "Controlla anche che i services NON usino ResponseFormatter"
+        }
+      ],
+      "requireConfirmation": false,
+      "minRole": "ADMIN",
+      "timeout": 60000,
+      "enabled": true
+    },
+    {
       "id": "create-health-tables",
       "name": "Create Health Check Tables",
       "description": "Crea le tabelle necessarie per il sistema Health Check nel database",
@@ -317,6 +443,13 @@
   ],
   "categories": [
     {
+      "id": "testing",
+      "name": "Testing",
+      "description": "Script per test automatici del sistema",
+      "icon": "beaker",
+      "color": "orange"
+    },
+    {
       "id": "database",
       "name": "Database",
       "description": "Script per gestione database",
@@ -352,6 +485,6 @@
       "color": "red"
     }
   ],
-  "version": "1.0.0",
-  "lastUpdated": "2025-09-08T12:00:00Z"
+  "version": "1.2.0",
+  "lastUpdated": "2025-09-11T10:00:00Z"
 }

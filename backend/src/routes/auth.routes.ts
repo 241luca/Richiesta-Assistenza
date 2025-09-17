@@ -29,8 +29,39 @@ const registerSchema = z.object({
   city: z.string().min(2).max(100),
   province: z.string().length(2),
   postalCode: z.string().regex(/^\d{5}$/),
-  codiceFiscale: z.string().length(16).optional(),
+  codiceFiscale: z.string().length(16).optional().or(z.literal('')),
   partitaIva: z.string().length(11).optional(),
+  
+  // Campi aggiuntivi
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  dateOfBirth: z.string().optional(),
+  username: z.string().optional(),
+  fullName: z.string().optional(),
+  
+  // Privacy
+  privacyAccepted: z.boolean().optional(),
+  termsAccepted: z.boolean().optional(),
+  marketingAccepted: z.boolean().optional(),
+  privacyAcceptedAt: z.string().optional(),
+  termsAcceptedAt: z.string().optional(),
+  marketingAcceptedAt: z.string().optional(),
+  
+  // Campi professionisti
+  professionId: z.string().optional(),
+  businessName: z.string().optional(),
+  businessAddress: z.string().optional(),
+  businessCity: z.string().optional(),
+  businessProvince: z.string().optional(),
+  businessPostalCode: z.string().optional(),
+  businessLatitude: z.number().optional(),
+  businessLongitude: z.number().optional(),
+  businessCF: z.string().optional(),
+  businessPhone: z.string().optional(),
+  businessEmail: z.string().email().optional(),
+  businessPec: z.string().email().optional(),
+  businessSdi: z.string().optional(),
+  approvalStatus: z.string().optional(),
 });
 
 const loginSchema = z.object({
@@ -76,27 +107,70 @@ function generateTokens(userId: string) {
  * Register a new user
  */
 router.post('/register', 
-  validateBody(registerSchema),
   asyncHandler(async (req: any, res: any) => {
     const data = req.body;
+    
+    // Validazione manuale per debug
+    try {
+      const validatedData = registerSchema.parse(data);
+    } catch (error: any) {
+      logger.error('Validation error:', error);
+      return res.status(400).json(
+        ResponseFormatter.error(
+          'Dati non validi. Controlla tutti i campi obbligatori.',
+          'VALIDATION_ERROR',
+          error.errors
+        )
+      );
+    }
 
     // Check if user already exists
     const existingUser = await prisma.user.findFirst({
       where: {
-        OR: [
-          { email: data.email },
-          { username: data.email.split('@')[0] }
-        ]
+        email: data.email.toLowerCase() // Solo email, rimuovi OR con username
       }
     });
 
     if (existingUser) {
+      logger.warn(`Registration attempt with existing email: ${data.email}`);
       return res.status(409).json(
         ResponseFormatter.error(
-          'An account with this email already exists',
-          'USER_ALREADY_EXISTS'
+          'Esiste già un account registrato con questa email. Per favore accedi o usa un\'altra email.',
+          'EMAIL_ALREADY_EXISTS'
         )
       );
+    }
+
+    // Check for duplicate Partita IVA (for professionals)
+    if (data.partitaIva) {
+      const existingPIVA = await prisma.user.findFirst({
+        where: { partitaIva: data.partitaIva }
+      });
+      
+      if (existingPIVA) {
+        return res.status(409).json(
+          ResponseFormatter.error(
+            'Questa Partita IVA è già registrata nel sistema.',
+            'PIVA_ALREADY_EXISTS'
+          )
+        );
+      }
+    }
+
+    // Check for duplicate Codice Fiscale
+    if (data.codiceFiscale) {
+      const existingCF = await prisma.user.findFirst({
+        where: { codiceFiscale: data.codiceFiscale.toUpperCase() }
+      });
+      
+      if (existingCF) {
+        return res.status(409).json(
+          ResponseFormatter.error(
+            'Questo Codice Fiscale è già registrato nel sistema.',
+            'CF_ALREADY_EXISTS'
+          )
+        );
+      }
     }
 
     // Hash password
@@ -105,20 +179,53 @@ router.post('/register',
     // Create user
     const user = await prisma.user.create({
       data: {
-        email: data.email,
-        username: data.email.split('@')[0] + '_' + Date.now(), // Ensure unique username
+        id: randomUUID(), // Aggiungi ID univoco
+        email: data.email.toLowerCase(),
+        username: data.username || (data.email.split('@')[0] + '_' + Date.now()),
         password: hashedPassword,
         firstName: data.firstName,
         lastName: data.lastName,
-        fullName: `${data.firstName} ${data.lastName}`,
+        fullName: data.fullName || `${data.firstName} ${data.lastName}`,
         phone: data.phone,
         role: data.role,
         address: data.address,
         city: data.city,
-        province: data.province,
+        province: data.province.toUpperCase(),
         postalCode: data.postalCode,
-        codiceFiscale: data.codiceFiscale,
-        partitaIva: data.partitaIva,
+        codiceFiscale: data.codiceFiscale ? data.codiceFiscale.toUpperCase() : null,
+        partitaIva: data.partitaIva || null,
+        latitude: data.latitude || null,
+        longitude: data.longitude || null,
+        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
+        
+        // Privacy fields
+        privacyAccepted: data.privacyAccepted || false,
+        termsAccepted: data.termsAccepted || false,
+        marketingAccepted: data.marketingAccepted || false,
+        privacyAcceptedAt: data.privacyAcceptedAt ? new Date(data.privacyAcceptedAt) : null,
+        termsAcceptedAt: data.termsAcceptedAt ? new Date(data.termsAcceptedAt) : null,
+        marketingAcceptedAt: data.marketingAcceptedAt ? new Date(data.marketingAcceptedAt) : null,
+        
+        // Professional fields (if applicable)
+        ...(data.role === 'PROFESSIONAL' && {
+          professionId: data.professionId,
+          businessName: data.businessName,
+          businessAddress: data.businessAddress,
+          businessCity: data.businessCity,
+          businessProvince: data.businessProvince?.toUpperCase(),
+          businessPostalCode: data.businessPostalCode,
+          businessLatitude: data.businessLatitude,
+          businessLongitude: data.businessLongitude,
+          businessCF: data.businessCF,
+          businessPhone: data.businessPhone,
+          businessEmail: data.businessEmail,
+          businessPec: data.businessPec,
+          businessSdi: data.businessSdi,
+          approvalStatus: data.approvalStatus || 'PENDING',
+        }),
+        
+        createdAt: new Date(),
+        updatedAt: new Date()
       },
       select: {
         id: true,

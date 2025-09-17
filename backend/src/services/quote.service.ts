@@ -1,4 +1,4 @@
-import { PrismaClient, Quote, QuoteItem, QuoteStatus, Prisma } from '@prisma/client';
+import { PrismaClient, Quote, items, QuoteStatus, Prisma } from '@prisma/client';
 import { AppError } from '../utils/errors';
 import { notificationService } from './notification.service';
 // import { emailService } from './email.service'; // COMMENTED: Non esiste ancora
@@ -6,7 +6,7 @@ import { notificationService } from './notification.service';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../utils/logger';
 // AGGIUNTO: ResponseFormatter per formattazione consistente
-import { formatQuote, formatQuoteList, formatQuoteItem } from '../utils/responseFormatter';
+import { formatQuote, formatQuoteList, formatitems } from '../utils/responseFormatter';
 
 const prisma = new PrismaClient();
 
@@ -20,11 +20,11 @@ interface CreateQuoteInput {
   requiresDeposit?: boolean;
   requestId: string;
   professionalId: string;
-  items: CreateQuoteItemInput[];
+  items: CreateitemsInput[];
   templateId?: string;
 }
 
-interface CreateQuoteItemInput {
+interface CreateitemsInput {
   description: string;
   quantity: number;
   unitPrice: number;
@@ -42,7 +42,7 @@ interface UpdateQuoteInput {
   notes?: string;
   termsConditions?: string;
   internalNotes?: string;
-  items?: CreateQuoteItemInput[];
+  items?: CreateitemsInput[];
   updateReason?: string;
 }
 
@@ -54,7 +54,7 @@ class QuoteService {
     // Verifica che la richiesta esista
     const request = await prisma.assistanceRequest.findUnique({
       where: { id: input.requestId },
-      include: { Category: true, SubCategory: true }
+      include: { category: true, subcategory: true }
     });
 
     if (!request) {
@@ -167,7 +167,7 @@ class QuoteService {
   async updateQuote(quoteId: string, input: UpdateQuoteInput, recipientId: string) {
     const existingQuote = await prisma.quote.findUnique({
       where: { id: quoteId },
-      include: { QuoteItem: true }
+      include: { items: true }
     });
 
     if (!existingQuote) {
@@ -179,7 +179,7 @@ class QuoteService {
     }
 
     // Prepara i nuovi items se forniti
-    const newItems = input.items || existingQuote.QuoteItem.map(item => ({
+    const newItems = input.items || existingQuote.items.map(item => ({
       description: item.description,
       quantity: Number(item.quantity),
       unitPrice: Number(item.unitPrice),
@@ -224,7 +224,7 @@ class QuoteService {
       });
 
       // Se ci sono nuovi items, elimina i vecchi e crea i nuovi
-      let items = existingQuote.QuoteItem;
+      let items = existingQuote.items;
       if (input.items) {
         await tx.quoteItem.deleteMany({
           where: { quoteId: quoteId }
@@ -288,7 +288,7 @@ class QuoteService {
       where: { id: quoteId },
       include: { 
         assistanceRequest: true,
-        User: true
+        user: true
       }
     });
 
@@ -353,7 +353,7 @@ class QuoteService {
         quoteId: quote.id,
         requestId: quote.requestId,
         amount: quote.amount,
-        clientName: quote.assistanceRequest.User_AssistanceRequest_clientIdToUser?.fullName || 'Cliente',
+        clientName: quote.assistanceRequest.client?.fullName || 'Cliente',
         actionUrl: `${process.env.FRONTEND_URL}/quotes/${quote.id}`
       },
       channels: ['websocket', 'email']
@@ -482,8 +482,8 @@ class QuoteService {
     const quote = await prisma.quote.findUnique({
       where: { id: quoteId },
       include: { 
-        QuoteItem: { orderBy: { order: 'asc' } },
-        assistanceRequest: { include: { Category: true, SubCategory: true } }
+        items: { orderBy: { order: 'asc' } },
+        assistanceRequest: { include: { category: true, subcategory: true } }
       }
     });
 
@@ -500,7 +500,7 @@ class QuoteService {
           title: quote.title,
           notes: quote.notes,
           terms: quote.terms,
-          items: quote.QuoteItem.map(item => ({
+          items: quote.items.map(item => ({
             description: item.description,
             quantity: Number(item.quantity),
             unitPrice: Number(item.unitPrice),
@@ -541,7 +541,7 @@ class QuoteService {
   /**
    * Helper: Calcola totali del preventivo
    */
-  private calculateQuoteTotals(items: CreateQuoteItemInput[]) {
+  private calculateQuoteTotals(items: CreateitemsInput[]) {
     let subtotal = 0;
     let taxAmount = 0;
     let discountAmount = 0;
@@ -701,12 +701,12 @@ class QuoteService {
         status: { in: ['PENDING', 'ACCEPTED'] }
       },
       include: {
-        QuoteItem: { orderBy: { order: 'asc' } },
-        User: {
+        items: { orderBy: { order: 'asc' } },
+        user: {
           select: {
             id: true,
             fullName: true,
-            profession: true,
+            professionData: true,
             hourlyRate: true
           }
         }
@@ -720,7 +720,7 @@ class QuoteService {
     // Prepara dati per confronto con informazioni aggiuntive
     const comparison = formattedQuotes.map((quote: any) => ({
       ...quote,
-      itemCount: quote.QuoteItem ? quote.QuoteItem.length : 0,
+      itemCount: quote.items ? quote.items.length : 0,
       // Aggiungi metadati utili per il confronto
       _comparison: {
         hasDeposit: !!quote.depositAmount,

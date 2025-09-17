@@ -201,7 +201,7 @@ router.get('/request/:id/travel-info', authenticate, async (req: any, res) => {
     const request = await prisma.assistanceRequest.findUnique({
       where: { id: requestId },
       include: {
-        Professional: true
+        professional: true
       }
     });
     

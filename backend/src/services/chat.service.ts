@@ -118,7 +118,7 @@ class ChatService {
           updatedAt: new Date()
         },
         include: {
-          User: {
+          user: {
             select: {
               id: true,
               firstName: true,
@@ -131,10 +131,17 @@ class ChatService {
         }
       });
 
+      // Trasforma per compatibilità con il frontend (User con maiuscola)
+      const formattedMessage = {
+        ...message,
+        User: message.user
+      };
+      delete (formattedMessage as any).user;
+
       // ✅ FIX: Usa il sistema di notifiche centrale
       await this.createChatNotificationsV2(data.requestId, data.userId, data.message);
 
-      return message;
+      return formattedMessage;
     } catch (error) {
       logger.error('Error sending chat message:', error);
       throw error;
@@ -158,7 +165,7 @@ class ChatService {
           isDeleted: false
         },
         include: {
-          User: {
+          user: {
             select: {
               id: true,
               firstName: true,
@@ -179,7 +186,17 @@ class ChatService {
       // Segna i messaggi come letti
       await this.markMessagesAsRead(requestId, userId);
 
-      return messages.reverse(); // Inverti per mostrare dal più vecchio al più recente
+      // Trasforma per compatibilità con il frontend (User con maiuscola)
+      const formattedMessages = messages.map(msg => {
+        const formatted = {
+          ...msg,
+          User: msg.user
+        };
+        delete (formatted as any).user;
+        return formatted;
+      });
+
+      return formattedMessages.reverse(); // Inverti per mostrare dal più vecchio al più recente
     } catch (error) {
       logger.error('Error getting chat messages:', error);
       throw error;
@@ -218,7 +235,7 @@ class ChatService {
           updatedAt: new Date()
         },
         include: {
-          User: {
+          user: {
             select: {
               id: true,
               firstName: true,
@@ -231,7 +248,14 @@ class ChatService {
         }
       });
 
-      return updatedMessage;
+      // Trasforma per compatibilità con il frontend (User con maiuscola)
+      const formattedMessage = {
+        ...updatedMessage,
+        User: updatedMessage.user
+      };
+      delete (formattedMessage as any).user;
+
+      return formattedMessage;
     } catch (error) {
       logger.error('Error updating chat message:', error);
       throw error;

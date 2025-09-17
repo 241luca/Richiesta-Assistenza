@@ -38,9 +38,9 @@ router.get('/subcategories', authenticate, async (req: any, res) => {
         isActive: true 
       },
       include: {
-        Subcategory: {
+        subcategory: {
           include: {
-            Category: true
+            category: true
           }
         }
       }
@@ -141,9 +141,9 @@ router.put('/subcategories', authenticate, async (req: any, res) => {
         isActive: true 
       },
       include: {
-        Subcategory: {
+        subcategory: {
           include: {
-            Category: true
+            category: true
           }
         }
       }
@@ -243,7 +243,9 @@ const canAccessUserData = (req: any, res: any, next: any) => {
 
 // Middleware per verificare se l'utente è admin (solo admin)
 const requireAdmin = (req: any, res: any, next: any) => {
+  console.log(`User role check: ${req.user?.role}`);
   if (req.user?.role !== 'ADMIN' && req.user?.role !== 'SUPER_ADMIN') {
+    console.log(`Access denied for role: ${req.user?.role}`);
     return res.status(403).json(ResponseFormatter.error(
       'Accesso negato. Solo gli amministratori possono accedere a questa risorsa.',
       'FORBIDDEN'
@@ -277,9 +279,9 @@ router.get('/subcategories/:userId', authenticate, canAccessUserData, async (req
         isActive: true 
       },
       include: {
-        Subcategory: {
+        subcategory: {
           include: {
-            Category: true
+            category: true
           }
         }
       }
@@ -384,9 +386,9 @@ router.put('/subcategories/:userId', authenticate, requireAdmin, async (req: any
         isActive: true 
       },
       include: {
-        Subcategory: {
+        subcategory: {
           include: {
-            Category: true
+            category: true
           }
         }
       }
@@ -411,8 +413,12 @@ router.put('/subcategories/:userId', authenticate, requireAdmin, async (req: any
 // POST /user/subcategories/:userId/add - Aggiungi una singola sottocategoria (ADMIN ONLY)
 router.post('/subcategories/:userId/add', authenticate, requireAdmin, async (req: any, res) => {
   try {
+    logger.info(`POST /user/subcategories/:userId/add called by user ${req.user.id} with role ${req.user.role}`);
+    
     const { userId } = req.params;
     const { subcategoryId, experienceLevel = 'INTERMEDIATE' } = req.body;
+    
+    logger.info(`Request params: userId=${userId}, subcategoryId=${subcategoryId}, experienceLevel=${experienceLevel}`);
     
     // Verifica che l'utente sia un professionista
     const user = await prisma.user.findUnique({
@@ -467,9 +473,9 @@ router.post('/subcategories/:userId/add', authenticate, requireAdmin, async (req
         updatedAt: new Date()
       },
       include: {
-        Subcategory: {
+        subcategory: {
           include: {
-            Category: true
+            category: true
           }
         }
       }
@@ -485,6 +491,54 @@ router.post('/subcategories/:userId/add', authenticate, requireAdmin, async (req
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiunta della sottocategoria',
       'SUBCATEGORY_ADD_ERROR'
+    ));
+  }
+});
+
+// DELETE /user/subcategories/:userId/:subcategoryId - Rimuovi una sottocategoria (ADMIN ONLY)
+router.delete('/subcategories/:userId/:subcategoryId', authenticate, requireAdmin, async (req: any, res) => {
+  try {
+    const { userId, subcategoryId } = req.params;
+    
+    // Verifica che la relazione esista
+    const existingRelation = await prisma.professionalUserSubcategory.findUnique({
+      where: {
+        userId_subcategoryId: {
+          userId: userId,
+          subcategoryId: subcategoryId
+        }
+      }
+    });
+    
+    if (!existingRelation) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Sottocategoria non trovata per questo professionista',
+        'SUBCATEGORY_NOT_FOUND'
+      ));
+    }
+    
+    // Rimuovi la relazione
+    await prisma.professionalUserSubcategory.delete({
+      where: {
+        userId_subcategoryId: {
+          userId: userId,
+          subcategoryId: subcategoryId
+        }
+      }
+    });
+    
+    logger.info(`Admin ${req.user.id} removed subcategory ${subcategoryId} from professional ${userId}`);
+    
+    return res.json(ResponseFormatter.success(
+      null,
+      'Sottocategoria rimossa con successo'
+    ));
+    
+  } catch (error) {
+    logger.error('Error removing professional Subcategory:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nella rimozione della sottocategoria',
+      'SUBCATEGORY_REMOVE_ERROR'
     ));
   }
 });

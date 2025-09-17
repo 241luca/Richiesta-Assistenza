@@ -1,0 +1,71 @@
+// Schema Prisma aggiornato con ruolo COMPANY_ADMIN
+
+enum CompanyRole {
+  OWNER         // Titolare/Proprietario (può tutto)
+  COMPANY_ADMIN // Admin aziendale (gestisce team, non può chiudere azienda)
+  EMPLOYEE      // Dipendente (solo lavora)
+  COLLABORATOR  // Collaboratore/Freelance (temporaneo)
+}
+
+model Company {
+  id                String   @id @default(cuid())
+  
+  // ... altri campi ...
+  
+  // Relazioni
+  professionals     User[]   // Tutti i professionisti dell'azienda
+  owner             User?    @relation("CompanyOwner", fields: [ownerId], references: [id])
+  ownerId           String?  @unique
+  
+  // Permessi aziendali
+  companyPermissions CompanyPermission[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model CompanyPermission {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id])
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  
+  // Permessi operativi
+  canViewAllRequests   Boolean @default(false)  // Vedere TUTTE le richieste aziendali
+  canAssignRequests    Boolean @default(false)  // Assegnare richieste ai dipendenti
+  canCreateQuotes      Boolean @default(false)  // Fare preventivi per conto azienda
+  canEditQuotes        Boolean @default(false)  // Modificare preventivi di altri
+  canApproveQuotes     Boolean @default(false)  // Approvare preventivi prima invio
+  
+  // Permessi gestionali
+  canManageTeam        Boolean @default(false)  // Aggiungere/rimuovere dipendenti
+  canGenerateCodes     Boolean @default(false)  // Generare codici invito
+  canViewReports       Boolean @default(false)  // Vedere report aziendali
+  canManageServices    Boolean @default(false)  // Gestire servizi offerti
+  canManagePricing     Boolean @default(false)  // Modificare prezzi
+  canApproveRequests   Boolean @default(false)  // Accettare/rifiutare richieste clienti
+  canManageDocuments   Boolean @default(false)  // Gestire documenti aziendali
+  canViewFinancials    Boolean @default(false)  // Vedere dati finanziari
+  
+  // Permessi comunicazione
+  canMessageAllClients Boolean @default(false)  // Messaggiare tutti i clienti aziendali
+  canManageReviews     Boolean @default(false)  // Rispondere alle recensioni
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@unique([companyId, userId])
+}
+
+model User {
+  // ... campi esistenti ...
+  
+  // Ruolo nell'azienda
+  companyRole       CompanyRole? // OWNER, COMPANY_ADMIN, EMPLOYEE, COLLABORATOR
+  
+  // Permessi specifici se admin aziendale
+  companyPermissions CompanyPermission[]
+  
+  // ... resto del modello ...
+}

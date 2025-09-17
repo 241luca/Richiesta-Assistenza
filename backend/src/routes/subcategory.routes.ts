@@ -6,6 +6,7 @@ import { requireRole } from '../middleware/rbac';
 import { subcategoryService } from '../services/subcategory.service';
 import { validateRequest } from '../middleware/validation';
 import { ResponseFormatter, formatSubcategoryList, formatSubcategory } from '../utils/responseFormatter';
+import { prisma } from '../config/database';
 
 const router = Router();
 
@@ -216,6 +217,36 @@ router.delete(
       res.json(ResponseFormatter.success(
         null,
         'Subcategory deleted successfully'
+      ));
+    } catch (error) {
+      console.error('Subcategory route error:', error);
+      logger.error('Subcategory route error:', error);
+      next(error);
+    }
+  }
+);
+
+// GET /api/subcategories/by-category/:categoryId - Get subcategories by category
+router.get(
+  '/by-category/:categoryId',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const { categoryId } = req.params;
+      
+      const subcategories = await prisma.subcategory.findMany({
+        where: {
+          categoryId: categoryId,
+          isActive: true
+        },
+        orderBy: {
+          displayOrder: 'asc'
+        }
+      });
+
+      res.json(ResponseFormatter.success(
+        subcategories,
+        'Subcategories retrieved successfully'
       ));
     } catch (error) {
       console.error('Subcategory route error:', error);

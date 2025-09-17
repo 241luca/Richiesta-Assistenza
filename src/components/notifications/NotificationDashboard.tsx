@@ -81,7 +81,7 @@ const CHANNELS = {
 };
 
 const NotificationDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'templates' | 'events' | 'logs' | 'test'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'templates' | 'email-templates' | 'events' | 'logs' | 'test'>('overview');
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [selectedLog, setSelectedLog] = useState(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -135,7 +135,7 @@ const NotificationDashboard: React.FC = () => {
       const response = await api.get('/notification-templates/templates', { params });
       return response.data?.data;
     },
-    enabled: activeTab === 'templates'
+    enabled: activeTab === 'templates' || activeTab === 'email-templates'
   });
 
   // === QUERY: EVENTI ===
@@ -835,6 +835,17 @@ const NotificationDashboard: React.FC = () => {
               Template
             </button>
             <button
+              onClick={() => setActiveTab('email-templates')}
+              className={`${
+                activeTab === 'email-templates'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+            >
+              <EnvelopeIcon className="h-4 w-4 mr-2" />
+              Email Brevo
+            </button>
+            <button
               onClick={() => setActiveTab('events')}
               className={`${
                 activeTab === 'events'
@@ -870,6 +881,73 @@ const NotificationDashboard: React.FC = () => {
               <h2 className="text-lg font-semibold mb-4">Template Notifiche</h2>
               <p className="text-gray-500">Usa il sistema template esistente...</p>
             </div>
+          </div>
+        )}
+        {activeTab === 'email-templates' && (
+          <div>
+            <div className="mb-6 flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Template Email Brevo</h2>
+                <p className="mt-1 text-gray-600">
+                  Gestisci i template email che verranno inviati tramite Brevo
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedTemplate({
+                    code: '',
+                    name: '',
+                    description: '',
+                    category: 'system',
+                    subject: '',
+                    htmlContent: '',
+                    textContent: '',
+                    variables: [],
+                    channels: ['email'],
+                    priority: 'NORMAL',
+                    isActive: true
+                  });
+                  setIsEditorOpen(true);
+                }}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+              >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                Nuovo Template Email
+              </button>
+            </div>
+            
+            {/* Lista dei template email esistenti */}
+            {templatesLoading ? (
+              <div className="flex justify-center items-center h-64">
+                <ArrowPathIcon className="h-8 w-8 animate-spin text-blue-600" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {templates?.filter((t: any) => t.channels?.includes('email') || t.channels?.includes('EMAIL')).map((template: any) => (
+                  <div key={template.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
+                      {template.isActive && (
+                        <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 mb-3">{template.description}</p>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">Codice: {template.code}</span>
+                      <button
+                        onClick={() => {
+                          setSelectedTemplate(template);
+                          setIsEditorOpen(true);
+                        }}
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      >
+                        Modifica
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
         {activeTab === 'events' && <EventManager events={events || []} />}

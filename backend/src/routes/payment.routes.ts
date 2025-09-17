@@ -90,14 +90,14 @@ router.get('/', authenticate, async (req: any, res: any) => {
       prisma.payment.findMany({
         where,
         include: {
-          Quote: {
+          quote: {
             select: {
               id: true,
               title: true,
               amount: true
             }
           },
-          User: {
+          user: {
             select: {
               id: true,
               firstName: true,
@@ -137,7 +137,7 @@ router.get('/:id', authenticate, async (req: any, res: any) => {
       },
       include: {
         Quote: true,
-        User: {
+        user: {
           select: {
             id: true,
             firstName: true,
@@ -180,11 +180,11 @@ router.post('/', authenticate, async (req: any, res: any) => {
         id: quoteId,
         OR: [
           { professionalId: req.user.id },
-          { AssistanceRequest: { clientId: req.user.id } }
+          { request: { clientId: req.user.id } }
         ]
       },
       include: {
-        AssistanceRequest: {
+        request: {
           include: {
             client: true,
             professional: true
@@ -267,9 +267,9 @@ router.put('/:id/confirm', authenticate, async (req: any, res: any) => {
     const payment = await prisma.payment.findUnique({
       where: { id: req.params.id },
       include: {
-        Quote: {
+        quote: {
           include: {
-            AssistanceRequest: {
+            request: {
               include: {
                 client: true,
                 professional: true
@@ -422,9 +422,9 @@ router.post('/:id/refund', authenticate, async (req: any, res: any) => {
     const payment = await prisma.payment.findUnique({
       where: { id: req.params.id },
       include: {
-        Quote: {
+        quote: {
           include: {
-            AssistanceRequest: {
+            request: {
               include: {
                 client: true,
                 professional: true
@@ -625,10 +625,10 @@ router.post('/send-reminders', authenticate, async (req: any, res: any) => {
         createdAt: { lte: threeDaysAgo }
       },
       include: {
-        User: true,
-        Quote: {
+        users: true,
+        quote: {
           include: {
-            AssistanceRequest: {
+            request: {
               include: {
                 professional: true
               }

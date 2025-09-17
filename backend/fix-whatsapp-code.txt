@@ -1,0 +1,53 @@
+/**
+ * FIX TEMPORANEO per whatsapp.routes.ts
+ * Questo corregge il problema del salvataggio messaggi
+ */
+
+// Trova questa sezione nel file whatsapp.routes.ts intorno alla riga 155:
+
+    // VECCHIO CODICE (commentalo):
+    /*
+    await prisma.whatsAppMessage?.create?.({
+      data: {
+        phoneNumber,
+        message,
+        direction: 'outgoing',
+        status: 'sent',
+        direction: 'outbound',
+        mediaUrl,
+        sentAt: new Date(),
+        metadata: {
+          sentBy: req.user.id,
+          sentByName: `${req.user.firstName} ${req.user.lastName}`,
+          sentByEmail: req.user.email,
+          filename
+        }
+      }
+    });
+    */
+
+    // NUOVO CODICE (sostituisci con questo):
+    try {
+      await prisma.whatsAppMessage.create({
+        data: {
+          phoneNumber,
+          message,
+          direction: 'outgoing',
+          status: 'sent',
+          mediaUrl: mediaUrl || null,
+          mediaType: mediaUrl ? 'media' : null,
+          userId: req.user?.id || null,
+          // timestamp viene generato automaticamente
+          metadata: {
+            sentBy: req.user?.id,
+            sentByName: req.user?.fullName || `${req.user?.firstName} ${req.user?.lastName}`,
+            sentByEmail: req.user?.email,
+            filename: filename || null
+          }
+        }
+      });
+      console.log('✅ Messaggio salvato nel database');
+    } catch (dbError) {
+      console.error('⚠️ Errore salvataggio messaggio nel DB (non blocca invio):', dbError);
+      // Non bloccare l'invio se il salvataggio nel DB fallisce
+    }

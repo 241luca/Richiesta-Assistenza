@@ -12,6 +12,7 @@ import { sendEmail } from './email.service';
 import { v4 as uuidv4 } from 'uuid';
 import { formatNotification, formatNotificationList } from '../utils/responseFormatter';
 import { getIO } from '../utils/socket';
+import { auditLogService } from './auditLog.service';
 
 const prisma = new PrismaClient();
 
@@ -93,10 +94,58 @@ export class NotificationService {
         promises.push(this.sendPushNotification(data.userId, data));
       }
 
-      await Promise.allSettled(promises);
-      logger.info(`Notification sent to user ${data.userId}: ${data.title}`);
+      const results = await Promise.allSettled(promises);
+      
+      // Conta successi e fallimenti
+      const successful = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      
+      // Registra nell'Audit Log
+      await auditLogService.log({
+        userId: data.userId,
+        ipAddress: 'system',
+        userAgent: 'notification-service',
+        action: 'NOTIFICATION_SENT' as any,
+        entityType: 'Notification',
+        entityId: notification.id,
+        newValues: {
+          type: data.type,
+          title: data.title,
+          channels: channels.join(', '),
+          priority: data.priority
+        },
+        metadata: {
+          channelsUsed: channels,
+          successful: successful,
+          failed: failed
+        },
+        success: failed === 0,
+        severity: failed > 0 ? 'WARNING' as any : 'INFO' as any,
+        category: 'BUSINESS' as any
+      });
+      
+      logger.info(`Notification sent to user ${data.userId}: ${data.title} (${successful} success, ${failed} failed)`);
     } catch (error) {
       logger.error('Error sending notification to user:', error);
+      
+      // Registra fallimento nell'Audit Log
+      await auditLogService.log({
+        userId: data.userId,
+        ipAddress: 'system',
+        userAgent: 'notification-service',
+        action: 'NOTIFICATION_FAILED' as any,
+        entityType: 'Notification',
+        metadata: {
+          type: data.type,
+          title: data.title,
+          error: (error as Error).message
+        },
+        success: false,
+        errorMessage: (error as Error).message,
+        severity: 'ERROR' as any,
+        category: 'BUSINESS' as any
+      });
+      
       throw error;
     }
   }
@@ -128,9 +177,49 @@ export class NotificationService {
         );
       }
 
+      // Registra broadcast nell'Audit Log
+      await auditLogService.log({
+        userId: 'system',
+        ipAddress: 'system',
+        userAgent: 'notification-service',
+        action: 'NOTIFICATION_BROADCAST' as any,
+        entityType: 'Notification',
+        newValues: {
+          type: data.type,
+          title: data.title,
+          channels: data.channels?.join(', ') || 'websocket'
+        },
+        metadata: {
+          broadcast: true,
+          channelsUsed: data.channels || ['websocket']
+        },
+        success: true,
+        severity: 'INFO' as any,
+        category: 'BUSINESS' as any
+      });
+      
       logger.info(`Notification broadcasted to all users: ${data.title}`);
     } catch (error) {
       logger.error('Error broadcasting notification:', error);
+      
+      // Registra fallimento nel broadcast
+      await auditLogService.log({
+        userId: 'system',
+        ipAddress: 'system',
+        userAgent: 'notification-service',
+        action: 'NOTIFICATION_BROADCAST_FAILED' as any,
+        entityType: 'Notification',
+        metadata: {
+          type: data.type,
+          title: data.title,
+          error: (error as Error).message
+        },
+        success: false,
+        errorMessage: (error as Error).message,
+        severity: 'ERROR' as any,
+        category: 'BUSINESS' as any
+      });
+      
       throw error;
     }
   }
@@ -151,9 +240,51 @@ export class NotificationService {
         users.map(user => this.sendToUser({ ...data, userId: user.id }))
       );
 
-      logger.info(`Notification sent to role ${role}: ${data.title}`);
+      // Registra invio per ruolo nell'Audit Log
+      await auditLogService.log({
+        userId: 'system',
+        ipAddress: 'system',
+        userAgent: 'notification-service',
+        action: 'NOTIFICATION_SENT_TO_ROLE' as any,
+        entityType: 'Notification',
+        newValues: {
+          type: data.type,
+          title: data.title,
+          targetRole: role,
+          userCount: users.length
+        },
+        metadata: {
+          role: role,
+          recipientCount: users.length
+        },
+        success: true,
+        severity: 'INFO' as any,
+        category: 'BUSINESS' as any
+      });
+      
+      logger.info(`Notification sent to role ${role}: ${data.title} (${users.length} users)`);
     } catch (error) {
       logger.error('Error sending notification to role:', error);
+      
+      // Registra fallimento nell'invio per ruolo
+      await auditLogService.log({
+        userId: 'system',
+        ipAddress: 'system',
+        userAgent: 'notification-service',
+        action: 'NOTIFICATION_ROLE_FAILED' as any,
+        entityType: 'Notification',
+        metadata: {
+          type: data.type,
+          title: data.title,
+          role: role,
+          error: (error as Error).message
+        },
+        success: false,
+        errorMessage: (error as Error).message,
+        severity: 'ERROR' as any,
+        category: 'BUSINESS' as any
+      });
+      
       throw error;
     }
   }
@@ -468,7 +599,24 @@ export class NotificationService {
         }
       });
 
-      logger.info(`Cleaned up ${result.count} old notifications`);
+      // Registra cleanup nell'Audit Log
+      await auditLogService.log({
+        userId: 'system',
+        ipAddress: 'system',
+        userAgent: 'notification-service',
+        action: 'NOTIFICATION_CLEANUP' as any,
+        entityType: 'Notification',
+        metadata: {
+          daysToKeep: daysToKeep,
+          deletedCount: result.count,
+          cutoffDate: cutoffDate.toISOString()
+        },
+        success: true,
+        severity: 'INFO' as any,
+        category: 'SYSTEM' as any
+      });
+      
+      logger.info(`Cleaned up ${result.count} old notifications (older than ${daysToKeep} days)`);
     } catch (error) {
       logger.error('Error cleaning up old notifications:', error);
     }

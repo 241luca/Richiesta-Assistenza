@@ -19,7 +19,9 @@ import {
   LockClosedIcon,
   PlayIcon,
   PlusIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  WrenchScrewdriverIcon,
+  FolderMinusIcon
 } from '@heroicons/react/24/outline';
 
 // Tipi per il sistema di backup
@@ -126,6 +128,7 @@ const BackupManagement: React.FC = () => {
   const [showCreateBackup, setShowCreateBackup] = useState(false);
   const [showCreateSchedule, setShowCreateSchedule] = useState(false);
   const [selectedBackup, setSelectedBackup] = useState<SystemBackup | null>(null);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
 
   // Query per ottenere i backup
   const { data: backupsData, isLoading: loadingBackups } = useQuery({
@@ -177,6 +180,22 @@ const BackupManagement: React.FC = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Errore nella verifica del backup');
+    },
+  });
+
+  // Mutation per eseguire il cleanup
+  const cleanupMutation = useMutation({
+    mutationFn: () => apiClient.post('/backup/cleanup-dev').then(res => res.data),
+    onMutate: () => {
+      setCleanupLoading(true);
+    },
+    onSuccess: (data) => {
+      toast.success(`Cleanup completato! ${data.data?.movedCount || 0} file spostati in ${data.data?.cleanupDir || 'CLEANUP'}`);
+      setCleanupLoading(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Errore durante il cleanup');
+      setCleanupLoading(false);
     },
   });
 
@@ -306,6 +325,73 @@ const BackupManagement: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Sezione Cleanup File Temporanei */}
+      <div className="bg-white rounded-lg shadow mb-6">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <WrenchScrewdriverIcon className="h-8 w-8 text-yellow-500 mr-3" />
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Pulizia File Temporanei</h2>
+                <p className="text-sm text-gray-600">Sposta i file temporanei di sviluppo in una cartella datata</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                if (confirm('Vuoi eseguire il cleanup dei file temporanei?\n\nQuesto sposterà tutti i file .backup-*, .sh, .fixed.ts e altri file temporanei in una cartella CLEANUP datata.')) {
+                  cleanupMutation.mutate();
+                }
+              }}
+              disabled={cleanupLoading}
+              className={`flex items-center px-4 py-2 rounded-lg text-white font-medium ${
+                cleanupLoading 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'bg-yellow-600 hover:bg-yellow-700'
+              }`}
+            >
+              {cleanupLoading ? (
+                <>
+                  <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
+                  Cleanup in corso...
+                </>
+              ) : (
+                <>
+                  <FolderMinusIcon className="h-5 w-5 mr-2" />
+                  Avvia Cleanup
+                </>
+              )}
+            </button>
+          </div>
+          
+          {/* Info box */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex">
+              <ExclamationCircleIcon className="h-5 w-5 text-yellow-400 mr-2 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-yellow-700">
+                <p className="font-medium mb-1">Il cleanup sposterà automaticamente:</p>
+                <ul className="list-disc list-inside space-y-1 ml-2">
+                  <li>File .backup-* (backup automatici)</li>
+                  <li>Script shell di test e fix (fix-*.sh, test-*.sh)</li>
+                  <li>File TypeScript temporanei (*.fixed.ts, *.fixed.tsx)</li>
+                  <li>File SQL di backup temporanei</li>
+                  <li>Altri file temporanei di sviluppo</li>
+                </ul>
+                <p className="mt-2">
+                  <strong>Nota:</strong> I file verranno spostati in una cartella CLEANUP-[timestamp], non eliminati.
+                  Puoi recuperarli se necessario.
+                </p>
+                <p className="mt-2">
+                  Per configurare quali file includere/escludere, vai su 
+                  <a href="/admin/system-enums" className="text-blue-600 hover:text-blue-800 underline ml-1">
+                    Tabelle Sistema → Servizio
+                  </a>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Tabs */}
       <div className="bg-white rounded-lg shadow">

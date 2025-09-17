@@ -3,7 +3,7 @@ import { authenticate } from '../middleware/auth';
 import { uploadMultiple, handleUploadError, isImageFile, UPLOAD_LIMITS } from '../middleware/upload.middleware';
 import { fileService } from '../services/file.service';
 // AGGIUNTO: ResponseFormatter per output consistente
-import { formatAttachment, formatAttachmentList } from '../utils/responseFormatter';
+import { ResponseFormatter, formatAttachment, formatAttachmentList } from '../utils/responseFormatter';
 import path from 'path';
 import fs from 'fs/promises';
 

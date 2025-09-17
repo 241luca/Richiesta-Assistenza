@@ -8,8 +8,8 @@ export class CategoryService {
       include: {
         _count: {
         select: {
-          Subcategory: true,
-            AssistanceRequest: true,
+          subcategories: true,
+            requests: true,
           },
         },
       },

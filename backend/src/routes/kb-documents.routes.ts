@@ -25,7 +25,7 @@ const storage = multer.diskStorage({
       try {
         const subcategory = await prisma.subcategory.findUnique({
           where: { id: subcategoryId },
-          include: { Category: true }
+          include: { category: true }
         });
         
         if (subcategory) {
@@ -120,7 +120,7 @@ router.post(
       if (subcategoryId) {
         const subcategory = await prisma.subcategory.findUnique({
           where: { id: subcategoryId },
-          include: { Category: true }
+          include: { category: true }
         });
         
         if (subcategory) {
@@ -253,7 +253,7 @@ router.get(
           title: true,
           description: true,
           documentType: true,
-          Category: true,
+          category: true,
           language: true,
           tags: true,
           createdAt: true,

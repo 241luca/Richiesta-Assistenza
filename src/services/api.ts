@@ -77,11 +77,29 @@ apiClient.interceptors.response.use(
     const errorMessage = error.response?.data?.message || 
                         error.response?.data?.error?.message;
 
+    // Lista di endpoint che NON devono mostrare toast per 404
+    // AGGIORNATO: Aggiunto knowledge-base alla lista
+    const silentEndpoints = [
+      '/ai/templates',
+      '/ai-actions',
+      '/professionals/.*/ai-actions',
+      '/knowledge-base/.*'  // Aggiunto per Knowledge Base
+    ];
+    
+    // Verifica se l'URL corrisponde a uno degli endpoint silenziosi
+    const isSilentEndpoint = silentEndpoints.some(pattern => {
+      const regex = new RegExp(pattern);
+      return regex.test(originalRequest.url);
+    });
+
     // Handle other errors with better error messages
     if (error.response?.status === 403) {
       toast.error(errorMessage || 'Non hai i permessi per questa azione');
     } else if (error.response?.status === 404) {
-      toast.error(errorMessage || 'Risorsa non trovata');
+      // NON mostrare toast per endpoint AI non implementati
+      if (!isSilentEndpoint) {
+        toast.error(errorMessage || 'Risorsa non trovata');
+      }
     } else if (error.response?.status === 500) {
       toast.error(errorMessage || 'Errore del server. Riprova più tardi');
     }
@@ -154,8 +172,8 @@ export const api = {
 
   // Users
   users: {
-    getProfile: () => apiClient.get('/users/profile'),
-    updateProfile: (data: any) => apiClient.put('/users/profile', data),
+    getProfile: () => apiClient.get('/users/profile'),  
+    updateProfile: (data: any) => apiClient.put('/users/profile', data),  
     changePassword: (data: any) => apiClient.post('/users/change-password', data),
     uploadAvatar: (file: File) => {
       const formData = new FormData();
@@ -195,44 +213,29 @@ export const api = {
     getRevisions: (id: string) => apiClient.get(`/quotes/${id}/revisions`),
   },
 
-  // Maps - AGGIORNATO con gli endpoint corretti!
+  // Maps
   maps: {
-    // Config
     getConfig: () => apiClient.get('/maps/config'),
-    
-    // Geocoding
     geocode: (address: string) => apiClient.post('/maps/geocode', { address }),
-    
-    // Distanze - CORRETTO: usa calculate-distance
     calculateDistance: (data: { origin: string; destination: string }) => 
       apiClient.post('/maps/calculate-distance', data),
-    
-    // Distanze multiple
     calculateDistances: (data: { 
       origin: string; 
       requestIds: string[]; 
       mode?: string 
     }) => apiClient.post('/maps/calculate-distances', data),
-    
-    // Percorsi
     getDirections: (data: { 
       origin: string; 
       destination: string; 
       waypoints?: string[] 
     }) => apiClient.post('/maps/directions', data),
-    
-    // Autocompletamento
     autocomplete: (input: string, options?: any) => 
       apiClient.post('/maps/autocomplete', { 
         input, 
         ...options 
       }),
-    
-    // Dettagli luogo
     getPlaceDetails: (placeId: string) => 
       apiClient.post('/maps/place-details', { placeId }),
-    
-    // Validazione indirizzo
     validateAddress: (address: string) => 
       apiClient.post('/maps/validate-address', { address }),
   },
@@ -283,16 +286,16 @@ export const api = {
     getAuditLogs: (params?: any) => apiClient.get('/admin/audit-logs', { params }),
   },
 
-  // Dashboard - Endpoint unificato per tutti i tipi di utente
+  // Dashboard 
   dashboard: {
     get: () => apiClient.get('/dashboard'),
-    getMetrics: () => apiClient.get('/dashboard'), // Alias per compatibilità
+    getMetrics: () => apiClient.get('/dashboard'), 
   },
 
   // Health Check System
   health: {
     getSummary: () => apiClient.get('/admin/health-check/status'),
-    getModules: () => apiClient.get('/admin/health-check/status'), // Stesso endpoint
+    getModules: () => apiClient.get('/admin/health-check/modules'), 
     runAllChecks: () => apiClient.post('/admin/health-check/run', {}),
     runSingleCheck: (module: string) => apiClient.post('/admin/health-check/run', { module }),
     getHistory: (module?: string, params?: any) => 

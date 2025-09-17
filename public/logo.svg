@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" fill="none">
+  <rect x="10" y="10" width="40" height="40" rx="8" fill="#3B82F6"/>
+  <path d="M30 20 L30 40 M20 30 L40 30" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <text x="60" y="35" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#1F2937">Richiesta</text>
+  <text x="60" y="48" font-family="Arial, sans-serif" font-size="14" fill="#6B7280">Assistenza</text>
+</svg>

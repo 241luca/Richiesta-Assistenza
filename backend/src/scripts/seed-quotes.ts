@@ -26,8 +26,8 @@ async function seedQuotes() {
 
     console.log('✅ Found users:', { 
       superAdmin: superAdmin.email,
-      User_AssistanceRequest_professionalIdToUser: professional.email,
-      User_AssistanceRequest_clientIdToUser: client.email 
+      professional: professional.email,
+      client: client.email 
     });
 
     // Creiamo una categoria se non esiste

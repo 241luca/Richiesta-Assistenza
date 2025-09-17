@@ -1,0 +1,93 @@
+// Aggiungi questo al tuo schema.prisma
+
+model OccasionalWorkerLimits {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  
+  year          Int      // Anno di riferimento
+  totalRevenue  Float    @default(0) // Fatturato totale nell'anno
+  
+  // JSON con limiti per cliente
+  // Formato: { clientId: { revenue: 1500, days: 10, lastUpdate: Date } }
+  clientLimits  Json     @default("{}")
+  
+  // Alert e notifiche
+  alertSent5000 Boolean  @default(false) // Alert inviato per limite 5000€
+  alertSentINPS Boolean  @default(false) // Alert per obbligo INPS
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@unique([userId, year])
+  @@index([userId])
+}
+
+// Tracciamento ricevute per lavoratori occasionali
+model OccasionalReceipt {
+  id              String   @id @default(cuid())
+  
+  // Riferimenti
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  clientId        String
+  client          User     @relation("ClientReceipts", fields: [clientId], references: [id])
+  requestId       String?
+  request         AssistanceRequest? @relation(fields: [requestId], references: [id])
+  
+  // Dati ricevuta
+  receiptNumber   String   @unique // Numero progressivo ricevuta
+  receiptDate     DateTime
+  
+  // Importi
+  grossAmount     Float    // Importo lordo
+  withholdingTax  Float    // Ritenuta d'acconto (20%)
+  netAmount       Float    // Importo netto
+  
+  // Descrizione lavoro
+  description     String
+  workDays        Int      @default(1) // Giorni lavorati
+  
+  // Stato
+  status          ReceiptStatus @default(DRAFT)
+  paidAt          DateTime?
+  paymentMethod   String?  // Bonifico, contanti, etc.
+  
+  // File
+  receiptFile     String?  // Path del PDF generato
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId, clientId])
+  @@index([receiptDate])
+}
+
+enum ReceiptStatus {
+  DRAFT      // Bozza
+  ISSUED     // Emessa
+  PAID       // Pagata
+  CANCELLED  // Annullata
+}
+
+// Aggiornamento model User
+model User {
+  // ... campi esistenti ...
+  
+  // Per lavoratori occasionali
+  occasionalLimits     OccasionalWorkerLimits[]
+  occasionalReceipts   OccasionalReceipt[]
+  clientReceipts       OccasionalReceipt[] @relation("ClientReceipts")
+  
+  // ... resto del modello ...
+}
+
+// Aggiornamento model AssistanceRequest
+model AssistanceRequest {
+  // ... campi esistenti ...
+  
+  // Per lavoratori occasionali
+  occasionalReceipts   OccasionalReceipt[]
+  
+  // ... resto del modello ...
+}

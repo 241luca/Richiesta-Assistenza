@@ -1,0 +1,487 @@
+// ==========================================
+// SISTEMA AI DUALE PER PROFESSIONISTI
+// ==========================================
+// Ogni professionista ha DUE configurazioni AI:
+// 1. AI TECNICA - quando scrive lui (info complete, prezzi netti, margini)
+// 2. AI CLIENTE - per i suoi clienti (info pubbliche, prezzi finali)
+// ==========================================
+
+// Configurazione WhatsApp per ogni professionista
+model ProfessionalWhatsApp {
+  id                    String   @id @default(cuid())
+  professionalId        String   @unique
+  professional          User     @relation("ProfessionalWhatsApp", fields: [professionalId], references: [id], onDelete: Cascade)
+  
+  // Configurazione WhatsApp
+  phoneNumber           String   @unique
+  instanceId            String   @unique  // ID istanza SendApp
+  sendappApiKey         String?  // Encrypted
+  status                String   @default("PENDING") // PENDING, ACTIVE, SUSPENDED, DELETED
+  activationDate        DateTime?
+  suspensionDate        DateTime?
+  suspensionReason      String?
+  
+  // Phone Recognition - CRITICO per detection
+  professionalPhones    String[] @default([])  // Numeri del professionista
+  trustedNumbers        String[] @default([])  // Numeri collaboratori/dipendenti
+  blacklistedNumbers    String[] @default([])  // Numeri bloccati
+  
+  // AI Configuration Duale
+  aiConfigProfessional  Json     @default("{}") // Config quando scrive LUI
+  aiConfigClient        Json     @default("{}") // Config per CLIENTI
+  
+  // Knowledge Base Duale
+  kbProfessionalIds     String[] @default([])  // KB riservate per uso interno
+  kbClientIds           String[] @default([])  // KB pubbliche per clienti
+  
+  // System Prompts Duali
+  systemPromptProfessional String? @db.Text // Prompt quando è lui
+  systemPromptClient       String? @db.Text // Prompt per clienti
+  
+  // Detection Settings
+  autoDetectMode        Boolean  @default(true)
+  defaultMode           String   @default("CLIENT") // CLIENT o PROFESSIONAL
+  confidenceThreshold   Float    @default(0.7)
+  
+  // Billing & Usage
+  planId                String   @default("STARTER")
+  billingCycle          String   @default("MONTHLY")
+  nextBillingDate       DateTime?
+  messagesLimit         Int      @default(500)
+  messagesUsed          Int      @default(0)
+  aiResponsesLimit      Int      @default(50)
+  aiResponsesUsed       Int      @default(0)
+  
+  // Settings generali
+  settings              Json     @default("{}")
+  businessHours         Json?
+  autoReplySettings     Json?
+  
+  // Metadata
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  createdBy             String?
+  
+  // Relazioni
+  aiConfigs             ProfessionalAiDualConfig[]
+  messages              ProfessionalWhatsAppMessage[]
+  contacts              ProfessionalWhatsAppContact[]
+  automations           ProfessionalWhatsAppAutomation[]
+  templates             ProfessionalWhatsAppTemplate[]
+  billing               ProfessionalWhatsAppBilling[]
+  analytics             ProfessionalWhatsAppAnalytics[]
+  auditLogs             ProfessionalWhatsAppAudit[]
+  subcategoryConfigs    ProfessionalSubcategoryDualConfig[]
+  
+  @@index([professionalId])
+  @@index([status])
+  @@index([phoneNumber])
+  @@index([instanceId])
+}
+
+// Configurazione AI Duale dettagliata
+model ProfessionalAiDualConfig {
+  id                    String   @id @default(cuid())
+  whatsappId            String   @unique
+  whatsapp              ProfessionalWhatsApp @relation(fields: [whatsappId], references: [id], onDelete: Cascade)
+  
+  // CONFIGURAZIONE AI TECNICA (per il professionista)
+  techConfig            Json     @default("{
+    \"enabled\": true,
+    \"model\": \"gpt-4\",
+    \"temperature\": 0.3,
+    \"maxTokens\": 500,
+    \"systemPrompt\": \"Sei un assistente tecnico esperto...\",
+    \"includeInternalData\": true,
+    \"showMargins\": true,
+    \"showSupplierInfo\": true,
+    \"technicalDepth\": \"expert\",
+    \"language\": \"technical\"
+  }")
+  
+  // CONFIGURAZIONE AI CLIENTE (per clienti)
+  clientConfig          Json     @default("{
+    \"enabled\": true,
+    \"model\": \"gpt-3.5-turbo\",
+    \"temperature\": 0.7,
+    \"maxTokens\": 300,
+    \"systemPrompt\": \"Sei un assistente professionale e cordiale...\",
+    \"includeInternalData\": false,
+    \"showMargins\": false,
+    \"showSupplierInfo\": false,
+    \"technicalDepth\": \"simple\",
+    \"language\": \"friendly\",
+    \"personality\": {
+      \"tone\": \"professional-friendly\",
+      \"useEmoji\": true,
+      \"responseStyle\": \"conversational\"
+    }
+  }")
+  
+  // Response Rules
+  responseRules         Json?    // Regole per sanitizzazione risposte
+  neverMentionPatterns  String[] @default([]) // Pattern da non menzionare mai ai clienti
+  alwaysIncludeTopics   String[] @default([]) // Topic da includere sempre
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Configurazioni duali per sottocategoria
+model ProfessionalSubcategoryDualConfig {
+  id                    String   @id @default(cuid())
+  whatsappId            String
+  whatsapp              ProfessionalWhatsApp @relation(fields: [whatsappId], references: [id], onDelete: Cascade)
+  subcategoryId         String
+  subcategory           Subcategory @relation(fields: [subcategoryId], references: [id])
+  
+  // KB DUALE per stessa sottocategoria
+  kbProfessional        Json?    @db.Json // Info tecniche complete
+  kbClient              Json?    @db.Json // Info pubbliche semplificate
+  
+  // PROMPT SPECIFICI per sottocategoria
+  promptProfessional    String?  @db.Text
+  promptClient          String?  @db.Text
+  
+  // VISIBILITÀ
+  visibleToProfessional Boolean  @default(true)
+  visibleToClients      Boolean  @default(true)
+  
+  // PREZZI DIFFERENZIATI
+  pricingProfessional   Json?    // Prezzi netti, sconti
+  pricingClient         Json?    // Prezzi pubblici
+  
+  // Configurazioni specifiche
+  techSettings          Json?    // Settings per modalità tecnica
+  clientSettings        Json?    // Settings per modalità cliente
+  
+  // Usage tracking
+  usageCountTech        Int      @default(0)
+  usageCountClient      Int      @default(0)
+  lastUsedTech          DateTime?
+  lastUsedClient        DateTime?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@unique([whatsappId, subcategoryId])
+  @@index([whatsappId])
+  @@index([subcategoryId])
+}
+
+// Messaggi WhatsApp per professionista
+model ProfessionalWhatsAppMessage {
+  id                    String   @id @default(cuid())
+  whatsappId            String
+  whatsapp              ProfessionalWhatsApp @relation(fields: [whatsappId], references: [id], onDelete: Cascade)
+  
+  // Message data
+  externalId            String?  // ID da SendApp
+  phoneNumber           String
+  contactName           String?
+  message               String   @db.Text
+  messageType           String   @default("text")
+  mediaUrl              String?  @db.Text
+  mediaType             String?
+  
+  // Detection result - IMPORTANTE!
+  detectedMode          String?  // PROFESSIONAL o CLIENT
+  detectionConfidence   Float?   // 0-1
+  detectionReason       String?  // Perché è stato classificato così
+  modeOverride          String?  // Se è stato forzato manualmente
+  
+  // Status
+  direction             String   // inbound/outbound
+  status                String   @default("pending")
+  sentAt                DateTime?
+  deliveredAt           DateTime?
+  readAt                DateTime?
+  failedAt              DateTime?
+  errorMessage          String?
+  
+  // AI Processing
+  aiProcessed           Boolean  @default(false)
+  aiMode                String?  // Quale AI ha risposto (TECH/CLIENT)
+  aiResponse            String?  @db.Text
+  aiConfidence          Float?
+  aiIntent              String?
+  aiEntities            Json?
+  kbUsed                String[] @default([]) // Quali KB sono state usate
+  
+  // Metadata
+  metadata              Json?
+  createdAt             DateTime @default(now())
+  
+  @@index([whatsappId, createdAt(sort: Desc)])
+  @@index([phoneNumber])
+  @@index([status])
+  @@index([detectedMode])
+}
+
+// Contatti WhatsApp per professionista
+model ProfessionalWhatsAppContact {
+  id                    String   @id @default(cuid())
+  whatsappId            String
+  whatsapp              ProfessionalWhatsApp @relation(fields: [whatsappId], references: [id], onDelete: Cascade)
+  
+  // Contact info
+  phoneNumber           String
+  name                  String?
+  email                 String?
+  
+  // Classification - CRITICO!
+  contactType           String   @default("CLIENT") // CLIENT, PROFESSIONAL, TRUSTED, BLOCKED
+  isVerified            Boolean  @default(false) // Verificato manualmente
+  verifiedBy            String?
+  verifiedAt            DateTime?
+  
+  // WhatsApp info
+  whatsappName          String?
+  whatsappAvatar        String?
+  lastSeen              DateTime?
+  
+  // Business data
+  customerSince         DateTime?
+  totalMessages         Int      @default(0)
+  totalOrders           Int      @default(0)
+  totalRevenue          Decimal  @default(0) @db.Decimal(10, 2)
+  
+  // AI Interaction stats
+  aiInteractionsTech    Int      @default(0) // Quante volte ha interagito con AI tecnica
+  aiInteractionsClient  Int      @default(0) // Quante volte con AI cliente
+  lastAiMode            String?  // Ultima modalità usata
+  
+  // Notes
+  tags                  String[] @default([])
+  notes                 String?  @db.Text
+  internalNotes         String?  @db.Text // Solo per professionista
+  
+  // Status
+  status                String   @default("ACTIVE")
+  blocked               Boolean  @default(false)
+  blockedReason         String?
+  
+  // Metadata
+  customFields          Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@unique([whatsappId, phoneNumber])
+  @@index([whatsappId])
+  @@index([phoneNumber])
+  @@index([contactType])
+}
+
+// Automazioni WhatsApp
+model ProfessionalWhatsAppAutomation {
+  id                    String   @id @default(cuid())
+  whatsappId            String
+  whatsapp              ProfessionalWhatsApp @relation(fields: [whatsappId], references: [id], onDelete: Cascade)
+  
+  // Automation config
+  name                  String
+  description           String?
+  triggerType           String   // message_received, keyword, time_based, etc
+  triggerConfig         Json
+  
+  // Mode specific - IMPORTANTE!
+  applicableMode        String   @default("BOTH") // PROFESSIONAL, CLIENT, BOTH
+  
+  // Actions
+  actions               Json     // Array of actions to execute
+  
+  // Status
+  enabled               Boolean  @default(true)
+  lastTriggered         DateTime?
+  triggerCount          Int      @default(0)
+  
+  // Metadata
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@index([whatsappId])
+  @@index([enabled])
+}
+
+// Template risposte
+model ProfessionalWhatsAppTemplate {
+  id                    String   @id @default(cuid())
+  whatsappId            String
+  whatsapp              ProfessionalWhatsApp @relation(fields: [whatsappId], references: [id], onDelete: Cascade)
+  
+  // Template data
+  name                  String
+  category              String?
+  
+  // DUAL TEMPLATES - può avere versioni diverse per tech/client
+  messageTech           String?  @db.Text // Versione per professionista
+  messageClient         String?  @db.Text // Versione per cliente
+  
+  // Se non è duale, usa questo
+  message               String   @db.Text // Template generico
+  
+  mediaUrl              String?
+  
+  // Mode applicability
+  availableForMode      String   @default("BOTH") // PROFESSIONAL, CLIENT, BOTH
+  
+  // Usage
+  shortcut              String?
+  usageCount            Int      @default(0)
+  lastUsed              DateTime?
+  
+  // Metadata
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@unique([whatsappId, shortcut])
+  @@index([whatsappId])
+  @@index([availableForMode])
+}
+
+// Billing e usage
+model ProfessionalWhatsAppBilling {
+  id                    String   @id @default(cuid())
+  whatsappId            String
+  whatsapp              ProfessionalWhatsApp @relation(fields: [whatsappId], references: [id], onDelete: Cascade)
+  
+  // Billing period
+  periodStart           DateTime
+  periodEnd             DateTime
+  
+  // Usage breakdown by mode
+  messagesSentTech      Int      @default(0)
+  messagesSentClient    Int      @default(0)
+  messagesReceived      Int      @default(0)
+  aiResponsesTech       Int      @default(0)
+  aiResponsesClient     Int      @default(0)
+  
+  // Altri usage
+  mediaSent             Int      @default(0)
+  automationTriggers    Int      @default(0)
+  
+  // Costs
+  baseCost              Decimal  @db.Decimal(10, 2)
+  overageCost           Decimal  @default(0) @db.Decimal(10, 2)
+  discounts             Decimal  @default(0) @db.Decimal(10, 2)
+  totalCost             Decimal  @db.Decimal(10, 2)
+  
+  // Payment
+  paymentStatus         String   @default("PENDING")
+  paymentDate           DateTime?
+  paymentMethod         String?
+  invoiceNumber         String?
+  invoiceUrl            String?
+  
+  // Metadata
+  createdAt             DateTime @default(now())
+  
+  @@index([whatsappId, periodStart(sort: Desc)])
+  @@index([paymentStatus])
+}
+
+// Analytics
+model ProfessionalWhatsAppAnalytics {
+  id                    String   @id @default(cuid())
+  whatsappId            String
+  whatsapp              ProfessionalWhatsApp @relation(fields: [whatsappId], references: [id], onDelete: Cascade)
+  
+  // Time dimension
+  date                  DateTime @db.Date
+  hour                  Int?
+  
+  // Metrics by mode
+  messagesSentTech      Int      @default(0)
+  messagesSentClient    Int      @default(0)
+  messagesReceived      Int      @default(0)
+  
+  // Detection metrics - IMPORTANTE!
+  correctDetections     Int      @default(0)
+  incorrectDetections   Int      @default(0)
+  manualOverrides       Int      @default(0)
+  detectionAccuracy     Float?   // Percentuale accuratezza
+  
+  // Contact metrics
+  uniqueContacts        Int      @default(0)
+  newContacts           Int      @default(0)
+  professionalContacts  Int      @default(0) // Quanti professionisti
+  clientContacts        Int      @default(0) // Quanti clienti
+  
+  // Response metrics
+  avgResponseTime       Int?     // seconds
+  firstResponseTime     Int?
+  resolutionRate        Float?
+  
+  // AI metrics by mode
+  aiResponsesTech       Int      @default(0)
+  aiResponsesClient     Int      @default(0)
+  aiSuccessRate         Float?
+  aiFallbackRate        Float?
+  
+  // Business metrics
+  conversationsStarted  Int      @default(0)
+  conversationsCompleted Int     @default(0)
+  leadsGenerated        Int      @default(0)
+  appointmentsBooked    Int      @default(0)
+  
+  // Metadata
+  createdAt             DateTime @default(now())
+  
+  @@unique([whatsappId, date, hour])
+  @@index([whatsappId, date(sort: Desc)])
+}
+
+// Audit log specifico per WhatsApp
+model ProfessionalWhatsAppAudit {
+  id                    String   @id @default(cuid())
+  whatsappId            String
+  whatsapp              ProfessionalWhatsApp @relation(fields: [whatsappId], references: [id], onDelete: Cascade)
+  
+  // Audit data
+  action                String   // DETECTION_OVERRIDE, MODE_SWITCH, CONFIG_CHANGE, etc
+  actorId               String?
+  actorType             String?  // user, system, api
+  
+  // Mode tracking - per tracciare cambi di modalità
+  previousMode          String?
+  newMode               String?
+  reason                String?
+  
+  // Details
+  oldValue              Json?
+  newValue              Json?
+  metadata              Json?
+  
+  // Request info
+  ipAddress             String?
+  userAgent             String?
+  
+  // Timestamp
+  createdAt             DateTime @default(now())
+  
+  @@index([whatsappId, createdAt(sort: Desc)])
+  @@index([action])
+  @@index([actorId])
+}
+
+// Detection override history
+model ProfessionalWhatsAppDetectionOverride {
+  id                    String   @id @default(cuid())
+  whatsappId            String
+  phoneNumber           String
+  
+  // Override details
+  originalDetection     String   // Cosa aveva rilevato il sistema
+  overriddenTo          String   // A cosa è stato cambiato
+  overriddenBy          String   // Chi ha fatto l'override
+  reason                String?  // Motivo dell'override
+  
+  // Learning
+  shouldLearnFrom       Boolean  @default(true) // Se il sistema deve imparare da questo
+  
+  createdAt             DateTime @default(now())
+  
+  @@index([whatsappId])
+  @@index([phoneNumber])
+  @@index([createdAt(sort: Desc)])
+}

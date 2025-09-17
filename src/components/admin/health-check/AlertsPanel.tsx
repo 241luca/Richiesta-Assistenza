@@ -1,6 +1,7 @@
 /**
  * Alerts Panel Component
  * Pannello per visualizzare gli alert del sistema
+ * FIX: Corrette le key per evitare warning React
  */
 
 import React from 'react';
@@ -58,13 +59,22 @@ export default function AlertsPanel({ alerts }: AlertsPanelProps) {
     }
   };
 
-  const dismissAlert = (index: number) => {
-    setDismissedAlerts([...dismissedAlerts, `alert-${index}`]);
+  // Crea un ID univoco per ogni alert basato sul contenuto
+  const getAlertId = (alert: Alert, originalIndex: number) => {
+    return `${alert.module}-${alert.severity}-${alert.timestamp}-${originalIndex}`;
   };
 
-  const visibleAlerts = alerts.filter((_, index) => 
-    !dismissedAlerts.includes(`alert-${index}`)
-  );
+  const dismissAlert = (alertId: string) => {
+    setDismissedAlerts([...dismissedAlerts, alertId]);
+  };
+
+  const visibleAlerts = alerts
+    .map((alert, index) => ({ 
+      ...alert, 
+      id: getAlertId(alert, index),
+      originalIndex: index 
+    }))
+    .filter(alert => !dismissedAlerts.includes(alert.id));
 
   if (visibleAlerts.length === 0) {
     return null;
@@ -85,7 +95,9 @@ export default function AlertsPanel({ alerts }: AlertsPanelProps) {
         </h2>
         {sortedAlerts.length > 3 && (
           <button
-            onClick={() => setDismissedAlerts(alerts.map((_, i) => `alert-${i}`))}
+            onClick={() => setDismissedAlerts(
+              alerts.map((alert, i) => getAlertId(alert, i))
+            )}
             className="text-sm text-gray-500 hover:text-gray-700"
           >
             Dismiss All
@@ -94,9 +106,9 @@ export default function AlertsPanel({ alerts }: AlertsPanelProps) {
       </div>
 
       <div className="space-y-3">
-        {sortedAlerts.slice(0, 5).map((alert, index) => (
+        {sortedAlerts.slice(0, 5).map((alert) => (
           <div
-            key={`alert-${index}`}
+            key={alert.id}
             className={`border rounded-lg p-4 ${getSeverityColor(alert.severity)}`}
           >
             <div className="flex items-start justify-between">
@@ -117,7 +129,7 @@ export default function AlertsPanel({ alerts }: AlertsPanelProps) {
                 </div>
               </div>
               <button
-                onClick={() => dismissAlert(alerts.indexOf(alert))}
+                onClick={() => dismissAlert(alert.id)}
                 className="ml-4 flex-shrink-0 p-1 rounded hover:bg-white/50"
               >
                 <XMarkIcon className="h-4 w-4 text-gray-400 hover:text-gray-600" />

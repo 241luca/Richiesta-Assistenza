@@ -77,7 +77,7 @@ class SubcategoryService {
     const subcategories = await prisma.subcategory.findMany({
       where,
       include: {
-        Category: {
+        category: {
           select: {
             id: true,
             name: true,
@@ -85,25 +85,25 @@ class SubcategoryService {
             color: true,
           },
         },
-        SubcategoryAiSettings: includeAiSettings,
+        aiSettings: includeAiSettings,
         _count: {
           select: {
-            ProfessionalUserSubcategory: {
+            professionalUserSubcategories: {
               where: {
                 isActive: true,
-                User: {  // Maiuscolo!
+                user: {  // Maiuscolo!
                   role: 'PROFESSIONAL'
                 }
               }
             },
-            AssistanceRequest: true,
+            requests: true,
           },
         },
         // Aggiungiamo anche la lista dei professionisti attivi per debug
-        ProfessionalUserSubcategory: {
+        professionalUserSubcategories: {
           where: {
             isActive: true,
-            User: {  // Maiuscolo!
+            user: {  // Maiuscolo!
               role: 'PROFESSIONAL'
             }
           },
@@ -132,8 +132,8 @@ class SubcategoryService {
         aiSettings: true,
         _count: {
           select: {
-            ProfessionalUserSubcategory: true,
-            AssistanceRequest: true,
+            professionalUserSubcategories: true,
+            requests: true,
           },
         },
       },
@@ -180,7 +180,7 @@ class SubcategoryService {
         slug,
       },
       include: {
-      Category: true,
+      category: true,
       },
     });
 
@@ -222,7 +222,7 @@ class SubcategoryService {
       where: { id: subcategoryId },
       data,
       include: {
-      Category: true,
+      category: true,
         aiSettings: true,
       },
     });
@@ -282,7 +282,7 @@ class SubcategoryService {
         isActive: true,
       },
       include: {
-        User: {  // Maiuscolo!
+        user: {  // Maiuscolo!
           select: {
             id: true,
             firstName: true,
@@ -290,7 +290,7 @@ class SubcategoryService {
             fullName: true,
             email: true,
             phone: true,
-            profession: true,
+            professionData: true,
             hourlyRate: true,
             avatar: true,
             city: true,
@@ -392,10 +392,10 @@ class SubcategoryService {
           isActive: true,
         },
         include: {
-          User: true,
-          SubCategory: {
+          users: true,
+          subcategory: {
             include: {
-      Category: true,
+      category: true,
             },
           },
         },
@@ -410,10 +410,10 @@ class SubcategoryService {
           isActive: true,
         },
         include: {
-          User: true,
-          SubCategory: {
+          users: true,
+          subcategory: {
             include: {
-      Category: true,
+      category: true,
             },
           },
         },
@@ -436,8 +436,8 @@ class SubcategoryService {
         isActive: false,
       },
       include: {
-        User: true,
-        SubCategory: true,
+        users: true,
+        subcategory: true,
       },
     });
 
@@ -452,9 +452,9 @@ class SubcategoryService {
         isActive: true,
       },
       include: {
-      SubCategory: {
+      subcategory: {
           include: {
-      Category: true,
+      category: true,
           },
         },
       },

@@ -237,7 +237,7 @@ function isAuthorizedForChannel(socket: AuthenticatedSocket, channel: string): b
   }
 
   // Canali professionisti (solo per professionisti)
-  if (channel.startsWith('Professional:') && socket.userRole === 'PROFESSIONAL') {
+  if (channel.startsWith('professional:') && socket.userRole === 'PROFESSIONAL') {
     return true;
   }
 

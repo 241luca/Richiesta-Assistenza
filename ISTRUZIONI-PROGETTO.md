@@ -1,14 +1,43 @@
-# 📋 ISTRUZIONI-PROGETTO - Sistema Richiesta Assistenza v4.0
+# 📋 ISTRUZIONI-PROGETTO - Sistema Richiesta Assistenza v4.2.1
 
 > ⚠️ **LEGGERE PRIMA DI INIZIARE QUALSIASI LAVORO**
 > 
-> Ultimo aggiornamento: 10 Gennaio 2025
+> Ultimo aggiornamento: 11 Settembre 2025 (v4.2.1)
 > 
 > Questo documento contiene TUTTE le regole tecniche VINCOLANTI per lo sviluppo del progetto.
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 🚨 ATTENZIONE CLAUDE E SVILUPPATORI 🚨                         │
+│                                                                 │
+│ REGOLA ASSOLUTA DOCUMENTAZIONE:                                │
+│ ════════════════════════════════                               │
+│ ❌ VIETATO salvare file .md nella root del progetto           │
+│ ✅ OBBLIGATORIO usare DOCUMENTAZIONE/ per TUTTI i documenti   │
+│                                                                 │
+│ SOLO 4 FILE .MD AUTORIZZATI NELLA ROOT:                        │
+│ 1. README.md                                                    │
+│ 2. ISTRUZIONI-PROGETTO.md (questo file)                       │
+│ 3. CHANGELOG.md                                                 │
+│ 4. LEGGIMI-DOCUMENTAZIONE.md                                   │
+│                                                                 │
+│ TUTTI GLI ALTRI → DOCUMENTAZIONE/                              │
+│ Il pre-commit-check.sh BLOCCA i commit non conformi!           │
+└─────────────────────────────────────────────────────────────────┘
+
+## 🤖 ISTRUZIONI PER CLAUDE (OBBLIGATORIE OGNI SESSIONE)
+
+All'inizio di OGNI sessione:
+1. ✅ Leggere ISTRUZIONI-PROGETTO.md (questo file)
+2. ✅ Verificare: "Dove salverò la documentazione?" → SEMPRE in DOCUMENTAZIONE/
+3. ✅ Creare report finale: DOCUMENTAZIONE/REPORT-SESSIONI/YYYY-MM-DD-descrizione.md
+
+⚠️ **MAI** creare file .md nella root! Il sistema li RIFIUTA!
 
 ---
 
 ## 🚀 QUICK START (5 MINUTI)
+
+> 📚 **REMINDER**: Tutta la documentazione va in DOCUMENTAZIONE/, MAI nella root!
 
 ### Setup Nuovo Developer
 ```bash
@@ -58,7 +87,9 @@ curl http://localhost:3200/api/health
 
 ## 📖 INDICE
 
-1. [**🔴 LE 7 REGOLE D'ORO**](#-le-7-regole-doro) - MEMORIZZARE!
+> 🚀 **NUOVO**: Per riferimento rapido del sistema, consultare [QUICK-REFERENCE.md](DOCUMENTAZIONE/ATTUALE/00-ESSENZIALI/QUICK-REFERENCE.md)
+
+1. [**🔴 LE 8 REGOLE D'ORO**](#-le-7-regole-doro) - MEMORIZZARE!
 2. [**⚠️ ERRORI FREQUENTI DA EVITARE**](#-errori-frequenti-da-evitare)
 3. [**📋 Quick Reference Card**](#-quick-reference-card)
 4. [**🏗️ Architettura Sistema**](#-architettura-sistema)
@@ -72,11 +103,12 @@ curl http://localhost:3200/api/health
 12. [**🔧 Troubleshooting**](#-troubleshooting)
 13. [**📝 Templates**](#-templates)
 14. [**🤖 Script Automazione**](#-script-automazione)
-15. [**✅ Checklist Finale**](#-checklist-finale)
+15. [**📚 Gestione Documentazione**](#-gestione-documentazione) - IMPORTANTE!
+16. [**✅ Checklist Finale**](#-checklist-finale)
 
 ---
 
-## 🔴 LE 7 REGOLE D'ORO
+## 🔴 LE 8 REGOLE D'ORO - MEMORIZZARE OBBLIGATORIAMENTE!
 
 ### 1️⃣ ResponseFormatter SEMPRE nelle Routes
 ```typescript
@@ -144,6 +176,19 @@ notificationService.sendToUser(userId, notification);
 io.to(userId).emit('custom-event', data);
 ```
 
+### 8️⃣ Documentazione SEMPRE in DOCUMENTAZIONE/ (CRITICO!)
+```bash
+# ✅ SEMPRE - Tutti i documenti in DOCUMENTAZIONE/
+DOCUMENTAZIONE/REPORT-SESSIONI/2025-09-11-fix-sistema.md
+DOCUMENTAZIONE/ATTUALE/02-FUNZIONALITA/nuova-feature.md
+
+# ❌ MAI - File .md sparsi nella root
+REPORT-FIX-COMPLETO.md  # VIETATO!
+ANALISI-SISTEMA.md      # BLOCCATO DAL PRE-COMMIT!
+
+# 🚨 CONSEGUENZE: pre-commit-check.sh BLOCCA IL COMMIT!
+```
+
 ---
 
 ## ⚠️ ERRORI FREQUENTI DA EVITARE
@@ -199,6 +244,21 @@ console.log('Debug:', data);
 logger.debug('Debug:', data);
 ```
 
+### 🔴 ERRORE #5: File .md sparsi nella root (GRAVISSIMO!)
+```bash
+# ❌ ERRORE BLOCCANTE - File nella root
+REPORT-SESSIONE-COMPLETO.md      # VIETATO!
+ANALISI-SISTEMA.md                # RIFIUTATO!
+FIX-PROBLEMA.md                   # BLOCCATO!
+
+# ✅ CORRETTO - Sempre in DOCUMENTAZIONE/
+DOCUMENTAZIONE/REPORT-SESSIONI/2025-09-11-sessione-completa.md
+DOCUMENTAZIONE/ATTUALE/02-FUNZIONALITA/analisi-sistema.md
+DOCUMENTAZIONE/ARCHIVIO/report-vari/fix-problema.md
+
+# 🚨 IL SISTEMA BLOCCA AUTOMATICAMENTE I COMMIT NON CONFORMI!
+```
+
 ---
 
 ## 📋 QUICK REFERENCE CARD
@@ -243,9 +303,22 @@ npm run build            # Build production
 
 ### File Critici
 ```
-/ISTRUZIONI-PROGETTO.md                    # Questo file (regole)
-/ARCHITETTURA-SISTEMA-COMPLETA.md         # Architettura dettagliata
-/backend/prisma/schema.prisma             # Schema database
+# FILE ROOT (mantenuti nella root)
+/ISTRUZIONI-PROGETTO.md                    # Questo file (regole tecniche)
+/README.md                                 # Overview progetto
+/CHANGELOG.md                              # Storia versioni
+/LEGGIMI-DOCUMENTAZIONE.md                 # Guida struttura docs
+
+# DOCUMENTAZIONE ESSENZIALE
+/DOCUMENTAZIONE/INDEX.md                                                        # 👈 PUNTO DI PARTENZA navigazione
+/DOCUMENTAZIONE/ATTUALE/00-ESSENZIALI/QUICK-REFERENCE.md                       # 🆕 Riferimento rapido sistema
+/DOCUMENTAZIONE/ATTUALE/00-ESSENZIALI/ARCHITETTURA-SISTEMA-COMPLETA.md         # Architettura dettagliata
+/DOCUMENTAZIONE/ATTUALE/00-ESSENZIALI/CHECKLIST-FUNZIONALITA-SISTEMA.md        # Stato funzionalità
+/DOCUMENTAZIONE/ATTUALE/00-ESSENZIALI/PIANO-MIGLIORAMENTO-DOCUMENTAZIONE.md    # Roadmap docs
+/DOCUMENTAZIONE/REPORT-SESSIONI/                                               # Report sviluppo
+
+# FILE TECNICI
+/backend/prisma/schema.prisma             # Schema database (85+ tabelle)
 /backend/src/utils/responseFormatter.ts   # ResponseFormatter
 /src/services/api.ts                      # API client (⚠️ ha già /api)
 /.env                                      # Configurazioni
@@ -291,23 +364,29 @@ npm run build            # Build production
 ### Struttura Directory
 ```
 richiesta-assistenza/
-├── src/                      # Frontend React (⚠️ NON /frontend!)
-│   ├── components/          # Componenti React
+├── 📚 DOCUMENTAZIONE/       # ⚠️ TUTTA LA DOCUMENTAZIONE QUI!
+│   ├── INDEX.md            # Punto di partenza navigazione
+│   ├── ATTUALE/            # Documentazione valida
+│   │   ├── 00-ESSENZIALI/  # File critici
+│   │   ├── 01-ARCHITETTURA/# Architettura sistema
+│   │   ├── 02-FUNZIONALITA/# Docs per feature
+│   │   ├── 03-API/         # Documentazione API
+│   │   ├── 04-GUIDE/       # Guide pratiche
+│   │   └── 05-TROUBLESHOOTING/
+│   ├── ARCHIVIO/           # Docs storica
+│   └── REPORT-SESSIONI/    # ⚠️ TUTTI I REPORT QUI!
+├── src/                    # Frontend React (⚠️ NON /frontend!)
+│   ├── components/         # Componenti React
 │   ├── pages/              # Pagine route
-│   │   ├── admin/          # Area admin
-│   │   ├── professional/   # Area professionisti
-│   │   └── client/         # Area clienti
 │   ├── contexts/           # React Contexts
 │   ├── hooks/              # Custom hooks
 │   ├── services/           # API services (⚠️ api.ts ha /api)
 │   └── types/              # TypeScript types
-├── backend/                 # Backend Express
+├── backend/                # Backend Express
 │   ├── src/
 │   │   ├── routes/         # 70+ API endpoints
 │   │   ├── services/       # 50+ Business logic services
 │   │   ├── middleware/     # Auth, audit, security
-│   │   ├── websocket/      # Real-time communication
-│   │   ├── jobs/           # Background jobs
 │   │   └── utils/          # Utilities
 │   └── prisma/
 │       └── schema.prisma   # Database schema (30+ tabelle)
@@ -394,12 +473,23 @@ richiesta-assistenza/
 - ✅ **Typing Indicators**: Stato digitazione
 - ✅ **Read Receipts**: Conferme di lettura
 
+### 📱 Integrazione WhatsApp (NUOVO v4.3)
+- ✅ **Connessione SendApp**: API cloud per WhatsApp Business
+- ✅ **Invio Messaggi**: Singoli e di gruppo
+- ✅ **Invio Media**: Immagini e documenti
+- ✅ **QR Code Login**: Autenticazione WhatsApp Web
+- ✅ **Stato Connessione**: Gestione manuale stato
+- ✅ **Instance Management**: Creazione e reset istanze
+- 📝 **Documentazione**: `/Docs/04-SISTEMI/WHATSAPP-INTEGRATION.md`
+
 ### 🤖 AI Integration
 - ✅ **AI Assistant**: Supporto professionisti con GPT
+- ✅ **Sistema AI Duale**: Configurazioni separate per professionisti e clienti
 - ✅ **Smart Suggestions**: Suggerimenti preventivi
 - ✅ **Auto-categorization**: Classificazione automatica richieste
 - ✅ **Knowledge Base**: Documenti e FAQ con embeddings
 - ✅ **Conversation Memory**: Contesto mantenuto
+- ✅ **Tabelle Separate**: ProfessionalAiSettings e ClientAiSettings
 
 ### 🗺️ Maps & Geocoding
 - ✅ **Google Maps Integration**: Visualizzazione indirizzi
@@ -418,6 +508,171 @@ richiesta-assistenza/
 ---
 
 ## 💻 SVILUPPO
+
+### 🔥 PATTERN RESPONSEFORMATTER - REGOLA FONDAMENTALE DEL PROGETTO
+
+> ⚠️ **CRITICO**: Il ResponseFormatter è lo STANDARD ASSOLUTO per la comunicazione Backend-Frontend.
+> OGNI risposta API DEVE usare ResponseFormatter. NESSUNA ECCEZIONE.
+
+#### 📋 Architettura ResponseFormatter
+
+Il sistema usa **DUE file ResponseFormatter separati** con scopi diversi:
+
+1. **Backend** (`/backend/src/utils/responseFormatter.ts`)
+   - **Scopo**: CREARE risposte standardizzate
+   - **Uso**: SOLO nelle routes, MAI nei services
+   - **Funzioni**: `success()`, `error()`, `paginated()`
+
+2. **Frontend** (`/src/utils/responseFormatter.ts`)
+   - **Scopo**: INTERPRETARE risposte dal backend
+   - **Uso**: Nei componenti per gestire errori e dati
+   - **Funzioni**: `getErrorMessage()`, `getData()`, `isValidationError()`
+
+#### 🎯 Struttura Standard delle Risposte
+
+**Risposta di Successo**:
+```json
+{
+  "success": true,
+  "message": "Operazione completata",
+  "data": { /* dati richiesti */ },
+  "metadata": { /* opzionale */ },
+  "timestamp": "2025-01-10T..."
+}
+```
+
+**Risposta di Errore**:
+```json
+{
+  "success": false,
+  "message": "Descrizione errore",
+  "error": {
+    "code": "ERROR_CODE",
+    "details": /* dettagli errore o array Zod */
+  },
+  "timestamp": "2025-01-10T..."
+}
+```
+
+#### ✅ USO CORRETTO NEL BACKEND
+
+```typescript
+// routes/users.routes.ts - SEMPRE nelle routes!
+router.get('/users', authenticate, async (req: any, res) => {
+  try {
+    const users = await userService.getAllUsers();
+    // ✅ SEMPRE ResponseFormatter nelle routes
+    return res.json(ResponseFormatter.success(
+      users, 
+      'Utenti recuperati con successo'
+    ));
+  } catch (error) {
+    logger.error('Error:', error);
+    
+    // ✅ Gestione errori con ResponseFormatter
+    if (error instanceof z.ZodError) {
+      return res.status(400).json(ResponseFormatter.error(
+        'Dati non validi',
+        'VALIDATION_ERROR',
+        error.errors  // Dettagli Zod
+      ));
+    }
+    
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nel recupero utenti',
+      'FETCH_ERROR'
+    ));
+  }
+});
+
+// services/user.service.ts - MAI ResponseFormatter nei services!
+export async function getAllUsers() {
+  // ✅ Services ritornano SOLO dati, niente ResponseFormatter
+  return await prisma.user.findMany();
+}
+```
+
+#### ✅ USO CORRETTO NEL FRONTEND
+
+```typescript
+import { ResponseFormatter } from '@/utils/responseFormatter';
+import { useMutation } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+
+function MyComponent() {
+  const mutation = useMutation({
+    mutationFn: (data) => api.post('/users', data),
+    
+    onSuccess: (response) => {
+      // ✅ Usa ResponseFormatter per estrarre dati
+      const data = ResponseFormatter.getData(response);
+      const message = ResponseFormatter.getMessage(response);
+      toast.success(message);
+    },
+    
+    onError: (error) => {
+      // ✅ Usa ResponseFormatter per gestire errori
+      const errorMessage = ResponseFormatter.getErrorMessage(error);
+      toast.error(errorMessage);
+      
+      // Gestione specifica per tipo di errore
+      if (ResponseFormatter.isValidationError(error)) {
+        const validationErrors = ResponseFormatter.getValidationErrors(error);
+        // Mostra errori per campo
+      }
+      
+      if (ResponseFormatter.isAuthError(error)) {
+        // Redirect al login
+        navigate('/login');
+      }
+    }
+  });
+}
+```
+
+#### ❌ ERRORI DA NON FARE MAI
+
+```typescript
+// ❌ MAI ResponseFormatter nei services
+service.getUsers() {
+  const users = await prisma.user.findMany();
+  return ResponseFormatter.success(users);  // NO!!!
+}
+
+// ❌ MAI risposte custom nelle routes
+router.get('/users', (req, res) => {
+  const users = await service.getUsers();
+  res.json({ data: users });  // NO!!! Usa ResponseFormatter
+});
+
+// ❌ MAI gestire errori senza ResponseFormatter nel frontend
+onError: (error) => {
+  toast.error(error.message);  // NO!!! Potrebbe essere un oggetto
+  // Usa sempre ResponseFormatter.getErrorMessage(error)
+}
+```
+
+#### 🔍 Verifica Automatica
+
+Il pre-commit check verifica automaticamente:
+1. ResponseFormatter presente in TUTTE le routes
+2. ResponseFormatter NON presente nei services
+3. Gestione errori corretta nel frontend
+
+```bash
+# Verifica manuale
+grep -L "ResponseFormatter" backend/src/routes/*.ts  # Non deve trovare nulla
+grep -l "ResponseFormatter" backend/src/services/*.ts  # Non deve trovare nulla
+```
+
+#### 📊 Vantaggi del Pattern
+
+1. **Consistenza Totale**: Tutte le API rispondono allo stesso modo
+2. **Type Safety**: TypeScript può inferire i tipi delle risposte
+3. **Error Handling Robusto**: Nessun crash per oggetti errore
+4. **Manutenzione Facile**: Un solo punto per modificare il formato
+5. **Debug Semplificato**: Struttura prevedibile per tutti
+6. **Frontend Sicuro**: Mai errori React per oggetti renderizzati
 
 ### Pattern ResponseFormatter (CRITICO!)
 
@@ -1316,6 +1571,30 @@ export async function remove(id: string) {
 }
 ```
 
+### Template Nuovo Report Sessione (OBBLIGATORIO OGNI SESSIONE!)
+```markdown
+# 📊 REPORT SESSIONE - [TITOLO]
+
+**SALVARE IN**: DOCUMENTAZIONE/REPORT-SESSIONI/YYYY-MM-DD-descrizione.md
+**MAI NELLA ROOT!**
+
+**Data**: [YYYY-MM-DD]  
+**Autore**: Claude/[Nome Developer]
+**Versione Sistema**: v[X.X]
+
+## 🎯 OBIETTIVO
+[Cosa si voleva ottenere]
+
+## 🔧 IMPLEMENTAZIONE  
+[Cosa è stato fatto]
+
+## ✅ RISULTATI
+[Cosa funziona ora]
+
+## 📝 NOTE
+[Eventuali problemi o prossimi passi]
+```
+
 ### Template React Component con Query (NO /api!)
 ```tsx
 // components/[Resource]List.tsx
@@ -1566,9 +1845,116 @@ echo "✅ System check complete"
 
 ---
 
+## 📚 GESTIONE DOCUMENTAZIONE (SEZIONE CRITICA!)
+
+> ⚠️ **QUESTA SEZIONE È VINCOLANTE**: Il mancato rispetto BLOCCA i commit!
+
+### 🗂️ Struttura Obbligatoria
+**TUTTA** la documentazione DEVE essere salvata in:
+```
+DOCUMENTAZIONE/
+├── INDEX.md                  # 👈 INIZIA DA QUI per navigare
+├── ATTUALE/                  # Documentazione valida e aggiornata
+│   ├── 00-ESSENZIALI/       # File critici del progetto
+│   ├── 01-ARCHITETTURA/     # Architettura sistema
+│   ├── 02-FUNZIONALITA/     # Docs per ogni feature
+│   ├── 03-API/              # Documentazione API
+│   ├── 04-GUIDE/            # Guide pratiche
+│   └── 05-TROUBLESHOOTING/  # Risoluzione problemi
+├── ARCHIVIO/                # Documentazione storica/obsoleta
+└── REPORT-SESSIONI/         # Report di ogni sessione Claude
+    └── YYYY-MM-DD-descrizione.md
+```
+
+### ⚠️ REGOLE VINCOLANTI (VIOLAZIONE = COMMIT BLOCCATO)
+
+#### 🚫 È ASSOLUTAMENTE VIETATO:
+- ❌ Salvare file .md nella root del progetto (eccetto README, ISTRUZIONI-PROGETTO, CHANGELOG, LEGGIMI-DOCUMENTAZIONE)
+- ❌ Creare nuove cartelle di documentazione fuori da DOCUMENTAZIONE/
+- ❌ Salvare report di sessione fuori da DOCUMENTAZIONE/REPORT-SESSIONI/
+- ❌ Duplicare documentazione in più posizioni
+
+#### ✅ È TASSATIVAMENTE OBBLIGATORIO:
+- ✅ Salvare TUTTI i nuovi documenti in DOCUMENTAZIONE/
+- ✅ Usare DOCUMENTAZIONE/ATTUALE/ per docs attiva
+- ✅ Usare DOCUMENTAZIONE/ARCHIVIO/ per docs obsoleta  
+- ✅ Nominare i report: `YYYY-MM-DD-descrizione-breve.md`
+- ✅ Aggiornare DOCUMENTAZIONE/INDEX.md quando si aggiunge documentazione
+
+### 📝 Workflow Documentazione
+
+#### Per Nuova Documentazione:
+1. Determinare la categoria (ATTUALE o ARCHIVIO)
+2. Scegliere la sottocartella appropriata
+3. Creare il file .md nella posizione corretta
+4. Aggiornare DOCUMENTAZIONE/INDEX.md con il link
+
+#### Per Report di Sessione:
+```bash
+# SEMPRE salvare in:
+DOCUMENTAZIONE/REPORT-SESSIONI/YYYY-MM-DD-descrizione.md
+
+# Esempio:
+DOCUMENTAZIONE/REPORT-SESSIONI/2025-09-11-gestione-documentazione.md
+```
+
+#### Per Aggiornamenti:
+1. Modificare il file nella sua posizione in DOCUMENTAZIONE/
+2. Se un documento diventa obsoleto, spostarlo in ARCHIVIO/
+3. Aggiornare INDEX.md se necessario
+
+### 🔍 Come Trovare Documentazione
+```bash
+# Cerca in tutta la documentazione
+grep -r "termine" DOCUMENTAZIONE/
+
+# Trova file recenti
+find DOCUMENTAZIONE/ -type f -name "*.md" -mtime -7
+
+# Visualizza struttura
+tree DOCUMENTAZIONE/ -L 2
+```
+
+### 🚨 Controllo Pre-Commit Documentazione
+```bash
+# Verifica che non ci siano .md non autorizzati nella root
+ROOT_MD=$(ls *.md 2>/dev/null | grep -v -E "^(README|ISTRUZIONI-PROGETTO|CHANGELOG|LEGGIMI-DOCUMENTAZIONE)\.md$")
+if [ ! -z "$ROOT_MD" ]; then
+  echo "❌ ERRORE: File .md non autorizzati trovati nella root!"
+  echo "$ROOT_MD"
+  echo "Spostare in DOCUMENTAZIONE/"
+  exit 1
+fi
+```
+
+### 📋 File Mantenuti nella Root
+Solo questi file .md possono rimanere nella root:
+- `ISTRUZIONI-PROGETTO.md` - Questo file (regole tecniche vincolanti)
+- `README.md` - Overview del progetto per GitHub
+- `LEGGIMI-DOCUMENTAZIONE.md` - Guida alla struttura documentazione
+- `CHANGELOG.md` - Storico versioni progetto
+
+**TUTTI GLI ALTRI** file .md devono essere in DOCUMENTAZIONE/
+
+### 📚 Navigazione Documentazione
+Per navigare nella documentazione:
+1. Apri `DOCUMENTAZIONE/INDEX.md`
+2. Usa i link per accedere alle sezioni
+3. La documentazione è organizzata per argomento
+4. I report sono ordinati per data
+
+---
+
 ## ✅ CHECKLIST FINALE
 
 ### Prima di OGNI Commit
+
+#### Controlli Documentazione 📚 (PRIORITÀ MASSIMA)
+- [ ] **ZERO file .md nuovi nella root** (solo i 4 autorizzati)
+- [ ] **Report sessione creato** in DOCUMENTAZIONE/REPORT-SESSIONI/
+- [ ] **Nuova documentazione** in DOCUMENTAZIONE/ATTUALE/ o ARCHIVIO/
+- [ ] **INDEX.md aggiornato** se aggiunti nuovi file
+- [ ] **pre-commit-check.sh PASSATO** (obbligatorio!)
 
 #### Controlli Tecnici
 - [ ] `npx tsc --noEmit` = 0 errori
@@ -1624,6 +2010,23 @@ echo "✅ System check complete"
 
 ## 📅 CHANGELOG
 
+> 📝 **Nota**: Il CHANGELOG completo è mantenuto in `/CHANGELOG.md` nella root del progetto.
+> Questo è solo un estratto delle modifiche principali.
+
+### v4.2.1 - 11 Settembre 2025 (CRITICO!)  
+- 🔥 **ISTRUZIONI RESE INEQUIVOCABILI**: Box warning, 8ª regola d'oro, errore #5
+- 🤖 **ISTRUZIONI OBBLIGATORIE PER CLAUDE**: Sezione dedicata all'inizio
+- 📚 **GESTIONE DOCUMENTAZIONE RIGOROSA**: Regole vincolanti e ripetute
+- 🚨 **CONTROLLI AUTOMATICI POTENZIATI**: Pre-commit blocca .md non autorizzati
+- 📝 **TEMPLATE REPORT OBBLIGATORIO**: Per ogni sessione di sviluppo
+- 🔄 **17 FILE SPOSTATI**: Root ora pulita con solo 4 .md autorizzati
+
+### v4.1 - 9 Settembre 2025
+- 📚 Riorganizzazione completa documentazione in `/DOCUMENTAZIONE/`
+- 🔗 Eliminazione duplicati - file essenziali solo in root
+- 📅 Correzione date errate nei report sessioni
+- 📁 Creazione INDEX.md navigabile
+
 ### v4.0 - 10 Gennaio 2025
 - ✨ Documentazione completamente aggiornata con stato reale sistema
 - ✨ Aggiunto warning prominente su api client con /api incluso
@@ -1657,8 +2060,15 @@ echo "✅ System check complete"
 
 ---
 
-**REMINDER**: Questo documento è VINCOLANTE. Ogni deviazione deve essere approvata e documentata.
+**⚠️ REMINDER FINALE CRITICO**: 
+- Questo documento è VINCOLANTE. Ogni deviazione deve essere approvata e documentata.
+- 📚 **DOCUMENTAZIONE SEMPRE IN DOCUMENTAZIONE/** - MAI nella root!
+- 🚨 Il pre-commit-check.sh BLOCCA automaticamente i commit non conformi!
+- 📝 Ogni sessione DEVE creare un report in DOCUMENTAZIONE/REPORT-SESSIONI/
 
 > 💡 **Pro Tip**: Salva questo file nei bookmark del browser per accesso rapido!
 > 
-> ⚠️ **RICORDA SEMPRE**: Il client API ha già `/api` nel baseURL - NON aggiungere `/api` nelle chiamate!
+> ⚠️ **RICORDA SEMPRE**: 
+> - Il client API ha già `/api` nel baseURL - NON aggiungere `/api` nelle chiamate!
+> - La documentazione va SEMPRE in DOCUMENTAZIONE/ - MAI nella root!
+> - I report sessione sono OBBLIGATORI in DOCUMENTAZIONE/REPORT-SESSIONI/

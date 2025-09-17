@@ -26,7 +26,11 @@ router.get('/', async (req: any, res: any) => {
         completedRequests,
         totalQuotes,
         acceptedQuotes,
-        totalSpentData
+        totalSpentData,
+        // NUOVO: Interventi da confermare
+        pendingInterventions,
+        // NUOVO: Preventivi da accettare
+        pendingQuotes
       ] = await Promise.all([
         // Total requests by this client
         prisma.assistanceRequest.count({
@@ -56,7 +60,7 @@ router.get('/', async (req: any, res: any) => {
         // Total quotes received
         prisma.quote.count({
           where: {
-            AssistanceRequest: {
+            request: {
               clientId: userId
             }
           }
@@ -64,7 +68,7 @@ router.get('/', async (req: any, res: any) => {
         // Accepted quotes
         prisma.quote.count({
           where: {
-            AssistanceRequest: {
+            request: {
               clientId: userId
             },
             status: 'ACCEPTED'
@@ -73,13 +77,35 @@ router.get('/', async (req: any, res: any) => {
         // Total spent (sum of all accepted quotes)
         prisma.quote.aggregate({
           where: {
-            AssistanceRequest: {
+            request: {
               clientId: userId
             },
             status: 'ACCEPTED'
           },
           _sum: {
             amount: true
+          }
+        }),
+        // NUOVO: Conta interventi programmati da confermare
+        prisma.scheduledIntervention.count({
+          where: {
+            request: {
+              clientId: userId
+            },
+            status: 'PROPOSED',
+            clientConfirmed: false
+          }
+        }),
+        // NUOVO: Conta preventivi in attesa di risposta
+        prisma.quote.count({
+          where: {
+            request: {
+              clientId: userId
+            },
+            status: 'PENDING',
+            expiresAt: {
+              gte: new Date() // Non scaduti
+            }
           }
         })
       ]);
@@ -90,7 +116,7 @@ router.get('/', async (req: any, res: any) => {
         take: 5,
         orderBy: { createdAt: 'desc' },
         include: {
-          User_AssistanceRequest_professionalIdToUser: {
+          professional: {
             select: {
               firstName: true,
               lastName: true,
@@ -100,7 +126,7 @@ router.get('/', async (req: any, res: any) => {
               province: true
             }
           },
-          Category: {
+          category: {
             select: {
               name: true
             }
@@ -108,22 +134,57 @@ router.get('/', async (req: any, res: any) => {
         }
       });
 
+      // NUOVO: Get preventivi da accettare con dettagli
+      const quotesToAccept = await prisma.quote.findMany({
+        where: {
+          request: {
+            clientId: userId
+          },
+          status: 'PENDING',
+          expiresAt: {
+            gte: new Date() // Non scaduti
+          }
+        },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          request: {
+            select: {
+              id: true,
+              title: true,
+              description: true
+            }
+          },
+          professional: {
+            select: {
+              id: true,
+              fullName: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+              email: true
+            }
+          },
+          items: true // Include gli items del preventivo
+        }
+      });
+
       // Get recent quotes
       const recentQuotes = await prisma.quote.findMany({
         where: {
-          AssistanceRequest: {
+          request: {
             clientId: userId
           }
         },
         take: 5,
         orderBy: { createdAt: 'desc' },
         include: {
-          AssistanceRequest: {
+          request: {
             select: {
               title: true
             }
           },
-          User: {
+          professional: {
             select: {
               firstName: true,
               lastName: true,
@@ -156,6 +217,37 @@ router.get('/', async (req: any, res: any) => {
         }
       });
 
+      // NUOVO: Get interventi da confermare con dettagli
+      const interventionsToConfirm = await prisma.scheduledIntervention.findMany({
+        where: {
+          request: {
+            clientId: userId
+          },
+          status: 'PROPOSED',
+          clientConfirmed: false
+        },
+        take: 5,
+        orderBy: { proposedDate: 'asc' },
+        include: {
+          request: {
+            select: {
+              id: true,
+              title: true,
+              address: true,
+              city: true
+            }
+          },
+          professional: {
+            select: {
+              id: true,
+              fullName: true,
+              firstName: true,
+              lastName: true
+            }
+          }
+        }
+      });
+
       // Convert Decimal to number for amount
       const totalSpent = totalSpentData._sum.amount ? Number(totalSpentData._sum.amount) : 0;
 
@@ -167,7 +259,10 @@ router.get('/', async (req: any, res: any) => {
           completedRequests,
           totalQuotes,
           acceptedQuotes,
-          totalSpent: totalSpent
+          totalSpent: totalSpent,
+          // NUOVO: Aggiungi contatori
+          pendingInterventions: pendingInterventions,
+          pendingQuotes: pendingQuotes
         },
         recentRequests: recentRequests.map(request => ({
           id: request.id,
@@ -175,30 +270,68 @@ router.get('/', async (req: any, res: any) => {
           Category: request.category?.name || 'Non categorizzato',
           status: request.status.toLowerCase(),
           createdAt: request.createdAt.toISOString(),
-          professionalName: request.User_AssistanceRequest_professionalIdToUser ? 
-            (request.User_AssistanceRequest_professionalIdToUser.fullName || `${request.User_AssistanceRequest_professionalIdToUser.firstName} ${request.User_AssistanceRequest_professionalIdToUser.lastName}`) : null,
+          professionalName: request.professional ? 
+            (request.professional.fullName || `${request.professional.firstName} ${request.professional.lastName}`) : null,
           // NUOVO: Aggiungi i dati dell'indirizzo della richiesta
           address: request.address,
           city: request.city,
           province: request.province,
           // NUOVO: Aggiungi l'indirizzo del professionista se assegnato
-          professionalAddress: request.User_AssistanceRequest_professionalIdToUser && request.User_AssistanceRequest_professionalIdToUser.address ? 
-            `${request.User_AssistanceRequest_professionalIdToUser.address}, ${request.User_AssistanceRequest_professionalIdToUser.city} (${request.User_AssistanceRequest_professionalIdToUser.province})` : null
+          professionalAddress: request.professional && request.professional.address ? 
+            `${request.professional.address}, ${request.professional.city} (${request.professional.province})` : null
         })),
         recentQuotes: recentQuotes.map(quote => ({
           id: quote.id,
-          requestTitle: quote.AssistanceRequest?.title,
+          requestTitle: quote.request?.title,
           amount: Number(quote.amount),
           status: quote.status.toLowerCase(),
           createdAt: quote.createdAt.toISOString(),
-          professionalName: quote.User ? 
-            (quote.User.fullName || `${quote.User.firstName} ${quote.User.lastName}`) : null
+          professionalName: quote.professional ? 
+            (quote.professional.fullName || `${quote.professional.firstName} ${quote.professional.lastName}`) : null
         })),
         upcomingAppointments: upcomingAppointments.map(apt => ({
           id: apt.id,
           requestTitle: apt.title,
           scheduledDate: apt.scheduledDate?.toISOString() || null,
           address: apt.address ? `${apt.address}, ${apt.city} (${apt.province})` : 'Indirizzo non specificato'
+        })),
+        // NUOVO: Aggiungi lista interventi da confermare
+        interventionsToConfirm: interventionsToConfirm.map(intervention => ({
+          id: intervention.id,
+          requestId: intervention.request.id,
+          requestTitle: intervention.request.title,
+          proposedDate: intervention.proposedDate.toISOString(),
+          description: intervention.description,
+          estimatedDuration: intervention.estimatedDuration,
+          professionalName: intervention.professional?.fullName || 
+            `${intervention.professional?.firstName} ${intervention.professional?.lastName}`,
+          address: intervention.request.address ? 
+            `${intervention.request.address}, ${intervention.request.city}` : 'Da definire',
+          status: 'DA_CONFERMARE',
+          urgent: true // Flag per evidenziare nell'UI
+        })),
+        // NUOVO: Aggiungi lista preventivi da accettare
+        quotesToAccept: quotesToAccept.map(quote => ({
+          id: quote.id,
+          requestId: quote.request.id,
+          requestTitle: quote.request.title,
+          requestDescription: quote.request.description,
+          amount: Number(quote.amount),
+          professionalName: quote.professional?.fullName || 
+            `${quote.professional?.firstName} ${quote.professional?.lastName}`,
+          professionalPhone: quote.professional?.phone,
+          professionalEmail: quote.professional?.email,
+          items: quote.items?.map(item => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: Number(item.unitPrice),
+            totalPrice: Number(item.totalPrice)
+          })) || [],
+          expiresAt: quote.expiresAt?.toISOString(),
+          validUntil: quote.validUntil?.toISOString(),
+          createdAt: quote.createdAt.toISOString(),
+          status: 'DA_ACCETTARE',
+          urgent: true
         }))
       };
 
@@ -277,14 +410,14 @@ router.get('/', async (req: any, res: any) => {
         take: 5,
         orderBy: { createdAt: 'desc' },
         include: {
-          User_AssistanceRequest_clientIdToUser: {
+          client: {
             select: {
               firstName: true,
               lastName: true,
               fullName: true
             }
           },
-          Category: {
+          category: {
             select: {
               name: true
             }
@@ -298,7 +431,7 @@ router.get('/', async (req: any, res: any) => {
         take: 5,
         orderBy: { createdAt: 'desc' },
         include: {
-          AssistanceRequest: {
+          request: {
             select: {
               title: true
             }
@@ -350,8 +483,8 @@ router.get('/', async (req: any, res: any) => {
           Category: request.category?.name || 'Non categorizzato',
           status: request.status.toLowerCase(),
           createdAt: request.createdAt.toISOString(),
-          clientName: request.User_AssistanceRequest_clientIdToUser ? 
-            (request.User_AssistanceRequest_clientIdToUser.fullName || `${request.User_AssistanceRequest_clientIdToUser.firstName} ${request.User_AssistanceRequest_clientIdToUser.lastName}`) : null,
+          clientName: request.client ? 
+            (request.client.fullName || `${request.client.firstName} ${request.client.lastName}`) : null,
           // NUOVO: Aggiungi i dati dell'indirizzo della richiesta
           address: request.address,
           city: request.city,
@@ -359,7 +492,7 @@ router.get('/', async (req: any, res: any) => {
         })),
         recentQuotes: recentQuotes.map(quote => ({
           id: quote.id,
-          requestTitle: quote.AssistanceRequest?.title,
+          requestTitle: quote.request?.title,
           amount: Number(quote.amount),
           status: quote.status.toLowerCase(),
           createdAt: quote.createdAt.toISOString()
@@ -443,14 +576,14 @@ router.get('/', async (req: any, res: any) => {
         take: 5,
         orderBy: { createdAt: 'desc' },
         include: {
-          User_AssistanceRequest_clientIdToUser: {
+          client: {
             select: {
               firstName: true,
               lastName: true,
               fullName: true
             }
           },
-          Category: {
+          category: {
             select: {
               name: true
             }
@@ -463,7 +596,7 @@ router.get('/', async (req: any, res: any) => {
         take: 5,
         orderBy: { createdAt: 'desc' },
         include: {
-          AssistanceRequest: {
+          request: {
             select: {
               title: true
             }
@@ -526,8 +659,8 @@ router.get('/', async (req: any, res: any) => {
             title: request.title,
             status: request.status.toLowerCase(),
             createdAt: request.createdAt.toISOString(),
-            clientName: request.User_AssistanceRequest_clientIdToUser ? 
-              (request.User_AssistanceRequest_clientIdToUser.fullName || `${request.User_AssistanceRequest_clientIdToUser.firstName} ${request.User_AssistanceRequest_clientIdToUser.lastName}`) : null,
+            clientName: request.client ? 
+              (request.client.fullName || `${request.client.firstName} ${request.client.lastName}`) : null,
             // NUOVO: Aggiungi i dati dell'indirizzo
             address: request.address,
             city: request.city,
@@ -535,7 +668,7 @@ router.get('/', async (req: any, res: any) => {
           })),
           recentQuotes: recentQuotes.map(quote => ({
             id: quote.id,
-            requestTitle: quote.AssistanceRequest?.title,
+            requestTitle: quote.request?.title,
             amount: Number(quote.amount),
             status: quote.status.toLowerCase(),
             createdAt: quote.createdAt.toISOString()

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WhatsApp QR Code - SCANSIONA ORA!</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            max-width: 500px;
+            margin: 20px;
+        }
+        h1 {
+            color: #25D366;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        #qrcode {
+            border: 3px solid #25D366;
+            padding: 20px;
+            border-radius: 15px;
+            background: white;
+            display: inline-block;
+            margin: 20px 0;
+        }
+        #qrcode img {
+            display: block;
+            max-width: 300px;
+            height: auto;
+        }
+        .info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .info p {
+            margin: 5px 0;
+            font-family: monospace;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            background: #ffc107;
+            color: #333;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        .instructions {
+            text-align: left;
+            display: inline-block;
+            margin: 20px 0;
+        }
+        .instructions li {
+            margin: 10px 0;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 WhatsApp QR Code</h1>
+        <p class="subtitle">SCANSIONA SUBITO PER ATTIVARE!</p>
+        
+        <div id="qrcode">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAVkAAAFZCAAAAAAXmQMHAAAGdklEQVR42u3bSW4ENxAEQP3/0/Zd8FCZxW6RgoMnLdNbcACylv76x3hnfCEgS9YgS5asQZYsWYMsWbIGWbJkDbJkyRpkb5P9+nl8+/D6p2+HrX/6dtjH860P+3gH62M/XiPVIEuWLFmy52U/L3r/8d8eMDUJ7urjDa2nP5iLoQZZsmTJkj0vGzzwejlNb399vvUR60dfL/z9NyR1J0uWLFmyf0K2WzV/jlrXkXZ/G8G3YTtUJ0uWLFmyf1s2WHtTtipDvBM3V9pkyZIlS/ZPyKZL+/oW1hxpvjeNVYeh9TB4JkuWLFmy18kGK/P/6Kdf7j4iS5YsWbIz2WqsA8Kq3JeeKniutAumL37GLmTJkiVL9vdlqw7+YXicvvdQ7VOq9yPSj1T1TLJkyZIle1S2718JSnFVt0zwU98FUx2bHjGIbsmSJUuW7LuyfSkurf6lxcDqGsMkclpcDLYyZMmSJUv2vGy1qld/C/pr0l8ryipnOyQhS5YsWbJ3yvZ9Mztzlm4aXvlwGgVvdR+RJUuWLNk3ZNMMbBqm7mRvg0Ji1W5TbQa2dhNkyZIlS/b3ZdOiXOA5/EcgkcbD1Zmrb9I0P0uWLFmyZF+TTUuFaZNm2vsyaKWso+phOPtkdEuWLFmyZF+TDS6XBnrbgWjKUfXXVDdenZ4sWbJkyV4iW/WMdC0kTdtLdfogEB127lT7GbJkyZIle0B2mNdMH66v/qXbgn5jst3XQ5YsWbJkb5Ptc7HBSjpcy9Pnql5WCLo8d+aCLFmyZMkelR1mTIc3HWc9m7h0p/iZXpcsWbJkyf4d2WoPUZ2qP33w4X6zkhYmp9EtWbJkyZJ9TTZYJoOu/mGTfxXTpjuM9Q2lcTNZsmTJkr1ddqcKF6BW7y4EK30VHveHTVt1yJIlS5bs78v2q/Cws7LP96Y6QaRdrfRBtwxZsmTJkr1ENg3q1mt5pVPFuX3zZRqMV/0/07wBWbJkyZJ9Qzat9PVY6cStr1b9Wt1z1Sc0zc+SJUuWLNnXZOMiWn3hIIitMqvrk67x0xrisE5JlixZsmTPywa3H1Tw1g+yzTZM5lbvVrzTfUSWLFmyZB+WDc7QrZVf2WtvQf4zjWmrQuKwV5QsWbJkyd4kOywuBg/3zHI/TNJWjTLVhJAlS5Ys2Utk+yaRPmasKpbrHUs6DdUdVNclS5YsWbK3y1b5yqdbUqo7SLt0qkbVF/cGZMmSJUv2EdlguV//LV3Gq1U4bTtN9xVpDjioo5IlS5Ys2etkU5O0U7OKeNPum+rGq4xu3+ZDlixZsmSPyqY9I0FQnBb5ugbKsOZXPcIwdUyWLFmyZG+SfXpb0De7dP2UGxXBYatOsg0iS5YsWbJ3yKYrafrf7dOnDTXbSd90LsiSJUuW7E2y76VIh0+T1kKHpcdhnZIsWbJkyd4ku85NrmPfoArXZz2rs/StP304+8MXkCxZsmTJHpLtc7apU3VsOkl9P0z1tkMQaZMlS5Ys2fOyVcQb7CGqCHWn5TLI2aa/prsdsmTJkiV7p2zf9TjcXGzfRjArwSwPQ2GyZMmSJXuJbFURTJtOdop81WHpTQZEwzclyJIlS5bsKdkq/AzSsM98pH9ZoX/RIY2qk+8AWbJkyZI9JJs+dfprUCoMJrMPbKvpr75J070BWbJkyZJ9V3ad16xeEOhTqdXLCsPJTN9sGGZ5yZIlS5bsAdk0c9l3R/YVwbRNpe+lSfdCw6kmS5YsWbJHZQPFVDvIhFYBa79t2ep46YuQZMmSJUv2kGyaVK0u90xzSq/d/zdOw5IlS5Ys2Ytk00pftXR+1SOYhr51Jbi/dD+zn/kmS5YsWbIPy1ZNJ32vStVkEzx6VVLsU8f9dJElS5Ys2Utk02B3iJqmTYddnmk5sjd+vHZLlixZsmR3ZavQMI37+qbKNP1bxcP9E61jeLJkyZIle5NsujKnTn2L5PaEpJNUFRcfz8+SJUuWLNk3ZKtnrT739N4gqDUOa5fDJydLlixZsudlq6JhlUVNHykQ66+xnSHeynyTJUuWLNnjsmnqM40y08AxvUZwlqrTpnsOsmTJkiV7r+xO30wa8QZp3eqSVUNNr02WLFmyZC+R3VmF0wfpnyFdsoNoNH0RI8UhS5YsWbLnZfu3BPrg9JmK4DPZ2/TL8fgbIGTJkiVL9jlZ44FBlixZgyxZsgZZsmQNsmTJGmTJkjXIkiVrkD05/gVX5wE1HW3YywAAAABJRU5ErkJggg==" alt="WhatsApp QR Code">
+        </div>
+        
+        <div class="info">
+            <p><strong>Instance ID:</strong> 68C67956807C8</p>
+            <p><strong>Token:</strong> 68c575f3c2ff1</p>
+        </div>
+        
+        <div class="status">
+            ⚠️ SCANSIONA QUESTO QR CODE ORA PER ATTIVARE L'ISTANZA!
+        </div>
+        
+        <ol class="instructions">
+            <li>📱 Apri <strong>WhatsApp</strong> sul telefono</li>
+            <li>⚙️ Vai su <strong>Impostazioni → Dispositivi collegati</strong></li>
+            <li>➕ Clicca su <strong>"Collega un dispositivo"</strong></li>
+            <li>📷 <strong>SCANSIONA QUESTO QR CODE</strong></li>
+            <li>✅ Attendi la conferma di connessione</li>
+        </ol>
+
+        <div style="margin-top: 30px; padding: 20px; background: #e8f5e9; border-radius: 10px;">
+            <h3>🎯 Dopo la scansione:</h3>
+            <p>Una volta scansionato il QR e confermata la connessione:</p>
+            <ol style="text-align: left; display: inline-block;">
+                <li>Torna alla pagina WhatsApp Manager</li>
+                <li>Clicca su "Invia Messaggio"</li>
+                <li>Inserisci il numero e il messaggio</li>
+                <li>Il messaggio verrà inviato con successo!</li>
+            </ol>
+        </div>
+    </div>
+</body>
+</html>

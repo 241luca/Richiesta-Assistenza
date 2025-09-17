@@ -1,7 +1,7 @@
 /**
- * Health Check Dashboard
+ * Health Check Dashboard - VERSIONE CORRETTA
  * Dashboard principale per visualizzare lo stato di salute del sistema
- * Incluso nuovo tab Automation & Alerts (Fase 4)
+ * FIX: Mostra correttamente solo i test del modulo singolo quando viene eseguito
  */
 
 import React, { useState, useEffect } from 'react';
@@ -30,21 +30,25 @@ import ModuleStatus from '../../components/admin/health-check/ModuleStatus';
 import AlertsPanel from '../../components/admin/health-check/AlertsPanel';
 import ModuleDescriptions from '../../components/admin/health-check/ModuleDescriptions';
 import HealthCheckAutomation from '../../components/admin/health-check/HealthCheckAutomation';
+import CheckSummarySection from '../../components/admin/health-check/CheckSummarySection';
 
 export default function HealthCheckDashboard() {
   const queryClient = useQueryClient();
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'guide' | 'automation'>('dashboard');
+  const [lastSingleTestModule, setLastSingleTestModule] = useState<string | null>(null);
 
   // Fetch health summary
   const { data: summary, isLoading, error, refetch } = useQuery({
     queryKey: ['health-check-summary'],
     queryFn: async () => {
       const response = await api.health.getSummary();
-      return response.data.data; // Estrai i dati dalla ResponseFormatter
+      return response.data.data;
     },
     refetchInterval: autoRefresh ? 30000 : false,
+    staleTime: 0,
+    gcTime: 1000,
   });
 
   // Fetch modules list
@@ -52,7 +56,7 @@ export default function HealthCheckDashboard() {
     queryKey: ['health-check-modules'],
     queryFn: async () => {
       const response = await api.health.getModules();
-      return response.data.data; // Estrai i dati dalla ResponseFormatter
+      return response.data.data;
     },
   });
 
@@ -60,20 +64,50 @@ export default function HealthCheckDashboard() {
   const runAllChecksMutation = useMutation({
     mutationFn: () => api.health.runAllChecks(),
     onSuccess: () => {
-      // Refresh dopo 5 secondi per dare tempo ai check di completare
+      // Reset il modulo singolo quando si eseguono tutti i test
+      setLastSingleTestModule(null);
+      
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ['health-check-summary'] });
       }, 5000);
     },
   });
 
-  // Run single check mutation
+  // Run single check mutation - FIX: mostra solo i risultati del modulo testato
   const runSingleCheckMutation = useMutation({
-    mutationFn: (module: string) => api.health.runSingleCheck(module),
-    onSuccess: () => {
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['health-check-summary'] });
-      }, 2000);
+    mutationFn: async (module: string) => {
+      const response = await api.health.runSingleCheck(module);
+      return response;
+    },
+    onSuccess: async (data, module) => {
+      console.log(`[Frontend] Check singolo completato per: ${module}`);
+      
+      // Imposta il modulo appena testato
+      setLastSingleTestModule(module);
+      
+      // Aggiorna il summary
+      queryClient.removeQueries({ queryKey: ['health-check-summary'] });
+      
+      await queryClient.fetchQuery({
+        queryKey: ['health-check-summary'],
+        queryFn: async () => {
+          const response = await api.health.getSummary();
+          const summaryData = response.data.data;
+          
+          // Se c'è un flag singleModuleTest dal backend, usalo
+          if (summaryData?.singleModuleTest) {
+            setLastSingleTestModule(summaryData.singleModuleTest.module);
+          }
+          
+          return summaryData;
+        },
+        staleTime: 0,
+        gcTime: 0
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ['health-check-summary'] });
+      
+      console.log(`[Frontend] Pannello aggiornato per modulo: ${module}`);
     },
   });
 
@@ -87,7 +121,7 @@ export default function HealthCheckDashboard() {
     }
   }, [autoRefresh, refetch]);
 
-  // Calculate stats
+  // Calculate stats - FIX: mostra solo i test del modulo singolo quando appropriato
   const stats = React.useMemo(() => {
     if (!summary?.modules) {
       return {
@@ -95,16 +129,93 @@ export default function HealthCheckDashboard() {
         warning: 0,
         critical: 0,
         total: 0,
+        totalIssues: 0,
+        totalChecks: 0,
+        passedChecks: 0,
+        warningChecks: 0,
+        failedChecks: 0,
+        checksDetails: [],
+        singleModuleTested: null
       };
     }
 
-    return {
+    // Statistiche generali dei moduli (sempre tutte)
+    const generalStats = {
       healthy: summary.modules.filter((m: any) => m.status === 'healthy').length,
       warning: summary.modules.filter((m: any) => m.status === 'warning').length,
       critical: summary.modules.filter((m: any) => m.status === 'critical').length,
       total: summary.modules.length,
+      totalIssues: 0
     };
-  }, [summary]);
+
+    // Per il riepilogo test, usa solo il modulo singolo se è stato appena testato
+    let modulesToCount = summary.modules;
+    let singleModuleTested = null;
+    
+    // Controlla se c'è un test singolo dal backend o dallo stato locale
+    if (summary.singleModuleTest?.module || lastSingleTestModule) {
+      const moduleToFind = summary.singleModuleTest?.module || lastSingleTestModule;
+      const singleModule = summary.modules.find((m: any) => m.module === moduleToFind);
+      
+      if (singleModule) {
+        modulesToCount = [singleModule];
+        singleModuleTested = singleModule.displayName || singleModule.module;
+      }
+    }
+
+    // Calcola statistiche dei check (basate sui moduli da contare)
+    let totalChecks = 0;
+    let passedChecks = 0;
+    let warningChecks = 0;
+    let failedChecks = 0;
+    const checksDetails: any[] = [];
+    let modulesWithIssues = 0;
+
+    modulesToCount.forEach((m: any) => {
+      if (m.checks && Array.isArray(m.checks)) {
+        totalChecks += m.checks.length;
+        
+        m.checks.forEach((check: any) => {
+          checksDetails.push({
+            module: m.module,
+            moduleName: m.displayName,
+            description: check.description,
+            status: check.status,
+            message: check.message,
+            severity: check.severity
+          });
+          
+          if (check.status === 'pass' || check.status === 'healthy') {
+            passedChecks++;
+          } else if (check.status === 'warn' || check.status === 'warning') {
+            warningChecks++;
+          } else if (check.status === 'fail' || check.status === 'error' || check.status === 'critical') {
+            failedChecks++;
+          }
+        });
+      }
+      
+      const hasWarnings = (m.warnings && m.warnings.length > 0) || 
+                         (m.checks && m.checks.some((c: any) => c.status === 'warn' || c.status === 'warning'));
+      const hasErrors = (m.errors && m.errors.length > 0) || 
+                       (m.checks && m.checks.some((c: any) => c.status === 'fail' || c.status === 'error' || c.status === 'critical'));
+      
+      if (hasWarnings || hasErrors) {
+        modulesWithIssues++;
+      }
+    });
+
+    return {
+      ...generalStats,
+      totalIssues: modulesWithIssues,
+      totalChecks,
+      passedChecks,
+      warningChecks,
+      failedChecks,
+      checksDetails,
+      singleModuleTested
+    };
+  }, [summary, lastSingleTestModule]);
 
   // Get status color
   const getStatusColor = (status: string) => {
@@ -170,10 +281,10 @@ export default function HealthCheckDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                System Health Dashboard
+                Dashboard Controllo Sistema
               </h1>
               <p className="mt-2 text-gray-600">
-                Monitor the health status of all system modules
+                Monitora lo stato di salute di tutti i moduli del sistema
               </p>
             </div>
             <div className="flex items-center space-x-4">
@@ -187,7 +298,7 @@ export default function HealthCheckDashboard() {
                       onChange={(e) => setAutoRefresh(e.target.checked)}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <span className="text-sm text-gray-700">Auto-refresh</span>
+                    <span className="text-sm text-gray-700">Aggiornamento automatico</span>
                   </label>
 
                   {/* Run all checks button */}
@@ -199,12 +310,12 @@ export default function HealthCheckDashboard() {
                     {runAllChecksMutation.isPending ? (
                       <>
                         <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
-                        Running...
+                        Esecuzione...
                       </>
                     ) : (
                       <>
                         <ArrowPathIcon className="h-5 w-5 mr-2" />
-                        Run All Checks
+                        Esegui Tutti i Test
                       </>
                     )}
                   </button>
@@ -225,7 +336,7 @@ export default function HealthCheckDashboard() {
                 }`}
               >
                 <ChartBarIcon className="w-5 h-5 inline-block mr-2" />
-                Dashboard
+                Pannello Controllo
               </button>
               <button
                 onClick={() => setActiveTab('automation')}
@@ -236,7 +347,7 @@ export default function HealthCheckDashboard() {
                 }`}
               >
                 <BellAlertIcon className="w-5 h-5 inline-block mr-2" />
-                Automation & Alerts
+                Automazione e Avvisi
               </button>
               <button
                 onClick={() => setActiveTab('guide')}
@@ -259,10 +370,10 @@ export default function HealthCheckDashboard() {
             {/* Overall Status Card */}
             <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">Overall System Health</h2>
+                <h2 className="text-xl font-semibold text-gray-900">Stato Generale del Sistema</h2>
                 {summary?.lastCheck && (
                   <p className="text-sm text-gray-500">
-                    Last checked: {new Date(summary.lastCheck).toLocaleString()}
+                    Ultimo controllo: {new Date(summary.lastCheck).toLocaleString('it-IT')}
                   </p>
                 )}
               </div>
@@ -299,30 +410,33 @@ export default function HealthCheckDashboard() {
                       {summary?.overallScore || 0}%
                     </span>
                   </div>
-                  <p className="mt-2 text-lg font-medium text-gray-900">Health Score</p>
+                  <p className="mt-2 text-lg font-medium text-gray-900">Punteggio Salute</p>
                   <p className={`text-sm ${getStatusColor(summary?.overall || 'unknown')}`}>
-                    {summary?.overall?.toUpperCase() || 'UNKNOWN'}
+                    {summary?.overall === 'healthy' ? 'OTTIMO' : 
+                     summary?.overall === 'warning' ? 'ATTENZIONE' :
+                     summary?.overall === 'critical' ? 'CRITICO' : 'SCONOSCIUTO'}
                   </p>
                 </div>
 
                 {/* Stats */}
                 <div className="flex flex-col justify-center">
+                  <div className="text-xs text-gray-500 uppercase tracking-wide mb-2">Moduli Sistema</div>
                   <div className="flex items-center justify-between py-2">
-                    <span className="text-gray-600">Healthy</span>
+                    <span className="text-gray-600">Funzionanti</span>
                     <span className="flex items-center">
                       <CheckCircleIcon className="h-5 w-5 text-green-500 mr-2" />
                       <span className="font-semibold">{stats.healthy}</span>
                     </span>
                   </div>
                   <div className="flex items-center justify-between py-2">
-                    <span className="text-gray-600">Warning</span>
+                    <span className="text-gray-600">Attenzione</span>
                     <span className="flex items-center">
                       <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500 mr-2" />
                       <span className="font-semibold">{stats.warning}</span>
                     </span>
                   </div>
                   <div className="flex items-center justify-between py-2">
-                    <span className="text-gray-600">Critical</span>
+                    <span className="text-gray-600">Critici</span>
                     <span className="flex items-center">
                       <XCircleIcon className="h-5 w-5 text-red-500 mr-2" />
                       <span className="font-semibold">{stats.critical}</span>
@@ -334,30 +448,41 @@ export default function HealthCheckDashboard() {
                 <div className="col-span-2 flex flex-col justify-center space-y-3">
                   <div>
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-600">System Availability</span>
+                      <span className="text-gray-600">Moduli Disponibili</span>
                       <span className="font-medium">
-                        {Math.round((stats.healthy / stats.total) * 100)}%
+                        {stats.healthy} su {stats.total} moduli ({stats.total > 0 ? Math.round((stats.healthy / stats.total) * 100) : 0}%)
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
                         className="bg-green-500 h-2 rounded-full"
-                        style={{ width: `${(stats.healthy / stats.total) * 100}%` }}
+                        style={{ width: stats.total > 0 ? `${(stats.healthy / stats.total) * 100}%` : '0%' }}
                       />
                     </div>
                   </div>
                   <div>
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-600">Issues Detected</span>
+                      <span className="text-gray-600">
+                        Test Superati
+                        {stats.singleModuleTested && (
+                          <span className="text-blue-600 font-medium ml-1">
+                            ({stats.singleModuleTested})
+                          </span>
+                        )}
+                      </span>
                       <span className="font-medium">
-                        {stats.warning + stats.critical} / {stats.total}
+                        {stats.passedChecks} su {stats.totalChecks} test ({stats.totalChecks > 0 ? Math.round((stats.passedChecks / stats.totalChecks) * 100) : 0}%)
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-yellow-500 h-2 rounded-full"
+                        className={`h-2 rounded-full ${
+                          stats.totalChecks === 0 ? 'bg-gray-400' :
+                          (stats.passedChecks / stats.totalChecks) >= 0.8 ? 'bg-green-500' :
+                          (stats.passedChecks / stats.totalChecks) >= 0.6 ? 'bg-yellow-500' : 'bg-red-500'
+                        }`}
                         style={{ 
-                          width: `${((stats.warning + stats.critical) / stats.total) * 100}%` 
+                          width: stats.totalChecks > 0 ? `${(stats.passedChecks / stats.totalChecks) * 100}%` : '0%' 
                         }}
                       />
                     </div>
@@ -365,6 +490,9 @@ export default function HealthCheckDashboard() {
                 </div>
               </div>
             </div>
+
+            {/* Sezione Dettaglio Check Totali con box cliccabili */}
+            <CheckSummarySection stats={stats} />
 
             {/* Info Box */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">

@@ -1,666 +1,463 @@
-# 🛠️ SCRIPT MANAGER - DOCUMENTAZIONE COMPLETA
+# 🛠️ SCRIPT MANAGER - Documentazione Completa
 **Versione**: 2.0.0  
-**Data**: 8 Settembre 2025  
-**Stato**: Production Ready
+**Data Aggiornamento**: 10 Gennaio 2025  
+**Stato**: ✅ Production Ready
 
 ---
 
 ## 📋 INDICE
 
-1. [Overview](#1-overview)
-2. [Architettura](#2-architettura)
-3. [Dashboard UI](#3-dashboard-ui)
-4. [Script Disponibili](#4-script-disponibili)
-5. [API Reference](#5-api-reference)
-6. [Sicurezza](#6-sicurezza)
-7. [Best Practices](#7-best-practices)
-8. [Troubleshooting](#8-troubleshooting)
+1. [Introduzione](#1-introduzione)
+2. [Funzionalità Principali](#2-funzionalità-principali)
+3. [Script Disponibili](#3-script-disponibili)
+4. [Interfaccia Utente](#4-interfaccia-utente)
+5. [Console Output Avanzata](#5-console-output-avanzata)
+6. [Script di Analisi Completa](#6-script-di-analisi-completa)
+7. [Script di Testing e Qualità](#7-script-di-testing-e-qualità) 🆕
+8. [Guida all'Uso](#8-guida-alluso)
+9. [Troubleshooting](#9-troubleshooting)
 
 ---
 
-## 1. OVERVIEW
+## 1. INTRODUZIONE
 
-### 🎯 Scopo
-Il **Script Manager** è un sistema centralizzato per la gestione e l'esecuzione sicura di script di manutenzione e utilità dal pannello amministrativo.
+### 🎯 Cos'è Script Manager?
 
-### 🚀 Caratteristiche Principali
-- **Esecuzione Sicura**: Sandbox environment con controlli di sicurezza
-- **UI Intuitiva**: Dashboard per esecuzione senza terminale
-- **Logging Completo**: Tracciamento di tutte le operazioni
-- **Controllo Accessi**: Solo SUPER_ADMIN può eseguire script critici
-- **Real-time Output**: Visualizzazione output in tempo reale
-- **Categorizzazione**: Script organizzati per categoria
-- **Parametri Dinamici**: Input personalizzabili per ogni script
+Script Manager è un'interfaccia web avanzata che permette di eseguire e monitorare gli script di sistema direttamente dal browser, senza dover aprire il terminale. È stato progettato per semplificare l'esecuzione di controlli complessi sul sistema, rendendo accessibili anche ai non sviluppatori funzionalità avanzate di diagnostica e manutenzione.
 
-### 📊 Categorie Script
-- **🗄️ Database**: Backup, restore, migrations
-- **🧹 Manutenzione**: Pulizia, ottimizzazione
-- **📊 Report**: Generazione report e statistiche
-- **🔐 Sicurezza**: Audit, controlli sicurezza
-- **🛠️ Utilità**: Script generici di supporto
+### ✨ Caratteristiche Principali
+
+- **🖥️ Interfaccia Web Intuitiva**: Non serve conoscere comandi da terminale
+- **📊 Console Output Avanzata**: Con resize, fullscreen, stampa ed export
+- **⚡ Modalità Veloce**: Per script lunghi, salta controlli non essenziali
+- **📚 Documentazione Integrata**: Ogni script ha documentazione dettagliata
+- **🎨 Output Colorato**: Facile identificazione di errori, warning e successi
+- **🔄 Real-time Updates**: Vedi l'output mentre lo script viene eseguito
+- **📱 Responsive Design**: Funziona su desktop, tablet e mobile
+
+### 🔐 Accesso
+
+- **URL**: `/admin/script-manager`
+- **Permessi**: Solo utenti con ruolo ADMIN o SUPER_ADMIN
+- **Autenticazione**: Richiesta login con JWT valido
 
 ---
 
-## 2. ARCHITETTURA
+## 2. FUNZIONALITÀ PRINCIPALI
 
-### 🏗️ Struttura del Sistema
+### 🎯 Tab Esecuzione Script
+
+La schermata principale dove puoi:
+- Vedere tutti gli script disponibili
+- Eseguire script con un click
+- Monitorare l'output in tempo reale
+- Usare la modalità veloce per script complessi
+- Vedere lo stato di esecuzione (in corso, completato, errore)
+
+### 📚 Tab Documentazione
+
+Documentazione completa per ogni script con:
+- **Quando Usarlo**: Situazioni in cui lo script è utile
+- **Cosa Controlla**: Lista dettagliata dei controlli eseguiti
+- **Come Interpretare l'Output**: Significato di colori e simboli
+- **Problemi Comuni**: Soluzioni ai problemi frequenti
+- **17 Sezioni** (per script complessi): Dettaglio di ogni sezione di controllo
+
+### 🖥️ Console Output Avanzata
+
+#### 📏 Ridimensionabile
+- **Maniglia di resize**: Barra grigia tra header e contenuto
+- **Drag & Drop**: Trascina su/giù per cambiare altezza
+- **Limiti**: Min 300px, Max altezza schermo - 200px
+- **Feedback visivo**: La barra diventa blu quando ci passi sopra
+
+#### 🖥️ Modalità Schermo Intero
+- **Attivazione**: Click su icona con 4 frecce verso l'esterno
+- **Overlay completo**: Console a tutto schermo con sfondo scuro
+- **Toolbar dedicata**: Tutti i controlli disponibili
+- **Uscita**: Click su icona con 4 frecce verso l'interno
+
+#### 🖨️ Stampa Output
+- **Formattazione automatica**: Rimuove codici colore per stampa pulita
+- **Header informativo**: Nome script, timestamp, exit code
+- **Layout ottimizzato**: Font monospace, margini corretti
+- **Anteprima**: Si apre finestra di stampa del browser
+
+#### 💾 Export come File
+- **Formato**: File .txt pulito senza codici colore
+- **Nome file**: `[nome-script]-output-[timestamp].txt`
+- **Download automatico**: Si scarica immediatamente
+- **Contenuto completo**: Include output, errori ed exit code
+
+#### 🗑️ Pulizia Output
+- **Reset rapido**: Cancella output dello script selezionato
+- **Mantenimento storico**: Altri script mantengono il loro output
+- **Disabilitato se vuoto**: Non attivo se non c'è output
+
+---
+
+## 3. SCRIPT DISPONIBILI
+
+### 🔍 Script di Analisi Completa (17 Sezioni)
+
+#### 📘 Analisi Completa Modulo Richieste
+- **Nome**: `request-system-check-complete`
+- **Durata**: 1-2 minuti (completo), 30 secondi (veloce)
+- **Sezioni**: 17 controlli approfonditi
+- **Health Score**: Percentuale di salute del modulo
+- **Modalità Veloce**: Salta controlli TypeScript
+
+#### 💰 Analisi Completa Modulo Preventivi
+- **Nome**: `quote-system-check-complete`
+- **Durata**: 1-2 minuti (completo), 30 secondi (veloce)
+- **Sezioni**: 17 controlli specifici per preventivi
+- **Focus**: Calcoli, versioning, workflow
+- **Modalità Veloce**: Disponibile
+
+#### 📋 Analisi Completa Modulo Rapporti
+- **Nome**: `intervention-report-check-complete`
+- **Durata**: 1-2 minuti (completo), 30 secondi (veloce)
+- **Sezioni**: 17 controlli per rapporti intervento
+- **Focus**: Firma digitale, materiali, PDF
+- **Modalità Veloce**: Disponibile
+
+#### ⚖️ Analisi Completa Sistema Audit
+- **Nome**: `audit-system-check`
+- **Durata**: 1-2 minuti (completo), 30 secondi (veloce)
+- **Sezioni**: 17 controlli audit log
+- **Focus**: Tracciamento, retention, compliance
+- **Modalità Veloce**: Disponibile
+
+### ⚡ Script di Controllo Rapido
+
+#### 🔄 Controllo Sistema
+- **Nome**: `check-system`
+- **Durata**: 5-10 secondi
+- **Cosa fa**: Verifica stato generale del sistema
+- **Quando usarlo**: All'inizio di ogni sessione
+
+#### ✅ Controllo Pre-Commit
+- **Nome**: `pre-commit-check`
+- **Durata**: 10-20 secondi
+- **Cosa fa**: Tutti i controlli prima di salvare codice
+- **Quando usarlo**: SEMPRE prima di un commit Git
+
+#### ⚠️ Valida Modifiche
+- **Nome**: `validate-work`
+- **Durata**: 5-10 secondi
+- **Cosa fa**: Controlla solo file modificati
+- **Quando usarlo**: Dopo aver scritto codice
+
+#### 📚 Guida Sviluppatore
+- **Nome**: `claude-help`
+- **Durata**: Istantaneo
+- **Cosa fa**: Mostra guida rapida con regole progetto
+- **Quando usarlo**: Quando hai dubbi sulle best practices
+
+---
+
+## 4. INTERFACCIA UTENTE
+
+### 🎨 Layout Principale
 
 ```
-Script Manager
-├── Dashboard UI (React)
-├── API Routes (Express)
-├── Script Service (Node.js)
-├── Script Registry (JSON)
-├── Execution Engine
-└── Security Layer
+┌──────────────────────────────────────────────────────┐
+│  🛠️ Script Manager                        [Refresh]  │
+│  Esegui e monitora gli script di sistema             │
+├──────────────────────────────────────────────────────┤
+│  [Esecuzione Script] │ [Documentazione]              │
+├──────────────────────────────────────────────────────┤
+│                                                       │
+│  ┌─────────────────┐  ┌──────────────────────────┐  │
+│  │ Script List     │  │ Console Output           │  │
+│  │                 │  │ ┌──────────────────────┐ │  │
+│  │ ○ Script 1     │  │ │ Header con toolbar   │ │  │
+│  │ ○ Script 2     │  │ ├──────────────────────┤ │  │
+│  │ ● Script 3     │  │ │ ═══ Resize Handle    │ │  │
+│  │   [Run][Quick] │  │ ├──────────────────────┤ │  │
+│  │                 │  │ │                      │ │  │
+│  │                 │  │ │  Output Area         │ │  │
+│  │                 │  │ │  (Ridimensionabile)  │ │  │
+│  └─────────────────┘  │ └──────────────────────┘ │  │
+│                        └──────────────────────────┘  │
+└──────────────────────────────────────────────────────┘
 ```
 
-### 📁 Struttura File
+### 🎯 Elementi UI
+
+#### Card Script
+- **Icona**: Identifica tipo di script
+- **Titolo**: Nome tradotto in italiano
+- **Descrizione**: Breve spiegazione
+- **Badge stato**: Disponibile/Non disponibile
+- **Timer avviso**: Per script lunghi (1-2 minuti)
+- **Pulsanti azione**: Completo e Veloce (dove disponibile)
+- **Stato esecuzione**: Icona animata durante esecuzione
+
+#### Console Toolbar
+```
+┌─────────────────────────────────────────────────────┐
+│ 💻 Console Output - [nome-script]                   │
+│                                                      │
+│  [🖨️ Stampa] [💾 Export] [🗑️ Pulisci] [⬚ Fullscreen] │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## 5. CONSOLE OUTPUT AVANZATA
+
+### 🎨 Codifica Colori Output
+
+- **✅ Verde**: Controllo passato con successo
+- **⚠️ Giallo**: Warning, funziona ma migliorabile
+- **❌ Rosso**: Errore che deve essere risolto
+- **ℹ️ Blu**: Informazione, nessuna azione richiesta
+- **⚪ Grigio**: Output generico o debug
+
+### 📊 Health Score
+
+Per script di analisi completa:
+- **>90%**: 🟢 Eccellente - Sistema in ottima salute
+- **80-90%**: 🟢 Buono - Piccoli miglioramenti possibili
+- **60-80%**: 🟡 Attenzione - Diversi aspetti da migliorare
+- **40-60%**: 🟠 Critico - Problemi importanti da risolvere
+- **<40%**: 🔴 Grave - Sistema necessita intervento urgente
+
+### 📋 Formato Output Tipico
 
 ```
-backend/
-├── src/
-│   ├── routes/
-│   │   └── admin/
-│   │       └── scripts.routes.ts
-│   ├── services/
-│   │   └── scripts.service.ts
-│   └── scripts/
-│       ├── database/
-│       │   ├── backup.ts
-│       │   ├── restore.ts
-│       │   └── optimize.ts
-│       ├── maintenance/
-│       │   ├── cleanup.ts
-│       │   └── cache-clear.ts
-│       └── registry.json
+═══════════════════════════════════════════════════════
+🔍 ANALISI COMPLETA MODULO RICHIESTE
+═══════════════════════════════════════════════════════
+
+📊 SEZIONE 1: DATABASE E MODELLI PRISMA
+───────────────────────────────────────────
+✅ Connessione database attiva
+✅ Schema Prisma sincronizzato
+✅ Modello AssistanceRequest presente
+⚠️ Indice mancante su campo 'status'
+❌ Relazione 'quotes' non definita
+
+Controlli: 5 | Passati: 3 | Warning: 1 | Errori: 1
+
+[... altre 16 sezioni ...]
+
+═══════════════════════════════════════════════════════
+📊 HEALTH SCORE FINALE: 78% (Buono)
+═══════════════════════════════════════════════════════
 ```
 
-### 🔄 Flusso Esecuzione
+---
+
+## 6. SCRIPT DI ANALISI COMPLETA
+
+### 📋 Le 17 Sezioni Standard
+
+Ogni script di analisi completa controlla 17 sezioni:
+
+1. **DATABASE E MODELLI**: Connessione, schema, relazioni
+2. **PAGINE FRONTEND**: Componenti React, routing
+3. **TYPESCRIPT**: Compilazione, type checking
+4. **API ROUTES**: Endpoint REST, CRUD operations
+5. **SERVICES LAYER**: Business logic, transazioni
+6. **INTEGRAZIONI**: Collegamenti tra moduli
+7. **SICUREZZA**: RBAC, ownership, protezioni
+8. **PERFORMANCE**: Cache, indici, query optimization
+9. **WORKFLOW**: Stati, transizioni, business rules
+10. **TESTING**: Unit test, integration test
+11. **WEBSOCKET**: Real-time, eventi, notifiche
+12. **METRICHE**: Monitoring, timing, analytics
+13. **DOCUMENTAZIONE**: JSDoc, commenti, README
+14. **VERSIONING**: API versioning, deprecation
+15. **LOGGING**: Logger strutturato, livelli
+16. **BACKUP**: Export, archivio, retention
+17. **MONITORING**: Health check, alerting
+
+### ⚡ Modalità Veloce vs Completa
+
+#### Modalità Completa
+- **Tutti i 17 controlli**: Nessuno saltato
+- **TypeScript compilation**: Verifica completa
+- **Durata**: 1-2 minuti
+- **Quando usarla**: Controlli periodici approfonditi
+
+#### Modalità Veloce (--quick)
+- **Salta TypeScript**: Risparmia 30-60 secondi
+- **Focus su runtime**: Controlli che non richiedono compilazione
+- **Durata**: 20-40 secondi
+- **Quando usarla**: Controlli rapidi durante sviluppo
+
+---
+
+## 7. SCRIPT DI TESTING E QUALITÀ 🆕
+
+### 🔍 TypeScript Errors Check
+- **Nome**: `typescript-errors-check`
+- **Categoria**: Testing
+- **Durata**: 30-120 secondi
+- **Cosa fa**: Analizza tutti gli errori TypeScript nel progetto
+- **Output**: 
+  - File ordinati per numero di errori (più errori = prima posizione)
+  - Backend e Frontend separati
+  - Dettagli con numero di riga per ogni errore
+  - Statistiche totali
+
+### ✅ Check ResponseFormatter Usage
+- **Nome**: `check-response-formatter`
+- **Categoria**: Testing
+- **Durata**: 5-10 secondi
+- **Cosa fa**: Verifica l'uso corretto di ResponseFormatter
+- **Controlli**:
+  - Routes che NON usano ResponseFormatter (errore)
+  - Services che usano ResponseFormatter (errore architetturale)
+  - Pattern res.json() senza formatter
+- **Output**: Lista violazioni con suggerimenti di correzione
+
+### 🔗 Check Prisma Relations
+- **Nome**: `check-prisma-relations`
+- **Categoria**: Database
+- **Durata**: 5-10 secondi
+- **Cosa fa**: Analizza tutte le relazioni nel schema Prisma
+- **Controlli**:
+  - Relazioni con @relation (corrette)
+  - Relazioni senza @relation (da correggere)
+  - Statistiche per modello
+  - Percentuale di conformità
+- **Output**: Report dettagliato con suggerimenti
+
+---
+
+## 8. GUIDA ALL'USO
+
+### 🚀 Quick Start
+
+1. **Accedi a Script Manager**
+   ```
+   http://localhost:5193/admin/script-manager
+   ```
+
+2. **Scegli uno script**
+   - Per controllo generale: `check-system`
+   - Per analisi completa: Uno dei 4 script con 17 sezioni
+
+3. **Esegui lo script**
+   - Click su **[Completo]** per analisi dettagliata
+   - Click su **[⚡ Veloce]** per versione rapida
+
+4. **Monitora l'output**
+   - Guarda i risultati apparire in tempo reale
+   - Usa resize per vedere più output
+   - Attiva fullscreen per analisi dettagliate
+
+5. **Salva i risultati**
+   - **Stampa**: Per documentazione cartacea
+   - **Export**: Per analisi offline o condivisione
+
+### 📊 Workflow Tipico di Controllo
 
 ```mermaid
 graph TD
-    A[Dashboard UI] --> B[API Route]
-    B --> C[Auth Check]
-    C --> D[Script Service]
-    D --> E[Security Validation]
-    E --> F[Script Execution]
-    F --> G[Output Stream]
-    G --> A
-    F --> H[Logging]
+    A[Inizio Sessione] --> B[check-system]
+    B --> C{Sistema OK?}
+    C -->|Sì| D[Sviluppo]
+    C -->|No| E[Fix problemi]
+    D --> F[validate-work]
+    F --> G[pre-commit-check]
+    G --> H{Tutto OK?}
+    H -->|Sì| I[Git Commit]
+    H -->|No| J[Fix errori]
+    J --> F
 ```
+
+### 🎯 Best Practices
+
+1. **Inizio giornata**: Esegui sempre `check-system`
+2. **Dopo modifiche importanti**: Usa script di analisi completa pertinente
+3. **Prima di commit**: SEMPRE `pre-commit-check`
+4. **Problemi specifici**: Usa modalità completa per debug
+5. **Controlli veloci**: Modalità veloce durante sviluppo attivo
 
 ---
 
-## 3. DASHBOARD UI
+## 9. TROUBLESHOOTING
 
-### 🎨 Interfaccia Amministrativa
+### ❓ Problemi Comuni
 
-Accessibile da: **Menu → Script Manager**
+#### Script non si carica
+- **Causa**: Backend non raggiungibile
+- **Soluzione**: Verifica che backend sia attivo su porta 3200
 
-### 📑 Sezioni Dashboard
+#### Output non appare
+- **Causa**: WebSocket disconnesso
+- **Soluzione**: Ricarica la pagina (F5)
 
-#### 1. Lista Script
-- **Grid View**: Card per ogni script
-- **Categorizzazione**: Filtro per categoria
-- **Search**: Ricerca per nome/descrizione
-- **Status Indicators**: Ultimo run, successo/fallimento
+#### Script termina con errore
+- **Causa**: Timeout o errore di esecuzione
+- **Soluzione**: Riprova, se persiste controlla logs backend
 
-#### 2. Dettaglio Script
-- **Descrizione**: Cosa fa lo script
-- **Parametri**: Input richiesti
-- **Rischi**: Warning per script critici
-- **Storia**: Ultimi 10 run
+#### Console non ridimensionabile
+- **Causa**: Browser non supporta resize events
+- **Soluzione**: Usa browser moderno (Chrome, Firefox, Edge)
 
-#### 3. Esecuzione
-- **Form Parametri**: Input dinamici
-- **Confirmation Dialog**: Per script critici
-- **Progress Bar**: Durante esecuzione
-- **Output Console**: Real-time output
-- **Result Status**: Success/Error finale
+#### Stampa non formattata correttamente
+- **Causa**: CSS print non caricato
+- **Soluzione**: Attendi caricamento completo prima di stampare
 
-### 🎮 Componenti UI
+### 🛠️ Comandi Utili da Terminale
 
-```typescript
-// Componente principale
-<ScriptManager>
-  <ScriptList />          // Lista script disponibili
-  <ScriptDetail />        // Dettagli script selezionato
-  <ScriptExecutor />      // Form esecuzione
-  <ScriptOutput />        // Console output
-  <ScriptHistory />       // Storico esecuzioni
-</ScriptManager>
-```
-
-### 🖼️ Layout UI
-
-```
-┌─────────────────────────────────────────────┐
-│            Script Manager Dashboard          │
-├──────────┬──────────────────────────────────┤
-│          │                                   │
-│  Script  │        Script Details             │
-│   List   │                                   │
-│          │   ┌─────────────────────┐        │
-│  [DB]    │   │   Parameters Form   │        │
-│  [Maint] │   └─────────────────────┘        │
-│  [Utils] │                                   │
-│          │   ┌─────────────────────┐        │
-│          │   │   Console Output    │        │
-│          │   │   > Running...      │        │
-│          │   │   > Complete!       │        │
-│          │   └─────────────────────┘        │
-└──────────┴──────────────────────────────────┘
-```
-
----
-
-## 4. SCRIPT DISPONIBILI
-
-### 🗄️ Database Scripts
-
-#### backup-database
-```typescript
-{
-  "id": "backup-database",
-  "name": "Database Backup",
-  "category": "database",
-  "description": "Crea backup completo del database",
-  "risk": "low",
-  "parameters": [
-    {
-      "name": "compress",
-      "type": "boolean",
-      "default": true,
-      "description": "Comprimi il backup"
-    }
-  ],
-  "requireConfirmation": false,
-  "minRole": "ADMIN"
-}
-```
-
-#### restore-database
-```typescript
-{
-  "id": "restore-database",
-  "name": "Database Restore",
-  "category": "database",
-  "description": "Ripristina database da backup",
-  "risk": "critical",
-  "parameters": [
-    {
-      "name": "backupFile",
-      "type": "string",
-      "required": true,
-      "description": "Nome del file di backup"
-    }
-  ],
-  "requireConfirmation": true,
-  "minRole": "SUPER_ADMIN"
-}
-```
-
-### 🧹 Maintenance Scripts
-
-#### cleanup-old-data
-```typescript
-{
-  "id": "cleanup-old-data",
-  "name": "Pulizia Dati Vecchi",
-  "category": "maintenance",
-  "description": "Rimuove dati obsoleti",
-  "risk": "medium",
-  "parameters": [
-    {
-      "name": "days",
-      "type": "number",
-      "default": 90,
-      "description": "Giorni da mantenere"
-    }
-  ]
-}
-```
-
-#### clear-cache
-```typescript
-{
-  "id": "clear-cache",
-  "name": "Clear Cache",
-  "category": "maintenance",
-  "description": "Pulisce cache Redis",
-  "risk": "low",
-  "parameters": []
-}
-```
-
-### 📊 Report Scripts
-
-#### generate-usage-report
-```typescript
-{
-  "id": "generate-usage-report",
-  "name": "Report Utilizzo",
-  "category": "report",
-  "description": "Genera report utilizzo sistema",
-  "risk": "low",
-  "parameters": [
-    {
-      "name": "startDate",
-      "type": "date",
-      "required": true
-    },
-    {
-      "name": "endDate",
-      "type": "date",
-      "required": true
-    },
-    {
-      "name": "format",
-      "type": "select",
-      "options": ["pdf", "csv", "json"],
-      "default": "pdf"
-    }
-  ]
-}
-```
-
----
-
-## 5. API REFERENCE
-
-### 🔌 Endpoints
-
-Base URL: `/api/admin/scripts`
-
-#### Script Management
-```http
-GET    /                    # Lista script disponibili
-GET    /:id                 # Dettagli script
-POST   /:id/execute         # Esegui script
-GET    /:id/history         # Storico esecuzioni
-GET    /:id/output/:runId   # Output specifica esecuzione
-```
-
-### 📤 Request/Response
-
-#### Execute Script
-```http
-POST /api/admin/scripts/backup-database/execute
-Content-Type: application/json
-Authorization: Bearer {token}
-
-{
-  "parameters": {
-    "compress": true,
-    "excludeTables": ["logs", "temp_data"]
-  }
-}
-```
-
-#### Response
-```json
-{
-  "success": true,
-  "data": {
-    "runId": "run_abc123",
-    "status": "running",
-    "startedAt": "2025-09-08T10:00:00Z",
-    "output": []
-  },
-  "message": "Script execution started"
-}
-```
-
-#### Get Output (WebSocket)
-```javascript
-// Real-time output via WebSocket
-socket.on('script:output', (data) => {
-  console.log(data.line);
-  // Output: "Backing up table users... [OK]"
-});
-
-socket.on('script:complete', (data) => {
-  console.log('Script completed:', data.status);
-});
-```
-
----
-
-## 6. SICUREZZA
-
-### 🔐 Controlli di Sicurezza
-
-#### 1. Autenticazione & Autorizzazione
-- **JWT Required**: Tutti gli endpoint richiedono token valido
-- **Role-Based**: Script critici solo per SUPER_ADMIN
-- **Session Validation**: Controllo sessione attiva
-
-#### 2. Input Validation
-```typescript
-// Validazione parametri con Zod
-const backupSchema = z.object({
-  compress: z.boolean().optional(),
-  excludeTables: z.array(z.string()).optional()
-});
-
-// Sanitizzazione input
-const sanitized = DOMPurify.sanitize(userInput);
-```
-
-#### 3. Execution Sandbox
-- **Process Isolation**: Child process separato
-- **Resource Limits**: CPU e memoria limitati
-- **Timeout**: Max execution time
-- **No Shell Access**: Nessun accesso shell diretto
-
-#### 4. Audit Logging
-```typescript
-// Ogni esecuzione viene loggata
-{
-  userId: "user_123",
-  scriptId: "backup-database",
-  parameters: {...},
-  startedAt: "2025-09-08T10:00:00Z",
-  completedAt: "2025-09-08T10:05:00Z",
-  status: "success",
-  output: "...",
-  ipAddress: "192.168.1.1"
-}
-```
-
-### 🛡️ Protezioni Aggiuntive
-
-- **Rate Limiting**: Max 10 esecuzioni/ora per utente
-- **Concurrent Execution**: Max 3 script contemporanei
-- **File System Protection**: Accesso solo a directory autorizzate
-- **Network Isolation**: No accesso rete per script locali
-- **Environment Variables**: Secrets non esposti
-
----
-
-## 7. BEST PRACTICES
-
-### ✅ DO's
-
-1. **Sempre testare in development**
-   ```bash
-   NODE_ENV=development npm run script:test
-   ```
-
-2. **Usare parametri invece di hardcoding**
-   ```typescript
-   // Good
-   const days = parameters.days || 30;
-   
-   // Bad
-   const days = 30;
-   ```
-
-3. **Implementare rollback**
-   ```typescript
-   try {
-     await executeOperation();
-   } catch (error) {
-     await rollback();
-     throw error;
-   }
-   ```
-
-4. **Logging dettagliato**
-   ```typescript
-   logger.info(`Starting backup for ${tables.length} tables`);
-   logger.debug(`Processing table: ${table}`);
-   logger.error(`Failed to backup ${table}:`, error);
-   ```
-
-### ❌ DON'Ts
-
-1. **Mai esporre credenziali**
-   ```typescript
-   // Bad
-   const password = "admin123";
-   
-   // Good
-   const password = process.env.DB_PASSWORD;
-   ```
-
-2. **Evitare operazioni distruttive senza conferma**
-   ```typescript
-   // Always require confirmation for:
-   - DROP TABLE
-   - DELETE without WHERE
-   - TRUNCATE
-   - System modifications
-   ```
-
-3. **Non bypassare validazioni**
-   ```typescript
-   // Always validate input
-   if (!isValidInput(params)) {
-     throw new ValidationError();
-   }
-   ```
-
----
-
-## 8. TROUBLESHOOTING
-
-### ❌ Problemi Comuni
-
-#### Script non appare nella lista
-```bash
-# Verifica registry
-cat backend/src/scripts/registry.json
-
-# Ricarica registry
-npm run scripts:reload
-```
-
-#### Esecuzione fallisce
-```bash
-# Check logs
-tail -f backend/logs/scripts.log
-
-# Verifica permessi
-ls -la backend/src/scripts/
-
-# Test manuale
-npm run script:test -- backup-database
-```
-
-#### Output non visibile
-```bash
-# Verifica WebSocket
-# Browser console:
-socket.connected // should be true
-
-# Backend logs
-grep "WebSocket" backend/logs/combined.log
-```
-
-### 📋 Checklist Debug
-
-- [ ] Utente ha ruolo corretto?
-- [ ] Script presente nel registry?
-- [ ] Parametri validi?
-- [ ] Database/Redis connessi?
-- [ ] Spazio disco sufficiente?
-- [ ] Permessi file corretti?
-- [ ] WebSocket connesso?
-
-### 🔍 Log Analysis
+Se Script Manager non funziona, puoi eseguire gli script da terminale:
 
 ```bash
-# Script execution logs
-tail -f backend/logs/scripts/execution.log
+# Dalla cartella root del progetto
+cd scripts
 
-# Error logs
-tail -f backend/logs/scripts/errors.log
+# Esegui uno script
+./check-system.sh
+./pre-commit-check.sh
 
-# Audit logs
-grep "SCRIPT_EXECUTE" backend/logs/audit.log
+# Script di analisi completa
+./request-system-check-complete.sh
+./request-system-check-complete.sh --quick  # Modalità veloce
 ```
 
-### 🛠️ Comandi Utili
+### 📞 Supporto
 
-```bash
-# Test script locale
-npm run script:test -- <script-id>
-
-# Lista script disponibili
-npm run scripts:list
-
-# Validazione registry
-npm run scripts:validate
-
-# Clear script cache
-npm run scripts:cache:clear
-
-# Emergency stop all scripts
-npm run scripts:stop:all
-```
+Per problemi con Script Manager:
+1. Controlla i logs: `tail -f backend/logs/error.log`
+2. Verifica permessi: Solo ADMIN/SUPER_ADMIN
+3. Consulta documentazione: `/Docs/04-SISTEMI/SCRIPT-MANAGER.md`
 
 ---
 
-## 📚 APPENDICI
+## 📝 NOTE DI VERSIONE
 
-### A. Script Template
+### v2.1.0 (11 Settembre 2025)
+- ✨ Aggiunti 3 nuovi script di analisi qualità codice
+- ✨ TypeScript Errors Check con ordinamento per gravità
+- ✨ Check ResponseFormatter Usage per pattern consistency
+- ✨ Check Prisma Relations per validazione schema
+- 🐛 Fix gestione spazi multipli nel parsing Prisma
+- 📚 Documentazione aggiornata con nuovi script
+- 🔧 Correzioni automatiche ResponseFormatter in routes
 
-```typescript
-/**
- * Script Template
- * @name My Script
- * @category utility
- * @risk low|medium|high|critical
- */
+### v2.0.0 (10 Gennaio 2025)
+- ✨ Aggiunta console ridimensionabile
+- ✨ Modalità fullscreen per console
+- ✨ Funzione stampa output
+- ✨ Export output come file .txt
+- ✨ Pulizia output selettiva
+- ✨ Supporto 4 nuovi script di analisi completa
+- ✨ Modalità veloce per script lunghi
+- 🐛 Fix gestione timeout per script complessi
+- 📚 Documentazione completa integrata
 
-import { ScriptContext, ScriptResult } from '../types';
-import { logger } from '../../utils/logger';
-
-export interface MyScriptParams {
-  param1: string;
-  param2?: number;
-}
-
-export async function execute(
-  context: ScriptContext<MyScriptParams>
-): Promise<ScriptResult> {
-  const { parameters, onProgress } = context;
-  
-  try {
-    // Validation
-    if (!parameters.param1) {
-      throw new Error('param1 is required');
-    }
-    
-    // Execution
-    onProgress('Starting operation...');
-    
-    // Your logic here
-    const result = await doSomething(parameters);
-    
-    onProgress('Operation completed');
-    
-    return {
-      success: true,
-      output: result,
-      message: 'Script executed successfully'
-    };
-    
-  } catch (error) {
-    logger.error('Script failed:', error);
-    
-    return {
-      success: false,
-      error: error.message,
-      message: 'Script execution failed'
-    };
-  }
-}
-
-// Metadata for registry
-export const metadata = {
-  id: 'my-script',
-  name: 'My Script',
-  description: 'Does something useful',
-  category: 'utility',
-  risk: 'low',
-  parameters: [
-    {
-      name: 'param1',
-      type: 'string',
-      required: true,
-      description: 'First parameter'
-    },
-    {
-      name: 'param2',
-      type: 'number',
-      required: false,
-      default: 10,
-      description: 'Second parameter'
-    }
-  ],
-  requireConfirmation: false,
-  minRole: 'ADMIN'
-};
-```
-
-### B. Registry Schema
-
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "scripts": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["id", "name", "category", "path"],
-        "properties": {
-          "id": { "type": "string" },
-          "name": { "type": "string" },
-          "description": { "type": "string" },
-          "category": {
-            "enum": ["database", "maintenance", "report", "security", "utility"]
-          },
-          "path": { "type": "string" },
-          "risk": {
-            "enum": ["low", "medium", "high", "critical"]
-          },
-          "parameters": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "name": { "type": "string" },
-                "type": {
-                  "enum": ["string", "number", "boolean", "date", "select", "file"]
-                },
-                "required": { "type": "boolean" },
-                "default": {},
-                "description": { "type": "string" },
-                "options": { "type": "array" }
-              }
-            }
-          },
-          "requireConfirmation": { "type": "boolean" },
-          "minRole": {
-            "enum": ["ADMIN", "SUPER_ADMIN"]
-          },
-          "timeout": { "type": "number" },
-          "enabled": { "type": "boolean" }
-        }
-      }
-    }
-  }
-}
-```
+### v1.0.0 (8 Gennaio 2025)
+- 🎉 Prima release
+- ✨ Interfaccia web base
+- ✨ Supporto script sistema
+- ✨ Output colorato
 
 ---
 
-**FINE DOCUMENTO**
-
-Ultimo aggiornamento: 8 Settembre 2025  
-Mantenuto da: Team Sviluppo
+**Fine Documentazione Script Manager v2.0.0**

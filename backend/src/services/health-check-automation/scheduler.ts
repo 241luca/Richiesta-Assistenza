@@ -12,6 +12,7 @@ import * as path from 'path';
 import { PrismaClient } from '@prisma/client';
 import { notificationService } from '../notification.service';
 import { logger } from '../../utils/logger';
+import { healthCheckService } from '../healthCheck.service';
 
 const execAsync = promisify(exec);
 const prisma = new PrismaClient();
@@ -182,17 +183,22 @@ export class HealthCheckScheduler {
     try {
       logger.info(`🔍 Running health check for: ${moduleName}`);
       
-      // Per ora restituiamo dati mock
-      const result: HealthCheckResult = {
-        module: moduleName,
-        timestamp: new Date(),
-        status: 'healthy',
-        score: Math.floor(Math.random() * 40) + 60,
-        checks: [],
-        warnings: [],
-        errors: [],
-        executionTime: Math.floor(Math.random() * 500)
+      // Mappa i nomi dei moduli ai metodi del servizio
+      const moduleMap: { [key: string]: string } = {
+        'auth-system': 'auth',
+        'database-health': 'database',
+        'notification-system': 'notification',
+        'backup-system': 'backup',
+        'chat-system': 'chat',
+        'payment-system': 'payment',
+        'ai-system': 'ai',
+        'request-system': 'request'
       };
+
+      const moduleKey = moduleMap[moduleName] || moduleName.replace('-system', '').replace('-health', '');
+      
+      // Usa il servizio reale per eseguire il check
+      const result = await healthCheckService.runSingleCheck(moduleKey);
 
       // Salva il risultato nel database
       await this.saveResult(result);
@@ -231,15 +237,12 @@ export class HealthCheckScheduler {
   private async runAllChecks(): Promise<void> {
     logger.info('🔄 Running all health checks...');
     
-    const modules = Object.keys(this.config.modules);
-    const results = await Promise.all(
-      modules.map(module => this.runModuleCheck(module))
-    );
-
-    // Calcola health score totale
-    const validResults = results.filter(r => r !== null);
-    const totalScore = validResults.reduce((sum, r) => sum + r.score, 0);
-    const averageScore = Math.round(totalScore / validResults.length);
+    // Usa il servizio per eseguire tutti i check
+    const summary = await healthCheckService.runAllChecks();
+    
+    // Usa i risultati dal summary
+    const validResults = summary.modules;
+    const averageScore = summary.overallScore;
 
     logger.info(`📊 Overall health score: ${averageScore}/100`);
 
@@ -326,7 +329,7 @@ export class HealthCheckScheduler {
       const admins = await prisma.user.findMany({
         where: {
           role: { in: ['ADMIN', 'SUPER_ADMIN'] },
-          isActive: true
+          status: { not: "deleted" }
         },
         select: { id: true }
       });

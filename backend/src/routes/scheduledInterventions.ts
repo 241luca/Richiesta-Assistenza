@@ -121,6 +121,10 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     }
     
     if (error.name === 'ZodError') {
+      logError(req, 'Validation error details', {
+        errors: error.errors,
+        receivedData: req.body
+      });
       return res.status(400).json(ResponseFormatter.error(
         'Dati non validi',
         'VALIDATION_ERROR',

@@ -1,7 +1,9 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 // CAMBIATO: Ora usa il hook invece del context
 import { useAuth } from './hooks/useAuth';
+// import { GoogleMapsProvider } from './contexts/GoogleMapsContext'; // TEMPORANEAMENTE DISABILITATO
 import LoginPage from './pages/LoginPage';
+import PendingApprovalPage from './pages/PendingApprovalPage'; // NUOVO
 
 // Professional Management Pages
 import ProfessionalLayout from './pages/admin/professionals/ProfessionalLayout';
@@ -10,10 +12,12 @@ import ProfessionalSkillsRedirect from './components/ProfessionalSkillsRedirect'
 import ProfessionalsList from './pages/admin/ProfessionalsList';
 import ProfessionalCompetenze from './pages/admin/professionals/competenze/ProfessionalCompetenze';
 import ProfessionalTariffe from './pages/admin/professionals/ProfessionalTariffe';
-import ProfessionalAI from './pages/admin/professionals/ProfessionalAI';
 import ProfessionalSkills from './pages/admin/professionals/ProfessionalSkills';
 
 import RegisterPage from './pages/RegisterPage';
+import { RegisterChoicePage } from './pages/auth/RegisterChoicePage';
+import { RegisterClientPage } from './pages/auth/RegisterClientPage';
+import RegisterProfessionalPageV2 from './pages/auth/RegisterProfessionalPageV2';
 import DashboardPage from './pages/DashboardPage';
 import { ProfilePage } from './pages/ProfilePage';
 import RequestsPage from './pages/RequestsPage';
@@ -43,6 +47,14 @@ import ApiKeysOverview from './pages/admin/api-keys/ApiKeysOverview';
 import GoogleMapsConfig from './pages/admin/api-keys/GoogleMapsConfig';
 import BrevoConfig from './pages/admin/api-keys/BrevoConfig';
 import OpenAIConfig from './pages/admin/api-keys/OpenAIConfig';
+import WhatsAppConfig from './pages/admin/api-keys/WhatsAppConfig';
+
+// WhatsApp and Knowledge Base imports
+import WhatsAppManager from './components/admin/whatsapp/WhatsAppManagerV2';
+import { WhatsAppAdminPage } from './pages/admin/WhatsAppAdmin';  // NUOVO
+import WhatsAppDashboard from './pages/admin/WhatsAppDashboard';  // NUOVO - Dashboard messaggi
+import WhatsAppSettings from './pages/admin/WhatsAppSettings';  // NUOVO - Impostazioni WhatsApp
+import KnowledgeBase from './components/knowledgebase/KnowledgeBase';
 import AdminTestsPage from './pages/admin/tests';
 // NUOVO: Import Sistema Notifiche
 import NotificationDashboard from './components/notifications/NotificationDashboard';
@@ -57,12 +69,18 @@ import ProfessionalReportsPage from './pages/professional/reports/index';
 
 // NUOVO: Import Script Manager
 import { ScriptManager } from './pages/admin/ScriptManager';
+import ScriptConfigurationManager from './pages/admin/ScriptConfigurationManager';
+import TestScriptConfig from './pages/admin/TestScriptConfig';
 
 // SISTEMA AUDIT LOG - Added 07/01/2025
 import AuditDashboard from './components/admin/audit/AuditDashboard';
 
 // SISTEMA HEALTH CHECK - Added 07/01/2025
 import HealthCheckDashboard from './pages/admin/HealthCheckDashboard';
+
+// SISTEMA AI DUALE - Added 15/01/2025
+import AIDualeDashboard from './pages/admin/AIDualeDashboard';
+import ProfessionCategoriesPage from './pages/admin/ProfessionCategoriesPage';
 import ReportsListPage from './pages/professional/reports/list';
 import NewReportPage from './pages/professional/reports/new';
 import ProfessionalPhrasesPage from './pages/professional/reports/phrases';
@@ -71,6 +89,7 @@ import ProfessionalTemplatesPage from './pages/professional/reports/templates';
 import ProfessionalSettingsPage from './pages/professional/reports/settings';
 import ClientReportsPage from './pages/client/reports/index';
 import ClientReportDetailPage from './pages/client/reports/detail';
+import RequestChat from './pages/requests/RequestChat';
 
 // Admin Route wrapper component
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
@@ -97,7 +116,15 @@ export default function AppRoutes() {
     <Routes>
       {/* Auth routes */}
       <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" />} />
-      <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/dashboard" />} />
+      <Route path="/pending-approval" element={<PendingApprovalPage />} />
+      
+      {/* Registration routes - Updated with new flow */}
+      <Route path="/register" element={!isAuthenticated ? <RegisterChoicePage /> : <Navigate to="/dashboard" />} />
+      <Route path="/register/client" element={!isAuthenticated ? <RegisterClientPage /> : <Navigate to="/dashboard" />} />
+      <Route path="/register/professional" element={!isAuthenticated ? <RegisterProfessionalPageV2 /> : <Navigate to="/dashboard" />} />
+      
+      {/* Legacy registration (backward compatibility) */}
+      <Route path="/register-old" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/dashboard" />} />
       
       {/* Protected routes */}
       <Route path="/dashboard" element={
@@ -117,6 +144,9 @@ export default function AppRoutes() {
       } />
       <Route path="/requests/:id" element={
         isAuthenticated ? <Layout><RequestDetailPage /></Layout> : <Navigate to="/login" />
+      } />
+      <Route path="/requests/:id/chat" element={
+        isAuthenticated ? <Layout><RequestChat /></Layout> : <Navigate to="/login" />
       } />
       <Route path="/requests/:id/edit" element={
         isAuthenticated ? <Layout><EditRequestPage /></Layout> : <Navigate to="/login" />
@@ -170,6 +200,13 @@ export default function AppRoutes() {
           <Layout><AiManagement /></Layout>
         </AdminRoute>
       } />
+      
+      {/* SISTEMA AI DUALE - Added 15/01/2025 */}
+      <Route path="/admin/ai-duale" element={
+        <SuperAdminRoute>
+          <Layout><AIDualeDashboard /></Layout>
+        </SuperAdminRoute>
+      } />
       <Route path="/admin/settings" element={
         <AdminRoute>
           <Layout><SettingsPage /></Layout>
@@ -201,6 +238,13 @@ export default function AppRoutes() {
       <Route path="/admin/scripts" element={
         <AdminRoute>
           <Layout><ScriptManager /></Layout>
+        </AdminRoute>
+      } />
+      
+      {/* NUOVO: Script Configuration Manager (ADMIN e SUPER_ADMIN) */}
+      <Route path="/admin/scripts/config" element={
+        <AdminRoute>
+          <Layout><ScriptConfigurationManager /></Layout>
         </AdminRoute>
       } />
       
@@ -239,6 +283,18 @@ export default function AppRoutes() {
           <Layout><OpenAIConfig /></Layout>
         </AdminRoute>
       } />
+      <Route path="/admin/api-keys/whatsapp" element={
+        <AdminRoute>
+          <Layout><WhatsAppConfig /></Layout>
+        </AdminRoute>
+      } />
+      
+      {/* Profession Categories Management (SUPER_ADMIN only) */}
+      <Route path="/admin/profession-categories" element={
+        <SuperAdminRoute>
+          <Layout><ProfessionCategoriesPage /></Layout>
+        </SuperAdminRoute>
+      } />
       
       {/* Professional Management routes */}
       <Route path="/admin/professionals" element={
@@ -252,9 +308,39 @@ export default function AppRoutes() {
         <Route index element={<Navigate to="competenze" replace />} />
         <Route path="competenze" element={<ProfessionalCompetenze />} />
         <Route path="tariffe" element={<ProfessionalTariffe />} />
-        <Route path="ai" element={<ProfessionalAI />} />
         <Route path="skills" element={<ProfessionalSkills />} />
       </Route>
+      
+      {/* WhatsApp Manager - NUOVO Sistema Completo */}
+      <Route path="/admin/whatsapp" element={
+        <AdminRoute>
+          <Layout><WhatsAppAdminPage /></Layout>
+        </AdminRoute>
+      } />
+      
+      {/* WhatsApp Dashboard - Visualizzazione messaggi */}
+      <Route path="/admin/whatsapp/dashboard" element={
+        <AdminRoute>
+          <Layout><WhatsAppDashboard /></Layout>
+        </AdminRoute>
+      } />
+      
+      {/* WhatsApp Settings - Impostazioni sistema */}
+      <Route path="/admin/whatsapp/settings" element={
+        <AdminRoute>
+          <Layout><WhatsAppSettings /></Layout>
+        </AdminRoute>
+      } />
+      
+      {/* Knowledge Base Routes */}
+      <Route path="/kb" element={
+        <Layout><KnowledgeBase /></Layout>
+      } />
+      <Route path="/admin/kb" element={
+        <AdminRoute>
+          <Layout><KnowledgeBase /></Layout>
+        </AdminRoute>
+      } />
       
       {/* System Configuration routes (SUPER_ADMIN only) */}
       <Route path="/admin/system-enums" element={

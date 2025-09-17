@@ -11,6 +11,7 @@ import { api } from '../../services/api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
+import { ResponseFormatter } from '../../utils/responseFormatter';
 
 interface ProposeInterventionsProps {
   requestId: string;
@@ -58,7 +59,7 @@ export default function ProposeInterventions({
       onClose?.();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error || 'Errore nella proposta');
+      toast.error(ResponseFormatter.getErrorMessage(error));
     }
   });
 
@@ -108,11 +109,13 @@ export default function ProposeInterventions({
     const data = {
       requestId,
       interventions: interventions.map(int => ({
-        proposedDate: `${int.date}T${int.time}:00`,
+        proposedDate: `${int.date}T${int.time}:00.000Z`,  // Aggiungiamo .000Z per il formato ISO 8601
         description: int.description || `Intervento per: ${requestTitle}`,
         estimatedDuration: int.estimatedDuration
       }))
     };
+
+    console.log('Dati da inviare:', data);  // Debug per vedere cosa stiamo inviando
 
     setIsSubmitting(true);
     await proposeMutation.mutateAsync(data);

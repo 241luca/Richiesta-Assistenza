@@ -27,7 +27,7 @@ const mockRequests = [
       phone: '333-1234567'
     },
     professionalId: null,
-    Professional: null,
+    professional: null,
     requestedDate: new Date(Date.now() + 86400000).toISOString(),
     notes: 'Il cliente preferisce essere contattato al mattino',
     attachments: [],
@@ -56,7 +56,7 @@ const mockRequests = [
       phone: '333-1234567'
     },
     professionalId: '2',
-    Professional: {
+    professional: {
       id: '2',
       firstName: 'Luigi',
       lastName: 'Bianchi',
@@ -132,7 +132,7 @@ router.post('/', (req: any, res: any) => {
       phone: '333-0000000'
     },
     professionalId: null,
-    Professional: null,
+    professional: null,
     attachments: [],
     quotes: []
   };

@@ -196,7 +196,7 @@ router.post(
           ...(categoryId && {
             professionalSubcategories: {
               some: {
-                SubCategory: {
+                subcategory: {
                   categoryId,
                 },
               },

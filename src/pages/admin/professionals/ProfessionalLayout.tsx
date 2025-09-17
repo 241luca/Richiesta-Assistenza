@@ -3,7 +3,6 @@ import { NavLink, Outlet, useParams, Navigate } from 'react-router-dom';
 import { 
   AcademicCapIcon,
   CurrencyEuroIcon,
-  CpuChipIcon,
   SparklesIcon,
   ArrowLeftIcon,
   ExclamationTriangleIcon
@@ -38,12 +37,45 @@ export default function ProfessionalLayout() {
   }
   
   const { data: professional, isLoading, error } = useQuery({
-    queryKey: ['professional', professionalId],
+    queryKey: ['professional-layout', professionalId],  // Chiave diversa per evitare cache
     queryFn: async () => {
-      // Prima prova con l'endpoint generico utenti che sicuramente esiste
+      // Prima prova con l'endpoint admin che ha più dati (solo se l'utente è admin)
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      if (currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') {
+        try {
+          const adminResponse = await apiClient.get(`/admin/users/${professionalId}`);
+          if (adminResponse.data.success && adminResponse.data.data?.user) {
+            const userData = adminResponse.data.data.user;
+            console.log('Professional data in Layout (from admin):', userData);
+            console.log('ProfessionData:', userData?.professionData);
+            return userData;
+          }
+        } catch (adminError) {
+          console.log('Admin endpoint failed, trying user endpoint');
+        }
+      }
+      
+      // Fallback all'endpoint normale
       try {
         const response = await apiClient.get(`/users/${professionalId}`);
-        const userData = response.data.data || response.data;
+        let userData = response.data.data || response.data;
+        
+        console.log('Professional data in Layout (from users):', userData);
+        console.log('ProfessionData:', userData?.professionData);
+        console.log('Profession string:', userData?.profession);
+        
+        // Se non c'è professionData ma c'è professionId, caricalo
+        if (userData?.professionId && !userData?.professionData) {
+          try {
+            const profResponse = await apiClient.get(`/professions/${userData.professionId}`);
+            if (profResponse.data.success && profResponse.data.data) {
+              userData.professionData = profResponse.data.data;
+              console.log('Loaded profession data:', userData.professionData);
+            }
+          } catch (error) {
+            console.error('Error fetching profession data:', error);
+          }
+        }
         
         // Verifica che sia un professionista
         if (userData && (userData.role === 'PROFESSIONAL' || userData.role === 'ADMIN' || userData.role === 'SUPER_ADMIN')) {
@@ -58,7 +90,10 @@ export default function ProfessionalLayout() {
       }
     },
     enabled: !!professionalId,
-    retry: 2
+    retry: 2,
+    refetchInterval: false,
+    staleTime: 0,  // Forza sempre il refresh
+    gcTime: 0  // Non cachare
   });
 
   const navigation = [
@@ -73,12 +108,6 @@ export default function ProfessionalLayout() {
       href: `/admin/professionals/${professionalId}/tariffe`, 
       icon: CurrencyEuroIcon,
       description: 'Configura tariffe e costi'
-    },
-    { 
-      name: 'AI Settings', 
-      href: `/admin/professionals/${professionalId}/ai`, 
-      icon: CpuChipIcon,
-      description: 'Personalizza assistente AI'
     },
     { 
       name: 'Skills', 
@@ -142,8 +171,9 @@ export default function ProfessionalLayout() {
             <p className="text-sm text-gray-600 mt-1">
               {professional?.email}
             </p>
-            <p className="text-sm text-gray-600">
-              {professional?.professionData?.name || professional?.profession || 'Professionista'}
+            {/* Mostra la professione dalla tabella codificata o il campo testo legacy */}
+            <p className="text-sm font-medium text-blue-600 mt-1">
+              {professional?.professionData?.name || professional?.profession || 'Nessuna professione'}
             </p>
             <p className="text-xs text-gray-500 mt-2">
               ID: {professionalId}
@@ -179,6 +209,21 @@ export default function ProfessionalLayout() {
         {/* Stats Footer */}
         <div className="p-6 mt-auto border-t">
           <div className="space-y-3">
+            {/* Mostra stato approvazione */}
+            {professional?.approvalStatus && (
+              <div className="flex justify-between text-sm mb-3">
+                <span className="text-gray-600">Stato Approvazione</span>
+                <span className={`font-medium ${
+                  professional.approvalStatus === 'APPROVED' ? 'text-green-600' : 
+                  professional.approvalStatus === 'REJECTED' ? 'text-red-600' : 
+                  'text-yellow-600'
+                }`}>
+                  {professional.approvalStatus === 'APPROVED' ? 'Approvato' :
+                   professional.approvalStatus === 'REJECTED' ? 'Rifiutato' :
+                   'In attesa'}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Stato</span>
               <span className="font-medium text-green-600">Attivo</span>

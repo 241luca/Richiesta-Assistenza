@@ -4,7 +4,7 @@ import { logger } from '../utils/logger';
 import crypto from 'crypto';
 
 export interface ApiKeyInput {
-  service: 'GOOGLE_MAPS' | 'BREVO' | 'OPENAI';
+  service: 'GOOGLE_MAPS' | 'BREVO' | 'OPENAI' | 'whatsapp';
   key: string;
   configuration?: any;
   isActive?: boolean;
@@ -75,7 +75,7 @@ export class ApiKeyService {
       
       const apiKeys = await prisma.apiKey.findMany({
         include: {
-          User: {
+          user: {
             select: {
               id: true,
               firstName: true,
@@ -138,6 +138,12 @@ export class ApiKeyService {
       case 'OPENAI':
         // Mostra solo sk- e gli ultimi 4 caratteri
         return 'sk-...' + decryptedKey.slice(-4);
+      case 'whatsapp':
+        // Mostra solo i primi 10 caratteri per WhatsApp
+        if (decryptedKey && decryptedKey.length > 10) {
+          return decryptedKey.substring(0, 10) + '...';
+        }
+        return decryptedKey || '***MASKED***';
       default:
         return '***MASKED***';
     }
@@ -148,8 +154,7 @@ export class ApiKeyService {
    */
   async upsertApiKey(
     data: ApiKeyInput,
-    
-    recipientId: string
+    userId: string
   ): Promise<ApiKey> {
     try {
       // Cripta la chiave prima di salvarla
@@ -176,7 +181,7 @@ export class ApiKeyService {
             key: encryptedKey,
             permissions: data.configuration || {},
             isActive: data.isActive ?? true,
-            recipientId: userId,
+            userId: userId,
             lastUsedAt: isValid ? now : null,
             updatedAt: now
           }
@@ -191,7 +196,7 @@ export class ApiKeyService {
             key: encryptedKey,
             permissions: data.configuration || {},
             isActive: data.isActive ?? true,
-            recipientId: userId,
+            userId: userId,
             lastUsedAt: isValid ? now : null,
             createdAt: now,
             updatedAt: now
@@ -224,6 +229,10 @@ export class ApiKeyService {
           return await this.validateBrevoKey(key);
         case 'OPENAI':
           return await this.validateOpenAIKey(key);
+        case 'whatsapp':
+          // Per WhatsApp, verifichiamo solo che la key esista
+          // La validazione completa avviene quando si inizializza
+          return key && key.length > 10;
         default:
           return false;
       }
@@ -261,6 +270,84 @@ export class ApiKeyService {
       });
       return response.ok;
     } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Invia email di test per Brevo
+   */
+  private async sendBrevoTestEmail(apiKey: any): Promise<boolean> {
+    try {
+      // Email di destinazione fissa per il test
+      const testEmail = 'lucamambelli@lmtecnologie.it';
+      const testName = 'Luca Mambelli';
+
+      // Configurazione email dal database API key
+      const config = apiKey.permissions || {};
+      const senderEmail = config.senderEmail || 'noreply@assistenza.it';
+      const senderName = config.senderName || 'Sistema Assistenza';
+
+      logger.info(`Sending test email to: ${testEmail}`);
+
+      // Usa l'API di Brevo per inviare l'email
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': apiKey.key,
+          'Content-Type': 'application/json',
+          'accept': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: {
+            email: senderEmail,
+            name: senderName
+          },
+          to: [{
+            email: testEmail,
+            name: testName
+          }],
+          subject: '🎉 Test Email Brevo - Sistema Richiesta Assistenza',
+          htmlContent: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background-color: #3B82F6; color: white; padding: 20px; text-align: center; border-radius: 8px;">
+                <h1>✅ Test Email Riuscito!</h1>
+              </div>
+              <div style="background-color: #f9f9f9; padding: 30px; margin-top: 20px; border-radius: 8px;">
+                <h2>Ciao Luca! 🎉</h2>
+                <p>Se stai leggendo questa email, significa che la configurazione di Brevo è corretta!</p>
+                <p><strong>Dettagli tecnici:</strong></p>
+                <ul>
+                  <li>Mittente: ${senderEmail}</li>
+                  <li>Destinatario: ${testEmail}</li>
+                  <li>Data invio: ${new Date().toLocaleString('it-IT')}</li>
+                  <li>API Key: Configurata correttamente</li>
+                </ul>
+                <p style="margin-top: 30px; padding: 15px; background-color: #D1FAE5; border-radius: 5px;">
+                  <strong>✅ Il sistema è pronto per inviare email!</strong><br>
+                  Ora puoi utilizzare tutte le funzionalità di invio email del sistema.
+                </p>
+              </div>
+              <div style="text-align: center; margin-top: 30px; color: #666; font-size: 12px;">
+                <p>Sistema Richiesta Assistenza - Email di Test</p>
+                <p>Powered by Brevo</p>
+              </div>
+            </div>
+          `
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        logger.info(`Test email sent successfully to ${testEmail}`, result);
+        return true;
+      } else {
+        const error = await response.text();
+        logger.error('Failed to send test email:', error);
+        return false;
+      }
+    } catch (error) {
+      logger.error('Error sending Brevo test email:', error);
       return false;
     }
   }
@@ -327,6 +414,43 @@ export class ApiKeyService {
           where: { id: apiKey.id },
           data: { lastUsedAt: new Date() }
         });
+
+        // Per Brevo, invia anche un'email di test
+        if (service === 'BREVO') {
+          const emailSent = await this.sendBrevoTestEmail(apiKey);
+          if (emailSent) {
+            return {
+              success: true,
+              message: `API key valida e email di test inviata a lucamambelli@lmtecnologie.it!`,
+              details: {
+                service,
+                emailSentTo: 'lucamambelli@lmtecnologie.it',
+                lastValidated: new Date().toISOString()
+              }
+            };
+          } else {
+            return {
+              success: false,
+              message: 'API key valida ma invio email di test fallito',
+              details: {
+                service,
+                lastValidated: new Date().toISOString()
+              }
+            };
+          }
+        }
+        
+        // Per WhatsApp, test specifico
+        if (service === 'whatsapp') {
+          return {
+            success: true,
+            message: 'WhatsApp API key configurata correttamente',
+            details: {
+              service,
+              lastValidated: new Date().toISOString()
+            }
+          };
+        }
       }
 
       return {

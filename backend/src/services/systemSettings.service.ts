@@ -115,7 +115,7 @@ export class SystemSettingsService {
           value: true,
           type: true,
           label: true,
-          Category: true
+          category: true
         }
       });
 

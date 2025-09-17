@@ -1,4 +1,4 @@
-// 🚀 SISTEMA BACKUP COMPLETO CON TAB INFO E GESTIONE CLEANUP
+// 🚀 SISTEMA BACKUP COMPLETO CON TAB INFO, GESTIONE CLEANUP E DOCUMENTAZIONE
 // src/pages/admin/SimpleBackupPage.tsx
 
 import React, { useState } from 'react';
@@ -15,12 +15,14 @@ import {
   InformationCircleIcon,
   FolderIcon,
   DocumentTextIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  BookOpenIcon
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { apiClient } from '../../services/api';
+import CleanupDocumentationTab from '../../components/admin/CleanupDocumentationTab';
 
 interface Backup {
   id: string;
@@ -55,8 +57,9 @@ interface CleanupDir {
 const SimpleBackupPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [creatingBackup, setCreatingBackup] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'backup' | 'info' | 'cleanup'>('backup');
+  const [activeTab, setActiveTab] = useState<'backup' | 'info' | 'cleanup' | 'docs'>('backup');
   const [showDeleteCleanupModal, setShowDeleteCleanupModal] = useState<string | null>(null);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
 
   // Query per lista backup
   const { data: backups = [], isLoading } = useQuery<Backup[]>({
@@ -65,7 +68,7 @@ const SimpleBackupPage: React.FC = () => {
       const response = await apiClient.get('/backup');
       return response.data.data || [];
     },
-    refetchInterval: 5000,
+    refetchInterval: 30000,  // Ogni 30 secondi invece di 5
   });
 
   // Query per statistiche
@@ -134,6 +137,28 @@ const SimpleBackupPage: React.FC = () => {
     },
   });
 
+  // Mutation per eseguire il cleanup
+  const executeCleanupMutation = useMutation({
+    mutationFn: async () => {
+      setCleanupLoading(true);
+      const response = await apiClient.post('/backup/cleanup-dev');
+      return response.data;
+    },
+    onSuccess: (data) => {
+      const movedCount = data.data?.movedCount || 0;
+      const cleanupDir = data.data?.cleanupDir || 'CLEANUP';
+      toast.success(`Cleanup completato! ${movedCount} file spostati in ${cleanupDir}`);
+      setCleanupLoading(false);
+      // Ricarica la lista delle cartelle cleanup
+      queryClient.invalidateQueries({ queryKey: ['cleanup-dirs'] });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Errore durante il cleanup';
+      toast.error(message);
+      setCleanupLoading(false);
+    },
+  });
+
   // Mutation per eliminare cartelle cleanup
   const deleteCleanupDirMutation = useMutation({
     mutationFn: async (dirName: string) => {
@@ -153,12 +178,36 @@ const SimpleBackupPage: React.FC = () => {
     },
   });
 
-  // Funzione per download
-  const downloadBackup = (backupId: string, filename: string) => {
-    const token = localStorage.getItem('accessToken');
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3200';
-    window.open(`${baseUrl}/api/backup/${backupId}/download?token=${token}`, '_blank');
-    toast.success(`Download ${filename} avviato`);
+  // Funzione per download con autenticazione
+  const downloadBackup = async (backupId: string, filename: string) => {
+    try {
+      toast.loading('Download in corso...');
+      
+      // Scarica il file usando axios con il token nell'header
+      const response = await apiClient.get(`/backup/${backupId}/download`, {
+        responseType: 'blob',  // Importante per scaricare file binari
+      });
+      
+      // Crea un link temporaneo per scaricare il file
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      
+      // Pulizia
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.dismiss();
+      toast.success(`Download ${filename} completato!`);
+    } catch (error: any) {
+      toast.dismiss();
+      const message = error.response?.data?.message || 'Errore durante il download';
+      toast.error(message);
+      console.error('Download error:', error);
+    }
   };
 
   // Formatta dimensione file
@@ -246,6 +295,18 @@ const SimpleBackupPage: React.FC = () => {
                   {cleanupDirs.length}
                 </span>
               )}
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('docs')}
+              className={`${
+                activeTab === 'docs'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
+            >
+              <BookOpenIcon className="h-5 w-5" />
+              Documentazione Cleanup
             </button>
           </nav>
         </div>
@@ -521,29 +582,43 @@ const SimpleBackupPage: React.FC = () => {
               
               <div className="space-y-3">
                 <div>
-                  <h4 className="font-medium text-gray-900">Cosa include:</h4>
-                  <ul className="mt-1 text-sm text-gray-600 space-y-1">
-                    <li>• Codice sorgente completo</li>
-                    <li>• Configurazioni applicazione</li>
-                    <li>• Script e utilità</li>
-                    <li>• File di migrazione</li>
-                    <li>• Documentazione</li>
+                  <h4 className="font-medium text-gray-900">Directory incluse:</h4>
+                  <ul className="mt-1 text-sm text-gray-600 space-y-1 font-mono bg-gray-50 p-2 rounded">
+                    <li>✅ /src (Frontend React)</li>
+                    <li>✅ /backend/src (Backend Express)</li>
+                    <li>✅ /backend/prisma (Schema database)</li>
+                    <li>✅ /public (Assets pubblici)</li>
+                    <li>✅ /scripts (Script di automazione)</li>
+                    <li>✅ /Docs (Documentazione completa)</li>
+                    <li>✅ File configurazione (package.json, tsconfig, etc.)</li>
                   </ul>
                 </div>
                 
                 <div>
-                  <h4 className="font-medium text-gray-900">Cosa esclude:</h4>
-                  <ul className="mt-1 text-sm text-gray-600 space-y-1">
-                    <li>• node_modules</li>
-                    <li>• .git</li>
-                    <li>• File .env</li>
-                    <li>• Build e dist</li>
+                  <h4 className="font-medium text-gray-900">Directory e file esclusi:</h4>
+                  <ul className="mt-1 text-sm text-gray-600 space-y-1 font-mono bg-red-50 p-2 rounded">
+                    <li>❌ node_modules (dipendenze npm)</li>
+                    <li>❌ .git (repository git)</li>
+                    <li>❌ .next (build Next.js)</li>
+                    <li>❌ dist, build (file compilati)</li>
+                    <li>❌ uploads (allegati utenti)</li>
+                    <li>❌ backend/backups (backup esistenti)</li>
+                    <li>❌ *.backup* (file di backup temporanei)</li>
+                    <li>❌ *.log (file di log)</li>
+                    <li>❌ .env (variabili ambiente sensibili)</li>
                   </ul>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium text-gray-900">Comando di backup:</h4>
+                  <code className="text-xs bg-gray-100 px-2 py-1 rounded block mt-1">
+                    tar -czf backup.tar.gz --exclude=node_modules ...
+                  </code>
                 </div>
                 
                 <div>
                   <h4 className="font-medium text-gray-900">Formato:</h4>
-                  <p className="text-sm text-gray-600">TAR compresso (.tar.gz)</p>
+                  <p className="text-sm text-gray-600">TAR compresso con GZIP (.tar.gz)</p>
                 </div>
               </div>
             </div>
@@ -671,10 +746,60 @@ const SimpleBackupPage: React.FC = () => {
                   Cartelle contenenti file temporanei spostati durante le pulizie automatiche
                 </p>
               </div>
+              
+              {/* Bottone Avvia Cleanup */}
+              <button
+                onClick={() => {
+                  if (confirm('Vuoi eseguire il cleanup dei file temporanei?\n\nQuesto sposterà tutti i file .backup-*, .sh, .fixed.ts e altri file temporanei in una cartella CLEANUP datata.')) {
+                    executeCleanupMutation.mutate();
+                  }
+                }}
+                disabled={cleanupLoading}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-colors ${
+                  cleanupLoading 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-orange-600 hover:bg-orange-700'
+                }`}
+              >
+                {cleanupLoading ? (
+                  <>
+                    <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                    Cleanup in corso...
+                  </>
+                ) : (
+                  <>
+                    <ArrowPathIcon className="h-5 w-5" />
+                    Avvia Cleanup
+                  </>
+                )}
+              </button>
+            </div>
+            
+            {/* Info Box Cleanup */}
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+              <div className="flex">
+                <InformationCircleIcon className="h-5 w-5 text-orange-400 mr-2 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-orange-700">
+                  <p className="font-medium mb-1">Il cleanup sposterà automaticamente:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    <li>File .backup-* (backup automatici)</li>
+                    <li>Script shell di test e fix (fix-*.sh, test-*.sh)</li>
+                    <li>File TypeScript temporanei (*.fixed.ts, *.fixed.tsx)</li>
+                    <li>Altri file temporanei di sviluppo</li>
+                  </ul>
+                  <p className="mt-2">
+                    <span className="font-medium">Configurazione:</span> Vai su{' '}
+                    <a href="/admin/system-enums" className="text-blue-600 hover:text-blue-800 underline">
+                      Tabelle Sistema → Servizio
+                    </a>{' '}
+                    per personalizzare i pattern e le esclusioni.
+                  </p>
+                </div>
+              </div>
             </div>
             
             {/* Statistiche Cleanup */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-orange-50 rounded-lg p-4">
                 <div className="text-sm text-orange-600">Cartelle Totali</div>
                 <div className="text-2xl font-bold text-orange-900">{cleanupDirs.length}</div>
@@ -787,6 +912,11 @@ const SimpleBackupPage: React.FC = () => {
             </div>
           )}
         </div>
+      )}
+
+      {/* Tab Content - Documentazione Cleanup */}
+      {activeTab === 'docs' && (
+        <CleanupDocumentationTab />
       )}
 
       {/* Loading State */}

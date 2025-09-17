@@ -51,7 +51,11 @@ const profileUpdateSchema = z.object({
 // GET /profile - Ottieni il profilo dell'utente autenticato
 router.get('/profile', authenticate, async (req: any, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json(ResponseFormatter.error('User not authenticated', 'NOT_AUTHENTICATED'));
+    }
     
     // Recupera l'utente completo dal database
     const user = await prisma.user.findUnique({
@@ -63,7 +67,7 @@ router.get('/profile', authenticate, async (req: any, res) => {
     }
     
     // Usa ResponseFormatter per output consistente
-    const formattedUser = formatUser(user);
+    const formattedUser = formatUser(user as any);
     return res.json(ResponseFormatter.success(
       formattedUser,
       'User profile retrieved successfully'
@@ -405,10 +409,14 @@ router.get('/professionals', authenticate, requireAdmin, async (req: any, res) =
         phone: true,
         profession: true,
         professionId: true,
-        Profession: true,  // AGGIUNTO per relazione con tabella Profession
+        professionData: true,  // Relazione con tabella Profession
         city: true,
         province: true,
         canSelfAssign: true,  // AGGIUNTO!
+        approvalStatus: true,  // Stato di approvazione
+        approvedAt: true,      // Data approvazione
+        approvedBy: true,      // Chi ha approvato
+        rejectionReason: true, // Motivo rifiuto se presente
         emailVerified: true,
         createdAt: true,
         updatedAt: true
@@ -451,7 +459,7 @@ router.get('/:id', authenticate, async (req: any, res) => {
     const user = await prisma.user.findUnique({
       where: { id: requestedUserId },
       include: {
-        Profession: true  // Include la professione tabellata
+        professionData: true  // Include la professione tabellata
       }
     });
     

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WhatsApp QR Code</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #25D366;
+            margin-bottom: 20px;
+        }
+        #qrcode {
+            border: 2px solid #25D366;
+            padding: 10px;
+            border-radius: 10px;
+            background: white;
+        }
+        .info {
+            margin-top: 20px;
+            color: #666;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            background: #ffc107;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 WhatsApp QR Code</h1>
+        <div id="qrcode">
+            <p>Caricamento QR Code...</p>
+        </div>
+        <div class="info">
+            <p><strong>Instance ID:</strong> 68C67956807C8</p>
+            <p><strong>Token:</strong> 68c575f3c2ff1</p>
+        </div>
+        <div class="status">
+            ⚠️ Scansiona questo QR con WhatsApp per attivare l'istanza
+        </div>
+        <div style="margin-top: 20px;">
+            <ol style="text-align: left; display: inline-block;">
+                <li>Apri WhatsApp sul telefono</li>
+                <li>Vai su Impostazioni → Dispositivi collegati</li>
+                <li>Clicca su "Collega un dispositivo"</li>
+                <li>Scansiona questo QR Code</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Qui inseriremo il QR code quando lo otteniamo dall'API
+        // Per ora mostra un messaggio
+        document.getElementById('qrcode').innerHTML = `
+            <p style="color: red;">Apri il terminale per vedere la risposta del QR Code</p>
+            <p>Se vedi un'immagine base64, copiala qui</p>
+        `;
+    </script>
+</body>
+</html>

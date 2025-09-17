@@ -1,0 +1,45 @@
+// Aggiungi questo modello al tuo schema.prisma
+
+model ProfessionalAISettings {
+  id                String      @id @default(cuid())
+  professionalId    String
+  subcategoryId     String
+  
+  // Impostazioni modello
+  modelName         String      @default("gpt-3.5-turbo")
+  temperature       Float       @default(0.7)
+  maxTokens         Int         @default(2000)
+  
+  // Stile e comportamento
+  responseStyle     String      @default("formal") // formal, informal, technical, educational
+  detailLevel       String      @default("intermediate") // basic, intermediate, advanced
+  systemPrompt      String?     @db.Text
+  
+  // Knowledge base
+  useKnowledgeBase  Boolean     @default(true)
+  
+  // Metadata
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  // Relazioni
+  professional      User        @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  subcategory       Subcategory @relation(fields: [subcategoryId], references: [id], onDelete: Cascade)
+  
+  // Indice univoco per evitare duplicati
+  @@unique([professionalId, subcategoryId])
+  @@index([professionalId])
+  @@index([subcategoryId])
+}
+
+// Aggiungi anche la relazione nell'User model
+model User {
+  // ... altri campi esistenti
+  aiSettings        ProfessionalAISettings[]
+}
+
+// E nella Subcategory
+model Subcategory {
+  // ... altri campi esistenti
+  aiSettings        ProfessionalAISettings[]
+}

@@ -134,7 +134,7 @@ export class FileService {
       const attachments = await prisma.requestAttachment.findMany({
         where: { requestId },
         include: {
-          User: {
+          user: {
             select: {
               id: true,
               firstName: true,
@@ -162,7 +162,7 @@ export class FileService {
       const attachment = await prisma.requestAttachment.findUnique({
         where: { id: attachmentId },
         include: {
-          User: {
+          user: {
             select: {
               id: true,
               firstName: true,

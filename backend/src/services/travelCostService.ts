@@ -41,7 +41,7 @@ class TravelCostService {
    */
   async getCostSettings(professionalId: string): Promise<TravelCostSettings | null> {
     try {
-      logger.info(`[TravelCostService] Getting cost settings for Professional: ${professionalId}`);
+      logger.info(`[TravelCostService] Getting cost settings for professional: ${professionalId}`);
       
       const settings = await prisma.$queryRaw<any[]>`
         SELECT 
@@ -206,7 +206,7 @@ class TravelCostService {
           
         } else {
           // CREA nuove impostazioni
-          logger.info(`[TravelCostService] CREATING new settings for Professional: ${settings.professionalId}`);
+          logger.info(`[TravelCostService] CREATING new settings for professional: ${settings.professionalId}`);
           
           const newSettings = await tx.$queryRaw<any[]>`
             INSERT INTO travel_cost_settings (

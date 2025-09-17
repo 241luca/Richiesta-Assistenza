@@ -370,4 +370,166 @@ router.patch('/:professionalId/certifications/:certId/verify',
   }
 });
 
+// GET /professionals/by-subcategory/:subcategoryId
+// Ottiene tutti i professionisti abilitati per una sottocategoria
+router.get('/by-subcategory/:subcategoryId', authenticate, async (req: any, res) => {
+  try {
+    const { subcategoryId } = req.params;
+    
+    logger.info(`Searching professionals for subcategory: ${subcategoryId}`);
+    
+    // Prima verifichiamo se ci sono associazioni per questa sottocategoria
+    const associationsCount = await prisma.professionalUserSubcategory.count({
+      where: { subcategoryId }
+    });
+    
+    logger.info(`Found ${associationsCount} professional associations for subcategory ${subcategoryId}`);
+    
+    // Se non ci sono associazioni, proviamo a cercare professionisti generici
+    if (associationsCount === 0) {
+      // Recupera tutti i professionisti attivi come fallback
+      const allProfessionals = await prisma.user.findMany({
+        where: {
+          role: 'PROFESSIONAL',
+          isActive: true
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          city: true,
+          province: true,
+          professionalInfo: {
+            select: {
+              hourlyRate: true,
+              workRadius: true
+            }
+          }
+        },
+        take: 10 // Limita a 10 per non sovraccaricare
+      });
+      
+      const formattedProfessionals = allProfessionals.map(prof => ({
+        id: prof.id,
+        firstName: prof.firstName,
+        lastName: prof.lastName,
+        email: prof.email,
+        phone: prof.phone,
+        city: prof.city,
+        province: prof.province,
+        hourlyRate: prof.professionalInfo?.hourlyRate || null,
+        workRadius: prof.professionalInfo?.workRadius || null,
+        experienceYears: 0,
+        skillDescription: 'Professionista generico (nessuna skill specifica registrata)'
+      }));
+      
+      return res.json(ResponseFormatter.success(
+        formattedProfessionals, 
+        `Nessuna skill specifica trovata. Mostro ${formattedProfessionals.length} professionisti generici`
+      ));
+    }
+    
+    // Trova tutti i professionisti che hanno competenze per questa sottocategoria
+    const professionals = await prisma.user.findMany({
+      where: {
+        role: 'PROFESSIONAL',
+        isActive: true,
+        professionalUserSubcategories: {
+          some: {
+            subcategoryId: subcategoryId
+          }
+        }
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        city: true,
+        province: true,
+        professionalInfo: {
+          select: {
+            hourlyRate: true,
+            workRadius: true
+          }
+        },
+        professionalUserSubcategories: {
+          where: {
+            subcategoryId: subcategoryId
+          },
+          select: {
+            experienceYears: true,
+            certifications: true
+          }
+        }
+      }
+    });
+    
+    // Formatta i dati per il frontend
+    const formattedProfessionals = professionals.map(prof => ({
+      id: prof.id,
+      firstName: prof.firstName,
+      lastName: prof.lastName,
+      email: prof.email,
+      phone: prof.phone,
+      city: prof.city,
+      province: prof.province,
+      hourlyRate: prof.professionalInfo?.hourlyRate || null,
+      workRadius: prof.professionalInfo?.workRadius || null,
+      experienceYears: prof.professionalUserSubcategories[0]?.experienceYears || 0,
+      skillDescription: prof.professionalUserSubcategories[0]?.certifications ? 
+        'Professionista certificato' : 'Professionista qualificato'
+    }));
+    
+    return res.json(ResponseFormatter.success(
+      formattedProfessionals, 
+      `Trovati ${formattedProfessionals.length} professionisti per questa sottocategoria`
+    ));
+  } catch (error) {
+    logger.error('Error fetching professionals by subcategory:', error);
+    return res.status(500).json(ResponseFormatter.error('Errore nel recupero professionisti'));
+  }
+});
+
+// GET /professionals/by-subcategory-simple/:subcategoryId
+// Versione semplificata per testing
+router.get('/by-subcategory-simple/:subcategoryId', authenticate, async (req: any, res) => {
+  try {
+    const { subcategoryId } = req.params;
+    
+    // Recupera TUTTI i professionisti attivi senza filtro sottocategoria
+    const allProfessionals = await prisma.user.findMany({
+      where: {
+        role: 'PROFESSIONAL',
+        isActive: true
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        city: true,
+        province: true
+      },
+      take: 10
+    });
+    
+    return res.json(ResponseFormatter.success(
+      allProfessionals, 
+      `Trovati ${allProfessionals.length} professionisti (versione semplificata)`
+    ));
+  } catch (error) {
+    logger.error('Error in simple endpoint:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nel recupero professionisti', 
+      'FETCH_ERROR',
+      { details: error instanceof Error ? error.message : 'Unknown error' }
+    ));
+  }
+});
+
 export default router;

@@ -146,7 +146,7 @@ export class TravelService {
   /**
    * Ottiene le coordinate del punto di partenza di un professionista
    */
-  async getProfessionalStartingPoint(Professional: User): Promise<LocationCoordinates | null> {
+  async getProfessionalStartingPoint(professional: User): Promise<LocationCoordinates | null> {
     try {
       let coordinates: LocationCoordinates | null = null;
 

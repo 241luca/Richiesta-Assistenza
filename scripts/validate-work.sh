@@ -36,7 +36,35 @@ else
 fi
 
 # =================================================================
-# 2. CHECK MODIFIED ROUTES
+# 2. CHECK DOCUMENTATION FILES
+# =================================================================
+echo ""
+echo -e "${BLUE}🔍 Checking Documentation Files${NC}"
+echo "======================================"
+
+# Check for .md files in root
+ROOT_MD=$(ls *.md 2>/dev/null | grep -v -E "^(README|ISTRUZIONI-PROGETTO|CHANGELOG|LEGGIMI-DOCUMENTAZIONE)\.md$")
+if [ ! -z "$ROOT_MD" ]; then
+  echo -e "${RED}❌ Found .md files in root that should be in DOCUMENTAZIONE/:${NC}"
+  echo "$ROOT_MD" | sed 's/^/  - /'
+  echo ""
+  echo "Please move them to:"
+  echo "  - Reports → DOCUMENTAZIONE/REPORT-SESSIONI/"
+  echo "  - Active docs → DOCUMENTAZIONE/ATTUALE/"
+  echo "  - Old docs → DOCUMENTAZIONE/ARCHIVIO/"
+else
+  echo -e "${GREEN}✅ Documentation structure is correct${NC}"
+fi
+
+# Check if new .md files are in correct location
+NEW_MD=$(git status --porcelain | grep "^A.*\.md$" | grep -v DOCUMENTAZIONE | grep -v -E "(README|ISTRUZIONI-PROGETTO|CHANGELOG|LEGGIMI-DOCUMENTAZIONE)\.md")
+if [ ! -z "$NEW_MD" ]; then
+  echo -e "${YELLOW}⚠️  New .md files not in DOCUMENTAZIONE/:${NC}"
+  echo "$NEW_MD"
+fi
+
+# =================================================================
+# 3. CHECK MODIFIED ROUTES
 # =================================================================
 echo ""
 echo -e "${BLUE}🔍 Checking Modified Routes${NC}"
