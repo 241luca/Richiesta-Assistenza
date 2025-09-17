@@ -2,7 +2,7 @@ import { RequestTableRow } from '@/components/admin/RequestTableRow';
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   UserIcon, 
   ClipboardDocumentListIcon, 

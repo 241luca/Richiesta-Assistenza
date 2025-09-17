@@ -1,6 +1,6 @@
 import React from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { Input } from '@/components/ui/Input';
+import { Input } from '@/components/ui/input';
 import { TextArea } from '@/components/ui/TextArea';
 
 interface AddSettingFormProps {

@@ -13,7 +13,7 @@ import {
   FunnelIcon,
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
-import { Input } from '@/components/ui/Input';
+import { Input } from '@/components/ui/input';
 import { TextArea } from '@/components/ui/TextArea';
 import SettingCard from '@/components/admin/system-settings/SettingCard';
 import CategorySidebar from '@/components/admin/system-settings/CategorySidebar';
