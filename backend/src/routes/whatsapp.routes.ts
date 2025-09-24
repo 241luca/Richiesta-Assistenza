@@ -798,11 +798,8 @@ router.get('/contacts', authenticate, async (req: any, res: Response) => {
       where,
       orderBy: { name: 'asc' },
       include: {
-        user: true,
-        messages: {
-          take: 1,
-          orderBy: { timestamp: 'desc' }
-        }
+        user: true
+        // Rimosso 'messages' che non esiste nella relazione
       }
     });
     
