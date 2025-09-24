@@ -1,0 +1,175 @@
+-- Tabella messaggi WhatsApp con TUTTI i campi possibili
+model WhatsAppMessage {
+  id              String    @id @default(cuid())
+  
+  -- Campi base che già salviamo
+  messageId       String    @unique  -- ID univoco WhatsApp (message.id)
+  phoneNumber     String              -- Numero telefono (senza @c.us)
+  message         String?             -- Testo del messaggio (message.body)
+  direction       String              -- 'incoming' o 'outgoing'
+  status          String              -- 'SENT', 'DELIVERED', 'READ', 'FAILED', 'RECEIVED'
+  senderName      String?             -- Nome del mittente (message.notifyName)
+  timestamp       DateTime            -- Timestamp del messaggio
+  
+  -- NUOVI campi da WPPConnect Message object
+  from            String?             -- Chi ha inviato (message.from)
+  to              String?             -- Destinatario (message.to)
+  author          String?             -- Autore in gruppi (message.author)
+  type            String?             -- Tipo messaggio: 'chat', 'image', 'video', 'audio', 'document', 'location', etc
+  mimetype        String?             -- MIME type per media
+  isGroupMsg      Boolean @default(false)  -- Se è messaggio di gruppo
+  chatId          String?             -- ID della chat
+  quotedMsgId     String?             -- ID messaggio quotato (reply)
+  mentionedIds    Json?               -- Array di ID menzionati
+  isMedia         Boolean @default(false)  -- Se contiene media
+  isNotification  Boolean @default(false)  -- Se è una notifica
+  isPSA           Boolean @default(false)  -- Public Service Announcement
+  isStarred       Boolean @default(false)  -- Se è starred
+  isForwarded     Boolean @default(false)  -- Se è forwarded
+  fromMe          Boolean @default(false)  -- Se l'ho inviato io
+  hasReaction     Boolean @default(false)  -- Se ha reazioni
+  
+  -- Media fields
+  mediaUrl        String?             -- URL del media
+  mediaPath       String?             -- Path locale del media salvato
+  caption         String?             -- Didascalia per immagini/video
+  filename        String?             -- Nome del file
+  mediaSize       Int?                -- Dimensione in bytes
+  
+  -- Location fields
+  latitude        Float?              -- Per messaggi location
+  longitude       Float?              -- Per messaggi location
+  locationName    String?             -- Nome della location
+  locationAddress String?             -- Indirizzo completo
+  
+  -- Metadata
+  ack             Int?                -- ACK status (0-4)
+  invis           Boolean @default(false)  -- Invisibile
+  star            Boolean @default(false)  -- Starred
+  broadcast       Boolean @default(false)  -- Broadcast
+  multicast       Boolean @default(false)  -- Multicast
+  
+  -- Raw data per debug/future use
+  rawData         Json?               -- Oggetto Message completo da WPPConnect
+  
+  -- Sistema
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  -- Relations
+  contact         WhatsAppContact? @relation(fields: [phoneNumber], references: [phoneNumber])
+  userId          String?          -- Collegamento con User se esiste
+  user            User?            @relation(fields: [userId], references: [id])
+  
+  @@index([phoneNumber])
+  @@index([timestamp])
+  @@index([chatId])
+  @@index([direction])
+  @@index([status])
+}
+
+-- Tabella contatti WhatsApp
+model WhatsAppContact {
+  id              String    @id @default(cuid())
+  
+  -- Identificazione
+  phoneNumber     String    @unique  -- Numero principale (senza @c.us)
+  whatsappId      String?   @unique  -- ID WhatsApp se disponibile
+  
+  -- Info contatto
+  name            String?             -- Nome salvato/visualizzato
+  pushname        String?             -- Nome impostato su WhatsApp
+  shortName       String?             -- Nome breve
+  businessName    String?             -- Nome business se account business
+  
+  -- Status
+  isMyContact     Boolean @default(false)  -- Se è nei miei contatti
+  isUser          Boolean @default(true)   -- Se usa WhatsApp
+  isBusiness      Boolean @default(false)  -- Se è account business
+  isEnterprise    Boolean @default(false)  -- Se è account enterprise
+  isGroup         Boolean @default(false)  -- Se è un gruppo
+  isBlocked       Boolean @default(false)  -- Se bloccato
+  
+  -- Info profilo
+  profilePicUrl   String?             -- URL foto profilo
+  statusMessage   String?             -- Stato WhatsApp
+  about           String?             -- Info/About
+  
+  -- Metadati business
+  businessCatalog Json?               -- Catalogo prodotti se business
+  businessHours   Json?               -- Orari se business
+  businessAddress String?             -- Indirizzo business
+  businessEmail   String?             -- Email business
+  businessCategory String?            -- Categoria business
+  
+  -- Statistiche
+  firstMessageAt  DateTime?           -- Primo messaggio
+  lastMessageAt   DateTime?           -- Ultimo messaggio
+  totalMessages   Int @default(0)     -- Totale messaggi scambiati
+  
+  -- Collegamento con sistema
+  userId          String?             -- Se corrisponde a un User del sistema
+  user            User?     @relation("WhatsAppContactUser", fields: [userId], references: [id])
+  
+  -- Se è un professionista
+  professionalId  String?
+  professional    User?     @relation("WhatsAppContactProfessional", fields: [professionalId], references: [id])
+  
+  -- Tags e note
+  tags            String[]            -- Tags per categorizzare
+  notes           String?             -- Note interne
+  
+  -- Preferenze
+  isFavorite      Boolean @default(false)  -- Contatto preferito
+  customRingtone  String?             -- Suoneria personalizzata
+  isPinned        Boolean @default(false)  -- Chat fissata
+  isMuted         Boolean @default(false)  -- Notifiche silenziate
+  mutedUntil      DateTime?           -- Silenziato fino a
+  
+  -- Sistema
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  syncedAt        DateTime?           -- Ultima sincronizzazione
+  
+  -- Relations
+  messages        WhatsAppMessage[]
+  groups          WhatsAppGroup[]    @relation("GroupMembers")
+  
+  @@index([isMyContact])
+  @@index([userId])
+  @@index([professionalId])
+  @@index([isBusiness])
+}
+
+-- Tabella gruppi WhatsApp
+model WhatsAppGroup {
+  id              String    @id @default(cuid())
+  
+  -- Identificazione
+  groupId         String    @unique  -- ID del gruppo WhatsApp
+  name            String              -- Nome del gruppo
+  
+  -- Info gruppo
+  description     String?             -- Descrizione gruppo
+  owner           String?             -- Numero del proprietario
+  createdAt       DateTime?           -- Data creazione gruppo
+  
+  -- Membri
+  memberCount     Int @default(0)     -- Numero membri
+  members         WhatsAppContact[]   @relation("GroupMembers")
+  admins          String[]            -- Array numeri admin
+  
+  -- Settings
+  isReadOnly      Boolean @default(false)  -- Solo admin possono scrivere
+  isAnnouncement  Boolean @default(false)  -- Gruppo annunci
+  
+  -- Metadata
+  groupPicUrl     String?             -- URL immagine gruppo
+  inviteLink      String?             -- Link invito
+  
+  -- Sistema
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([groupId])
+}

@@ -29,7 +29,8 @@ import {
   HeartIcon,
   ChatBubbleBottomCenterTextIcon,
   ChatBubbleLeftRightIcon,
-  CpuChipIcon
+  CpuChipIcon,
+  UsersIcon
 } from '@heroicons/react/24/outline';
 import { BellIcon as BellIconSolid } from '@heroicons/react/24/solid';
 // CAMBIATO: Ora usa il hook invece del context
@@ -96,6 +97,23 @@ export default function Layout({ children }: LayoutProps) {
           { name: 'Gestione Professionisti', href: '/admin/professionals', icon: UserGroupIcon },
           { name: 'Gestione Professioni-Categorie', href: '/admin/profession-categories', icon: TagIcon },
           { 
+            name: 'Tabelle Documenti', 
+            href: '/admin/document-management', 
+            icon: AdjustmentsHorizontalIcon,
+            isNew: true 
+          },
+          { 
+            name: 'Gestione Documenti', 
+            href: '/admin/legal-documents', 
+            icon: DocumentTextIcon 
+          },
+          { 
+            name: 'Editor Documenti', 
+            href: '/admin/legal-documents/editor', 
+            icon: DocumentTextIcon,
+            isNew: true 
+          },
+          { 
             name: 'Health Check', 
             href: '/admin/health', 
             icon: HeartIcon,
@@ -138,15 +156,15 @@ export default function Layout({ children }: LayoutProps) {
             isNew: true // Badge "NEW"
           },
           { 
-            name: 'WhatsApp Dashboard', 
-            href: '/admin/whatsapp/dashboard', 
-            icon: ChatBubbleLeftRightIcon,
+            name: 'WhatsApp Contatti', 
+            href: '/admin/whatsapp/contacts', 
+            icon: UsersIcon,
             isNew: true // Badge "NEW"
           },
           { 
-            name: 'WhatsApp Impostazioni', 
-            href: '/admin/whatsapp/settings', 
-            icon: Cog6ToothIcon,
+            name: 'WhatsApp Messaggi', 
+            href: '/admin/whatsapp/messages', 
+            icon: ChatBubbleLeftRightIcon,
             isNew: true // Badge "NEW"
           },
         ];
@@ -196,19 +214,19 @@ export default function Layout({ children }: LayoutProps) {
             isNew: true // Badge "NEW"
           },
           
-          // NUOVO: WhatsApp Dashboard per vedere i messaggi
+          // NUOVO: WhatsApp Contatti per vedere i contatti
           { 
-            name: 'WhatsApp Dashboard', 
-            href: '/admin/whatsapp/dashboard', 
-            icon: ChatBubbleLeftRightIcon,
+            name: 'WhatsApp Contatti', 
+            href: '/admin/whatsapp/contacts', 
+            icon: UsersIcon,
             isNew: true // Badge "NEW"
           },
           
-          // NUOVO: WhatsApp Impostazioni per configurare il sistema
+          // NUOVO: WhatsApp Messaggi per vedere i messaggi
           { 
-            name: 'WhatsApp Impostazioni', 
-            href: '/admin/whatsapp/settings', 
-            icon: Cog6ToothIcon,
+            name: 'WhatsApp Messaggi', 
+            href: '/admin/whatsapp/messages', 
+            icon: ChatBubbleLeftRightIcon,
             isNew: true // Badge "NEW"
           },
           
@@ -256,6 +274,12 @@ export default function Layout({ children }: LayoutProps) {
         professionalItems.push(
           { name: 'Le mie Richieste', href: '/requests', icon: DocumentTextIcon },
           { name: 'I miei Preventivi', href: '/quotes', icon: CurrencyDollarIcon },
+          { 
+            name: 'Documenti Legali', 
+            href: '/professional/legal-documents', 
+            icon: ShieldCheckIcon,
+            isNew: true 
+          },
           { name: 'Competenze', href: '/professional/skills', icon: TagIcon },
           { name: 'Calendario', href: '/professional/calendar', icon: ClipboardDocumentListIcon },
           { name: 'Profilo e Indirizzi', href: '/profile', icon: UserCircleIcon }
@@ -267,6 +291,12 @@ export default function Layout({ children }: LayoutProps) {
           ...baseItems,
           { name: 'Le mie Richieste', href: '/requests', icon: DocumentTextIcon },
           { name: 'Preventivi Ricevuti', href: '/quotes', icon: CurrencyDollarIcon },
+          { 
+            name: 'Documenti Legali', 
+            href: '/my-legal-documents', 
+            icon: ShieldCheckIcon,
+            isNew: true 
+          },
           { name: 'Rapporti Intervento', href: '/client/reports', icon: DocumentTextIcon, isNew: true },
           { name: 'Nuova Richiesta', href: '/requests/new', icon: ClipboardDocumentListIcon },
           { name: 'Profilo', href: '/profile', icon: UserCircleIcon },

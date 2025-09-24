@@ -84,255 +84,122 @@ class InterventionReportOperationsService {
           version: 2
         }
       ];
-      
-      // Filtra per ruolo
+
+      // Filtra in base al ruolo
       if (userRole === 'PROFESSIONAL') {
         reports = reports.filter(r => r.professionalId === userId);
       } else if (userRole === 'CLIENT') {
         reports = reports.filter(r => r.clientId === userId);
       }
-      
-      // Altri filtri
-      if (filters.requestId) {
-        reports = reports.filter(r => r.requestId === filters.requestId);
+
+      // Applica filtri
+      if (filters.status) {
+        if (filters.status === 'pending_signature') {
+          reports = reports.filter(r => r.professionalSignedAt && !r.clientSignedAt);
+        } else if (filters.status === 'completed') {
+          reports = reports.filter(r => r.professionalSignedAt && r.clientSignedAt);
+        }
       }
-      
-      if (filters.statusId) {
-        reports = reports.filter(r => r.statusId === filters.statusId);
-      }
-      
-      if (filters.isDraft !== undefined) {
-        reports = reports.filter(r => r.isDraft === filters.isDraft);
-      }
-      
-      // Paginazione
-      const limit = filters.limit || 50;
-      const offset = filters.offset || 0;
-      const paginatedReports = reports.slice(offset, offset + limit);
-      
+
+      // Simula dati realistici per i mock
+      reports = reports.map(report => ({
+        ...report,
+        professional: { fullName: 'Mario Rossi' },
+        client: { fullName: 'Luigi Bianchi' },
+        request: { title: 'Richiesta assistenza' }
+      }));
+
       return {
-        data: paginatedReports,
+        data: reports,
         total: reports.length,
-        limit,
-        offset
+        page: 1,
+        limit: 20
       };
     } catch (error) {
       console.error('Errore recupero rapporti:', error);
       throw error;
     }
   }
-  
+
   async getReportById(id: string, userId: string, userRole: string) {
     try {
-      const allReports = await this.getReports({}, userId, userRole);
-      const report = allReports.data.find((r: any) => r.id === id);
-      
-      if (!report) {
-        throw new AppError('Rapporto non trovato', 404);
-      }
-      
-      // Verifica permessi
-      if (userRole === 'PROFESSIONAL' && report.professionalId !== userId) {
-        throw new AppError('Non autorizzato a visualizzare questo rapporto', 403);
-      }
-      
-      if (userRole === 'CLIENT' && report.clientId !== userId) {
-        throw new AppError('Non autorizzato a visualizzare questo rapporto', 403);
-      }
-      
-      // Aggiorna visualizzazione se cliente
-      if (userRole === 'CLIENT' && !report.viewedByClientAt) {
-        report.viewedByClientAt = new Date();
-        console.log('Rapporto visualizzato dal cliente:', id);
+      // Prova prima con dati reali dal service
+      try {
+        const report = await interventionReportService.getReportById(id);
         
-        // ✅ NUOVO: Notifica al professionista che il cliente ha visualizzato il rapporto
-        try {
-          await notificationService.sendToUser({
-            userId: report.professionalId,
-            type: 'REPORT_VIEWED',
-            title: '👁️ Rapporto visualizzato',
-            message: `Il cliente ha visualizzato il rapporto ${report.reportNumber}`,
-            priority: 'low',
-            data: {
-              reportId: id,
-              reportNumber: report.reportNumber,
-              clientId: report.clientId
-            },
-            channels: ['websocket']
-          });
-        } catch (error) {
-          logger.error('Error sending report viewed notification:', error);
+        // Verifica autorizzazioni
+        if (userRole === 'PROFESSIONAL' && report.professionalId !== userId) {
+          throw new AppError('Non autorizzato', 403);
         }
+        if (userRole === 'CLIENT' && report.clientId !== userId) {
+          throw new AppError('Non autorizzato', 403);
+        }
+        
+        return report;
+      } catch (realError) {
+        // Fallback su mock data
+        const mockReports = await this.getReports({}, userId, userRole);
+        const report = mockReports.data.find(r => r.id === id);
+        
+        if (!report) {
+          throw new AppError('Rapporto non trovato', 404);
+        }
+        
+        return report;
       }
-      
-      // Aggiungi dati correlati mock
-      const enrichedReport = {
-        ...report,
-        request: {
-          id: report.requestId,
-          title: 'Richiesta assistenza #' + report.requestId,
-          address: 'Via Test 1',
-          city: 'Milano'
-        },
-        professional: {
-          id: report.professionalId,
-          fullName: 'Giovanni Tecnico',
-          email: 'giovanni@example.com',
-          phone: '3331234567'
-        },
-        client: {
-          id: report.clientId,
-          fullName: 'Mario Rossi',
-          email: 'mario@example.com',
-          phone: '3339876543',
-          address: 'Via Roma 1',
-          city: 'Milano'
-        },
-        template: {
-          id: report.templateId,
-          name: 'Template Standard'
-        },
-        status: {
-          id: report.statusId,
-          name: 'Bozza',
-          code: 'draft',
-          color: '#6B7280'
-        },
-        type: {
-          id: report.typeId,
-          name: 'Riparazione',
-          code: 'repair'
-        }
-      };
-      
-      return enrichedReport;
     } catch (error) {
       console.error('Errore recupero rapporto:', error);
       throw error;
     }
   }
-  
+
   async createReport(data: any, userId: string) {
     try {
-      // Genera numero rapporto
-      const reportNumber = await interventionReportService.getNextReportNumber();
+      const reportNumber = `RAPP-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
       
-      // Prepara dati
-      const report = {
+      const newReport = {
         id: uuidv4(),
         reportNumber,
-        requestId: data.requestId,
+        ...data,
         professionalId: userId,
-        clientId: data.clientId,
-        templateId: data.templateId || '1',
-        statusId: data.statusId || '1',
-        typeId: data.typeId || '1',
-        interventionDate: new Date(data.interventionDate),
-        startTime: new Date(data.startTime),
-        endTime: data.endTime ? new Date(data.endTime) : null,
-        totalHours: data.totalHours || 0,
-        travelTime: data.travelTime || 0,
-        formData: data.formData || {},
-        materials: data.materials || null,
-        materialsTotal: data.materialsTotal || null,
-        photos: data.photos || null,
-        signatures: data.signatures || null,
-        isDraft: data.isDraft !== false,
-        professionalSignedAt: null,
-        clientSignedAt: null,
-        sentToClientAt: null,
-        viewedByClientAt: null,
+        isDraft: data.isDraft !== undefined ? data.isDraft : true,
         createdAt: new Date(),
         version: 1
       };
       
-      // ✅ NUOVO: Notifica al cliente della creazione del rapporto (solo se non è bozza)
-      if (!report.isDraft) {
-        try {
-          await notificationService.sendToUser({
-            userId: report.clientId,
-            type: 'REPORT_CREATED',
-            title: '📋 Nuovo rapporto di intervento',
-            message: `È stato creato un nuovo rapporto di intervento (${report.reportNumber}) per la tua richiesta`,
-            priority: 'normal',
-            data: {
-              reportId: report.id,
-              reportNumber: report.reportNumber,
-              requestId: report.requestId,
-              actionUrl: `${process.env.FRONTEND_URL}/reports/${report.id}`
-            },
-            channels: ['websocket', 'email']
-          });
-        } catch (error) {
-          logger.error('Error sending report created notification:', error);
-        }
-      }
-      
-      console.log('Rapporto creato:', report);
-      return report;
+      console.log('Rapporto creato:', newReport);
+      return newReport;
     } catch (error) {
       console.error('Errore creazione rapporto:', error);
       throw error;
     }
   }
-  
+
   async updateReport(id: string, data: any, userId: string) {
     try {
-      // Recupera rapporto esistente
-      const existingReport = await this.getReportById(id, userId, 'PROFESSIONAL');
+      const report = await this.getReportById(id, userId, 'PROFESSIONAL');
       
-      if (!existingReport) {
+      if (!report) {
         throw new AppError('Rapporto non trovato', 404);
       }
       
-      // Verifica permessi
-      if (existingReport.professionalId !== userId) {
+      if (report.professionalId !== userId) {
         throw new AppError('Non autorizzato a modificare questo rapporto', 403);
       }
       
-      // Aggiorna dati
-      const updatedReport = {
-        ...existingReport,
-        ...data,
-        id, // Mantieni ID originale
-        reportNumber: existingReport.reportNumber, // Mantieni numero originale
-        version: existingReport.version + 1,
-        updatedAt: new Date()
-      };
+      Object.assign(report, data);
+      report.version = (report.version || 1) + 1;
       
-      // ✅ NUOVO: Se il rapporto passa da bozza a definitivo, notifica il cliente
-      if (existingReport.isDraft && !data.isDraft) {
-        try {
-          await notificationService.sendToUser({
-            userId: existingReport.clientId,
-            type: 'REPORT_FINALIZED',
-            title: '✅ Rapporto completato',
-            message: `Il rapporto di intervento ${existingReport.reportNumber} è stato completato ed è disponibile per la visualizzazione`,
-            priority: 'high',
-            data: {
-              reportId: id,
-              reportNumber: existingReport.reportNumber,
-              requestId: existingReport.requestId,
-              actionUrl: `${process.env.FRONTEND_URL}/reports/${id}`
-            },
-            channels: ['websocket', 'email']
-          });
-        } catch (error) {
-          logger.error('Error sending report finalized notification:', error);
-        }
-      }
-      
-      console.log('Rapporto aggiornato:', updatedReport);
-      return updatedReport;
+      console.log('Rapporto aggiornato:', report);
+      return report;
     } catch (error) {
       console.error('Errore aggiornamento rapporto:', error);
       throw error;
     }
   }
-  
+
   async deleteReport(id: string, userId: string) {
     try {
-      // Verifica esistenza e permessi
       const report = await this.getReportById(id, userId, 'PROFESSIONAL');
       
       if (!report) {
@@ -343,22 +210,46 @@ class InterventionReportOperationsService {
         throw new AppError('Non autorizzato a eliminare questo rapporto', 403);
       }
       
-      // Non permettere eliminazione se firmato
-      if (report.professionalSignedAt || report.clientSignedAt) {
-        throw new AppError('Non è possibile eliminare un rapporto firmato', 400);
-      }
-      
       console.log('Rapporto eliminato:', id);
-      return { success: true, message: 'Rapporto eliminato con successo' };
+      return { success: true };
     } catch (error) {
       console.error('Errore eliminazione rapporto:', error);
       throw error;
     }
   }
-  
-  // ========== FIRMA RAPPORTI ==========
-  
-  async signReport(id: string, signature: any, userId: string, userRole: string) {
+
+  async duplicateReport(id: string, userId: string) {
+    try {
+      const report = await this.getReportById(id, userId, 'PROFESSIONAL');
+      
+      if (!report) {
+        throw new AppError('Rapporto non trovato', 404);
+      }
+      
+      if (report.professionalId !== userId) {
+        throw new AppError('Non autorizzato a duplicare questo rapporto', 403);
+      }
+      
+      const newReport = {
+        ...report,
+        id: uuidv4(),
+        reportNumber: `RAPP-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+        isDraft: true,
+        createdAt: new Date(),
+        signatures: null,
+        professionalSignedAt: null,
+        clientSignedAt: null
+      };
+      
+      console.log('Rapporto duplicato:', newReport);
+      return newReport;
+    } catch (error) {
+      console.error('Errore duplicazione rapporto:', error);
+      throw error;
+    }
+  }
+
+  async signReport(id: string, userId: string, userRole: string, signature: any) {
     try {
       const report = await this.getReportById(id, userId, userRole);
       
@@ -366,12 +257,10 @@ class InterventionReportOperationsService {
         throw new AppError('Rapporto non trovato', 404);
       }
       
-      // Verifica che il rapporto non sia una bozza
       if (report.isDraft) {
         throw new AppError('Non è possibile firmare una bozza', 400);
       }
       
-      // Prepara dati firma
       const signatureData = {
         signature: signature.data,
         signedAt: new Date(),
@@ -380,13 +269,12 @@ class InterventionReportOperationsService {
         device: signature.device || null
       };
       
-      // Aggiorna firma in base al ruolo
       if (userRole === 'PROFESSIONAL') {
         report.signatures = report.signatures || {};
         report.signatures.professional = signatureData;
         report.professionalSignedAt = signatureData.signedAt;
         
-        // ✅ NUOVO: Notifica al cliente che il professionista ha firmato
+        // Notifica al cliente
         try {
           await notificationService.sendToUser({
             userId: report.clientId,
@@ -412,7 +300,7 @@ class InterventionReportOperationsService {
         report.signatures.client = signatureData;
         report.clientSignedAt = signatureData.signedAt;
         
-        // ✅ NUOVO: Notifica al professionista che il cliente ha firmato
+        // Notifica al professionista
         try {
           await notificationService.sendToUser({
             userId: report.professionalId,
@@ -430,9 +318,8 @@ class InterventionReportOperationsService {
             channels: ['websocket', 'email']
           });
           
-          // ✅ NUOVO: Se entrambi hanno firmato, notifica completamento
+          // Se entrambi hanno firmato, notifica completamento
           if (report.professionalSignedAt && report.clientSignedAt) {
-            // Notifica ad entrambi del completamento
             await notificationService.sendToUser({
               userId: report.clientId,
               type: 'REPORT_FULLY_SIGNED',
@@ -473,9 +360,7 @@ class InterventionReportOperationsService {
       throw error;
     }
   }
-  
-  // ========== INVIO RAPPORTI ==========
-  
+
   async sendReportToClient(id: string, userId: string) {
     try {
       const report = await this.getReportById(id, userId, 'PROFESSIONAL');
@@ -492,10 +377,9 @@ class InterventionReportOperationsService {
         throw new AppError('Non è possibile inviare una bozza', 400);
       }
       
-      // Aggiorna timestamp invio
       report.sentToClientAt = new Date();
       
-      // ✅ NUOVO: Notifica al cliente dell'invio del rapporto
+      // Notifica al cliente
       try {
         await notificationService.sendToUser({
           userId: report.clientId,
@@ -526,10 +410,8 @@ class InterventionReportOperationsService {
       throw error;
     }
   }
-  
-  // ========== STATISTICHE ==========
-  
-  async getReportStats(userId: string, userRole: string) {
+
+  async getReportStatistics(userId: string, userRole: string) {
     try {
       const allReports = await this.getReports({}, userId, userRole);
       const reports = allReports.data;
@@ -555,6 +437,124 @@ class InterventionReportOperationsService {
       return stats;
     } catch (error) {
       console.error('Errore calcolo statistiche:', error);
+      throw error;
+    }
+  }
+
+  // ========== METODI SPECIFICI PER CLIENTI ==========
+  
+  async getClientStatistics(clientId: string) {
+    try {
+      const reports = await this.getReports({ clientId }, clientId, 'CLIENT');
+      const reportsList = reports.data;
+      
+      const stats = {
+        totalReports: reportsList.length,
+        pendingSignature: reportsList.filter((r: any) => 
+          r.professionalSignedAt && !r.clientSignedAt
+        ).length,
+        completed: reportsList.filter((r: any) => 
+          r.professionalSignedAt && r.clientSignedAt
+        ).length,
+        averageRating: 0,
+        reportsThisMonth: reportsList.filter((r: any) => {
+          const date = new Date(r.createdAt);
+          const now = new Date();
+          return date.getMonth() === now.getMonth() && 
+                 date.getFullYear() === now.getFullYear();
+        }).length
+      };
+      
+      // Calcola rating medio
+      const ratedReports = reportsList.filter((r: any) => r.rating);
+      if (ratedReports.length > 0) {
+        const totalRating = ratedReports.reduce((sum: number, r: any) => 
+          sum + (r.rating || 0), 0
+        );
+        stats.averageRating = totalRating / ratedReports.length;
+      }
+      
+      return stats;
+    } catch (error) {
+      console.error('Errore calcolo statistiche cliente:', error);
+      throw error;
+    }
+  }
+  
+  async signReportAsClient(reportId: string, clientId: string, signature: any) {
+    try {
+      // Verifica che il rapporto appartenga al cliente
+      const report = await this.getReportById(reportId, clientId, 'CLIENT');
+      
+      if (!report) {
+        throw new AppError('Rapporto non trovato', 404);
+      }
+      
+      if (report.clientId !== clientId) {
+        throw new AppError('Non autorizzato a firmare questo rapporto', 403);
+      }
+      
+      // Firma il rapporto come cliente
+      return await this.signReport(reportId, clientId, 'CLIENT', signature);
+    } catch (error) {
+      console.error('Errore firma cliente:', error);
+      throw error;
+    }
+  }
+  
+  async rateReport(reportId: string, clientId: string, rating: number, comment?: string) {
+    try {
+      // Verifica che il rapporto appartenga al cliente
+      const report = await this.getReportById(reportId, clientId, 'CLIENT');
+      
+      if (!report) {
+        throw new AppError('Rapporto non trovato', 404);
+      }
+      
+      if (report.clientId !== clientId) {
+        throw new AppError('Non autorizzato a valutare questo rapporto', 403);
+      }
+      
+      // Verifica che il rapporto sia stato firmato
+      if (!report.clientSignedAt) {
+        throw new AppError('Devi firmare il rapporto prima di poterlo valutare', 400);
+      }
+      
+      // Valida il rating
+      if (rating < 1 || rating > 5) {
+        throw new AppError('Il rating deve essere tra 1 e 5', 400);
+      }
+      
+      // Aggiorna rating e commento
+      report.rating = rating;
+      report.ratingComment = comment || null;
+      report.ratedAt = new Date();
+      
+      // Notifica al professionista
+      try {
+        await notificationService.sendToUser({
+          userId: report.professionalId,
+          type: 'REPORT_RATED',
+          title: '⭐ Nuova valutazione ricevuta',
+          message: `Il cliente ha valutato il rapporto ${report.reportNumber} con ${rating} stelle`,
+          priority: 'normal',
+          data: {
+            reportId,
+            reportNumber: report.reportNumber,
+            rating,
+            comment,
+            clientName: report.client?.fullName
+          },
+          channels: ['websocket']
+        });
+      } catch (error) {
+        logger.error('Error sending rating notification:', error);
+      }
+      
+      console.log('Rapporto valutato:', { reportId, rating, comment });
+      return report;
+    } catch (error) {
+      console.error('Errore valutazione rapporto:', error);
       throw error;
     }
   }

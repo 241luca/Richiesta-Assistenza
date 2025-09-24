@@ -86,7 +86,7 @@ const testUsers = {
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const { siteName, siteLogo, siteClaim, companyName } = useSystemSettings();
+  const { siteName, siteLogo, siteClaim, companyName, siteVersion } = useSystemSettings();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<'admin' | 'client' | 'professional'>('admin');
@@ -208,8 +208,11 @@ const LoginPage: React.FC = () => {
                 <h1 className="text-3xl font-bold text-blue-600 mb-2">
                   {siteName || 'Richiesta Assistenza'}
                 </h1>
-                <p className="text-lg italic text-blue-400 mb-3">
+                <p className="text-lg italic text-blue-400 mb-2">
                   {siteClaim}
+                </p>
+                <p className="text-sm text-gray-500 mb-3">
+                  Versione <span className="font-bold">{siteVersion?.replace('v', '') || '1.0'}</span>
                 </p>
                 <p className="text-gray-600">
                   Accedi al tuo account
@@ -415,15 +418,15 @@ const LoginPage: React.FC = () => {
                     © 2025 {siteName || 'Richiesta Assistenza'}. Tutti i diritti riservati.
                   </p>
                   <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <a href="#" className="hover:text-gray-700 transition-colors">
+                    <a href="/legal/privacy-policy" className="hover:text-gray-700 transition-colors">
                       Privacy Policy
                     </a>
                     <span>•</span>
-                    <a href="#" className="hover:text-gray-700 transition-colors">
+                    <a href="/legal/terms-service" className="hover:text-gray-700 transition-colors">
                       Termini di Servizio
                     </a>
                     <span>•</span>
-                    <a href="#" className="hover:text-gray-700 transition-colors">
+                    <a href="/legal/cookie-policy" className="hover:text-gray-700 transition-colors">
                       Cookie Policy
                     </a>
                   </div>

@@ -1,0 +1,2 @@
+export class WPPConnectService {
+  getSessionName(): string { return this.sessionName; }

@@ -20,8 +20,12 @@ import { notificationService } from './services/notification.service';
 import { setIO } from './utils/socket';
 import { authenticate } from './middleware/auth';
 import { requireRole } from './middleware/rbac';
+import { Role } from '@prisma/client';
 import { errorHandler } from './middleware/errorHandler';
 import { requestIdMiddleware } from './middleware/requestId';
+
+// Import WhatsApp service
+import { wppConnectService } from './services/wppconnect.service';
 
 // Create Express app
 const app = express();
@@ -152,7 +156,9 @@ import subcategoryRoutes from './routes/subcategory.routes';
 import publicRoutes from './routes/public.routes';
 import debugRoutes from './routes/debug.routes';
 import testRoutes from './routes/test.routes';
-import whatsappMainRoutes from './routes/whatsapp-main.routes';
+// import whatsappMainRoutes from './routes/whatsapp-main.routes'; // DISABILITATO - usa crittografia
+import whatsappRoutes from './routes/whatsapp.routes'; // NUOVO - versione semplice senza crittografia
+import whatsappContactsRoutes from './routes/whatsapp-contacts.routes'; // NUOVO - gestione contatti WhatsApp
 import whatsappConfigRoutes from './routes/admin/whatsapp-config.routes';
 import knowledgebaseRoutes from './routes/knowledgebase.routes';
 import knowledgeBaseRoutes from './routes/knowledge-base.routes'; // NUOVO IMPORT
@@ -200,9 +206,23 @@ import apiKeysRoutes from './routes/apiKeys.routes';
 import emailTemplatesRoutes from './routes/emailTemplates.routes';
 import kbDocumentsRoutes from './routes/kb-documents.routes';
 
+// Document Management routes
+import documentTypesRoutes from './routes/admin/document-types.routes';
+import documentCategoriesRoutes from './routes/admin/document-categories.routes';
+import documentFieldsRoutes from './routes/admin/document-fields.routes';
+import documentPermissionsRoutes from './routes/admin/document-permissions.routes';
+import documentNotificationsRoutes from './routes/admin/document-notifications.routes';
+import documentConfigRoutes from './routes/admin/document-config.routes';
+import documentUIConfigsRoutes from './routes/admin/document-ui-configs.routes';
+import approvalWorkflowsRoutes from './routes/admin/approval-workflows.routes';
+
+// Legal Documents routes
+import legalRoutes from './routes/legal.routes';
+
 // WhatsApp routes 
-import professionalWhatsappRoutes from './routes/professional-whatsapp.routes';
+// import professionalWhatsappRoutes from './routes/professional-whatsapp.routes'; // RIMOSSO - Migration a solo WPPConnect
 import systemEnumRoutes from './routes/systemEnum.routes';
+import whatsappWebhookRoutes from './routes/whatsapp-webhook.routes';
 
 // Admin Scripts routes - IMPORTANTE!
 import adminScriptsRoutes from './routes/admin/shell-scripts-simple.routes';
@@ -323,6 +343,10 @@ app.use('/api/ai', authenticate, aiRoutes);
 app.use('/api/maps', authenticate, mapsRoutes);
 app.use('/api/geocode', authenticate, geocodingRoutes);
 
+// API Keys route - accessibile senza percorso admin per il frontend
+app.use('/api/apikeys', authenticate, apiKeysRoutes);
+logger.info('🔑 API Keys routes registered at /api/apikeys');
+
 // Admin routes
 app.use('/api/admin/users', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), adminUsersRoutes);
 app.use('/api/admin/api-keys', authenticate, requireRole(['SUPER_ADMIN']), apiKeysRoutes);
@@ -371,16 +395,36 @@ import clientAiSettingsRoutes from './routes/client-ai-settings.routes';
 app.use('/api/professionals', professionalAiSettingsRoutes);
 app.use('/api/client-settings', clientAiSettingsRoutes);
 
-// WhatsApp e Knowledge Base routes
-import professionalWhatsappRoutes from './routes/professional-whatsapp.routes';
+// Legal Documents routes
+import legalDocumentRoutes from './routes/admin/legal-documents.routes';
+import documentTemplatesRoutes from './routes/admin/document-templates.routes';
 
-app.use('/api/professional/whatsapp', authenticate, professionalWhatsappRoutes);
-app.use('/api/whatsapp', whatsappMainRoutes);
+app.use('/api/admin/legal-documents', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), legalDocumentRoutes);
+app.use('/api/admin/document-templates', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentTemplatesRoutes);
+app.use('/api/admin/document-types', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentTypesRoutes);
+app.use('/api/admin/document-config', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentConfigRoutes);
+app.use('/api/admin/document-categories', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentCategoriesRoutes);
+app.use('/api/admin/document-fields', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentFieldsRoutes);
+app.use('/api/admin/approval-workflows', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), approvalWorkflowsRoutes);
+app.use('/api/admin/document-permissions', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentPermissionsRoutes);
+app.use('/api/admin/document-notifications', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentNotificationsRoutes);
+app.use('/api/admin/document-ui-configs', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentUIConfigsRoutes);
+app.use('/api/legal', legalRoutes);
+logger.info('📜 Legal Documents routes registered');
+logger.info('⚙️ Document Management routes registered');
+
+// WhatsApp e Knowledge Base routes
+
+// app.use('/api/professional/whatsapp', authenticate, professionalWhatsappRoutes); // RIMOSSO - Migration a solo WPPConnect
+app.use('/api/whatsapp/webhook', whatsappWebhookRoutes); // Webhook senza auth
+app.use('/api/whatsapp', whatsappRoutes); // Usa la versione senza crittografia
+app.use('/api/whatsapp', authenticate, whatsappContactsRoutes); // NUOVO - Gestione contatti WhatsApp
 app.use('/api/admin/whatsapp', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), whatsappConfigRoutes);
 app.use('/api/kb', knowledgebaseRoutes);
 app.use('/api/knowledge-base', authenticate, knowledgeBaseRoutes); // NUOVA ROUTE AGGIUNTA
 logger.info('📱 WhatsApp routes registered at /api/whatsapp');
-logger.info('🤖 Professional WhatsApp AI routes registered at /api/professional/whatsapp');
+logger.info('👥 WhatsApp Contacts routes registered at /api/whatsapp/contacts');
+// logger.info('🤖 Professional WhatsApp AI routes registered at /api/professional/whatsapp'); // RIMOSSO - Migration a solo WPPConnect
 logger.info('📚 Knowledge Base routes registered at /api/kb and /api/knowledge-base');
 
 // Attachment routes (senza prefisso /api)
@@ -435,6 +479,18 @@ httpServer.listen(PORT, () => {
   logger.info(`🚀 Server fully operational on port ${PORT}`);
   logger.info(`📡 WebSocket server ready`);
   logger.info(`🔗 Accepting connections from frontend at http://localhost:5193`);
+  
+  // Inizializza WPPConnect direttamente (non blocca il server se fallisce)
+  (async () => {
+    try {
+      const { wppConnectService } = require('./services/wppconnect.service');
+      await wppConnectService.initialize();
+      logger.info('📱 WPPConnect pronto - vai su /admin/whatsapp per il QR Code');
+    } catch (error) {
+      logger.warn('⚠️ WPPConnect non connesso - scansiona il QR dalla dashboard');
+      // Non blocchiamo il server se WhatsApp fallisce
+    }
+  })();
 });
 
 // Graceful shutdown
@@ -459,5 +515,4 @@ process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-export { app, httpServer, io };// Adding route manually at line 250
-app.use('/api/professional-details', professionalDetailsRoutes);
+export { app, httpServer, io };

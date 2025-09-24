@@ -1,0 +1,25 @@
+{
+  "watch": ["src"],
+  "ext": "ts,js",
+  "ignore": [
+    "node_modules/**",
+    "**/node_modules/**",
+    "**/tokens/**",
+    "tokens/**",
+    "**/.wppconnect/**",
+    ".wppconnect/**",
+    "**/assistenza-wpp/**",
+    "assistenza-wpp/**",
+    "**/*.log",
+    "**/logs/**",
+    "**/tmp/**",
+    "**/temp/**",
+    "**/uploads/**",
+    "**/public/**",
+    "**/dist/**"
+  ],
+  "exec": "ts-node src/server.ts",
+  "env": {
+    "NODE_ENV": "development"
+  }
+}

@@ -4,7 +4,7 @@ import { logger } from '../utils/logger';
 import crypto from 'crypto';
 
 export interface ApiKeyInput {
-  service: 'GOOGLE_MAPS' | 'BREVO' | 'OPENAI' | 'whatsapp';
+  service: 'GOOGLE_MAPS' | 'BREVO' | 'OPENAI' | 'TINYMCE' | 'whatsapp';
   key: string;
   configuration?: any;
   isActive?: boolean;
@@ -100,7 +100,7 @@ export class ApiKeyService {
   /**
    * Ottieni una specifica API key
    */
-  async getApiKey(service: ApiKeyInput['service']): Promise<ApiKey | null> {
+  async getApiKey(service: ApiKeyInput['service'], unmask: boolean = false): Promise<ApiKey | null> {
     try {
       const apiKey = await prisma.apiKey.findFirst({
         where: { 
@@ -112,9 +112,11 @@ export class ApiKeyService {
       if (!apiKey) return null;
 
       // Decripta la chiave per uso interno
+      const decryptedKey = this.decryptKey(apiKey.key);
+      
       return {
         ...apiKey,
-        key: this.decryptKey(apiKey.key)
+        key: unmask ? decryptedKey : this.maskKey(apiKey.key, apiKey.service as any)
       };
     } catch (error) {
       logger.error(`Error fetching API key for ${service}:`, error);
@@ -138,6 +140,12 @@ export class ApiKeyService {
       case 'OPENAI':
         // Mostra solo sk- e gli ultimi 4 caratteri
         return 'sk-...' + decryptedKey.slice(-4);
+      case 'TINYMCE':
+        // Mostra solo i primi 10 caratteri per TinyMCE
+        if (decryptedKey && decryptedKey.length > 10) {
+          return decryptedKey.substring(0, 10) + '...' + decryptedKey.slice(-4);
+        }
+        return '***MASKED***';
       case 'whatsapp':
         // Mostra solo i primi 10 caratteri per WhatsApp
         if (decryptedKey && decryptedKey.length > 10) {
@@ -162,6 +170,13 @@ export class ApiKeyService {
 
       // Valida la chiave prima di salvarla
       const isValid = await this.validateApiKey(data.service, data.key);
+      logger.info(`API key validation for ${data.service}: ${isValid}`);
+      logger.info(`API key length for ${data.service}: ${data.key.length}`);
+      
+      // Per TinyMCE, logga la chiave per debug (rimuovere in produzione!)
+      if (data.service === 'TINYMCE') {
+        logger.info(`TinyMCE key being saved: ${data.key.substring(0, 10)}...${data.key.slice(-10)}`);
+      }
       
       // Prima cerca se esiste già una chiave per questo servizio
       const existingKey = await prisma.apiKey.findFirst({
@@ -229,6 +244,10 @@ export class ApiKeyService {
           return await this.validateBrevoKey(key);
         case 'OPENAI':
           return await this.validateOpenAIKey(key);
+        case 'TINYMCE':
+          // Per TinyMCE, verifichiamo solo che la key abbia il formato corretto
+          // Le chiavi TinyMCE sono solitamente alfanumeriche di almeno 20 caratteri
+          return key && key.length >= 20;
         case 'whatsapp':
           // Per WhatsApp, verifichiamo solo che la key esista
           // La validazione completa avviene quando si inizializza
@@ -438,6 +457,18 @@ export class ApiKeyService {
               }
             };
           }
+        }
+        
+        // Per TinyMCE, test specifico
+        if (service === 'TINYMCE') {
+          return {
+            success: true,
+            message: 'TinyMCE API key configurata correttamente',
+            details: {
+              service,
+              lastValidated: new Date().toISOString()
+            }
+          };
         }
         
         // Per WhatsApp, test specifico

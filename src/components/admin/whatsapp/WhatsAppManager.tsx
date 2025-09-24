@@ -1,369 +1,275 @@
-import React, { useState, useEffect } from 'react';
+/**
+ * WhatsApp Manager - Solo WPPConnect
+ * Componente semplificato per gestione WhatsApp con un solo provider
+ */
+
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../../services/api';
 import { toast } from 'react-hot-toast';
 import { 
-  PhoneIcon, 
   ChatBubbleLeftRightIcon,
   QrCodeIcon,
   ArrowPathIcon,
   CheckCircleIcon,
-  XCircleIcon,
-  PaperAirplaneIcon,
-  UserGroupIcon
+  ExclamationCircleIcon,
+  PhoneIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
+import { api } from '../../../services/api';
 
-export default function WhatsAppManager() {
-  const [activeTab, setActiveTab] = useState('status');
-  const [qrCode, setQrCode] = useState('');
+interface WhatsAppStatus {
+  connected: boolean;
+  provider: string;
+  message: string;
+  qrCode?: string;
+}
+
+interface WhatsAppStats {
+  totalMessages: number;
+  todayMessages: number;
+  connectedSince?: string;
+  provider: string;
+}
+
+const WhatsAppManager: React.FC = () => {
   const [showQR, setShowQR] = useState(false);
-  const [messageForm, setMessageForm] = useState({
-    phoneNumber: '',
-    message: '',
-    mediaUrl: ''
-  });
-  const [broadcastForm, setBroadcastForm] = useState({
-    phoneNumbers: '',
-    message: '',
-    mediaUrl: ''
-  });
-  
   const queryClient = useQueryClient();
 
-  // Query per lo stato WhatsApp
-  const { data: status, isLoading: statusLoading, refetch: refetchStatus } = useQuery({
-    queryKey: ['whatsapp-status'],
-    queryFn: () => api.get('/whatsapp/status'),
-    refetchInterval: 10000 // Aggiorna ogni 10 secondi
+  // Query status
+  const { data: status, isLoading: statusLoading, refetch: refetchStatus } = useQuery<WhatsAppStatus>({
+    queryKey: ['whatsapp', 'status'],
+    queryFn: async () => {
+      const response = await api.get('/whatsapp/status');
+      return response.data.data;
+    },
+    refetchInterval: 10000 // Ogni 10 secondi
   });
 
-  // Query per le statistiche
-  const { data: stats } = useQuery({
-    queryKey: ['whatsapp-stats'],
-    queryFn: () => api.get('/whatsapp/stats'),
-    enabled: activeTab === 'stats'
+  // Query stats
+  const { data: stats } = useQuery<WhatsAppStats>({
+    queryKey: ['whatsapp', 'stats'],
+    queryFn: async () => {
+      const response = await api.get('/whatsapp/stats');
+      return response.data.data;
+    },
+    refetchInterval: 60000 // Ogni minuto
   });
 
-  // Mutation per inizializzare WhatsApp
-  const initializeMutation = useMutation({
-    mutationFn: () => api.post('/whatsapp/initialize'),
+  // Query QR Code
+  const { data: qrData, refetch: refetchQR } = useQuery({
+    queryKey: ['whatsapp', 'qr'],
+    queryFn: async () => {
+      const response = await api.get('/whatsapp/qr');
+      return response.data.data;
+    },
+    enabled: showQR && !status?.connected,
+    retry: false
+  });
+
+  // Mutation disconnect
+  const disconnectMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post('/whatsapp/disconnect');
+      return response.data;
+    },
     onSuccess: () => {
-      toast.success('WhatsApp inizializzato con successo!');
+      toast.success('WhatsApp disconnesso');
       refetchStatus();
+      setShowQR(false);
     },
-    onError: (error) => {
-      toast.error('Errore inizializzazione WhatsApp');
-      console.error(error);
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Errore disconnessione');
     }
   });
 
-  // Mutation per ottenere QR Code
-  const getQRMutation = useMutation({
-    mutationFn: () => api.get('/whatsapp/qrcode'),
-    onSuccess: (data) => {
-      setQrCode(data.qrcode);
-      setShowQR(true);
-      toast.success('QR Code generato!');
+  // Mutation reconnect
+  const reconnectMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post('/whatsapp/reconnect');
+      return response.data;
     },
-    onError: (error) => {
-      toast.error('Errore generazione QR Code');
-      console.error(error);
-    }
-  });
-
-  // Mutation per inviare messaggio
-  const sendMessageMutation = useMutation({
-    mutationFn: (data) => api.post('/whatsapp/send', data),
     onSuccess: () => {
-      toast.success('Messaggio inviato con successo!');
-      setMessageForm({ phoneNumber: '', message: '', mediaUrl: '' });
+      toast.success('WhatsApp riconnesso');
+      refetchStatus();
+      setShowQR(false);
     },
-    onError: (error) => {
-      toast.error('Errore invio messaggio');
-      console.error(error);
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Errore riconnessione');
     }
   });
 
-  // Mutation per broadcast
-  const broadcastMutation = useMutation({
-    mutationFn: (data) => api.post('/whatsapp/broadcast', data),
-    onSuccess: (data) => {
-      toast.success(`Broadcast completato: ${data.sent.length} inviati, ${data.failed.length} falliti`);
-      setBroadcastForm({ phoneNumbers: '', message: '', mediaUrl: '' });
-    },
-    onError: (error) => {
-      toast.error('Errore broadcast');
-      console.error(error);
+  const handleShowQR = () => {
+    if (status?.connected) {
+      toast.error('WhatsApp già connesso');
+      return;
     }
-  });
-
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    sendMessageMutation.mutate(messageForm);
-  };
-
-  const handleBroadcast = (e) => {
-    e.preventDefault();
-    const phoneNumbers = broadcastForm.phoneNumbers
-      .split('\n')
-      .map(n => n.trim())
-      .filter(n => n);
-    
-    broadcastMutation.mutate({
-      phoneNumbers,
-      message: broadcastForm.message,
-      mediaUrl: broadcastForm.mediaUrl
-    });
+    setShowQR(true);
+    refetchQR();
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-          <PhoneIcon className="h-8 w-8 text-green-500 mr-3" />
-          WhatsApp Manager
-        </h2>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <ChatBubbleLeftRightIcon className="h-8 w-8 text-green-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Gestione WhatsApp
+              </h1>
+              <p className="text-sm text-gray-600">
+                Provider: <span className="font-semibold text-green-600">WPPConnect</span>
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            {/* Status Badge */}
+            {statusLoading ? (
+              <div className="flex items-center text-gray-500">
+                <ArrowPathIcon className="h-5 w-5 animate-spin mr-2" />
+                <span>Verificando...</span>
+              </div>
+            ) : status?.connected ? (
+              <div className="flex items-center text-green-600 bg-green-100 px-3 py-1 rounded-full">
+                <CheckCircleIcon className="h-5 w-5 mr-2" />
+                <span className="font-medium">Connesso</span>
+              </div>
+            ) : (
+              <div className="flex items-center text-red-600 bg-red-100 px-3 py-1 rounded-full">
+                <ExclamationCircleIcon className="h-5 w-5 mr-2" />
+                <span className="font-medium">Non connesso</span>
+              </div>
+            )}
+            
+            {/* Refresh Button */}
+            <button
+              onClick={() => refetchStatus()}
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Aggiorna stato"
+            >
+              <ArrowPathIcon className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
         
-        <div className="flex items-center space-x-4">
-          {status?.connected ? (
-            <span className="flex items-center text-green-600">
-              <CheckCircleIcon className="h-5 w-5 mr-2" />
-              Connesso
-            </span>
+        {/* Message */}
+        {status?.message && (
+          <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+            <p className="text-sm text-gray-700">{status.message}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Stats Cards */}
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <ChatBubbleLeftRightIcon className="h-8 w-8 text-blue-600" />
+              <div className="ml-4">
+                <p className="text-sm text-gray-600">Messaggi Totali</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalMessages}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <ChartBarIcon className="h-8 w-8 text-green-600" />
+              <div className="ml-4">
+                <p className="text-sm text-gray-600">Oggi</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.todayMessages}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <PhoneIcon className="h-8 w-8 text-purple-600" />
+              <div className="ml-4">
+                <p className="text-sm text-gray-600">Provider</p>
+                <p className="text-lg font-bold text-gray-900">WPPConnect</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold mb-4">Azioni</h2>
+        
+        <div className="flex flex-wrap gap-4">
+          {!status?.connected ? (
+            <button
+              onClick={handleShowQR}
+              className="btn-primary flex items-center space-x-2"
+            >
+              <QrCodeIcon className="h-5 w-5" />
+              <span>Mostra QR Code</span>
+            </button>
           ) : (
-            <span className="flex items-center text-red-600">
-              <XCircleIcon className="h-5 w-5 mr-2" />
-              Disconnesso
-            </span>
+            <button
+              onClick={() => disconnectMutation.mutate()}
+              disabled={disconnectMutation.isPending}
+              className="btn-danger flex items-center space-x-2"
+            >
+              <PhoneIcon className="h-5 w-5" />
+              <span>
+                {disconnectMutation.isPending ? 'Disconnessione...' : 'Disconnetti'}
+              </span>
+            </button>
           )}
           
           <button
-            onClick={() => refetchStatus()}
-            className="p-2 text-gray-500 hover:text-gray-700"
-            title="Aggiorna stato"
+            onClick={() => reconnectMutation.mutate()}
+            disabled={reconnectMutation.isPending}
+            className="btn-secondary flex items-center space-x-2"
           >
-            <ArrowPathIcon className="h-5 w-5" />
+            <ArrowPathIcon className={`h-5 w-5 ${reconnectMutation.isPending ? 'animate-spin' : ''}`} />
+            <span>
+              {reconnectMutation.isPending ? 'Riconnessione...' : 'Riconnetti'}
+            </span>
           </button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab('status')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'status'
-                ? 'border-green-500 text-green-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Stato Connessione
-          </button>
-          <button
-            onClick={() => setActiveTab('send')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'send'
-                ? 'border-green-500 text-green-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Invia Messaggio
-          </button>
-          <button
-            onClick={() => setActiveTab('broadcast')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'broadcast'
-                ? 'border-green-500 text-green-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Broadcast
-          </button>
-          <button
-            onClick={() => setActiveTab('stats')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'stats'
-                ? 'border-green-500 text-green-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Statistiche
-          </button>
-        </nav>
-      </div>
-
-      {/* Content */}
-      <div className="mt-6">
-        {activeTab === 'status' && (
-          <div className="space-y-6">
-            {!status?.connected && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-yellow-800 mb-2">
-                  WhatsApp non connesso
-                </h3>
-                <p className="text-yellow-700 mb-4">
-                  Per utilizzare WhatsApp, devi prima connettere il tuo account.
-                </p>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => initializeMutation.mutate()}
-                    disabled={initializeMutation.isPending}
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
-                  >
-                    {initializeMutation.isPending ? 'Inizializzazione...' : 'Inizializza WhatsApp'}
-                  </button>
-                  <button
-                    onClick={() => getQRMutation.mutate()}
-                    disabled={getQRMutation.isPending}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
-                  >
-                    <QrCodeIcon className="h-5 w-5 mr-2" />
-                    {getQRMutation.isPending ? 'Generazione...' : 'Mostra QR Code'}
-                  </button>
-                </div>
+      {/* QR Code Display */}
+      {showQR && !status?.connected && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold mb-4">QR Code per Connessione</h2>
+          
+          {qrData?.qrCode ? (
+            <div className="text-center">
+              <div className="inline-block p-4 bg-white border rounded-lg">
+                <img 
+                  src={qrData.qrCode} 
+                  alt="QR Code WhatsApp" 
+                  className="w-64 h-64 mx-auto"
+                />
               </div>
-            )}
-
-            {showQR && qrCode && (
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold mb-4">
-                  Scansiona il QR Code con WhatsApp
-                </h3>
-                <div className="flex justify-center">
-                  <img src={qrCode} alt="QR Code" className="max-w-sm" />
-                </div>
-                <p className="text-sm text-gray-600 mt-4 text-center">
-                  Apri WhatsApp sul tuo telefono → Impostazioni → Dispositivi collegati → Collega un dispositivo
-                </p>
-              </div>
-            )}
-
-            {status?.connected && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-green-800 mb-2">
-                  WhatsApp Connesso
-                </h3>
-                <div className="space-y-2 text-green-700">
-                  <p>Instance ID: {status.instanceId}</p>
-                  <p>Stato: Attivo e funzionante</p>
-                  <p>Webhook: {status.webhookEnabled ? 'Configurato' : 'Non configurato'}</p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'send' && (
-          <form onSubmit={handleSendMessage} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Numero di telefono (con prefisso internazionale)
-              </label>
-              <input
-                type="text"
-                value={messageForm.phoneNumber}
-                onChange={(e) => setMessageForm({...messageForm, phoneNumber: e.target.value})}
-                placeholder="Es: 393331234567"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                required
-              />
+              <p className="mt-4 text-sm text-gray-600">
+                Scansiona questo QR Code con WhatsApp per connettere il tuo account
+              </p>
+              <button
+                onClick={() => refetchQR()}
+                className="mt-2 btn-secondary text-sm"
+              >
+                Aggiorna QR Code
+              </button>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Messaggio
-              </label>
-              <textarea
-                value={messageForm.message}
-                onChange={(e) => setMessageForm({...messageForm, message: e.target.value})}
-                rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                required
-              />
+          ) : (
+            <div className="text-center py-8">
+              <ArrowPathIcon className="h-8 w-8 animate-spin mx-auto text-gray-400 mb-2" />
+              <p className="text-gray-600">Generazione QR Code...</p>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                URL Media (opzionale)
-              </label>
-              <input
-                type="url"
-                value={messageForm.mediaUrl}
-                onChange={(e) => setMessageForm({...messageForm, mediaUrl: e.target.value})}
-                placeholder="https://esempio.com/immagine.jpg"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={sendMessageMutation.isPending || !status?.connected}
-              className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center"
-            >
-              <PaperAirplaneIcon className="h-5 w-5 mr-2" />
-              {sendMessageMutation.isPending ? 'Invio...' : 'Invia Messaggio'}
-            </button>
-          </form>
-        )}
-
-        {activeTab === 'broadcast' && (
-          <form onSubmit={handleBroadcast} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Numeri di telefono (uno per riga)
-              </label>
-              <textarea
-                value={broadcastForm.phoneNumbers}
-                onChange={(e) => setBroadcastForm({...broadcastForm, phoneNumbers: e.target.value})}
-                rows={6}
-                placeholder="393331234567&#10;393339876543&#10;393335555555"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Messaggio
-              </label>
-              <textarea
-                value={broadcastForm.message}
-                onChange={(e) => setBroadcastForm({...broadcastForm, message: e.target.value})}
-                rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={broadcastMutation.isPending || !status?.connected}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
-            >
-              <UserGroupIcon className="h-5 w-5 mr-2" />
-              {broadcastMutation.isPending ? 'Invio broadcast...' : 'Invia Broadcast'}
-            </button>
-          </form>
-        )}
-
-        {activeTab === 'stats' && stats && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">Messaggi Oggi</h3>
-              <p className="text-3xl font-bold text-green-600">{stats.messagestoday || 0}</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">Utenti WhatsApp</h3>
-              <p className="text-3xl font-bold text-blue-600">{stats.whatsappUsers || 0}</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">Richieste via WhatsApp</h3>
-              <p className="text-3xl font-bold text-purple-600">{stats.whatsappRequests || 0}</p>
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default WhatsAppManager;

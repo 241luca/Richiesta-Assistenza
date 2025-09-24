@@ -1,0 +1,109 @@
+version: '3.9'
+
+services:
+  # PostgreSQL esistente (già usato dal sistema)
+  postgres:
+    image: postgres:15
+    container_name: assistenza_postgres
+    environment:
+      POSTGRES_DB: assistenza_db
+      POSTGRES_USER: assistenza_user
+      POSTGRES_PASSWORD: assistenza_pass_2024
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - assistenza_network
+
+  # Redis esistente (già usato dal sistema)
+  redis:
+    image: redis:7-alpine
+    container_name: assistenza_redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - assistenza_network
+
+  # ====== NUOVO: EVOLUTION API ======
+  evolution-api:
+    container_name: evolution_api
+    image: atendai/evolution-api:v2.1.1
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      # Configurazione base
+      - NODE_ENV=production
+      - SERVER_URL=http://localhost:8080
+      
+      # Database - Usa lo stesso PostgreSQL del sistema
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_URL=postgresql://assistenza_user:assistenza_pass_2024@postgres:5432/assistenza_db?schema=evolution
+      
+      # Redis - Usa lo stesso Redis del sistema
+      - REDIS_ENABLED=true
+      - REDIS_URI=redis://redis:6379
+      
+      # Sicurezza
+      - AUTHENTICATION_TYPE=apikey
+      - AUTHENTICATION_API_KEY=evolution_secure_key_2025_luca_mambelli
+      - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
+      
+      # Configurazione istanze
+      - INSTANCE_LIMIT=10
+      - INSTANCE_NAME=main
+      - QRCODE_LIMIT=30
+      - QRCODE_COLOR=#000000
+      
+      # Webhook globale (disabilitato per ora, useremo webhook per istanza)
+      - WEBHOOK_GLOBAL_ENABLED=false
+      - WEBHOOK_GLOBAL_URL=
+      - WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS=false
+      
+      # Configurazione avanzata
+      - LOG_LEVEL=info
+      - LOG_COLOR=true
+      - LOG_BAILEYS=error
+      
+      # Pulizia automatica
+      - CLEAN_STORE_CLEANING_INTERVAL=7200
+      - CLEAN_STORE_MESSAGES=true
+      - CLEAN_STORE_MESSAGE_UP=true
+      - CLEAN_STORE_CONTACTS=true
+      - CLEAN_STORE_CHATS=true
+      
+      # Integrazione con il sistema esistente
+      - WEBHOOK_BASE_URL=http://host.docker.internal:3200
+      
+      # Cors per il frontend
+      - CORS_ORIGIN=["http://localhost:5193", "http://localhost:3200"]
+      - CORS_METHODS=["GET", "POST", "PUT", "DELETE"]
+      - CORS_CREDENTIALS=true
+      
+    volumes:
+      # Persistenza dati
+      - evolution_instances:/evolution/instances
+      - evolution_store:/evolution/store
+      - evolution_media:/evolution/media
+    networks:
+      - assistenza_network
+    depends_on:
+      - postgres
+      - redis
+    extra_hosts:
+      # Permette di raggiungere il backend locale dall'interno del container
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  postgres_data:
+  redis_data:
+  evolution_instances:
+  evolution_store:
+  evolution_media:
+
+networks:
+  assistenza_network:
+    driver: bridge

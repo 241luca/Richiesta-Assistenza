@@ -23,6 +23,7 @@ export default function ApiKeysLayout({ children }: ApiKeysLayoutProps) {
     if (location.pathname.includes('google-maps')) return 'google-maps';
     if (location.pathname.includes('brevo')) return 'brevo';
     if (location.pathname.includes('openai')) return 'openai';
+    if (location.pathname.includes('tinymce')) return 'tinymce';
     if (location.pathname.includes('whatsapp')) return 'whatsapp';
     return 'overview';
   });
@@ -56,6 +57,13 @@ export default function ApiKeysLayout({ children }: ApiKeysLayoutProps) {
       icon: KeyIcon,
       href: '/admin/api-keys',
       color: 'bg-gray-500'
+    },
+    {
+      id: 'tinymce',
+      name: 'TinyMCE',
+      icon: CpuChipIcon,
+      href: '/admin/api-keys/tinymce',
+      color: 'bg-purple-600'
     },
     {
       id: 'google-maps',

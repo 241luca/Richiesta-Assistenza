@@ -315,6 +315,151 @@ export class ScheduledInterventionService {
     }
   }
 
+  // NUOVO: Cliente accetta intervento
+  static async acceptIntervention(interventionId: string, clientId: string) {
+    try {
+      logger.info('Client accepting intervention:', { interventionId, clientId });
+      
+      // Verifica che l'intervento esista e il cliente abbia accesso
+      const intervention = await prisma.scheduledIntervention.findFirst({
+        where: {
+          id: interventionId
+        },
+        include: {
+          request: {
+            include: {
+              client: true,
+              professional: true
+            }
+          },
+          professional: true
+        }
+      });
+
+      if (!intervention) {
+        throw new Error('Intervento non trovato');
+      }
+
+      if (intervention.request.clientId !== clientId) {
+        throw new AuthorizationError('Non autorizzato ad accettare questo intervento');
+      }
+
+      // Aggiorna lo stato dell'intervento
+      const updatedIntervention = await prisma.scheduledIntervention.update({
+        where: { id: interventionId },
+        data: {
+          status: 'ACCEPTED',
+          clientConfirmed: true,
+          confirmedDate: new Date(),
+          updatedAt: new Date()
+        },
+        include: {
+          professional: true,
+          request: true
+        }
+      });
+
+      // Invia notifica al professionista
+      await sendInterventionNotification({
+        recipientId: intervention.professionalId,
+        type: 'intervention_accepted',
+        title: 'Intervento Accettato',
+        message: `Il cliente ${intervention.request.client?.fullName} ha accettato l'intervento proposto per il ${new Date(intervention.proposedDate).toLocaleDateString('it-IT')}`,
+        requestId: intervention.requestId,
+        priority: 'high',
+        actionUrl: `${process.env.FRONTEND_URL}/requests/${intervention.requestId}/interventions`
+      });
+
+      // Emit socket event per aggiornamento real-time
+      const io = getIO();
+      io.to(`user:${intervention.professionalId}`).emit('intervention:accepted', {
+        interventionId,
+        requestId: intervention.requestId,
+        clientName: intervention.request.client?.fullName
+      });
+
+      logger.info('Intervention accepted successfully:', { interventionId });
+      return updatedIntervention;
+      
+    } catch (error: any) {
+      logger.error('Error accepting intervention:', error);
+      throw error;
+    }
+  }
+
+  // NUOVO: Cliente rifiuta intervento
+  static async rejectIntervention(interventionId: string, clientId: string, reason?: string) {
+    try {
+      logger.info('Client rejecting intervention:', { interventionId, clientId, reason });
+      
+      // Verifica che l'intervento esista e il cliente abbia accesso
+      const intervention = await prisma.scheduledIntervention.findFirst({
+        where: {
+          id: interventionId
+        },
+        include: {
+          request: {
+            include: {
+              client: true,
+              professional: true
+            }
+          },
+          professional: true
+        }
+      });
+
+      if (!intervention) {
+        throw new Error('Intervento non trovato');
+      }
+
+      if (intervention.request.clientId !== clientId) {
+        throw new AuthorizationError('Non autorizzato a rifiutare questo intervento');
+      }
+
+      // Aggiorna lo stato dell'intervento
+      const updatedIntervention = await prisma.scheduledIntervention.update({
+        where: { id: interventionId },
+        data: {
+          status: 'REJECTED',
+          clientConfirmed: false,
+          clientDeclineReason: reason,
+          updatedAt: new Date()
+        },
+        include: {
+          professional: true,
+          request: true
+        }
+      });
+
+      // Invia notifica al professionista
+      await sendInterventionNotification({
+        recipientId: intervention.professionalId,
+        type: 'intervention_rejected',
+        title: 'Intervento Rifiutato',
+        message: `Il cliente ${intervention.request.client?.fullName} ha rifiutato l'intervento proposto per il ${new Date(intervention.proposedDate).toLocaleDateString('it-IT')}${reason ? `. Motivo: ${reason}` : ''}`,
+        requestId: intervention.requestId,
+        priority: 'normal',
+        actionUrl: `${process.env.FRONTEND_URL}/requests/${intervention.requestId}/interventions`
+      });
+
+      // Emit socket event per aggiornamento real-time
+      const io = getIO();
+      io.to(`user:${intervention.professionalId}`).emit('intervention:rejected', {
+        interventionId,
+        requestId: intervention.requestId,
+        clientName: intervention.request.client?.fullName,
+        reason
+      });
+
+      logger.info('Intervention rejected successfully:', { interventionId });
+      return updatedIntervention;
+      
+    } catch (error: any) {
+      logger.error('Error rejecting intervention:', error);
+      throw error;
+    }
+  }
+
   // Altri metodi esistenti...
   // (respondToIntervention, cancelIntervention, completeIntervention, getIntervention)
 }

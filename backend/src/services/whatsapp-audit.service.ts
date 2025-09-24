@@ -6,7 +6,7 @@
 
 import { prisma } from '../config/database';
 import { logger } from '../utils/logger';
-import * as auditService from './audit.service';
+import * as auditService from './auditLog.service';
 
 export interface WhatsAppAuditEvent {
   action: string;

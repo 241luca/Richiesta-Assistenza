@@ -20,7 +20,7 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000,
+  timeout: 60000,  // Aumentato a 60 secondi per WhatsApp/Evolution API su VPS
 });
 
 // Request interceptor

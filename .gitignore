@@ -4,6 +4,14 @@ backend/node_modules/
 .pnp
 .pnp.js
 
+# WhatsApp Session Files
+tokens/
+backend/tokens/
+.wppconnect/
+backend/.wppconnect/
+assistenza-wpp/
+backend/assistenza-wpp/
+
 # Production builds
 /build
 /dist
@@ -11,6 +19,14 @@ backend/dist/
 backend/build/
 .next/
 out/
+
+# CLEANUP folders (IMPORTANTE: cleanup deve salvare FUORI dal progetto)
+CLEANUP*/
+CLEANUP-*/
+cleanup*/
+cleanup-*/
+**/CLEANUP*/
+**/cleanup*/
 
 # Backups (IMPORTANTE: tutti i backup vanno fuori dal progetto)
 *.backup*

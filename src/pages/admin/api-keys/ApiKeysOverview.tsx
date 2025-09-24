@@ -103,6 +103,13 @@ export default function ApiKeysOverview() {
           color: 'bg-purple-100 text-purple-800',
           icon: '🤖'
         };
+      case 'TINYMCE':
+        return {
+          name: 'TinyMCE',
+          description: 'Editor WYSIWYG professionale',
+          color: 'bg-purple-100 text-purple-800',
+          icon: '✏️'
+        };
       case 'STRIPE':
         return {
           name: 'Stripe',

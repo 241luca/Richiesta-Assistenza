@@ -72,7 +72,7 @@ export function GoogleMapsProvider({ children }: GoogleMapsProviderProps) {
     // Crea una nuova promise per il caricamento
     googleMapsPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&language=it&region=IT`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&language=it&region=IT&loading=async`;
       script.async = true;
       script.defer = true;
       script.id = 'google-maps-script';

@@ -12,7 +12,7 @@ import * as webpush from 'web-push';
 import * as twilio from 'twilio';
 import { pecService } from './pec.service';
 import * as whatsappService from './whatsapp.service';
-import * as auditService from './audit.service';
+import * as auditService from './auditLog.service';
 import * as Redis from 'ioredis';
 
 // Tipi di canali disponibili

@@ -1,0 +1,191 @@
+// ============================================
+// SISTEMA GESTIONE DOCUMENTI LEGALI
+// ============================================
+// Gestione professionale di Privacy Policy, Terms of Service, Cookie Policy
+// con versionamento completo e tracking accettazioni GDPR-compliant
+
+// Documenti Legali Principali
+model LegalDocument {
+  id              String                @id @default(cuid())
+  type            LegalDocumentType     // Tipo documento (PRIVACY_POLICY, TERMS_SERVICE, etc.)
+  internalName    String                // Nome interno univoco (es: "privacy-policy-2025")
+  displayName     String                // Nome visualizzato nell'UI
+  description     String?               // Descrizione del documento
+  icon            String?               // Icona per UI (heroicon name)
+  isActive        Boolean               @default(false) // Solo un doc per tipo può essere attivo
+  isRequired      Boolean               @default(true)  // Se richiede accettazione obbligatoria
+  sortOrder       Int                   @default(0)     // Ordine visualizzazione
+  metadata        Json?                 // Metadati aggiuntivi (es: tags, category)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  createdBy       String                // ID utente che ha creato
+  
+  // Relations
+  creator         User                  @relation("LegalDocumentCreator", fields: [createdBy], references: [id])
+  versions        LegalDocumentVersion[]
+  acceptances     UserLegalAcceptance[]
+  
+  @@unique([type, internalName])
+  @@index([type, isActive])
+  @@index([isRequired])
+}
+
+// Versioni dei Documenti
+model LegalDocumentVersion {
+  id              String                @id @default(cuid())
+  documentId      String
+  version         String                // Semantic version: "1.0.0", "2.1.0"
+  versionNotes    String?               // Note sulla versione per admin
+  
+  // Contenuto
+  title           String                // Titolo documento (es: "Privacy Policy")
+  content         String                @db.Text // Contenuto HTML formattato
+  contentPlain    String?               @db.Text // Plain text per ricerche e preview
+  contentChecksum String?               // Hash per verificare integrità
+  
+  // Metadati versione
+  summary         String?               // Riassunto cambiamenti (changelog)
+  effectiveDate   DateTime              // Data entrata in vigore
+  expiryDate      DateTime?             // Data scadenza (null = mai)
+  language        String                @default("it") // Codice lingua ISO
+  
+  // Stati e pubblicazione
+  status          VersionStatus         @default(DRAFT) // DRAFT, REVIEW, APPROVED, PUBLISHED, ARCHIVED
+  requiresAccept  Boolean               @default(true)  // Se richiede ri-accettazione
+  notifyUsers     Boolean               @default(true)  // Se notificare gli utenti
+  
+  // Tracking
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  createdBy       String
+  approvedAt      DateTime?
+  approvedBy      String?
+  publishedAt     DateTime?
+  publishedBy     String?
+  archivedAt      DateTime?
+  archivedBy      String?
+  
+  // Metadata
+  metadata        Json?                 // Info extra (es: review comments, approval flow)
+  
+  // Relations
+  document        LegalDocument         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  creator         User                  @relation("VersionCreator", fields: [createdBy], references: [id])
+  approver        User?                 @relation("VersionApprover", fields: [approvedBy], references: [id])
+  publisher       User?                 @relation("VersionPublisher", fields: [publishedBy], references: [id])
+  archiver        User?                 @relation("VersionArchiver", fields: [archivedBy], references: [id])
+  acceptances     UserLegalAcceptance[]
+  
+  @@unique([documentId, version])
+  @@index([status, effectiveDate])
+  @@index([documentId, status])
+}
+
+// Accettazioni Utente (GDPR Compliant)
+model UserLegalAcceptance {
+  id              String                @id @default(cuid())
+  userId          String
+  documentId      String
+  versionId       String
+  
+  // Dettagli accettazione
+  acceptedAt      DateTime              @default(now())
+  expiresAt       DateTime?             // Scadenza accettazione (es: rinnovo annuale)
+  
+  // Tracking GDPR
+  ipAddress       String                // IP al momento dell'accettazione
+  ipCountry       String?               // Paese dedotto dall'IP
+  userAgent       String?               // Browser/device info
+  sessionId       String?               // Session ID per tracking
+  
+  // Metodo di accettazione
+  method          AcceptanceMethod      // EXPLICIT_CLICK, IMPLICIT_SCROLL, etc.
+  source          String?               // Pagina/form di provenienza
+  
+  // Dettagli aggiuntivi
+  metadata        Json?                 // Info extra (checkbox states, scroll %, tempo lettura)
+  isActive        Boolean               @default(true) // False se revocata o sostituita
+  revokedAt       DateTime?             // Data revoca consenso
+  revokedReason   String?               // Motivo revoca
+  
+  // Relations
+  user            User                  @relation(fields: [userId], references: [id])
+  document        LegalDocument         @relation(fields: [documentId], references: [id])
+  version         LegalDocumentVersion  @relation(fields: [versionId], references: [id])
+  
+  @@unique([userId, documentId, versionId])
+  @@index([userId, acceptedAt])
+  @@index([userId, isActive])
+  @@index([documentId, versionId])
+  @@index([acceptedAt])
+}
+
+// Template per Documenti
+model LegalDocumentTemplate {
+  id              String                @id @default(cuid())
+  name            String                @unique
+  type            LegalDocumentType
+  language        String                @default("it")
+  title           String
+  content         String                @db.Text
+  variables       Json?                 // Variabili da sostituire {{company_name}}
+  category        String?               // Categoria template
+  isDefault       Boolean               @default(false)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  
+  @@index([type, language])
+  @@index([category])
+}
+
+// ENUM: Tipi di Documento
+enum LegalDocumentType {
+  PRIVACY_POLICY      // Informativa Privacy
+  TERMS_SERVICE       // Termini di Servizio
+  COOKIE_POLICY       // Cookie Policy
+  DPA                 // Data Processing Agreement
+  SLA                 // Service Level Agreement
+  NDA                 // Non-Disclosure Agreement
+  EULA                // End User License Agreement
+  DISCLAIMER          // Disclaimer
+  COPYRIGHT           // Copyright Notice
+  ACCEPTABLE_USE      // Acceptable Use Policy
+  CUSTOM              // Documento personalizzato
+}
+
+// ENUM: Stati Versione
+enum VersionStatus {
+  DRAFT               // Bozza in lavorazione
+  REVIEW              // In revisione
+  APPROVED            // Approvata ma non pubblicata
+  SCHEDULED           // Programmata per pubblicazione
+  PUBLISHED           // Pubblicata e attiva
+  ARCHIVED            // Archiviata (non più visibile)
+  SUPERSEDED          // Sostituita da nuova versione
+}
+
+// ENUM: Metodi di Accettazione
+enum AcceptanceMethod {
+  EXPLICIT_CLICK      // Click esplicito su checkbox/button
+  IMPLICIT_SCROLL     // Scroll completo del documento  
+  API                 // Accettazione via API
+  IMPORT              // Importato da sistema esterno
+  REGISTRATION        // Durante registrazione
+  LOGIN               // Durante login
+  PURCHASE            // Durante acquisto
+  EMAIL_CONFIRMATION  // Conferma via email
+  SMS_CONFIRMATION    // Conferma via SMS
+  SIGNATURE           // Firma digitale
+}
+
+// ============================================
+// RELAZIONI DA AGGIUNGERE AL MODELLO USER
+// ============================================
+// Aggiungere nel model User esistente:
+// 
+// legalDocumentsCreated    LegalDocument[]        @relation("LegalDocumentCreator")
+// legalVersionsCreated     LegalDocumentVersion[] @relation("VersionCreator")
+// legalVersionsApproved    LegalDocumentVersion[] @relation("VersionApprover")
+// legalVersionsPublished   LegalDocumentVersion[] @relation("VersionPublisher")
+// legalVersionsArchived    LegalDocumentVersion[] @relation("VersionArchiver")
+// legalAcceptances         UserLegalAcceptance[]

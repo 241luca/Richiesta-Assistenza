@@ -1,54 +1,104 @@
 #!/bin/bash
 
-echo "🔧 CONFIGURAZIONE WEBHOOK PER RICEZIONE MESSAGGI"
-echo "================================================"
+echo "🔧 CONFIGURAZIONE WEBHOOK EVOLUTION API"
+echo "======================================="
+
+# Configurazione
+API_URL="http://37.27.89.35:8080"
+API_KEY="evolution_key_luca_2025_secure_21806"
+INSTANCE="assistenza"
+
+# Determina l'URL del webhook
+# Se sei in locale, usa ngrok o il tuo IP pubblico
+# Altrimenti usa l'URL del tuo server
+WEBHOOK_URL="http://37.27.89.35:3200/api/whatsapp/webhook"  # CAMBIA CON IL TUO URL!
+
+echo "📍 Configurazione:"
+echo "  API URL: $API_URL"
+echo "  Instance: $INSTANCE"
+echo "  Webhook URL: $WEBHOOK_URL"
 echo ""
 
-DB_URL=$(grep DATABASE_URL /Users/lucamambelli/Desktop/Richiesta-Assistenza/backend/.env | cut -d '=' -f2- | tr -d '"')
+# 1. Verifica webhook attuale
+echo "1️⃣ Verifica webhook attuale..."
+CURRENT=$(curl -s -X GET "$API_URL/webhook/find/$INSTANCE" \
+  -H "apikey: $API_KEY")
 
-# Recupera i dati dal database
-TOKEN=$(psql "$DB_URL" -t -c "SELECT key FROM \"ApiKey\" WHERE service='whatsapp' AND \"isActive\"=true;" 2>/dev/null | tr -d ' ')
-INSTANCE_ID=$(psql "$DB_URL" -t -c "SELECT permissions->>'instanceId' FROM \"ApiKey\" WHERE service='whatsapp';" 2>/dev/null | tr -d ' ')
-
-echo "📱 Dati WhatsApp:"
-echo "Token: ${TOKEN:0:20}..."
-echo "Instance ID: $INSTANCE_ID"
+echo "Webhook attuale:"
+echo "$CURRENT" | python3 -m json.tool 2>/dev/null || echo "$CURRENT"
 echo ""
 
-# Per localhost, usiamo webhook.site temporaneo per test
-WEBHOOK_URL="http://localhost:3200/api/whatsapp/webhook"
+# 2. Configura nuovo webhook
+echo "2️⃣ Configurazione nuovo webhook..."
+RESPONSE=$(curl -s -X POST "$API_URL/webhook/set/$INSTANCE" \
+  -H "apikey: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"enabled\": true,
+    \"url\": \"$WEBHOOK_URL\",
+    \"webhookByEvents\": true,
+    \"webhookBase64\": true,
+    \"events\": [
+      \"APPLICATION_STARTUP\",
+      \"MESSAGES_UPSERT\",
+      \"MESSAGES_UPDATE\",
+      \"MESSAGES_DELETE\",
+      \"CONNECTION_UPDATE\",
+      \"QRCODE_UPDATED\",
+      \"GROUP_UPDATE\",
+      \"GROUP_PARTICIPANTS_UPDATE\",
+      \"PRESENCE_UPDATE\"
+    ]
+  }")
 
-echo "🔗 Configurazione webhook locale:"
-echo "URL: $WEBHOOK_URL"
+echo "Risposta:"
+echo "$RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$RESPONSE"
 echo ""
 
-echo "⚠️ ATTENZIONE:"
-echo "Per ricevere messaggi su localhost hai 2 opzioni:"
-echo ""
-echo "OPZIONE 1 - WEBHOOK TEMPORANEO (per test):"
-echo "1. Vai su https://webhook.site"
-echo "2. Copia l'URL che ti dà (es: https://webhook.site/xxxxx)"
-echo "3. Usa questo comando con il TUO URL:"
-echo ""
-echo "curl -X GET \"https://app.sendapp.cloud/api/set_webhook?webhook_url=IL_TUO_WEBHOOK_URL&enable=true&instance_id=$INSTANCE_ID&access_token=$TOKEN\""
-echo ""
-echo "OPZIONE 2 - POLLING (più semplice):"
-echo "Non configurare webhook, usa il polling che controlla ogni 30 secondi"
-echo ""
-echo "OPZIONE 3 - NGROK (per produzione):"
-echo "1. Installa ngrok: brew install ngrok"
-echo "2. Esegui: ngrok http 3200"
-echo "3. Usa l'URL di ngrok come webhook"
+# 3. Verifica configurazione
+echo "3️⃣ Verifica configurazione finale..."
+FINAL=$(curl -s -X GET "$API_URL/webhook/find/$INSTANCE" \
+  -H "apikey: $API_KEY")
+
+echo "Configurazione finale:"
+echo "$FINAL" | python3 -m json.tool 2>/dev/null || echo "$FINAL"
 echo ""
 
-# Test: configura webhook locale (non funzionerà da internet ma almeno è configurato)
-echo "🔧 Configurazione webhook locale (per test interni):"
-curl -X GET "https://app.sendapp.cloud/api/set_webhook?webhook_url=${WEBHOOK_URL}&enable=true&instance_id=${INSTANCE_ID}&access_token=${TOKEN}"
+# 4. Test invio webhook manuale
+echo "4️⃣ Test webhook con messaggio di prova..."
+TEST_RESPONSE=$(curl -s -X POST "$WEBHOOK_URL" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event": "MESSAGES_UPSERT",
+    "instance": "assistenza",
+    "data": {
+      "messages": [{
+        "key": {
+          "remoteJid": "393331234567@s.whatsapp.net",
+          "fromMe": false,
+          "id": "TEST_'$(date +%s)'"
+        },
+        "message": {
+          "conversation": "Test webhook - '$(date)'"
+        },
+        "pushName": "Test User",
+        "messageTimestamp": "'$(date +%s)'"
+      }]
+    }
+  }' \
+  --max-time 5 2>&1)
 
+echo "Test webhook response:"
+echo "$TEST_RESPONSE"
 echo ""
+
+echo "✅ Configurazione completata!"
 echo ""
-echo "✅ FATTO! Ora:"
-echo "1. Se vuoi ricevere messaggi SUBITO: usa ngrok o webhook.site"
-echo "2. Se vuoi semplicità: usa il POLLING (già configurato)"
-echo "   Vai su http://localhost:5193/admin/whatsapp"
-echo "   Tab 'Ricezione' → 'Avvia Controllo Automatico'"
+echo "NOTA: Assicurati che:"
+echo "1. Il tuo backend sia raggiungibile dall'esterno"
+echo "2. La porta 3200 sia aperta nel firewall"
+echo "3. Il backend sia in esecuzione"
+echo ""
+echo "Se sei in locale, considera l'uso di ngrok:"
+echo "  ngrok http 3200"
+echo "  Poi usa l'URL di ngrok come webhook"

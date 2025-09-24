@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { api } from '@/services/api';  // Usa il client API configurato
 import {
   DocumentTextIcon,
   EyeIcon,
@@ -22,14 +23,13 @@ export default function ClientReportsPage() {
   const { data: reports, isLoading, refetch } = useQuery({
     queryKey: ['client-reports', filter],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (filter !== 'all') params.append('status', filter);
+      const params: any = {};
+      if (filter !== 'all') params.status = filter;
       
-      const response = await fetch(`/api/intervention-reports/client/my-reports?${params}`, {
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
+      try {
+        const response = await api.get('/intervention-reports/client/my-reports', { params });
+        return response.data?.data || [];
+      } catch (error) {
         // Se l'API non esiste ancora, usa dati mock
         return [
           {
@@ -54,9 +54,6 @@ export default function ClientReportsPage() {
           }
         ];
       }
-      
-      const data = await response.json();
-      return data.data || data;
     }
   });
 
@@ -64,11 +61,10 @@ export default function ClientReportsPage() {
   const { data: stats } = useQuery({
     queryKey: ['client-reports-stats'],
     queryFn: async () => {
-      const response = await fetch('/api/intervention-reports/client/stats', {
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
+      try {
+        const response = await api.get('/intervention-reports/client/stats');
+        return response.data?.data || response.data;
+      } catch (error) {
         // Dati mock se l'API non esiste
         return {
           totalReports: 8,
@@ -77,30 +73,22 @@ export default function ClientReportsPage() {
           averageRating: 4.5
         };
       }
-      
-      const data = await response.json();
-      return data.data || data;
     }
   });
 
   const handleDownloadPDF = async (id: string) => {
     try {
-      const response = await fetch(`/api/intervention-reports/${id}/pdf`, {
-        credentials: 'include'
+      const response = await api.get(`/intervention-reports/${id}/pdf`, {
+        responseType: 'blob'
       });
       
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `rapporto-${id}.pdf`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-        toast.success('PDF scaricato con successo');
-      } else {
-        toast.error('PDF non ancora disponibile');
-      }
+      const url = window.URL.createObjectURL(response.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `rapporto-${id}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success('PDF scaricato con successo');
     } catch (error) {
       toast.error('Errore durante il download');
     }

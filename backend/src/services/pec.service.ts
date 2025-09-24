@@ -7,7 +7,7 @@
 import { logger } from '../utils/logger';
 import * as nodemailer from 'nodemailer';
 import { prisma } from '../config/database';
-import * as auditService from './audit.service';
+import * as auditService from './auditLog.service';
 import * as notificationService from './notification.service';
 
 // Configurazione provider PEC

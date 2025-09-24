@@ -47,13 +47,16 @@ import ApiKeysOverview from './pages/admin/api-keys/ApiKeysOverview';
 import GoogleMapsConfig from './pages/admin/api-keys/GoogleMapsConfig';
 import BrevoConfig from './pages/admin/api-keys/BrevoConfig';
 import OpenAIConfig from './pages/admin/api-keys/OpenAIConfig';
+import TinyMCEConfig from './pages/admin/api-keys/TinyMCEConfig';
+import ClientLegalDocuments from './pages/client/ClientLegalDocuments';
+import ProfessionalLegalDocuments from './pages/professional/ProfessionalLegalDocuments';
 import WhatsAppConfig from './pages/admin/api-keys/WhatsAppConfig';
 
 // WhatsApp and Knowledge Base imports
 import WhatsAppManager from './components/admin/whatsapp/WhatsAppManagerV2';
-import { WhatsAppAdminPage } from './pages/admin/WhatsAppAdmin';  // NUOVO
-import WhatsAppDashboard from './pages/admin/WhatsAppDashboard';  // NUOVO - Dashboard messaggi
-import WhatsAppSettings from './pages/admin/WhatsAppSettings';  // NUOVO - Impostazioni WhatsApp
+import WhatsAppWPPManager from './pages/admin/WhatsAppWPPManager';  // NUOVO - Manager WPPConnect principale
+import WhatsAppMessages from './pages/admin/WhatsAppMessages';  // NUOVO - Messaggi WPPConnect
+import WhatsAppContacts from './pages/admin/WhatsAppContacts';  // NUOVO - Contatti WhatsApp
 import KnowledgeBase from './components/knowledgebase/KnowledgeBase';
 import AdminTestsPage from './pages/admin/tests';
 // NUOVO: Import Sistema Notifiche
@@ -77,6 +80,28 @@ import AuditDashboard from './components/admin/audit/AuditDashboard';
 
 // SISTEMA HEALTH CHECK - Added 07/01/2025
 import HealthCheckDashboard from './pages/admin/HealthCheckDashboard';
+
+import LegalConsentDashboard from './pages/LegalConsentDashboard';
+
+// Legal Documents Pages
+import LegalDocumentsPage from './pages/admin/LegalDocumentsPage';
+import LegalDocumentFormPage from './pages/admin/LegalDocumentFormPage';
+import LegalDocumentDetailPage from './pages/admin/LegalDocumentDetailPage';
+import LegalDocumentVersionForm from './pages/admin/LegalDocumentVersionForm';
+import LegalDocumentEditor from './pages/admin/LegalDocumentEditor';
+import LegalAcceptancesPage from './pages/admin/LegalAcceptancesPage';
+import LegalAnalyticsPage from './pages/admin/LegalAnalyticsPage';
+import DocumentManagementPage from './pages/admin/DocumentManagementPage';
+import DocumentTypesPage from './pages/admin/DocumentTypesPage';
+import DocumentCategoriesPage from './pages/admin/DocumentCategoriesPage';
+import ApprovalWorkflowsPage from './pages/admin/ApprovalWorkflowsPage';
+import UIConfigPage from './pages/admin/UIConfigPage';
+import SystemConfigPage from './pages/admin/SystemConfigPage';
+import DocumentPermissionsPage from './pages/admin/DocumentPermissionsPage';
+import DocumentNotificationsPage from './pages/admin/DocumentNotificationsPage';
+import DocumentFieldsPage from './pages/admin/DocumentFieldsPage';
+import LegalDocumentsIndexPage from './pages/legal/LegalDocumentsIndexPage';
+import PublicLegalDocumentPage from './pages/legal/PublicLegalDocumentPage';
 
 // SISTEMA AI DUALE - Added 15/01/2025
 import AIDualeDashboard from './pages/admin/AIDualeDashboard';
@@ -122,6 +147,15 @@ export default function AppRoutes() {
       <Route path="/register" element={!isAuthenticated ? <RegisterChoicePage /> : <Navigate to="/dashboard" />} />
       <Route path="/register/client" element={!isAuthenticated ? <RegisterClientPage /> : <Navigate to="/dashboard" />} />
       <Route path="/register/professional" element={!isAuthenticated ? <RegisterProfessionalPageV2 /> : <Navigate to="/dashboard" />} />
+      
+      {/* User Legal Consent Dashboard */}
+      <Route path="/my-consents" element={
+        isAuthenticated ? <Layout><LegalConsentDashboard /></Layout> : <Navigate to="/login" />
+      } />
+      
+      {/* Public Legal Documents Pages */}
+      <Route path="/legal" element={<LegalDocumentsIndexPage />} />
+      <Route path="/legal/:type" element={<PublicLegalDocumentPage />} />
       
       {/* Legacy registration (backward compatibility) */}
       <Route path="/register-old" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/dashboard" />} />
@@ -262,6 +296,100 @@ export default function AppRoutes() {
         </AdminRoute>
       } />
       
+      {/* SISTEMA GESTIONE DOCUMENTI CONFIGURABILE - Added 19/01/2025 */}
+      <Route path="/admin/document-management" element={
+        <SuperAdminRoute>
+          <Layout><DocumentManagementPage /></Layout>
+        </SuperAdminRoute>
+      } />
+      <Route path="/admin/document-management/types" element={
+        <SuperAdminRoute>
+          <Layout><DocumentTypesPage /></Layout>
+        </SuperAdminRoute>
+      } />
+      <Route path="/admin/document-management/categories" element={
+        <SuperAdminRoute>
+          <Layout><DocumentCategoriesPage /></Layout>
+        </SuperAdminRoute>
+      } />
+      <Route path="/admin/document-management/workflows" element={
+        <SuperAdminRoute>
+          <Layout><ApprovalWorkflowsPage /></Layout>
+        </SuperAdminRoute>
+      } />
+      <Route path="/admin/document-management/ui-config" element={
+        <SuperAdminRoute>
+          <Layout><UIConfigPage /></Layout>
+        </SuperAdminRoute>
+      } />
+      <Route path="/admin/document-management/system-config" element={
+        <SuperAdminRoute>
+          <Layout><SystemConfigPage /></Layout>
+        </SuperAdminRoute>
+      } />
+      <Route path="/admin/document-management/permissions" element={
+        <SuperAdminRoute>
+          <Layout><DocumentPermissionsPage /></Layout>
+        </SuperAdminRoute>
+      } />
+      <Route path="/admin/document-management/notifications" element={
+        <SuperAdminRoute>
+          <Layout><DocumentNotificationsPage /></Layout>
+        </SuperAdminRoute>
+      } />
+      <Route path="/admin/document-management/fields" element={
+        <SuperAdminRoute>
+          <Layout><DocumentFieldsPage /></Layout>
+        </SuperAdminRoute>
+      } />
+      
+      {/* SISTEMA DOCUMENTI LEGALI - Added 17/09/2025 */}
+      <Route path="/admin/legal-documents" element={
+        <AdminRoute>
+          <Layout><LegalDocumentsPage /></Layout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/legal-documents/acceptances" element={
+        <AdminRoute>
+          <Layout><LegalAcceptancesPage /></Layout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/legal-documents/analytics" element={
+        <AdminRoute>
+          <Layout><LegalAnalyticsPage /></Layout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/legal-documents/editor" element={
+        <AdminRoute>
+          <Layout><LegalDocumentEditor /></Layout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/legal-documents/new" element={
+        <AdminRoute>
+          <Layout><LegalDocumentFormPage /></Layout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/legal-documents/:id/versions/new" element={
+        <AdminRoute>
+          <Layout><LegalDocumentVersionForm /></Layout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/legal-documents/:id/new-version" element={
+        <AdminRoute>
+          <Layout><LegalDocumentVersionForm /></Layout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/legal-documents/:id" element={
+        <AdminRoute>
+          <Layout><LegalDocumentDetailPage /></Layout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/legal-documents/:id/:action" element={
+        <AdminRoute>
+          <Layout><LegalDocumentFormPage /></Layout>
+        </AdminRoute>
+      } />
+      
       {/* API Keys management routes */}
       <Route path="/admin/api-keys" element={
         <AdminRoute>
@@ -281,6 +409,11 @@ export default function AppRoutes() {
       <Route path="/admin/api-keys/openai" element={
         <AdminRoute>
           <Layout><OpenAIConfig /></Layout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/api-keys/tinymce" element={
+        <AdminRoute>
+          <Layout><TinyMCEConfig /></Layout>
         </AdminRoute>
       } />
       <Route path="/admin/api-keys/whatsapp" element={
@@ -314,24 +447,25 @@ export default function AppRoutes() {
       {/* WhatsApp Manager - NUOVO Sistema Completo */}
       <Route path="/admin/whatsapp" element={
         <AdminRoute>
-          <Layout><WhatsAppAdminPage /></Layout>
+          <Layout><WhatsAppWPPManager /></Layout>
         </AdminRoute>
       } />
       
-      {/* WhatsApp Dashboard - Visualizzazione messaggi */}
-      <Route path="/admin/whatsapp/dashboard" element={
+      {/* WhatsApp Messages - Visualizzazione messaggi WPPConnect */}
+      <Route path="/admin/whatsapp/messages" element={
         <AdminRoute>
-          <Layout><WhatsAppDashboard /></Layout>
+          <Layout><WhatsAppMessages /></Layout>
         </AdminRoute>
       } />
       
-      {/* WhatsApp Settings - Impostazioni sistema */}
-      <Route path="/admin/whatsapp/settings" element={
+      {/* WhatsApp Contacts - Gestione contatti WhatsApp */}
+      <Route path="/admin/whatsapp/contacts" element={
         <AdminRoute>
-          <Layout><WhatsAppSettings /></Layout>
+          <Layout><WhatsAppContacts /></Layout>
         </AdminRoute>
       } />
       
+
       {/* Knowledge Base Routes */}
       <Route path="/kb" element={
         <Layout><KnowledgeBase /></Layout>
@@ -404,7 +538,21 @@ export default function AppRoutes() {
           : <Navigate to="/dashboard" />
       } />
       
-      {/* NUOVO: Sistema Rapporti Intervento - Client Routes */}
+      {/* Client Legal Documents Dashboard */}
+      <Route path="/my-legal-documents" element={
+        isAuthenticated && user?.role === 'CLIENT'
+          ? <Layout><ClientLegalDocuments /></Layout>
+          : <Navigate to="/dashboard" />
+      } />
+      
+      {/* Professional Legal Documents Dashboard */}
+      <Route path="/professional/legal-documents" element={
+        isAuthenticated && user?.role === 'PROFESSIONAL'
+          ? <Layout><ProfessionalLegalDocuments /></Layout>
+          : <Navigate to="/dashboard" />
+      } />
+      
+      {/* Client Report Routes */}
       <Route path="/client/reports" element={
         isAuthenticated && user?.role === 'CLIENT'
           ? <Layout><ClientReportsPage /></Layout>

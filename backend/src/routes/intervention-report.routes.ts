@@ -8,6 +8,205 @@ import { AuditAction, LogSeverity, LogCategory } from '@prisma/client';
 
 const router = Router();
 
+// ========== ROUTES CLIENTE ==========
+
+// GET /api/intervention-reports/client/my-reports
+router.get('/client/my-reports', authenticate, async (req: any, res) => {
+  try {
+    // Solo clienti possono accedere ai propri rapporti
+    if (req.user.role !== 'CLIENT') {
+      return res.status(403).json(ResponseFormatter.error(
+        'Accesso riservato ai clienti',
+        'CLIENT_ONLY'
+      ));
+    }
+    
+    const filters = {
+      ...req.query,
+      clientId: req.user.id  // Filtra per cliente corrente
+    };
+    
+    const reports = await interventionReportOperationsService.getReports(
+      filters,
+      req.user.id,
+      req.user.role
+    );
+    
+    return res.json(ResponseFormatter.success(
+      reports,
+      'Rapporti recuperati con successo'
+    ));
+  } catch (error) {
+    console.error('Errore recupero rapporti cliente:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nel recupero dei rapporti',
+      'CLIENT_REPORTS_ERROR'
+    ));
+  }
+});
+
+// GET /api/intervention-reports/client/stats
+router.get('/client/stats', authenticate, async (req: any, res) => {
+  try {
+    // Solo clienti possono accedere alle proprie statistiche
+    if (req.user.role !== 'CLIENT') {
+      return res.status(403).json(ResponseFormatter.error(
+        'Accesso riservato ai clienti',
+        'CLIENT_ONLY'
+      ));
+    }
+    
+    const stats = await interventionReportOperationsService.getClientStatistics(
+      req.user.id
+    );
+    
+    return res.json(ResponseFormatter.success(
+      stats,
+      'Statistiche recuperate con successo'
+    ));
+  } catch (error) {
+    console.error('Errore recupero statistiche cliente:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nel recupero delle statistiche',
+      'CLIENT_STATS_ERROR'
+    ));
+  }
+});
+
+// POST /api/intervention-reports/client/:id/sign
+router.post('/client/:id/sign', authenticate, async (req: any, res) => {
+  try {
+    // Solo clienti possono firmare
+    if (req.user.role !== 'CLIENT') {
+      return res.status(403).json(ResponseFormatter.error(
+        'Solo i clienti possono firmare i rapporti',
+        'CLIENT_ONLY'
+      ));
+    }
+    
+    const { signature } = req.body;
+    
+    const report = await interventionReportOperationsService.signReportAsClient(
+      req.params.id,
+      req.user.id,
+      signature
+    );
+    
+    // Audit log per firma rapporto
+    await safeAuditLog({
+      action: AuditAction.UPDATE,
+      entityType: 'InterventionReport',
+      entityId: req.params.id,
+      userId: req.user.id,
+      userEmail: req.user.email,
+      userRole: req.user.role,
+      ipAddress: req.ip || 'unknown',
+      userAgent: req.get('user-agent') || 'unknown',
+      success: true,
+      severity: LogSeverity.INFO,
+      category: LogCategory.BUSINESS,
+      metadata: {
+        action: 'CLIENT_SIGNATURE',
+        reportNumber: report.reportNumber
+      }
+    });
+    
+    return res.json(ResponseFormatter.success(
+      report,
+      'Rapporto firmato con successo'
+    ));
+  } catch (error: any) {
+    console.error('Errore firma rapporto:', error);
+    
+    if (error.statusCode === 404) {
+      return res.status(404).json(ResponseFormatter.error(
+        error.message,
+        'REPORT_NOT_FOUND'
+      ));
+    }
+    
+    if (error.statusCode === 403) {
+      return res.status(403).json(ResponseFormatter.error(
+        error.message,
+        'SIGN_FORBIDDEN'
+      ));
+    }
+    
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nella firma del rapporto',
+      'SIGN_ERROR'
+    ));
+  }
+});
+
+// POST /api/intervention-reports/client/:id/rate
+router.post('/client/:id/rate', authenticate, async (req: any, res) => {
+  try {
+    // Solo clienti possono valutare
+    if (req.user.role !== 'CLIENT') {
+      return res.status(403).json(ResponseFormatter.error(
+        'Solo i clienti possono valutare i rapporti',
+        'CLIENT_ONLY'
+      ));
+    }
+    
+    const { rating, comment } = req.body;
+    
+    const report = await interventionReportOperationsService.rateReport(
+      req.params.id,
+      req.user.id,
+      rating,
+      comment
+    );
+    
+    // Audit log per valutazione rapporto
+    await safeAuditLog({
+      action: AuditAction.UPDATE,
+      entityType: 'InterventionReport',
+      entityId: req.params.id,
+      userId: req.user.id,
+      userEmail: req.user.email,
+      userRole: req.user.role,
+      ipAddress: req.ip || 'unknown',
+      userAgent: req.get('user-agent') || 'unknown',
+      success: true,
+      severity: LogSeverity.INFO,
+      category: LogCategory.BUSINESS,
+      metadata: {
+        action: 'CLIENT_RATING',
+        rating,
+        reportNumber: report.reportNumber
+      }
+    });
+    
+    return res.json(ResponseFormatter.success(
+      report,
+      'Valutazione registrata con successo'
+    ));
+  } catch (error: any) {
+    console.error('Errore valutazione rapporto:', error);
+    
+    if (error.statusCode === 404) {
+      return res.status(404).json(ResponseFormatter.error(
+        error.message,
+        'REPORT_NOT_FOUND'
+      ));
+    }
+    
+    if (error.statusCode === 403) {
+      return res.status(403).json(ResponseFormatter.error(
+        error.message,
+        'RATE_FORBIDDEN'
+      ));
+    }
+    
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nella valutazione del rapporto',
+      'RATE_ERROR'
+    ));
+  }
+});
+
 // ========== RAPPORTI ==========
 
 // GET /api/intervention-reports/reports

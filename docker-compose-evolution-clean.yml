@@ -1,0 +1,72 @@
+version: '3.9'
+
+services:
+  evolution-api:
+    container_name: evolution_api
+    image: atendai/evolution-api:latest
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    environment:
+      - NODE_ENV=production
+      - SERVER_URL=http://37.27.89.35:8080
+      
+      # Database PostgreSQL
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://evolution:evolution123@postgres:5432/evolution
+      
+      # Sicurezza
+      - AUTHENTICATION_TYPE=apikey
+      - AUTHENTICATION_API_KEY=evolution_key_luca_2025_secure_21806
+      - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
+      
+      # Limiti
+      - INSTANCE_LIMIT=10
+      - QRCODE_LIMIT=30
+      
+      # Webhook
+      - WEBHOOK_GLOBAL_ENABLED=true
+      - WEBHOOK_GLOBAL_URL=http://37.27.89.35:3200/api/whatsapp/webhook
+      
+      # Log
+      - LOG_LEVEL=info
+      
+      # Pulizia automatica
+      - CLEAN_STORE_CLEANING_INTERVAL=7200
+      - CLEAN_STORE_MESSAGES=true
+      - CLEAN_STORE_CONTACTS=true
+      - CLEAN_STORE_CHATS=true
+      
+      # CORS
+      - CORS_ORIGIN=*
+      - CORS_CREDENTIALS=true
+      
+    volumes:
+      - evolution_data:/evolution/instances
+      - evolution_store:/evolution/store
+    networks:
+      - evolution_network
+
+  postgres:
+    image: postgres:14-alpine
+    container_name: evolution_postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=evolution
+      - POSTGRES_PASSWORD=evolution123
+      - POSTGRES_DB=evolution
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - evolution_network
+
+volumes:
+  evolution_data:
+  evolution_store:
+  postgres_data:
+
+networks:
+  evolution_network:
+    driver: bridge

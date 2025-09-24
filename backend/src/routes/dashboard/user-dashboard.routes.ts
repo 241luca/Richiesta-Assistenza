@@ -6,6 +6,99 @@ import { ResponseFormatter } from '../../utils/responseFormatter';
 const router = Router();
 
 /**
+ * Helper function to get pending legal documents for a user
+ */
+async function getPendingLegalDocuments(userId: string) {
+  try {
+    // Ottieni tutti i documenti attivi con la loro versione pubblicata corrente
+    const documents = await prisma.legalDocument.findMany({
+      where: {
+        isActive: true
+      },
+      include: {
+        versions: {
+          where: {
+            status: 'PUBLISHED',  // IMPORTANTE: Solo versioni PUBBLICATE
+            effectiveDate: {
+              lte: new Date()  // Solo versioni già effettive
+            },
+            OR: [
+              { expiryDate: null },
+              { expiryDate: { gte: new Date() } }  // Non scadute
+            ]
+          },
+          orderBy: {
+            publishedAt: 'desc'
+          },
+          take: 1,
+          select: {
+            id: true,
+            version: true,
+            status: true,
+            title: true,
+            summary: true,
+            effectiveDate: true,
+            publishedAt: true,
+            expiryDate: true
+          }
+        }
+      }
+    });
+
+    // IMPORTANTE: Filtra SOLO i documenti che hanno ALMENO UNA versione PUBBLICATA
+    // Se un documento non ha versioni pubblicate, NON deve essere visibile ai clienti
+    const documentsWithVersion = documents.filter(doc => doc.versions.length > 0);
+    
+    logger.info(`Dashboard: Found ${documents.length} active documents, ${documentsWithVersion.length} with published versions`);
+    
+    // Log dettagliato per debug
+    documentsWithVersion.forEach(doc => {
+      const version = doc.versions[0];
+      if (version) {
+        logger.info(`Document ${doc.displayName}: Version ${version.version}, Status: ${version.status}, PublishedAt: ${version.publishedAt}, EffectiveDate: ${version.effectiveDate}`);
+      }
+    });
+
+    // Per ogni documento, verifica se l'utente ha già accettato la versione corrente
+    const pendingDocuments = [];
+    
+    for (const doc of documentsWithVersion) {
+      const currentVersion = doc.versions[0];
+      
+      // Verifica se l'utente ha già accettato questa specifica versione
+      const acceptance = await prisma.userLegalAcceptance.findFirst({
+        where: {
+          userId: userId,
+          documentId: doc.id,
+          versionId: currentVersion.id,
+          isActive: true
+        }
+      });
+
+      // Se non ha accettato questa versione, aggiungilo ai documenti pendenti
+      if (!acceptance) {
+        pendingDocuments.push({
+          documentId: doc.id,
+          versionId: currentVersion.id,
+          type: doc.type,
+          displayName: doc.displayName,
+          description: doc.description,
+          version: currentVersion.version,
+          isRequired: doc.isRequired,
+          effectiveDate: currentVersion.effectiveDate.toISOString(),
+          summary: currentVersion.summary
+        });
+      }
+    }
+
+    return pendingDocuments;
+  } catch (error) {
+    logger.error('Error getting pending legal documents:', error);
+    return [];
+  }
+}
+
+/**
  * GET /api/dashboard
  * Main dashboard endpoint for all users - returns real data from database
  */
@@ -248,6 +341,9 @@ router.get('/', async (req: any, res: any) => {
         }
       });
 
+      // NUOVO: Get documenti legali da accettare
+      const pendingLegalDocuments = await getPendingLegalDocuments(userId);
+
       // Convert Decimal to number for amount
       const totalSpent = totalSpentData._sum.amount ? Number(totalSpentData._sum.amount) : 0;
 
@@ -295,6 +391,8 @@ router.get('/', async (req: any, res: any) => {
           scheduledDate: apt.scheduledDate?.toISOString() || null,
           address: apt.address ? `${apt.address}, ${apt.city} (${apt.province})` : 'Indirizzo non specificato'
         })),
+        // NUOVO: Aggiungi documenti legali da accettare
+        pendingLegalDocuments: pendingLegalDocuments,
         // NUOVO: Aggiungi lista interventi da confermare
         interventionsToConfirm: interventionsToConfirm.map(intervention => ({
           id: intervention.id,
@@ -332,7 +430,9 @@ router.get('/', async (req: any, res: any) => {
           createdAt: quote.createdAt.toISOString(),
           status: 'DA_ACCETTARE',
           urgent: true
-        }))
+        })),
+        // NUOVO: Aggiungi documenti legali da accettare
+        pendingLegalDocuments: pendingLegalDocuments
       };
 
       res.json(ResponseFormatter.success(dashboardData, 'Dashboard data retrieved successfully'));
@@ -462,6 +562,9 @@ router.get('/', async (req: any, res: any) => {
         }
       });
 
+      // NUOVO: Get documenti legali da accettare per il professionista
+      const pendingLegalDocuments = await getPendingLegalDocuments(userId);
+
       // Convert Decimal to number for amount
       const totalEarned = totalEarnedData._sum.amount ? Number(totalEarnedData._sum.amount) : 0;
 
@@ -502,7 +605,9 @@ router.get('/', async (req: any, res: any) => {
           requestTitle: apt.title,
           scheduledDate: apt.scheduledDate?.toISOString() || null,
           address: apt.address ? `${apt.address}, ${apt.city} (${apt.province})` : 'Indirizzo non specificato'
-        }))
+        })),
+        // NUOVO: Aggiungi documenti legali da accettare per il professionista
+        pendingLegalDocuments: pendingLegalDocuments
       };
 
       res.json(ResponseFormatter.success(dashboardData, 'Dashboard data retrieved successfully'));

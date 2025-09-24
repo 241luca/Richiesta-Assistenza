@@ -1,0 +1,5 @@
+// Import delle route necessarie
+const apiKeysRoutes = require('./apiKeys.routes').default;
+
+// Aggiungi questa riga dopo le altre route, prima del 404 handler
+app.use('/api/apikeys', authenticate, apiKeysRoutes);

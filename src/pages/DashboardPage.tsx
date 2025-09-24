@@ -20,7 +20,9 @@ import {
   BriefcaseIcon,
   UserGroupIcon,
   ExclamationTriangleIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  DocumentCheckIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import { apiClient as api } from '@/services/api';
 
@@ -96,6 +98,18 @@ interface DashboardData {
     createdAt: string;
     status: string;
     urgent: boolean;
+  }>;
+  // NUOVO: Documenti legali da accettare
+  pendingLegalDocuments?: Array<{
+    documentId: string;
+    versionId: string;
+    type: string;
+    displayName: string;
+    description?: string;
+    version: string;
+    isRequired: boolean;
+    effectiveDate: string;
+    summary?: string;
   }>;
 }
 
@@ -188,6 +202,7 @@ export default function DashboardPage() {
   const upcomingAppointments = data?.upcomingAppointments || [];
   const interventionsToConfirm = data?.interventionsToConfirm || []; // NUOVO
   const quotesToAccept = data?.quotesToAccept || []; // NUOVO
+  const pendingLegalDocuments = data?.pendingLegalDocuments || []; // NUOVO: Documenti legali
 
   const isClient = user?.role === 'CLIENT';
   const isProfessional = user?.role === 'PROFESSIONAL';
@@ -425,6 +440,104 @@ export default function DashboardPage() {
                   <Link to="/quotes">
                     <Button variant="outline" className="border-amber-400 text-amber-700 hover:bg-amber-50">
                       Vedi tutti i preventivi
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* NUOVO: Alert per documenti legali da accettare - PER CLIENTI E PROFESSIONISTI */}
+      {(isClient || isProfessional) && pendingLegalDocuments.length > 0 && (
+        <div className="mb-8">
+          <Alert className="border-purple-200 bg-purple-50">
+            <ShieldCheckIcon className="h-5 w-5 text-purple-600" />
+            <div className="ml-3">
+              <AlertDescription className="text-purple-800">
+                <span className="font-semibold">Importante!</span> Hai{' '}
+                <span className="font-bold text-purple-900">
+                  {pendingLegalDocuments.length} {pendingLegalDocuments.length === 1 ? 'documento legale' : 'documenti legali'} da accettare
+                </span>
+                {pendingLegalDocuments.some(d => d.isRequired) && (
+                  <span className="text-purple-700"> (alcuni sono obbligatori)</span>
+                )}
+              </AlertDescription>
+            </div>
+          </Alert>
+          
+          {/* Card con i documenti da accettare */}
+          <Card className="mt-4 border-purple-200">
+            <CardHeader className="bg-purple-50">
+              <CardTitle className="flex items-center text-purple-900">
+                <DocumentCheckIcon className="h-5 w-5 mr-2" />
+                Documenti Legali da Accettare
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="space-y-3">
+                {pendingLegalDocuments.slice(0, 3).map((doc) => (
+                  <div
+                    key={doc.versionId}
+                    className="p-4 bg-white border-2 border-purple-200 rounded-lg"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center mb-2">
+                          {doc.isRequired ? (
+                            <Badge className="bg-red-100 text-red-800">
+                              OBBLIGATORIO
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-purple-100 text-purple-800">
+                              DA ACCETTARE
+                            </Badge>
+                          )}
+                          <span className="ml-2 text-sm font-semibold text-gray-900">
+                            {doc.displayName}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700 mb-1">
+                          <span className="font-medium">Versione:</span>{' '}
+                          <span className="font-semibold text-purple-900">v{doc.version}</span>
+                        </p>
+                        {doc.description && (
+                          <p className="text-sm text-gray-600 mb-1">
+                            {doc.description}
+                          </p>
+                        )}
+                        {doc.summary && (
+                          <p className="text-sm text-gray-600 italic mb-1">
+                            {doc.summary}
+                          </p>
+                        )}
+                        <p className="text-xs text-purple-700 mt-2 font-medium">
+                          📅 Effettivo dal {new Date(doc.effectiveDate).toLocaleDateString('it-IT')}
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Link to={isClient ? `/my-legal-documents` : `/professional/legal-documents`}>
+                          <Button 
+                            size="sm" 
+                            className="bg-purple-600 hover:bg-purple-700 text-white w-full"
+                          >
+                            Leggi e Accetta
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {pendingLegalDocuments.length > 3 && (
+                <div className="mt-4 text-center">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Ci sono altri {pendingLegalDocuments.length - 3} documenti da accettare
+                  </p>
+                  <Link to={isClient ? "/my-legal-documents" : "/professional/legal-documents"}>
+                    <Button variant="outline" className="border-purple-400 text-purple-700 hover:bg-purple-50">
+                      Vedi tutti i documenti
                     </Button>
                   </Link>
                 </div>

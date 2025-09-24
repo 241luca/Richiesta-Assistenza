@@ -13,19 +13,23 @@ import {
   ArrowPathIcon,
   EyeIcon,
   EyeSlashIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  RocketLaunchIcon,
+  TagIcon
 } from '@heroicons/react/24/outline';
 
 export default function WhatsAppConfig() {
   const queryClient = useQueryClient();
   const [showKey, setShowKey] = useState(false);
   const [formData, setFormData] = useState({
-    key: '',
     configuration: {
       enabled: true,
-      baseURL: 'https://app.sendapp.cloud/api',
-      instanceId: '',
-      webhookUrl: ''
+      provider: 'evolution',
+      // Evolution config
+      baseURL: 'http://37.27.89.35:8080',
+      apiKey: 'evolution_key_luca_2025_secure_21806',
+      instanceName: 'main',
+      webhookUrl: 'http://37.27.89.35:3201/api/whatsapp/webhook'
     }
   });
 
@@ -34,10 +38,9 @@ export default function WhatsAppConfig() {
     queryKey: ['api-key', 'whatsapp'],
     queryFn: async () => {
       try {
-        const response = await api.get('/admin/api-keys/whatsapp');
+        const response = await api.get('/apikeys/whatsapp');
         return response.data.data;
       } catch (error) {
-        // Se non esiste, ritorna null
         return null;
       }
     },
@@ -46,73 +49,112 @@ export default function WhatsAppConfig() {
 
   // Update form quando i dati sono caricati
   useEffect(() => {
-    if (apiKey) {
+    if (apiKey && apiKey.configuration) {
       setFormData({
-        key: '', // Non mostriamo la key attuale per sicurezza
         configuration: {
-          enabled: apiKey.permissions?.enabled !== false,
-          baseURL: apiKey.permissions?.baseURL || 'https://app.sendapp.cloud/api',
-          instanceId: apiKey.permissions?.instanceId || '',
-          webhookUrl: apiKey.permissions?.webhookUrl || ''
+          enabled: apiKey.configuration.enabled !== false,
+          provider: 'evolution',
+          baseURL: apiKey.configuration.baseURL || 'http://37.27.89.35:8080',
+          apiKey: apiKey.key || apiKey.configuration.apiKey || 'evolution_key_luca_2025_secure_21806',
+          instanceName: apiKey.configuration.instanceName || 'main',
+          webhookUrl: apiKey.configuration.webhookUrl || 'http://37.27.89.35:3201/api/whatsapp/webhook'
         }
       });
     }
   }, [apiKey]);
 
-  // Save API key mutation - usa lo stesso endpoint delle altre API
+  // Save API key mutation
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await api.post('/admin/api-keys', {
+      return await api.post('/apikeys', {
         service: 'whatsapp',
-        key: data.key,
-        configuration: data.configuration,
+        key: data.configuration.apiKey, // La chiave API di Evolution
+        configuration: {
+          provider: 'evolution',
+          version: '2.3.3',
+          baseURL: data.configuration.baseURL,
+          instanceName: data.configuration.instanceName,
+          webhookUrl: data.configuration.webhookUrl,
+          enabled: true,
+          features: {
+            sendMessage: true,
+            receiveMessage: true,
+            sendMedia: true,
+            receiveMedia: true,
+            groupSupport: true,
+            statusSupport: true,
+            qrCodeGeneration: true
+          },
+          settings: {
+            autoReconnect: true,
+            maxRetries: 3,
+            retryDelay: 5000,
+            webhookEnabled: true,
+            storeMessages: true,
+            storeContacts: true
+          }
+        },
         isActive: true
       });
     },
     onSuccess: () => {
-      toast.success('WhatsApp API key salvata con successo!');
+      toast.success('Evolution API configurata con successo!');
       queryClient.invalidateQueries({ queryKey: ['api-key', 'whatsapp'] });
       queryClient.invalidateQueries({ queryKey: ['api-keys'] });
-      setFormData(prev => ({ ...prev, key: '' }));
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-config'] });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error || 'Errore nel salvataggio');
+      const errorMessage = typeof error.response?.data?.error === 'string' 
+        ? error.response.data.error 
+        : error.response?.data?.message || 'Errore nel salvataggio';
+      toast.error(errorMessage);
     }
   });
 
-  // Test API key mutation - usa l'endpoint standard
+  // Test connection mutation
   const testMutation = useMutation({
     mutationFn: async () => {
-      return await api.post('/admin/api-keys/whatsapp/test');
+      // Test Evolution API
+      const response = await fetch(formData.configuration.baseURL);
+      if (!response.ok) throw new Error('Evolution API non raggiungibile');
+      const data = await response.json();
+      return { success: true, data };
     },
     onSuccess: (data) => {
-      if (data.data.success) {
-        toast.success('WhatsApp configurato correttamente!');
+      if (data.data?.version) {
+        toast.success(`Evolution API v${data.data.version} connessa e funzionante!`);
       } else {
-        toast.error(`Test fallito: ${data.data.message}`);
+        toast.success('Evolution API connessa e funzionante!');
       }
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Errore durante il test');
+      const errorMessage = typeof error === 'string' 
+        ? error 
+        : error.message || 'Errore durante il test';
+      toast.error(errorMessage);
     }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Se non c'è una nuova key e esiste già una configurazione, salva solo la config
-    if (!formData.key && !apiKey) {
-      toast.error('Inserisci un Access Token di SendApp');
+    // Validazione
+    if (!formData.configuration.baseURL) {
+      toast.error('URL Evolution API richiesto');
       return;
     }
-
-    // Se c'è una key, salva tutto
-    if (formData.key || apiKey) {
-      saveMutation.mutate({
-        key: formData.key || undefined, // Se vuoto, mantiene quella esistente
-        configuration: formData.configuration
-      });
+    if (!formData.configuration.apiKey) {
+      toast.error('API Key richiesta');
+      return;
     }
+    if (!formData.configuration.instanceName) {
+      toast.error('Nome istanza richiesto');
+      return;
+    }
+    
+    saveMutation.mutate({
+      configuration: formData.configuration
+    });
   };
 
   if (isLoading) {
@@ -136,9 +178,9 @@ export default function WhatsAppConfig() {
                 <ChatBubbleBottomCenterTextIcon className="h-8 w-8 text-green-600" />
               </div>
               <div className="ml-4">
-                <h2 className="text-xl font-bold text-gray-900">WhatsApp API</h2>
+                <h2 className="text-xl font-bold text-gray-900">WhatsApp Integration</h2>
                 <p className="text-sm text-gray-600">
-                  Configurazione per messaggistica WhatsApp via SendApp Cloud
+                  Evolution API Self-hosted - Messaggi illimitati gratuiti
                 </p>
               </div>
             </div>
@@ -146,68 +188,58 @@ export default function WhatsAppConfig() {
               {apiKey ? (
                 <span className="flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
                   <CheckCircleIcon className="h-4 w-4 mr-1" />
-                  Configurata e Attiva
+                  Evolution API Configurata
                 </span>
               ) : (
                 <span className="flex items-center px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
                   <XCircleIcon className="h-4 w-4 mr-1" />
-                  Non configurata
+                  Non configurato
                 </span>
               )}
             </div>
           </div>
         </div>
 
-        {/* Form di configurazione */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* API Key Section */}
-          <div className="bg-white shadow-sm rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">API Key</h3>
-            
-            <div className="space-y-4">
-              {/* Access Token */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <KeyIcon className="inline h-4 w-4 mr-1" />
-                  SendApp Access Token *
-                </label>
-                <div className="relative">
-                  <input
-                    type={showKey ? 'text' : 'password'}
-                    value={formData.key}
-                    onChange={(e) => setFormData({ ...formData, key: e.target.value })}
-                    placeholder={apiKey ? "Lascia vuoto per mantenere il token esistente" : "Inserisci il token di SendApp"}
-                    className="w-full px-4 py-2 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowKey(!showKey)}
-                    className="absolute right-2 top-2 p-1 text-gray-500 hover:text-gray-700"
-                  >
-                    {showKey ? (
-                      <EyeSlashIcon className="h-5 w-5" />
-                    ) : (
-                      <EyeIcon className="h-5 w-5" />
-                    )}
-                  </button>
+        {/* Evolution API Provider Card */}
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-6">
+          <div className="flex items-start">
+            <RocketLaunchIcon className="h-10 w-10 text-green-600 mt-1" />
+            <div className="ml-4 flex-1">
+              <h3 className="text-lg font-semibold text-green-900">Evolution API v2.3.3</h3>
+              <p className="text-sm text-green-700 mt-1">
+                Sistema self-hosted per integrazione WhatsApp Business
+              </p>
+              <div className="mt-3 grid grid-cols-3 gap-4">
+                <div className="flex items-center text-sm text-green-600">
+                  <CheckCircleIcon className="h-4 w-4 mr-1" />
+                  <span>Messaggi illimitati</span>
                 </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  Ottieni il token dalla dashboard di SendApp Cloud
-                </p>
+                <div className="flex items-center text-sm text-green-600">
+                  <CheckCircleIcon className="h-4 w-4 mr-1" />
+                  <span>Gruppi e broadcast</span>
+                </div>
+                <div className="flex items-center text-sm text-green-600">
+                  <CheckCircleIcon className="h-4 w-4 mr-1" />
+                  <span>Zero costi mensili</span>
+                </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Configuration Section */}
+        {/* Form di configurazione */}
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="bg-white shadow-sm rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Configurazione</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Configurazione Evolution API
+            </h3>
             
             <div className="space-y-4">
-              {/* Base URL */}
+              {/* API URL */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <GlobeAltIcon className="inline h-4 w-4 mr-1" />
-                  Base URL API
+                  Evolution API URL
                 </label>
                 <input
                   type="url"
@@ -216,37 +248,71 @@ export default function WhatsAppConfig() {
                     ...formData,
                     configuration: { ...formData.configuration, baseURL: e.target.value }
                   })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  placeholder="https://app.sendapp.cloud/api"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  placeholder="http://37.27.89.35:8080"
+                  required
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  URL del tuo server Evolution API (VPS)
+                </p>
               </div>
 
-              {/* Instance ID */}
+              {/* API Key */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <BoltIcon className="inline h-4 w-4 mr-1" />
-                  Instance ID (opzionale)
+                  <KeyIcon className="inline h-4 w-4 mr-1" />
+                  Evolution API Key
+                </label>
+                <div className="relative">
+                  <input
+                    type={showKey ? 'text' : 'password'}
+                    value={formData.configuration.apiKey}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      configuration: { ...formData.configuration, apiKey: e.target.value }
+                    })}
+                    className="w-full px-4 py-2 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    placeholder="evolution_key_..."
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowKey(!showKey)}
+                    className="absolute right-2 top-2 p-1 text-gray-500 hover:text-gray-700"
+                  >
+                    {showKey ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Instance Name - NUOVO CAMPO! */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <TagIcon className="inline h-4 w-4 mr-1" />
+                  Nome Istanza WhatsApp
                 </label>
                 <input
                   type="text"
-                  value={formData.configuration.instanceId}
+                  value={formData.configuration.instanceName}
                   onChange={(e) => setFormData({
                     ...formData,
-                    configuration: { ...formData.configuration, instanceId: e.target.value }
+                    configuration: { ...formData.configuration, instanceName: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '') }
                   })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  placeholder="Verrà generato automaticamente se vuoto"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  placeholder="main"
+                  required
+                  pattern="[a-z0-9]+"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  L'Instance ID viene generato automaticamente alla prima connessione
+                  Nome univoco per l'istanza (solo lettere minuscole e numeri, es: main, prova, assistenza)
                 </p>
               </div>
 
               {/* Webhook URL */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <GlobeAltIcon className="inline h-4 w-4 mr-1" />
-                  Webhook URL (opzionale)
+                  <BoltIcon className="inline h-4 w-4 mr-1" />
+                  Webhook URL
                 </label>
                 <input
                   type="url"
@@ -255,40 +321,12 @@ export default function WhatsAppConfig() {
                     ...formData,
                     configuration: { ...formData.configuration, webhookUrl: e.target.value }
                   })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  placeholder="https://tuodominio.com/api/whatsapp/webhook"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  placeholder="http://37.27.89.35:3201/api/whatsapp/webhook"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  URL per ricevere messaggi in entrata (configurare in produzione)
+                  URL per ricevere messaggi in entrata (opzionale)
                 </p>
-              </div>
-
-              {/* Enabled Toggle */}
-              <div className="flex items-center justify-between py-3">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">
-                    Servizio Attivo
-                  </label>
-                  <p className="text-xs text-gray-500">
-                    Abilita o disabilita l'integrazione WhatsApp
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setFormData({
-                    ...formData,
-                    configuration: { ...formData.configuration, enabled: !formData.configuration.enabled }
-                  })}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    formData.configuration.enabled ? 'bg-green-600' : 'bg-gray-200'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      formData.configuration.enabled ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
               </div>
             </div>
           </div>
@@ -299,8 +337,8 @@ export default function WhatsAppConfig() {
               <button
                 type="button"
                 onClick={() => testMutation.mutate()}
-                disabled={!apiKey || testMutation.isPending}
-                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                disabled={testMutation.isPending}
+                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 flex items-center"
               >
                 {testMutation.isPending ? (
                   <>
@@ -318,7 +356,7 @@ export default function WhatsAppConfig() {
               <button
                 type="submit"
                 disabled={saveMutation.isPending}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center"
               >
                 {saveMutation.isPending ? (
                   <>
@@ -336,36 +374,42 @@ export default function WhatsAppConfig() {
           </div>
         </form>
 
-        {/* Info Box */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="text-lg font-medium text-blue-900 mb-3">
-            Come configurare SendApp
+        {/* Info Box con stato attuale */}
+        {apiKey && apiKey.configuration && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <h3 className="text-lg font-medium mb-3 text-blue-900">
+              <InformationCircleIcon className="inline h-5 w-5 mr-1" />
+              Configurazione Attuale
+            </h3>
+            <div className="space-y-2 text-sm text-blue-800">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="font-medium">Server:</span> {apiKey.configuration.baseURL}
+                </div>
+                <div>
+                  <span className="font-medium">Istanza:</span> {apiKey.configuration.instanceName || 'main'}
+                </div>
+                <div>
+                  <span className="font-medium">Versione:</span> {apiKey.configuration.version || '2.3.3'}
+                </div>
+                <div>
+                  <span className="font-medium">Stato:</span> {apiKey.isActive ? 'Attivo' : 'Disattivo'}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Prossimi passi */}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+          <h3 className="text-lg font-medium mb-3 text-green-900">
+            ✅ Prossimi Passi
           </h3>
-          <ol className="space-y-2 text-sm text-blue-800">
-            <li className="flex">
-              <span className="font-medium mr-2">1.</span>
-              <span>Vai su <a href="https://app.sendapp.cloud" target="_blank" rel="noopener noreferrer" className="underline">app.sendapp.cloud</a></span>
-            </li>
-            <li className="flex">
-              <span className="font-medium mr-2">2.</span>
-              <span>Crea un account o effettua il login</span>
-            </li>
-            <li className="flex">
-              <span className="font-medium mr-2">3.</span>
-              <span>Crea una nuova istanza WhatsApp</span>
-            </li>
-            <li className="flex">
-              <span className="font-medium mr-2">4.</span>
-              <span>Copia l'Access Token dalla dashboard</span>
-            </li>
-            <li className="flex">
-              <span className="font-medium mr-2">5.</span>
-              <span>Incolla il token qui sopra e salva</span>
-            </li>
-            <li className="flex">
-              <span className="font-medium mr-2">6.</span>
-              <span>Usa "Test Connessione" per verificare il funzionamento</span>
-            </li>
+          <ol className="space-y-2 text-sm text-green-800">
+            <li>1. Clicca su "Test Connessione" per verificare che Evolution API sia raggiungibile</li>
+            <li>2. Salva la configurazione con il tasto "Salva Configurazione"</li>
+            <li>3. Vai su <a href="/admin/whatsapp" className="underline font-medium">WhatsApp Manager</a> per creare l'istanza e connettere WhatsApp</li>
+            <li>4. Scansiona il QR code con WhatsApp per completare la connessione</li>
           </ol>
         </div>
       </div>

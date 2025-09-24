@@ -1,0 +1,5 @@
+// Aggiungi dopo le altre route WhatsApp imports (intorno alla riga 155)
+import whatsappContactsRoutes from './routes/whatsapp-contacts.routes';
+
+// E poi aggiungi dopo la registrazione delle altre route WhatsApp (intorno alla riga 420)
+app.use('/api/whatsapp', authenticate, whatsappContactsRoutes);

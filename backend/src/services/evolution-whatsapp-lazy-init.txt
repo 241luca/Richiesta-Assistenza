@@ -1,0 +1,37 @@
+// Aggiungi questo all'inizio del file dopo gli import
+
+// Non inizializzare come singleton automaticamente
+// const evolutionService = new EvolutionWhatsAppService();
+
+// Invece, crea un'istanza lazy
+let evolutionServiceInstance: EvolutionWhatsAppService | null = null;
+
+const evolutionService = {
+  async getInstance(): Promise<EvolutionWhatsAppService> {
+    if (!evolutionServiceInstance) {
+      evolutionServiceInstance = new EvolutionWhatsAppService();
+      
+      try {
+        // Verifica se esiste la configurazione
+        const apiKeyRecord = await prisma.apiKey.findFirst({
+          where: {
+            service: 'whatsapp',
+            isActive: true
+          }
+        });
+        
+        if (!apiKeyRecord) {
+          logger.warn('⚠️ Evolution WhatsApp Service: No configuration found in database');
+          throw new Error('WhatsApp configuration not found');
+        }
+        
+        logger.info('✅ Evolution WhatsApp Service configured and ready');
+      } catch (error) {
+        logger.error('❌ Evolution WhatsApp Service initialization failed:', error);
+        throw error;
+      }
+    }
+    
+    return evolutionServiceInstance;
+  }
+};

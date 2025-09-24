@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WhatsApp QR Code</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            max-width: 500px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .status {
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .qr-image {
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            display: inline-block;
+        }
+        .instructions {
+            margin-top: 30px;
+            text-align: left;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .step {
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+        }
+        .step-number {
+            background: #25D366;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Connetti WhatsApp</h1>
+        <div class="status">⏳ In attesa di scansione QR code...</div>
+        
+        <div class="qr-image">
+            <img src="data:image/png;base64,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lkcVJW9yILD7RFieRxUlkMbXFSWQxtcUUWdxoiymymNriE20xRRafiCymtpgii6ktpsjiN7XFFFlMbfFNbTFFFjfa4iSymNpiiixO2mKKLG60xUlbnEQWU1tMbTFFFidtMUUWU1tMkcXUFjce1lprveJhrbXWKx7WWmu94ocva4spsrjRFlNk8Ym2mCKLqS1utMUUWUxtMUUWJ20xRRYnbTFFFlNkcSOyOGmLKbI4iSxOIovf1Ba/qS2myOKkLb6pLT7RFidtMUUWU2QxtcVJZDFFFjfa4kZkcSOyeNPDWmutVzystdZ6xcNaa61X/PPnX1yILG60xY3I4hNtMUUWU1vciCy+qS2myOKkLW5EFjfaYoosTtriRmQxtcUnIoupLT4RWXxTW5xEFlNb/KbI4pvaYoosTtriE5HF1BY3IouTtpgii6ktpshiaosbD2uttV7xsNZa6xUPa621XvHDpbaYIouTyGJqi5O2OIksPhFZTG0xRRYnbXESWXxTZDG1xSfaYoosprb4myKLqS0+EVlMbfGJtjiJLG5EFidtMUUWU1uctMUUWUxtMUUWU1vcaIspspja4hORxUlbTG0xRRafaItPPKy11nrFw1prrVc8rLXWesUPlyKLG20xRRZTW0yRxdQWn2iLk8jipC1OIoupLT7RFp9oi5PI4hORxd/UFv8lkcXUFlNkcaMtTtriRmRxoy2myGJqixttMUUWJ21xoy2myOJGZHEjspja4sbDWmutVzystdZ6xcNaa61X/PPnX1yILD7RFlNkMbXFFFncaIspspjaYoosbrTFSWRx0hZTZDG1xY3I4qQtpshiaospspja4iSymNriRmQxtcWNyOITbXEjsvhEW5xEFlNbnEQWN9riE5HF1BZTZDG1xY3IYmqLk8hiaosbkcWNtvjEw1prrVc8rLXWesXDWmutV/xwqS1OIoupLW5EFlNbTJHF1BafaIuTyGKKLE7a4kZbTJHFSVv8praYIovf1BZTZPGJtrgRWXyiLabI4psii6ktbrTFjcjipC2myGJqiymyOGmLT7TFjchiaospsvhND2uttV7xsNZa6xUPa621XvHDL4ssbrTFSVtMkcXUFlNb3IgspraYIoupLabIYmqLKbKY2uJGZPFf0ha/qS2myGJqi5PIYmqLqS2myGJqi5PIYmqLKbL4RFuctMVJZDG1xUlbTJHFSVtMkcVviiw+0RafiCymtrjxsNZa6xUPa621XvGw1lrrFT/8sra4EVlMbXHSFlNkcdIWU2QxtcUUWUxt8Ym2mCKLqS1OIoupLabIYoosTiKLk7b4pshiaotPRBY3IouTtpgii6ktpraYIouTyOKkLU4ii2+KLKa2mNpiiixO2mKKLD4RWUxtMUUW39QWU2TxTQ9rrbVe8bDWWusVD2uttV7xz59/cSGymNriRmRx0hYnkcXUFieRxUlbTJHF1BZTZDG1xY3I4hNtMUUWU1v8TZHFSVtMkcU3tcVJZHGjLabIYmqLKbI4aYsbkcU3tcU3RRafaIspspjaYmqLKbKY2uITkcUn2mKKLG60xY2HtdZar3hYa631ioe11lqv+OfPv7gQWUxtMUUWf1NbnEQWn2iLKbI4aYspspja4kZk8U1tMUUWU1tMkcVJW0yRxdQWJ5HFJ9rimyKL39QWU2Rxoy2myOITbTFFFn9TW0yRxTe1xRRZ3GiLGw9rrbVe8bDWWusVD2uttV7xw6W2OGmLk8hiaosbkcXUFieRxdQWb4ospraYIotPtMWNyGKKLE4ii6ktbrTFJ9piiiymtvimyGJqiymymNriRmTxiba40RZTZHGjLW5EFlNbTJHF1BafaIsbkcUUWZy0xTc9rLXWesXDWmutVzystdZ6xQ//MZHF1BYnkcVJW0yRxSfaYmqLKbI4iSymtrgRWZxEFlNbnLTFFFl8IrL4TW0xRRZTW0yRxSciixuRxdQWJ5HF1BZTZDFFFidtcaMtPhFZ3GiL3xRZTG3xichiaotPPKy11nrFw1prrVc8rLXWesUPlyKLqS2myGJqixttcaMtpsjipC2myGJqi5PIYmqLT0QWU1tMkcWNtvhEW3xTW5xEFn9TW5xEFjfa4hORxUlbnEQWU1tMbTFFFlNbfKIt/qa2uNEWU2QxtcUUWUxtceNhrbXWKx7WWmu94mGttdYrfvhlkcVJZPGJyGJqi5PI4kZkcRJZTG3xTW0xRRZTZPFNkcVJW5y0xRRZ3GiLKbKY2uJNbTFFFlNk8Ym2uBFZnLTFFFmctMVJZDG1xdQWNyKLqS2myOJGZPFNbfGbHtZaa73iYa211ise1lrrFf/8+RcXIoupLU4ii29qixuRxdQWn4gsprb4RGRxoy2myOJNbfGJyOITbTFFFidtMUUWn2iLKbI4aYuTyGJqiymyOGmLb4osprb4m2+KLKa2uBFZTG0xRRZTW5xEFidtMUUWN9riRmQxtcVJW3ziYa211ise1lprveJhrbXWK374UGTxTZHFjcjikymtpgii5O2OIkspraYIouTtvimyOIksviktvqktTiKLL4pspja4kZk8U2RxdQWN9piiixO2uKbIouTtpgii5O2uNEWJ5HFSVtMkcXUFieRxSce1lprveJhrbXWKx7WWmu94ocva4u/KbI4aYspspgii6ktpsjihbI4aYspspjaYoosprb4psjiN7XFFFlMbfFNkcXUFlNkcdIWnyiLW20xRRYnbTFFFlNbTJHFSVtMkcVJW9xoi5PI4iSyOGmLG5HFSWQxtcU3Pay11nrFw1prrVc8rLXWesUPvyymtjiJLKa2OIksprY4iSymtrjRFlNkMbXFN7XFSVtMkcXUFp9oixuRxY22mNrim9piiixO2mKKLE7a4iSyOGmLk8jiJLKY2uIksvhNbTFFFjfaYoospraYIouTtpgii6ktpshiiiymtvjEw1prrVc8rLXWesXDWmutV/zwZZHF1BY32uKkLabI4iSyuBFZfFNkcdIWU2QxtcUUWUxt8Ym2OIkspra40RYnkcXUFlNkMbXFSVuctMUUWUyRxdQWU2QxtcUUWXwispjaYoospraYIoupLabIYmqL3xRZnLTFjbaYIoupLU4ii5PI4qQtpshiaosbb3tYa611ise1lprveJhrbXWK3641BZTZDFFFlNbnETW3xTW0xtMUUWU1u8qS2myGJqixuRxYnIY2qLG20xRRZTW5xEFlNb3GiLk8hiaovfFFmcaMuTyGJqiymyOIksvimymNriRmQxtcUUWXxTW0yRxY3I4pse1lprveJhrbXWKx7WWmu94ocva4uTyGJqize1xRRZTG0xRRZTW0yRxRRZ3IgspraYiSymtpgii+9qS2myKKLLKa2mNrimyKLKbL4pshiaouTyGKKLKa2OIkspraYoostra4qQtpsjipC2myOKkLabIYmqLG20xRRYnbTFFFlNbfNPDWmutVzystdZ6xcNaa61X/PPnX/yiyGJqi5PIYmqL3xRZfFNbTJHFJ9riRmQxtcV/WWQxtcVJZDG1xRRZTG0xRRZTW9yILD7RFlNkcdIWU2QxtcUUWZy0xRRZ3GiLKbKY2mKKLE7aYoosp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mLKbKY2uJGZDG1xUlkcdIWU1tMkcXUFlNkcaMtbrTFFFnciCxOIosbkcUn2mKKLL6pLabIYmqLk8hiaosp4QSpraYIoupLT7TFFFlMbXESWU1v8praYIoupLU7aYoospraYIotviiymtvimh7XWWq94WGut9YqHtdZar/jhUmQxtcXUFlNkcaMtvimymNripC2myGJqixuRxUlbTJHF1BY3IoupLU4ii5O2mCKLk7aYIosbbTFFllmcdIWU2RxElmctMVvaospspja4iSymNriJLI4aYsbkcXUFlNkcdIWn2iLk8jiRmQxtcUnHtZaa73iYa211ise1lprveKHL4sspra4EVmctMU3RRafaIsbkcUUWUxtcRJZTG1xEllMbTG1xSfaYoosvqktpshiiiymtpgii5O2mCKLqS2myGJqiymyuBFZnLTF3xRZTG0xtcVJZHHSFlNkMbXFJyKLk8hiaospsvimh7XWWq94WGut9YqHtdZar/jhy9piiiymtpgii6ktpshiiiy+qS0+EVlMbTFFFjciixuRxUlb3IgspraY2mKKLKa2uBFZnLTFSVvcaIsbkcVJZPGJtpgiiymymNriE5HF1BY3IoupLU7aYoosTtpiiiymtvhNkcVJZDG1xY2HtdZar3hYa631ioe11lqv+OFSWxtMkcUnIotPtMUUWUxt8YnI4iSyuBFZTG0xtcU0WRxoy2myGJqiymymNpiiiymyOGmLKbI4aYuTtpiiiymtpgii6ktTiKLk7aYIoospra4RGQxtcU3RRY3IosbbfFNkcWNyOK/rC2myGJqiymyeKaHtdZar3hYa631ioe11lqv+OHL2uJGZDG1xRRZTG0xRRafiCxOIouTyGJqi5PI4qQtpshiaospsvimyGJqiymyuBFZfKItbkQWU1tMkcVJZDG1xdQWU2QxRRZTW9xoiymymCKLqS0+EVlMbXEjsvhNkUXUFlNkMbXFFFlMbTFFFlmctMUnHtZaa73iYa211ise1lrrFf/8+RcfiCxutMVJZDG1xUlkcXUFp+ILKa2mCKLk7aYIosbbTFFFn9TW0yRxYm2mCKLqS2myOKkLU4iixttMUUWU1tMkcW/SctMUUWN9riJLK40RYnkcUn2mKKLP6mtvjEw1prrVc8rLXWesXDWmutV/zw4fa4pvaYoosTiKLk7a40RafKItPRB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" alt="WhatsApp QR Code" style="width: 300px; height: 300px;">
+        </div>
+        
+        <div class="instructions">
+            <div class="step">
+                <span class="step-number">1</span>
+                <span>Apri <strong>WhatsApp</strong> sul tuo telefono</span>
+            </div>
+            <div class="step">
+                <span class="step-number">2</span>
+                <span>Vai su <strong>Impostazioni → Dispositivi collegati</strong></span>
+            </div>
+            <div class="step">
+                <span class="step-number">3</span>
+                <span>Tocca <strong>"Collega un dispositivo"</strong></span>
+            </div>
+            <div class="step">
+                <span class="step-number">4</span>
+                <span>Scansiona questo QR Code</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

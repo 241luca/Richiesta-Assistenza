@@ -318,6 +318,110 @@ router.put('/:id/complete', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// PUT /api/scheduled-interventions/:id/accept - Cliente accetta intervento
+router.put('/:id/accept', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const clientId = req.user?.id;
+    
+    if (!clientId) {
+      return res.status(401).json(ResponseFormatter.error(
+        'Authentication required',
+        'UNAUTHORIZED'
+      ));
+    }
+    
+    logInfo(req, 'Client accepting intervention', { 
+      interventionId: id,
+      clientId
+    });
+    
+    const service = await getService();
+    const result = await service.acceptIntervention(id, clientId);
+    
+    logInfo(req, 'Intervention accepted', {
+      interventionId: id
+    });
+    
+    return res.json(ResponseFormatter.success(
+      result,
+      'Intervento accettato con successo'
+    ));
+    
+  } catch (error: any) {
+    logError(req, 'Error accepting intervention', { 
+      error: error.message,
+      interventionId: req.params.id,
+      errorType: error.name
+    });
+    
+    if (error.name === 'AuthorizationError' || error.message.includes('Non autorizzato')) {
+      return res.status(403).json(ResponseFormatter.error(
+        error.message || 'Non autorizzato ad accettare questo intervento',
+        'FORBIDDEN'
+      ));
+    }
+    
+    return res.status(500).json(ResponseFormatter.error(
+      'Failed to accept intervention',
+      'UPDATE_ERROR'
+    ));
+  }
+});
+
+// PUT /api/scheduled-interventions/:id/reject - Cliente rifiuta intervento
+router.put('/:id/reject', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const clientId = req.user?.id;
+    const { reason } = req.body;
+    
+    if (!clientId) {
+      return res.status(401).json(ResponseFormatter.error(
+        'Authentication required',
+        'UNAUTHORIZED'
+      ));
+    }
+    
+    logInfo(req, 'Client rejecting intervention', { 
+      interventionId: id,
+      clientId,
+      reason
+    });
+    
+    const service = await getService();
+    const result = await service.rejectIntervention(id, clientId, reason);
+    
+    logInfo(req, 'Intervention rejected', {
+      interventionId: id
+    });
+    
+    return res.json(ResponseFormatter.success(
+      result,
+      'Intervento rifiutato con successo'
+    ));
+    
+  } catch (error: any) {
+    logError(req, 'Error rejecting intervention', { 
+      error: error.message,
+      interventionId: req.params.id,
+      errorType: error.name
+    });
+    
+    if (error.name === 'AuthorizationError' || error.message.includes('Non autorizzato')) {
+      return res.status(403).json(ResponseFormatter.error(
+        error.message || 'Non autorizzato a rifiutare questo intervento',
+        'FORBIDDEN'
+      ));
+    }
+    
+    return res.status(500).json(ResponseFormatter.error(
+      'Failed to reject intervention',
+      'UPDATE_ERROR'
+    ));
+  }
+});
+
 // GET /api/scheduled-interventions/:id - Get single intervention
 router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {

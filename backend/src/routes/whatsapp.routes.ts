@@ -1,657 +1,1062 @@
-/**
- * WhatsApp Routes
- * Gestisce le API per l'integrazione WhatsApp
- */
-
-import { Router } from 'express';
-import { authenticate } from '../middleware/auth';
-import { requireRole } from '../middleware/rbac';
-import { Role } from '@prisma/client';
+import { Router, Request, Response } from 'express';
 import { ResponseFormatter } from '../utils/responseFormatter';
-import * as whatsappService from '../services/whatsapp.service';
 import logger from '../utils/logger';
-import prisma from '../config/database';
+import { authenticate } from '../middleware/auth';
+import { checkRole } from '../middleware/checkRole';
+import { auditLogger } from '../middleware/auditLogger';
+import { PrismaClient } from '@prisma/client';
 
+// Servizi esistenti
+import { wppConnectService } from '../services/wppconnect.service';
+
+// NUOVI SERVIZI AGGIUNTI
+import { whatsAppValidation } from '../services/whatsapp-validation.service';
+import { whatsAppErrorHandler, WhatsAppErrorType } from '../services/whatsapp-error-handler.service';
+import { whatsAppTemplateService } from '../services/whatsapp-template.service';
+
+const prisma = new PrismaClient();
 const router = Router();
 
-/**
- * GET /api/whatsapp/status
- * Verifica lo stato della connessione WhatsApp
- */
-router.get('/status', authenticate, async (req, res) => {
-  try {
-    const status = await whatsappService.getConnectionStatus();
-    return res.json(ResponseFormatter.success(status, 'Stato WhatsApp recuperato'));
-  } catch (error: any) {
-    logger.error('Errore recupero stato WhatsApp:', error);
-    return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore recupero stato', 'WHATSAPP_STATUS_ERROR')
-    );
-  }
-});
+// ====================================
+// API MIGLIORATE CON VALIDAZIONE E ERROR HANDLING
+// ====================================
 
 /**
- * POST /api/whatsapp/create-instance
- * Crea una nuova istanza WhatsApp
+ * POST /api/whatsapp/send - Invia messaggio CON VALIDAZIONE
  */
-router.post('/create-instance', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req, res) => {
+router.post('/send', authenticate, auditLogger('WHATSAPP_SEND'), async (req: any, res: Response) => {
   try {
-    const result = await whatsappService.createInstance();
-    return res.json(ResponseFormatter.success(result, 'Istanza WhatsApp creata con successo'));
-  } catch (error: any) {
-    logger.error('Errore creazione istanza:', error);
-    return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore creazione istanza', 'CREATE_INSTANCE_ERROR')
-    );
-  }
-});
-
-/**
- * GET /api/whatsapp/qr-code
- * Genera il QR Code per il login
- */
-router.get('/qr-code', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req, res) => {
-  try {
-    const qrCodeData = await whatsappService.getQRCode();
+    const { recipient, message, phoneNumber } = req.body;
     
-    // L'API di SendApp restituisce il QR in formato base64 o come URL
-    // Verifica cosa abbiamo ricevuto e formatta correttamente
-    let base64 = '';
+    // Supporta sia 'recipient' che 'phoneNumber' per retrocompatibilità
+    const numero = recipient || phoneNumber;
     
-    if (typeof qrCodeData === 'string') {
-      // Se è una stringa, assumiamo sia già base64
-      base64 = qrCodeData;
-    } else if (qrCodeData?.qrcode) {
-      // Se c'è un campo qrcode nell'oggetto
-      base64 = qrCodeData.qrcode;
-    } else if (qrCodeData?.base64) {
-      // Se c'è un campo base64 nell'oggetto
-      base64 = qrCodeData.base64;
-    } else if (qrCodeData?.message?.includes('base64')) {
-      // Se il QR è nel messaggio
-      base64 = qrCodeData.message;
-    }
-    
-    return res.json(ResponseFormatter.success({ base64 }, 'QR Code generato'));
-  } catch (error: any) {
-    logger.error('Errore generazione QR Code:', error);
-    return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore generazione QR Code', 'QR_CODE_ERROR')
-    );
-  }
-});
-
-/**
- * POST /api/whatsapp/disconnect
- * Disconnette WhatsApp
- */
-router.post('/disconnect', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req, res) => {
-  try {
-    const result = await whatsappService.disconnect();
-    return res.json(ResponseFormatter.success(result, 'WhatsApp disconnesso'));
-  } catch (error: any) {
-    logger.error('Errore disconnessione WhatsApp:', error);
-    return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore disconnessione', 'DISCONNECT_ERROR')
-    );
-  }
-});
-
-/**
- * POST /api/whatsapp/set-status
- * Imposta manualmente lo stato della connessione
- */
-router.post('/set-status', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req, res) => {
-  try {
-    const { connected } = req.body;
-    const result = await whatsappService.setConnectionStatus(connected === true);
-    return res.json(ResponseFormatter.success(result, 'Stato aggiornato'));
-  } catch (error: any) {
-    logger.error('Errore impostazione stato:', error);
-    return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore impostazione stato', 'SET_STATUS_ERROR')
-    );
-  }
-});
-
-/**
- * POST /api/whatsapp/set-webhook
- * Configura il webhook per ricevere messaggi
- */
-router.post('/set-webhook', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req, res) => {
-  try {
-    const { webhookUrl } = req.body;
-    const result = await whatsappService.setWebhook(webhookUrl);
-    return res.json(ResponseFormatter.success(result, 'Webhook configurato'));
-  } catch (error: any) {
-    logger.error('Errore configurazione webhook:', error);
-    return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore configurazione webhook', 'WEBHOOK_ERROR')
-    );
-  }
-});
-
-/**
- * POST /api/whatsapp/send
- * Invia un messaggio WhatsApp
- */
-router.post('/send', authenticate, async (req: any, res) => {
-  try {
-    const { phoneNumber, message, mediaUrl, filename } = req.body;
-    
-    if (!phoneNumber || !message) {
+    if (!numero || !message) {
       return res.status(400).json(
-        ResponseFormatter.error('Numero di telefono e messaggio sono obbligatori', 'MISSING_FIELDS')
+        ResponseFormatter.error('Destinatario e messaggio richiesti', 'VALIDATION_ERROR')
       );
     }
     
-    let result;
-    if (mediaUrl) {
-      result = await whatsappService.sendMediaMessage(phoneNumber, message, mediaUrl, filename);
-    } else {
-      result = await whatsappService.sendTextMessage(phoneNumber, message);
+    // NUOVO: Validazione numero completa
+    const validated = await whatsAppValidation.validatePhoneNumber(numero, {
+      country: 'IT',
+      strict: true
+    });
+    
+    if (!validated.isValid) {
+      return res.status(400).json(
+        ResponseFormatter.error(
+          validated.error || 'Numero non valido',
+          'INVALID_PHONE_NUMBER',
+          { suggestions: ['Verificare il formato del numero', 'Esempio corretto: 3331234567'] }
+        )
+      );
     }
     
-    // Salva il messaggio inviato nel database
-    try {
-      await prisma.whatsAppMessage.create({
-        data: {
-          phoneNumber,
-          message,
-          direction: 'outgoing',
-          status: 'sent',
-          mediaUrl: mediaUrl || null,
-          mediaType: mediaUrl ? 'media' : null,
-          userId: req.user.id || null,
-          timestamp: new Date(),
-          metadata: {
-            sentBy: req.user.id,
-            sentByName: `${req.user.firstName} ${req.user.lastName}`,
-            sentByEmail: req.user.email,
-            filename: filename || null
-          }
-        }
-      });
-      logger.info(`Messaggio salvato nel database per ${phoneNumber}`);
-    } catch (dbError) {
-      logger.error('Errore salvataggio messaggio nel database:', dbError);
-      // Non bloccare l'invio se il salvataggio fallisce
-    }
+    // NUOVO: Salva numero validato
+    await whatsAppValidation.saveValidatedNumber(validated);
     
-    // Log audit
-    logger.info(`Messaggio WhatsApp inviato da ${req.user.email} a ${phoneNumber}`);
+    // Invia con numero validato
+    const result = await wppConnectService.sendMessage(validated.formatted, message);
     
-    return res.json(ResponseFormatter.success(result, 'Messaggio inviato con successo'));
+    logger.info(`✅ Messaggio inviato a ${validated.formatted} (${validated.country})`);
+    
+    return res.json(ResponseFormatter.success({
+      ...result,
+      formattedNumber: whatsAppValidation.formatForDisplay(validated.formatted, validated.country)
+    }, 'Messaggio inviato con successo'));
+    
   } catch (error: any) {
     logger.error('Errore invio messaggio:', error);
-    return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore invio messaggio', 'SEND_MESSAGE_ERROR')
+    
+    // NUOVO: Error handling migliorato
+    const whatsAppError = await whatsAppErrorHandler.handleError(error, 'sendMessage');
+    const suggestions = whatsAppErrorHandler.getSuggestions(whatsAppError);
+    
+    // Status code basato sul tipo di errore
+    let statusCode = 500;
+    if (whatsAppError.type === WhatsAppErrorType.VALIDATION_ERROR) statusCode = 400;
+    if (whatsAppError.type === WhatsAppErrorType.CONNECTION_ERROR) statusCode = 503;
+    if (whatsAppError.type === WhatsAppErrorType.RATE_LIMIT) statusCode = 429;
+    
+    return res.status(statusCode).json(
+      ResponseFormatter.error(
+        whatsAppError.userMessage || whatsAppError.message,
+        whatsAppError.type,
+        { 
+          retry: whatsAppError.retry,
+          suggestions,
+          details: whatsAppError.details 
+        }
+      )
     );
   }
 });
 
 /**
- * POST /api/whatsapp/send-group
- * Invia un messaggio a un gruppo WhatsApp
+ * POST /api/whatsapp/send-bulk - Invio multiplo CON VALIDAZIONE
  */
-router.post('/send-group', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req: any, res) => {
+router.post('/send-bulk', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), auditLogger('WHATSAPP_SEND_BULK'), async (req: any, res: Response) => {
   try {
-    const { groupId, message, mediaUrl } = req.body;
+    const { recipients, message } = req.body;
     
-    if (!groupId || !message) {
+    if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
       return res.status(400).json(
-        ResponseFormatter.error('ID gruppo e messaggio sono obbligatori', 'MISSING_FIELDS')
+        ResponseFormatter.error('Lista destinatari richiesta', 'VALIDATION_ERROR')
       );
     }
     
-    const result = await whatsappService.sendGroupMessage(groupId, message, mediaUrl);
-    
-    logger.info(`Messaggio gruppo WhatsApp inviato da ${req.user.email} a ${groupId}`);
-    
-    return res.json(ResponseFormatter.success(result, 'Messaggio gruppo inviato'));
-  } catch (error: any) {
-    logger.error('Errore invio messaggio gruppo:', error);
-    return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore invio messaggio gruppo', 'SEND_GROUP_ERROR')
-    );
-  }
-});
-
-/**
- * POST /api/whatsapp/broadcast
- * Invia un messaggio broadcast a più numeri
- */
-router.post('/broadcast', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req: any, res) => {
-  try {
-    const { phoneNumbers, message, mediaUrl } = req.body;
-    
-    if (!phoneNumbers || !message) {
+    if (!message) {
       return res.status(400).json(
-        ResponseFormatter.error('Numeri e messaggio sono obbligatori', 'MISSING_FIELDS')
+        ResponseFormatter.error('Messaggio richiesto', 'VALIDATION_ERROR')
       );
     }
     
-    const numbers = Array.isArray(phoneNumbers) ? phoneNumbers : phoneNumbers.split(',').map((n: string) => n.trim());
-    const results = [];
-    const errors = [];
+    // NUOVO: Validazione batch
+    const validationResults = await whatsAppValidation.validateBatch(recipients, {
+      country: 'IT',
+      checkWhatsApp: false // Per velocità
+    });
     
-    for (const number of numbers) {
+    const validNumbers = validationResults.filter(r => r.isValid);
+    const invalidNumbers = validationResults.filter(r => !r.isValid);
+    
+    if (validNumbers.length === 0) {
+      return res.status(400).json(
+        ResponseFormatter.error('Nessun numero valido nella lista', 'ALL_INVALID_NUMBERS')
+      );
+    }
+    
+    // Invia ai numeri validi
+    const results = {
+      sent: [] as string[],
+      failed: [] as { number: string; error: string }[],
+      invalid: invalidNumbers.map(r => ({ number: r.formatted, error: r.error }))
+    };
+    
+    // Invio con delay per evitare rate limiting
+    for (const validNumber of validNumbers) {
       try {
-        const result = mediaUrl 
-          ? await whatsappService.sendMediaMessage(number, message, mediaUrl)
-          : await whatsappService.sendTextMessage(number, message);
-        results.push({ number, success: true, result });
+        await wppConnectService.sendMessage(validNumber.formatted, message);
+        results.sent.push(validNumber.formatted);
+        
+        // Delay tra invii
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
       } catch (error: any) {
-        errors.push({ number, success: false, error: error.message });
+        results.failed.push({
+          number: validNumber.formatted,
+          error: error.message
+        });
       }
     }
     
-    logger.info(`Broadcast WhatsApp inviato da ${req.user.email} a ${numbers.length} numeri`);
+    return res.json(ResponseFormatter.success(results, 'Invio bulk completato'));
     
-    return res.json(ResponseFormatter.success(
-      { sent: results, failed: errors },
-      `Broadcast inviato: ${results.length} successi, ${errors.length} errori`
-    ));
   } catch (error: any) {
-    logger.error('Errore broadcast:', error);
-    return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore broadcast', 'BROADCAST_ERROR')
-    );
-  }
-});
-
-/**
- * POST /api/whatsapp/reboot
- * Riavvia l'istanza WhatsApp
- */
-router.post('/reboot', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req, res) => {
-  try {
-    const result = await whatsappService.rebootInstance();
-    return res.json(ResponseFormatter.success(result, 'Istanza riavviata'));
-  } catch (error: any) {
-    logger.error('Errore riavvio istanza:', error);
-    return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore riavvio', 'REBOOT_ERROR')
-    );
-  }
-});
-
-/**
- * POST /api/whatsapp/reset
- * Reset completo dell'istanza WhatsApp
- */
-router.post('/reset', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req, res) => {
-  try {
-    const result = await whatsappService.resetInstance();
-    return res.json(ResponseFormatter.success(result, 'Istanza resettata'));
-  } catch (error: any) {
-    logger.error('Errore reset istanza:', error);
-    return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore reset', 'RESET_ERROR')
-    );
-  }
-});
-
-/**
- * POST /api/whatsapp/reconnect
- * Riconnetti l'istanza WhatsApp
- */
-router.post('/reconnect', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req, res) => {
-  try {
-    const result = await whatsappService.reconnect();
-    return res.json(ResponseFormatter.success(result, 'Istanza riconnessa'));
-  } catch (error: any) {
-    logger.error('Errore riconnessione:', error);
-    return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore riconnessione', 'RECONNECT_ERROR')
-    );
-  }
-});
-
-/**
- * POST /api/whatsapp/webhook
- * Webhook per ricevere messaggi da SendApp
- */
-router.post('/webhook', async (req, res) => {
-  try {
-    logger.info('Webhook WhatsApp ricevuto:', JSON.stringify(req.body, null, 2));
+    logger.error('Errore invio bulk:', error);
     
-    // Processa il webhook in background
-    whatsappService.processIncomingMessage(req.body).catch(error => {
-      logger.error('Errore processamento webhook:', error);
+    const whatsAppError = await whatsAppErrorHandler.handleError(error, 'sendBulk');
+    
+    return res.status(500).json(
+      ResponseFormatter.error(whatsAppError.message, 'BULK_SEND_ERROR')
+    );
+  }
+});
+
+// ====================================
+// NUOVE API PER TEMPLATE
+// ====================================
+
+/**
+ * GET /api/whatsapp/templates - Lista template
+ */
+router.get('/templates', authenticate, async (req: any, res: Response) => {
+  try {
+    const { category, isActive, tags } = req.query;
+    
+    const templates = await whatsAppTemplateService.getAllTemplates({
+      category,
+      isActive: isActive === 'true',
+      tags: tags ? tags.split(',') : undefined
     });
     
-    // Rispondi immediatamente a SendApp
-    return res.status(200).json({ success: true });
+    return res.json(ResponseFormatter.success(templates, 'Template recuperati'));
+    
   } catch (error: any) {
-    logger.error('Errore webhook:', error);
-    return res.status(200).json({ success: false }); // Sempre 200 per evitare retry
+    logger.error('Errore recupero template:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore recupero template', 'FETCH_TEMPLATES_ERROR')
+    );
   }
 });
 
 /**
- * GET /api/whatsapp/export/:phoneNumber
- * Esporta la chat in formato testo
+ * POST /api/whatsapp/templates - Crea template
  */
-router.get('/export/:phoneNumber', authenticate, async (req, res) => {
+router.post('/templates', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), async (req: any, res: Response) => {
+  try {
+    const template = await whatsAppTemplateService.createTemplate(req.body, req.user.id);
+    
+    return res.status(201).json(
+      ResponseFormatter.success(template, 'Template creato con successo')
+    );
+    
+  } catch (error: any) {
+    logger.error('Errore creazione template:', error);
+    return res.status(500).json(
+      ResponseFormatter.error(error.message, 'CREATE_TEMPLATE_ERROR')
+    );
+  }
+});
+
+/**
+ * PUT /api/whatsapp/templates/:id - Aggiorna template
+ */
+router.put('/templates/:id', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), async (req: any, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const updated = await whatsAppTemplateService.updateTemplate(id, req.body, req.user.id);
+    
+    return res.json(ResponseFormatter.success(updated, 'Template aggiornato'));
+    
+  } catch (error: any) {
+    logger.error('Errore aggiornamento template:', error);
+    return res.status(500).json(
+      ResponseFormatter.error(error.message, 'UPDATE_TEMPLATE_ERROR')
+    );
+  }
+});
+
+/**
+ * POST /api/whatsapp/templates/:id/send - Invia messaggio da template
+ */
+router.post('/templates/:id/send', authenticate, auditLogger('WHATSAPP_TEMPLATE_SEND'), async (req: any, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { to, variables } = req.body;
+    
+    if (!to) {
+      return res.status(400).json(
+        ResponseFormatter.error('Destinatario richiesto', 'VALIDATION_ERROR')
+      );
+    }
+    
+    const result = await whatsAppTemplateService.sendFromTemplate(
+      id,
+      to,
+      variables,
+      req.user.id
+    );
+    
+    return res.json(ResponseFormatter.success(result, 'Template inviato con successo'));
+    
+  } catch (error: any) {
+    logger.error('Errore invio template:', error);
+    
+    const whatsAppError = await whatsAppErrorHandler.handleError(error, 'sendTemplate');
+    
+    return res.status(500).json(
+      ResponseFormatter.error(whatsAppError.message, 'TEMPLATE_SEND_ERROR')
+    );
+  }
+});
+
+/**
+ * POST /api/whatsapp/templates/:id/send-bulk - Invio bulk da template
+ */
+router.post('/templates/:id/send-bulk', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), auditLogger('WHATSAPP_TEMPLATE_BULK'), async (req: any, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { recipients, commonVariables, individualVariables } = req.body;
+    
+    if (!recipients || !Array.isArray(recipients)) {
+      return res.status(400).json(
+        ResponseFormatter.error('Lista destinatari richiesta', 'VALIDATION_ERROR')
+      );
+    }
+    
+    const result = await whatsAppTemplateService.sendBulkFromTemplate(
+      id,
+      recipients,
+      commonVariables,
+      individualVariables ? new Map(Object.entries(individualVariables)) : undefined,
+      req.user.id
+    );
+    
+    return res.json(ResponseFormatter.success(result, 'Invio bulk template completato'));
+    
+  } catch (error: any) {
+    logger.error('Errore invio bulk template:', error);
+    return res.status(500).json(
+      ResponseFormatter.error(error.message, 'TEMPLATE_BULK_ERROR')
+    );
+  }
+});
+
+/**
+ * DELETE /api/whatsapp/templates/:id - Elimina template
+ */
+router.delete('/templates/:id', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), async (req: any, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    await whatsAppTemplateService.deleteTemplate(id, req.user.id);
+    
+    return res.json(ResponseFormatter.success(null, 'Template eliminato'));
+    
+  } catch (error: any) {
+    logger.error('Errore eliminazione template:', error);
+    return res.status(500).json(
+      ResponseFormatter.error(error.message, 'DELETE_TEMPLATE_ERROR')
+    );
+  }
+});
+
+/**
+ * POST /api/whatsapp/templates/:id/clone - Clona template
+ */
+router.post('/templates/:id/clone', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), async (req: any, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { newName } = req.body;
+    
+    if (!newName) {
+      return res.status(400).json(
+        ResponseFormatter.error('Nome nuovo template richiesto', 'VALIDATION_ERROR')
+      );
+    }
+    
+    const cloned = await whatsAppTemplateService.cloneTemplate(id, newName, req.user.id);
+    
+    return res.status(201).json(
+      ResponseFormatter.success(cloned, 'Template clonato con successo')
+    );
+    
+  } catch (error: any) {
+    logger.error('Errore clonazione template:', error);
+    return res.status(500).json(
+      ResponseFormatter.error(error.message, 'CLONE_TEMPLATE_ERROR')
+    );
+  }
+});
+
+/**
+ * GET /api/whatsapp/templates/most-used - Template più usati
+ */
+router.get('/templates/most-used', authenticate, async (req: any, res: Response) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 10;
+    
+    const templates = await whatsAppTemplateService.getMostUsedTemplates(limit);
+    
+    return res.json(ResponseFormatter.success(templates, 'Template più usati'));
+    
+  } catch (error: any) {
+    logger.error('Errore recupero template più usati:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore recupero template', 'FETCH_TEMPLATES_ERROR')
+    );
+  }
+});
+
+// ====================================
+// API PER VALIDAZIONE
+// ====================================
+
+/**
+ * POST /api/whatsapp/validate-number - Valida numero
+ */
+router.post('/validate-number', authenticate, async (req: any, res: Response) => {
+  try {
+    const { number, country } = req.body;
+    
+    if (!number) {
+      return res.status(400).json(
+        ResponseFormatter.error('Numero richiesto', 'VALIDATION_ERROR')
+      );
+    }
+    
+    const validated = await whatsAppValidation.validatePhoneNumber(number, {
+      country: country || 'IT',
+      checkWhatsApp: true
+    });
+    
+    if (!validated.isValid) {
+      return res.status(400).json(
+        ResponseFormatter.error(
+          validated.error || 'Numero non valido',
+          'INVALID_NUMBER',
+          { formatted: validated.formatted }
+        )
+      );
+    }
+    
+    return res.json(ResponseFormatter.success({
+      ...validated,
+      displayFormat: whatsAppValidation.formatForDisplay(validated.formatted, validated.country)
+    }, 'Numero valido'));
+    
+  } catch (error: any) {
+    logger.error('Errore validazione numero:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore validazione', 'VALIDATION_ERROR')
+    );
+  }
+});
+
+/**
+ * POST /api/whatsapp/validate-batch - Valida multipli numeri
+ */
+router.post('/validate-batch', authenticate, async (req: any, res: Response) => {
+  try {
+    const { numbers, country } = req.body;
+    
+    if (!numbers || !Array.isArray(numbers)) {
+      return res.status(400).json(
+        ResponseFormatter.error('Lista numeri richiesta', 'VALIDATION_ERROR')
+      );
+    }
+    
+    const results = await whatsAppValidation.validateBatch(numbers, {
+      country: country || 'IT',
+      checkWhatsApp: false
+    });
+    
+    const summary = {
+      total: results.length,
+      valid: results.filter(r => r.isValid).length,
+      invalid: results.filter(r => !r.isValid).length,
+      results
+    };
+    
+    return res.json(ResponseFormatter.success(summary, 'Validazione completata'));
+    
+  } catch (error: any) {
+    logger.error('Errore validazione batch:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore validazione batch', 'BATCH_VALIDATION_ERROR')
+    );
+  }
+});
+
+/**
+ * POST /api/whatsapp/extract-numbers - Estrai numeri da testo
+ */
+router.post('/extract-numbers', authenticate, async (req: any, res: Response) => {
+  try {
+    const { text } = req.body;
+    
+    if (!text) {
+      return res.status(400).json(
+        ResponseFormatter.error('Testo richiesto', 'VALIDATION_ERROR')
+      );
+    }
+    
+    const numbers = whatsAppValidation.extractPhoneNumbersFromText(text);
+    
+    // Valida i numeri estratti
+    const validated = await whatsAppValidation.validateBatch(numbers, {
+      country: 'IT'
+    });
+    
+    return res.json(ResponseFormatter.success({
+      extracted: numbers,
+      validated: validated.filter(v => v.isValid)
+    }, 'Numeri estratti'));
+    
+  } catch (error: any) {
+    logger.error('Errore estrazione numeri:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore estrazione numeri', 'EXTRACTION_ERROR')
+    );
+  }
+});
+
+// ====================================
+// API STATISTICHE ERRORI
+// ====================================
+
+/**
+ * GET /api/whatsapp/error-stats - Statistiche errori
+ */
+router.get('/error-stats', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), async (req: any, res: Response) => {
+  try {
+    const stats = whatsAppErrorHandler.getErrorStats();
+    
+    return res.json(ResponseFormatter.success(stats, 'Statistiche errori'));
+    
+  } catch (error: any) {
+    logger.error('Errore recupero statistiche:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore recupero statistiche', 'STATS_ERROR')
+    );
+  }
+});
+
+/**
+ * POST /api/whatsapp/error-stats/reset - Reset contatori errori
+ */
+router.post('/error-stats/reset', authenticate, checkRole(['SUPER_ADMIN']), async (req: any, res: Response) => {
+  try {
+    whatsAppErrorHandler.resetErrorCounts();
+    
+    return res.json(ResponseFormatter.success(null, 'Contatori errori resettati'));
+    
+  } catch (error: any) {
+    logger.error('Errore reset contatori:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore reset contatori', 'RESET_ERROR')
+    );
+  }
+});
+
+// ====================================
+// ROUTE ESISTENTI (non modificate)
+// ====================================
+
+// VECCHIO ENDPOINT - COMMENTATO PERCHÉ DUPLICATO
+/*
+/**
+ * GET /api/whatsapp/messages - Ottieni tutti i messaggi 
+*/
+/*
+router.get('/messages', authenticate, async (req: any, res: Response) => {
+try {
+const limit = parseInt(req.query.limit as string) || 50;
+const offset = parseInt(req.query.offset as string) || 0;
+
+const messages = await prisma.whatsAppMessage.findMany({
+take: limit,
+skip: offset,
+orderBy: { timestamp: 'desc' },
+  include: {
+    user: true
+  }
+  });
+
+return res.json(ResponseFormatter.success(messages, 'Messaggi recuperati'));
+} catch (error: any) {
+logger.error('Errore recupero messaggi:', error);
+  return res.status(500).json(
+      ResponseFormatter.error('Errore recupero messaggi', 'FETCH_MESSAGES_ERROR')
+    );
+  }
+});
+*/
+
+/**
+ * GET /api/whatsapp/messages/:phoneNumber - Ottieni messaggi di un numero
+ */
+router.get('/messages/:phoneNumber', authenticate, async (req: any, res: Response) => {
   try {
     const { phoneNumber } = req.params;
     
     const messages = await prisma.whatsAppMessage.findMany({
       where: { phoneNumber },
-      orderBy: { createdAt: 'asc' }
-    });
-    
-    // Genera il file di testo
-    let content = `Chat WhatsApp con ${phoneNumber}\n`;
-    content += `Esportata il: ${new Date().toLocaleString('it-IT')}\n`;
-    content += `Totale messaggi: ${messages.length}\n`;
-    content += '='.repeat(50) + '\n\n';
-    
-    messages.forEach(msg => {
-      const date = new Date(msg.createdAt).toLocaleString('it-IT');
-      const direction = msg.direction === 'inbound' ? '📥 Ricevuto' : '📤 Inviato';
-      content += `[${date}] ${direction}\n`;
-      content += `${msg.message}\n`;
-      if (msg.mediaUrl) {
-        content += `Media: ${msg.mediaUrl}\n`;
-      }
-      content += '\n';
-    });
-    
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="chat_${phoneNumber}.txt"`);
-    return res.send(content);
-  } catch (error: any) {
-    logger.error('Errore export chat:', error);
-    return res.status(500).json(
-      ResponseFormatter.error('Errore export', 'EXPORT_ERROR')
-    );
-  }
-});
-
-/**
- * POST /api/whatsapp/send-media
- * Invia un messaggio con media
- */
-router.post('/send-media', authenticate, async (req: any, res) => {
-  try {
-    const { phoneNumber, message, mediaUrl, mediaType } = req.body;
-    
-    if (!phoneNumber || !mediaUrl) {
-      return res.status(400).json(
-        ResponseFormatter.error('Numero e media URL obbligatori', 'MISSING_FIELDS')
-      );
-    }
-    
-    const result = await whatsappService.sendMediaMessage(
-      phoneNumber,
-      message || '',
-      mediaUrl
-    );
-    
-    // Salva nel database
-    await prisma.whatsAppMessage.create({
-      data: {
-        phoneNumber,
-        message: message || `📎 Media ${mediaType || 'file'}`,
-        type: mediaType || 'document',
-        status: 'sent',
-        direction: 'outbound',
-        mediaUrl,
-        timestamp: new Date(),
-        metadata: {
-          sentBy: req.user.id,
-          sentByName: req.user.fullName
-        }
+      orderBy: { timestamp: 'asc' },
+      include: {
+        contact: true
       }
     });
     
-    logger.info(`Media inviato da ${req.user.email} a ${phoneNumber}`);
-    
-    return res.json(ResponseFormatter.success(result, 'Media inviato'));
-  } catch (error: any) {
-    logger.error('Errore invio media:', error);
-    return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore invio media', 'SEND_MEDIA_ERROR')
-    );
-  }
-});
-
-/**
- * GET /api/whatsapp/templates
- * Recupera i template di risposta
- */
-router.get('/templates', authenticate, async (req, res) => {
-  try {
-    // Per ora restituiamo template statici, in futuro dal database
-    const templates = [
-      { id: 1, name: 'Saluto', text: 'Ciao! Come posso aiutarti?' },
-      { id: 2, name: 'Attesa', text: 'Un momento, verifico e ti rispondo subito.' },
-      { id: 3, name: 'Grazie', text: 'Grazie per averci contattato! A presto!' },
-      { id: 4, name: 'Orari', text: 'I nostri orari sono:\n• Lun-Ven: 9:00-18:00\n• Sab: 9:00-13:00' },
-      { id: 5, name: 'Contatti', text: 'Per assistenza urgente chiama il numero principale.' },
-      { id: 6, name: 'Indirizzo', text: 'Ci trovi in Via Roma 1, 00100 Roma' },
-      { id: 7, name: 'Preventivo', text: 'Per un preventivo gratuito, inviaci i dettagli della tua richiesta.' },
-      { id: 8, name: 'Conferma', text: 'Confermo la ricezione del tuo messaggio. Ti risponderò al più presto.' }
-    ];
-    
-    return res.json(ResponseFormatter.success(templates, 'Template recuperati'));
-  } catch (error: any) {
-    logger.error('Errore recupero template:', error);
-    return res.status(500).json(
-      ResponseFormatter.error('Errore recupero template', 'TEMPLATES_ERROR')
-    );
-  }
-});
-
-/**
- * DELETE /api/whatsapp/messages/:id
- * Elimina un messaggio (soft delete)
- */
-router.delete('/messages/:id', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // Soft delete - aggiorna solo lo status
-    await prisma.whatsAppMessage.update({
-      where: { id },
-      data: {
-        status: 'deleted',
-        metadata: {
-          deletedBy: req.user.id,
-          deletedAt: new Date().toISOString()
-        }
-      }
-    });
-    
-    return res.json(ResponseFormatter.success(null, 'Messaggio eliminato'));
-  } catch (error: any) {
-    logger.error('Errore eliminazione messaggio:', error);
-    return res.status(500).json(
-      ResponseFormatter.error('Errore eliminazione', 'DELETE_ERROR')
-    );
-  }
-});
-
-/**
- * GET /api/whatsapp/settings
- * Recupera tutte le impostazioni WhatsApp
- */
-router.get('/settings', authenticate, async (req, res) => {
-  try {
-    // Recupera tutte le impostazioni WhatsApp dal database
-    const settings = await prisma.systemSetting.findMany({
-      where: {
-        key: {
-          startsWith: 'whatsapp_'
-        }
-      }
-    });
-    
-    // Converti in oggetto strutturato
-    const settingsObj: any = {
-      autoReplyEnabled: false,
-      autoReplyMessage: '',
-      autoReplyDelay: 0,
-      pollingEnabled: false,
-      pollingInterval: 30,
-      notifyAdminsNewNumber: true,
-      notifyAdminsNewMessage: true
-    };
-    
-    settings.forEach(setting => {
-      switch(setting.key) {
-        case 'whatsapp_auto_reply_enabled':
-          settingsObj.autoReplyEnabled = setting.value === 'true';
-          break;
-        case 'whatsapp_auto_reply_message':
-          settingsObj.autoReplyMessage = setting.value;
-          break;
-        case 'whatsapp_auto_reply_delay':
-          settingsObj.autoReplyDelay = parseInt(setting.value) || 0;
-          break;
-        case 'whatsapp_polling_enabled':
-          settingsObj.pollingEnabled = setting.value === 'true';
-          break;
-        case 'whatsapp_polling_interval':
-          settingsObj.pollingInterval = parseInt(setting.value) || 30;
-          break;
-        case 'whatsapp_notify_admins_new_number':
-          settingsObj.notifyAdminsNewNumber = setting.value === 'true';
-          break;
-        case 'whatsapp_notify_admins_new_message':
-          settingsObj.notifyAdminsNewMessage = setting.value === 'true';
-          break;
-        case 'whatsapp_business_hours':
-          try {
-            settingsObj.businessHours = JSON.parse(setting.value);
-          } catch (e) {
-            // Ignora errori di parsing
-          }
-          break;
-      }
-    });
-    
-    return res.json(ResponseFormatter.success(settingsObj, 'Impostazioni recuperate'));
-  } catch (error: any) {
-    logger.error('Errore recupero impostazioni WhatsApp:', error);
-    return res.status(500).json(
-      ResponseFormatter.error('Errore recupero impostazioni', 'SETTINGS_ERROR')
-    );
-  }
-});
-
-/**
- * POST /api/whatsapp/settings
- * Salva o aggiorna una impostazione di sistema WhatsApp
- */
-router.post('/settings', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req: any, res) => {
-  try {
-    const { key, value } = req.body;
-    
-    if (!key || value === undefined) {
-      return res.status(400).json(
-        ResponseFormatter.error('Key e value sono obbligatori', 'MISSING_FIELDS')
-      );
-    }
-    
-    // Upsert: aggiorna se esiste, altrimenti crea
-    const setting = await prisma.systemSetting.upsert({
-      where: { key },
-      update: {
-        value,
-        updatedAt: new Date()
-      },
-      create: {
-        key,
-        value,
-        category: 'WHATSAPP',
-        description: `Impostazione WhatsApp: ${key}`
-      }
-    });
-    
-    logger.info(`Impostazione ${key} aggiornata da ${req.user.email}`);
-    
-    return res.json(ResponseFormatter.success(setting, 'Impostazione salvata'));
-  } catch (error: any) {
-    logger.error('Errore salvataggio impostazione:', error);
-    return res.status(500).json(
-      ResponseFormatter.error('Errore salvataggio', 'SAVE_ERROR')
-    );
-  }
-});
-
-/**
- * GET /api/whatsapp/messages
- * Recupera lo storico messaggi
- */
-router.get('/messages', authenticate, async (req, res) => {
-  try {
-    const { phoneNumber, limit = 50, offset = 0 } = req.query;
-    
-    const where: any = {};
-    if (phoneNumber) {
-      where.phoneNumber = phoneNumber as string;
-    }
-    
-    const messages = await prisma.whatsAppMessage.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      take: Number(limit),
-      skip: Number(offset)
-    });
-    
-    const total = await prisma.whatsAppMessage.count({ where });
-    
-    return res.json(ResponseFormatter.success(
-      { messages, total },
-      'Messaggi recuperati'
-    ));
+    return res.json(ResponseFormatter.success(messages, 'Messaggi recuperati'));
   } catch (error: any) {
     logger.error('Errore recupero messaggi:', error);
     return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore recupero messaggi', 'GET_MESSAGES_ERROR')
+      ResponseFormatter.error('Errore recupero messaggi', 'FETCH_MESSAGES_ERROR')
     );
   }
 });
 
 /**
- * GET /api/whatsapp/stats
- * Statistiche WhatsApp
+ * POST /api/whatsapp/messages/:id/read - Segna messaggio come letto
  */
-router.get('/stats', authenticate, async (req, res) => {
+router.post('/messages/:id/read', authenticate, async (req: any, res: Response) => {
   try {
-    const stats = await prisma.whatsAppMessage.groupBy({
-      by: ['direction', 'status'],
-      _count: true
-    });
+    const { id } = req.params;
     
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const todayMessages = await prisma.whatsAppMessage.count({
-      where: {
-        createdAt: { gte: today }
+    // Il modello WhatsAppMessage non ha readAt e readBy, solo status
+    await prisma.whatsAppMessage.update({
+      where: { id },
+      data: { 
+        status: 'READ'
       }
     });
     
-    const totalMessages = await prisma.whatsAppMessage.count();
+    return res.json(ResponseFormatter.success(null, 'Messaggio segnato come letto'));
+  } catch (error: any) {
+    logger.error('Errore marcatura messaggio:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore marcatura messaggio', 'MARK_READ_ERROR')
+    );
+  }
+});
+
+/**
+ * PUT /api/whatsapp/messages/:id/read - Segna messaggio come letto (retrocompatibilità)
+ */
+router.put('/messages/:id/read', authenticate, async (req: any, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    // Il modello WhatsAppMessage non ha readAt e readBy, solo status
+    await prisma.whatsAppMessage.update({
+      where: { id },
+      data: { 
+        status: 'READ'
+      }
+    });
+    
+    return res.json(ResponseFormatter.success(null, 'Messaggio segnato come letto'));
+  } catch (error: any) {
+    logger.error('Errore marcatura messaggio:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore marcatura messaggio', 'MARK_READ_ERROR')
+    );
+  }
+});
+
+/**
+ * GET /api/whatsapp/status - Stato connessione
+ */
+router.get('/status', authenticate, async (req: any, res: Response) => {
+  try {
+    const status = await wppConnectService.getConnectionStatus();
+    const qrCode = await wppConnectService.getQRCodeAsImage();
+    const instanceName = wppConnectService.getSessionName();
     
     return res.json(ResponseFormatter.success({
-      stats,
-      todayMessages,
-      totalMessages
+      connected: status.connected,
+      status: status.connected ? 'connected' : 'disconnected',
+      provider: 'wppconnect',
+      qrCode: status.qrCode || qrCode,
+      message: status.connected ? 'WhatsApp connesso' : 'WhatsApp non connesso',
+      instanceName: instanceName
+    }, 'Stato WhatsApp recuperato'));
+  } catch (error: any) {
+    logger.error('Errore recupero stato:', error);
+    
+    const whatsAppError = await whatsAppErrorHandler.handleError(error, 'getStatus');
+    
+    return res.status(500).json(
+      ResponseFormatter.error(whatsAppError.message, 'STATUS_ERROR')
+    );
+  }
+});
+
+/**
+ * POST /api/whatsapp/initialize - Inizializza connessione
+ */
+router.post('/initialize', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), async (req: any, res: Response) => {
+  try {
+    const success = await wppConnectService.initialize();
+    
+    // Attendi un momento per la generazione del QR
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    const status = await wppConnectService.getConnectionStatus();
+    const qrCode = await wppConnectService.getQRCodeAsImage();
+    
+    return res.json(ResponseFormatter.success({
+      success,
+      connected: status.connected,
+      qrCode: status.qrCode || qrCode
+    }, 'WhatsApp inizializzato'));
+  } catch (error: any) {
+    logger.error('Errore inizializzazione:', error);
+    
+    const whatsAppError = await whatsAppErrorHandler.handleError(error, 'initialize');
+    
+    return res.status(500).json(
+      ResponseFormatter.error(whatsAppError.message, 'INIT_ERROR')
+    );
+  }
+});
+
+/**
+ * GET /api/whatsapp/qrcode - Ottieni QR Code
+ */
+router.get('/qrcode', authenticate, async (req: any, res: Response) => {
+  try {
+    const status = await wppConnectService.getConnectionStatus();
+    
+    if (status.connected) {
+      return res.json(ResponseFormatter.success(
+        { connected: true, message: 'WhatsApp già connesso' },
+        'WhatsApp già connesso'
+      ));
+    }
+    
+    let qrCode = status.qrCode || await wppConnectService.getQRCodeAsImage();
+    
+    if (!qrCode) {
+      // Prova a rigenerare
+      await wppConnectService.initialize();
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      qrCode = await wppConnectService.getQRCodeAsImage();
+    }
+    
+    if (qrCode) {
+      return res.json(ResponseFormatter.success(
+        { qrCode },
+        'QR Code disponibile'
+      ));
+    }
+    
+    return res.status(400).json(
+      ResponseFormatter.error('QR Code non disponibile. Riprova tra qualche secondo.', 'QR_NOT_READY')
+    );
+  } catch (error: any) {
+    logger.error('Errore generazione QR:', error);
+    
+    const whatsAppError = await whatsAppErrorHandler.handleError(error, 'getQRCode');
+    
+    if (whatsAppError.type === WhatsAppErrorType.CONNECTION_ERROR && error.message?.includes('già connesso')) {
+      return res.json(ResponseFormatter.success(
+        { connected: true, message: 'WhatsApp già connesso' },
+        'WhatsApp già connesso'
+      ));
+    }
+    
+    return res.status(500).json(
+      ResponseFormatter.error(whatsAppError.message, 'QR_ERROR')
+    );
+  }
+});
+
+/**
+ * POST /api/whatsapp/disconnect - Disconnetti WhatsApp
+ */
+router.post('/disconnect', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), async (req: any, res: Response) => {
+  try {
+    await wppConnectService.disconnect();
+    
+    return res.json(ResponseFormatter.success(null, 'WhatsApp disconnesso'));
+  } catch (error: any) {
+    logger.error('Errore disconnessione:', error);
+    
+    const whatsAppError = await whatsAppErrorHandler.handleError(error, 'disconnect');
+    
+    return res.status(500).json(
+      ResponseFormatter.error(whatsAppError.message, 'DISCONNECT_ERROR')
+    );
+  }
+});
+
+/**
+ * POST /api/whatsapp/reconnect - Riconnetti WhatsApp
+ */
+router.post('/reconnect', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), async (req: any, res: Response) => {
+  try {
+    // Disconnetti prima
+    await wppConnectService.disconnect();
+    
+    // Attendi
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Reinizializza
+    const success = await wppConnectService.initialize();
+    
+    // Attendi per QR
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    const status = await wppConnectService.getConnectionStatus();
+    const qrCode = await wppConnectService.getQRCodeAsImage();
+    
+    return res.json(ResponseFormatter.success({
+      success,
+      connected: status.connected,
+      qrCode: status.qrCode || qrCode
+    }, 'WhatsApp riconnesso'));
+  } catch (error: any) {
+    logger.error('Errore riconnessione:', error);
+    
+    const whatsAppError = await whatsAppErrorHandler.handleError(error, 'reconnect');
+    
+    return res.status(500).json(
+      ResponseFormatter.error(whatsAppError.message, 'RECONNECT_ERROR')
+    );
+  }
+});
+
+/**
+ * GET /api/whatsapp/contacts - Ottieni contatti WhatsApp
+ */
+router.get('/contacts', authenticate, async (req: any, res: Response) => {
+  try {
+    const { isUser, isBusiness, isFavorite } = req.query;
+    
+    const where: any = {};
+    
+    if (isUser === 'true') where.isUser = true;
+    if (isBusiness === 'true') where.isBusiness = true;
+    if (isFavorite === 'true') where.isFavorite = true;
+    
+    const contacts = await prisma.whatsAppContact.findMany({
+      where,
+      orderBy: { name: 'asc' },
+      include: {
+        user: true,
+        messages: {
+          take: 1,
+          orderBy: { timestamp: 'desc' }
+        }
+      }
+    });
+    
+    return res.json(ResponseFormatter.success(contacts, 'Contatti recuperati'));
+  } catch (error: any) {
+    logger.error('Errore recupero contatti:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore recupero contatti', 'FETCH_CONTACTS_ERROR')
+    );
+  }
+});
+
+/**
+ * GET /api/whatsapp/stats - Statistiche WhatsApp
+ */
+router.get('/stats', authenticate, async (req: any, res: Response) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const [totalMessages, todayMessages, sentMessages, receivedMessages, totalContacts] = await Promise.all([
+      prisma.whatsAppMessage.count(),
+      prisma.whatsAppMessage.count({
+        where: { createdAt: { gte: today } }
+      }),
+      prisma.whatsAppMessage.count({
+        where: { direction: 'outgoing' }
+      }),
+      prisma.whatsAppMessage.count({
+        where: { direction: 'incoming' }
+      }),
+      prisma.whatsAppContact.count()
+    ]);
+    
+    // Controlla quando si è connesso l'ultima volta
+    const lastConnection = await prisma.systemSetting.findFirst({
+      where: { key: 'wpp_connected_at' }
+    });
+    
+    // Ottieni stato connessione
+    const status = await wppConnectService.getConnectionStatus();
+    
+    // Ottieni statistiche errori
+    const errorStats = whatsAppErrorHandler.getErrorStats();
+    
+    return res.json(ResponseFormatter.success({
+      messages: {
+        total: totalMessages,
+        today: todayMessages,
+        sent: sentMessages,
+        received: receivedMessages
+      },
+      contacts: {
+        total: totalContacts
+      },
+      connection: {
+        isConnected: status.connected,
+        connectedSince: lastConnection ? new Date(lastConnection.value) : null,
+        provider: 'wppconnect'
+      },
+      errors: errorStats,
+      lastSync: new Date()
     }, 'Statistiche WhatsApp'));
   } catch (error: any) {
     logger.error('Errore recupero statistiche:', error);
     return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore statistiche', 'STATS_ERROR')
+      ResponseFormatter.error('Errore recupero statistiche', 'STATS_ERROR')
     );
   }
 });
 
-// Import necessario per Prisma
+/**
+ * GET /api/whatsapp/system-info - Ottieni informazioni sistema WhatsApp
+ */
+router.get('/system-info', authenticate, async (req: any, res: Response) => {
+  try {
+    const systemInfo = await wppConnectService.getSystemInfo();
+    return res.json(ResponseFormatter.success(systemInfo, 'Informazioni sistema'));
+  } catch (error: any) {
+    logger.error('Errore recupero system info:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore recupero informazioni sistema', 'SYSTEM_INFO_ERROR')
+    );
+  }
+});
+
+/**
+ * GET /api/whatsapp/detailed-stats - Ottieni statistiche dettagliate
+ */
+router.get('/detailed-stats', authenticate, async (req: any, res: Response) => {
+  try {
+    const stats = await wppConnectService.getDetailedStats();
+    return res.json(ResponseFormatter.success(stats, 'Statistiche dettagliate'));
+  } catch (error: any) {
+    logger.error('Errore recupero statistiche dettagliate:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore recupero statistiche', 'DETAILED_STATS_ERROR')
+    );
+  }
+});
+
+/**
+ * GET /api/whatsapp/messages - Recupera messaggi WhatsApp
+ */
+router.get('/messages', authenticate, async (req: any, res: Response) => {
+  try {
+    const { page = 1, limit = 20, phoneNumber, direction, status } = req.query;
+    
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const take = parseInt(limit as string);
+    
+    // Costruisci filtri
+    const where: any = {};
+    if (phoneNumber) where.phoneNumber = { contains: phoneNumber as string };
+    if (direction) where.direction = direction;
+    if (status) where.status = status;
+    
+    // Query database
+    const [messages, total] = await Promise.all([
+      prisma.whatsAppMessage.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { timestamp: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true
+            }
+          },
+          request: {
+            select: {
+              id: true,
+              title: true,
+              status: true
+            }
+          }
+        }
+      }),
+      prisma.whatsAppMessage.count({ where })
+    ]);
+    
+    return res.json(ResponseFormatter.success({
+      data: messages,
+      pagination: {
+        page: parseInt(page as string),
+        limit: take,
+        total,
+        pages: Math.ceil(total / take)
+      }
+    }, 'Messaggi recuperati'));
+  } catch (error: any) {
+    logger.error('Errore recupero messaggi:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore recupero messaggi', 'MESSAGES_ERROR')
+    );
+  }
+});
+
+/**
+ * GET /api/whatsapp/info - Informazioni sistema WhatsApp (alias per retrocompatibilità)
+ */
+router.get('/info', authenticate, async (req: any, res: Response) => {
+  try {
+    const info = await wppConnectService.getSystemInfo();
+    return res.json(ResponseFormatter.success(info, 'Info WhatsApp'));
+  } catch (error: any) {
+    logger.error('Errore recupero info:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore recupero info', 'INFO_ERROR')
+    );
+  }
+});
+
+// Importa prisma per le query dirette
 import { prisma } from '../config/database';
+import { sessionManager } from '../services/whatsapp-session-manager';
+import { healthMonitor } from '../services/whatsapp-health-monitor';
+
+/**
+ * POST /api/whatsapp/session/backup - Crea backup manuale della sessione
+ */
+router.post('/session/backup', authenticate, async (req: any, res: Response) => {
+  try {
+    await sessionManager.backupSession();
+    return res.json(ResponseFormatter.success(null, 'Backup sessione creato'));
+  } catch (error: any) {
+    logger.error('Errore backup sessione:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore backup sessione', 'BACKUP_ERROR')
+    );
+  }
+});
+
+/**
+ * POST /api/whatsapp/session/restore - Ripristina sessione salvata
+ */
+router.post('/session/restore', authenticate, async (req: any, res: Response) => {
+  try {
+    // Prima disconnetti se connesso
+    await wppConnectService.disconnect();
+    
+    // Aspetta un po'
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Reinizializza con sessione salvata
+    await wppConnectService.initialize();
+    
+    return res.json(ResponseFormatter.success(null, 'Sessione ripristinata'));
+  } catch (error: any) {
+    logger.error('Errore ripristino sessione:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore ripristino sessione', 'RESTORE_ERROR')
+    );
+  }
+});
+
+/**
+ * POST /api/whatsapp/session/autosave - Attiva/disattiva auto-save
+ */
+router.post('/session/autosave', authenticate, async (req: any, res: Response) => {
+  try {
+    const { enabled } = req.body;
+    
+    if (enabled) {
+      healthMonitor.start(30000); // Start health monitoring
+      return res.json(ResponseFormatter.success(null, 'Auto-save attivato'));
+    } else {
+      healthMonitor.stop(); // Stop health monitoring
+      return res.json(ResponseFormatter.success(null, 'Auto-save disattivato'));
+    }
+  } catch (error: any) {
+    logger.error('Errore cambio auto-save:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore cambio auto-save', 'AUTOSAVE_ERROR')
+    );
+  }
+});
+
+/**
+ * DELETE /api/whatsapp/session - Elimina sessione salvata
+ */
+router.delete('/session', authenticate, async (req: any, res: Response) => {
+  try {
+    await sessionManager.deleteSession();
+    return res.json(ResponseFormatter.success(null, 'Sessione eliminata'));
+  } catch (error: any) {
+    logger.error('Errore eliminazione sessione:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore eliminazione sessione', 'DELETE_ERROR')
+    );
+  }
+});
 
 export default router;
