@@ -1,0 +1,1 @@
+sed 's/"build": "tsc && vite build"/"build": "vite build"/' package.json > temp.json && mv temp.json package.json

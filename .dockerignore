@@ -33,3 +33,11 @@ temp/
 cache/
 uploads/
 scripts/
+*.backup
+*.backup-*
+*.broken
+*backup*
+backups/
+backup-*.sql
+backup-*.sh
+tests-backup/
