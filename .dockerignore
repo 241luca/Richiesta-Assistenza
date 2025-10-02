@@ -1,0 +1,35 @@
+# ================================
+# .dockerignore
+# ================================
+
+node_modules/
+npm-debug.log*
+.env
+.env.local
+.vscode/
+.idea/
+*.log
+logs/
+dist/
+build/
+coverage/
+.git/
+.gitignore
+README.md
+*.md
+DOCUMENTAZIONE/
+docs/
+*.backup
+*.backup-*
+database-backups/
+backup/
+Dockerfile
+docker-compose*.yml
+.dockerignore
+.github/
+tmp/
+temp/
+*.tmp
+cache/
+uploads/
+scripts/
