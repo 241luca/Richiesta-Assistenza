@@ -247,11 +247,11 @@ export class ApiKeyService {
         case 'TINYMCE':
           // Per TinyMCE, verifichiamo solo che la key abbia il formato corretto
           // Le chiavi TinyMCE sono solitamente alfanumeriche di almeno 20 caratteri
-          return key && key.length >= 20;
+          return !!(key && key.length >= 20);
         case 'whatsapp':
           // Per WhatsApp, verifichiamo solo che la key esista
           // La validazione completa avviene quando si inizializza
-          return key && key.length > 10;
+          return !!(key && key.length > 10);
         default:
           return false;
       }
@@ -269,7 +269,7 @@ export class ApiKeyService {
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?address=Rome,Italy&key=${key}`
       );
-      const data = await response.json();
+      const data = await response.json() as any;
       return data.status !== 'REQUEST_DENIED';
     } catch {
       return false;

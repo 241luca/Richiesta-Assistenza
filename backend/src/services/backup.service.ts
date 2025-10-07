@@ -29,6 +29,59 @@ import { v4 as uuidv4 } from 'uuid';
 import * as cleanupConfigService from './cleanup-config.service';
 import { auditLogService } from './auditLog.service';
 import { notificationService } from './notification.service';
+import { SystemBackup } from '@prisma/client';
+
+// ========================================
+// INTERFACCE TYPESCRIPT
+// ========================================
+
+/**
+ * Configurazione di cleanup
+ */
+interface CleanupConfig {
+  directoryFormat?: string;
+  maxDepth?: number;
+  preserveStructure?: boolean;
+  createReadme?: boolean;
+  retentionDays?: number;
+  notifyOnCleanup?: boolean;
+  notifyEmails?: string[];
+  targetDirectory?: string;
+}
+
+/**
+ * Statistiche backup
+ */
+interface BackupStats {
+  total: number;
+  valid: number;
+  byType: {
+    database: number;
+    code: number;
+    uploads: number;
+  };
+  totalSize: string;
+  totalSizeBytes: string;
+}
+
+/**
+ * Directory di cleanup
+ */
+interface CleanupDirectory {
+  name: string;
+  path: string;
+  size: string;
+  createdAt: Date;
+  fileCount: number;
+}
+
+/**
+ * Risultato del cleanup
+ */
+interface CleanupResult {
+  movedCount: number;
+  cleanupDir: string;
+}
 
 const execAsync = promisify(exec);
 
@@ -39,8 +92,19 @@ interface BackupResult {
   type: BackupType | 'UPLOADS';  // UPLOADS è per il frontend
   filename: string;
   filePath: string;
-  fileSize: bigint | string;  // Può essere bigint internamente o string per JSON
+  fileSize: string;  // Sempre string per evitare problemi di serializzazione
   createdAt: Date;
+}
+
+/**
+ * Notifica per sistema backup
+ */
+interface BackupNotification {
+  title: string;
+  message: string;
+  type: string;
+  priority: 'LOW' | 'NORMAL' | 'HIGH';
+  data: Record<string, any>;
 }
 
 class SimpleBackupService {
@@ -390,7 +454,7 @@ class SimpleBackupService {
   /**
    * 4. LISTA BACKUP - Solo quelli che esistono fisicamente!
    */
-  async listBackups(type?: BackupType): Promise<any[]> {
+  async listBackups(type?: BackupType): Promise<SystemBackup[]> {
     try {
       const where = type ? { type } : {};
       
@@ -415,14 +479,13 @@ class SimpleBackupService {
 
       // Converti per il frontend - ritorna oggetto diretto
       return existingBackups.map(backup => ({
-        id: backup.id,
-        type: backup.type === 'FILES' ? 'UPLOADS' : backup.type,  // Mappa FILES a UPLOADS
-        filename: backup.name || backup.filePath.split('/').pop(),  // Usa name o estrai dal path
-        filePath: backup.filePath,
+        ...backup,
+        type: backup.type === 'FILES' ? 'UPLOADS' as BackupType : backup.type,  // Mappa FILES a UPLOADS
+        filename: backup.name || backup.filePath?.split('/').pop() || 'unknown',  // Usa name o estrai dal path
         file_size: backup.fileSize?.toString() || '0', // Converti BigInt in stringa
         created_at: backup.createdAt,
         createdBy: backup.createdById  // Usa createdById
-      }));
+      })) as SystemBackup[];
 
     } catch (error) {
       logger.error('Error listing backups:', error);
@@ -434,7 +497,7 @@ class SimpleBackupService {
   /**
    * 5. GET SINGOLO BACKUP
    */
-  async getBackup(backupId: string): Promise<any> {
+  async getBackup(backupId: string): Promise<SystemBackup | null> {
     try {
       const backup = await prisma.systemBackup.findUnique({
         where: { id: backupId }
@@ -445,7 +508,7 @@ class SimpleBackupService {
       }
 
       // Verifica che il file esista
-      if (!fs.existsSync(backup.filePath)) {
+      if (!backup.filePath || !fs.existsSync(backup.filePath)) {
         logger.warn(`Backup file not found: ${backup.filePath}`);
         return null;
       }
@@ -453,8 +516,8 @@ class SimpleBackupService {
       // Converti BigInt in stringa per evitare errori di serializzazione
       return {
         ...backup,
-        fileSize: backup.fileSize.toString()
-      };
+        fileSize: backup.fileSize?.toString() || '0'
+      } as SystemBackup;
 
     } catch (error) {
       logger.error('Error getting backup:', error);
@@ -480,18 +543,18 @@ class SimpleBackupService {
 
       // Salva info del backup prima di eliminarlo per l'audit log
       const backupInfo = {
-        name: backup.name,
+        name: backup.name || 'Unknown',
         type: backup.type,
         size: backup.fileSize?.toString() || '0',
-        path: backup.filePath
+        path: backup.filePath || 'Unknown'
       };
 
       // Elimina file fisico se esiste
-      if (fs.existsSync(backup.filePath)) {
+      if (backup.filePath && fs.existsSync(backup.filePath)) {
         fs.unlinkSync(backup.filePath);
         logger.info(`Deleted backup file: ${backup.filePath}`);
       } else {
-        logger.warn(`Backup file already missing: ${backup.filePath}`);
+        logger.warn(`Backup file already missing: ${backup.filePath || 'No path'}`);
       }
 
       // Elimina record dal database
@@ -535,7 +598,7 @@ class SimpleBackupService {
   /**
    * 7. STATISTICHE BACKUP
    */
-  async getBackupStats(): Promise<any> {
+  async getBackupStats(): Promise<BackupStats> {
     try {
       // Conta per tipo
       const [totalCount, dbCount, codeCount, uploadsCount] = await Promise.all([
@@ -557,8 +620,8 @@ class SimpleBackupService {
       let validCount = 0;
 
       for (const backup of backups) {
-        if (fs.existsSync(backup.filePath)) {
-          totalSize += backup.fileSize;
+        if (backup.filePath && fs.existsSync(backup.filePath)) {
+          totalSize += backup.fileSize || BigInt(0);
           validCount++;
         }
       }
@@ -596,15 +659,15 @@ class SimpleBackupService {
    * 9. PULIZIA FILE TEMPORANEI DI SVILUPPO
    * Usa la configurazione dal database per determinare cosa spostare
    */
-  async cleanupDevelopmentFiles(): Promise<{ movedCount: number; cleanupDir: string }> {
+  async cleanupDevelopmentFiles(): Promise<CleanupResult> {
     let executionId: string | undefined;  // Dichiarazione fuori dal try
     
     try {
       // Recupera configurazione dal database
-      const config = await cleanupConfigService.getCleanupConfig();
-      const patterns = await cleanupConfigService.getActivePatterns();
-      const excludedFiles = await cleanupConfigService.getActiveExcludedFiles();
-      const excludedDirs = await cleanupConfigService.getActiveExcludedDirectories();
+      const config = await cleanupConfigService.getCleanupConfig() as CleanupConfig;
+      const patterns = await cleanupConfigService.getActivePatterns() as string[];
+      const excludedFiles = await cleanupConfigService.getActiveExcludedFiles() as string[];
+      const excludedDirs = await cleanupConfigService.getActiveExcludedDirectories() as string[];
       
       // Genera nome directory con formato configurato
       const now = new Date();

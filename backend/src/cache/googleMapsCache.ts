@@ -85,7 +85,6 @@ export class GoogleMapsCacheService {
         port: parseInt(process.env.REDIS_PORT || '6379'),
         password: process.env.REDIS_PASSWORD,
         db: parseInt(process.env.REDIS_MAPS_DB || '2'), // DB dedicato per Google Maps
-        retryDelayOnFailover: 100,
         maxRetriesPerRequest: 3,
         lazyConnect: true,
         commandTimeout: 5000,

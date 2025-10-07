@@ -153,11 +153,14 @@ app.get('/ws-test', (_, res) => {
 
 // Base routes
 import authRoutes from './routes/auth.routes';
-import professionalRegistrationRoutes from './routes/professional-registration.routes';
-import securityRoutes from './routes/security.routes'; // AGGIUNTO - Security routes
+// TEMPORANEAMENTE DISABILITATO - File con errori database schema
+// import professionalRegistrationRoutes from './routes/professional-registration.routes';
+// TEMPORANEAMENTE DISABILITATO - File con errori database schema
+// import securityRoutes from './routes/security.routes'; // AGGIUNTO - Security routes
 import userRoutes from './routes/user.routes';
 import professionalDetailsRoutes from './routes/professional-details.routes';
-import professionalAISettingsRoutes from './routes/professional-ai-settings.routes';
+// DISABILITATO TEMPORANEAMENTE - File ha estensione .disabled
+// import professionalAISettingsRoutes from './routes/professional-ai-settings.routes';
 import categoryRoutes from './routes/category.routes';
 import subcategoryRoutes from './routes/subcategory.routes';
 import publicRoutes from './routes/public.routes';
@@ -278,7 +281,8 @@ app.use('/api/public/system-settings', publicSystemSettingsRoutes);
 
 // Auth routes with rate limiting
 app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/auth', authLimiter, professionalRegistrationRoutes);
+// TEMPORANEAMENTE DISABILITATO - File con errori database schema
+// app.use('/api/auth', authLimiter, professionalRegistrationRoutes);
 
 // User routes
 app.use('/api/users', authenticate, userRoutes);
@@ -311,7 +315,8 @@ app.use('/api/professionals', authenticate, professionalRoutes);
 app.use('/api/professionals', authenticate, professionalsRoutes); // NUOVO - endpoint by-subcategory
 app.use('/api/professionals', authenticate, professionalPricingRoutes);
 app.use('/api/professionals', authenticate, professionalSkillsCertRoutes);
-app.use('/api/professionals', authenticate, professionalAISettingsRoutes);
+// DISABILITATO TEMPORANEAMENTE - File ha estensione .disabled
+// app.use('/api/professionals', authenticate, professionalAISettingsRoutes);
 app.use('/api/professions', professionsRoutes);
 app.use('/api/profession-categories', authenticate, professionCategoriesRoutes);
 
@@ -348,9 +353,9 @@ logger.info('📍 Location tracking routes registered at /api/location');
 app.use('/api/apikeys', authenticate, apiKeysRoutes);
 logger.info('🔑 API Keys routes registered at /api/apikeys');
 
-// Security routes
-app.use('/api/security', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), securityRoutes);
-logger.info('🔒 Security routes registered at /api/security');
+// Security routes - TEMPORANEAMENTE DISABILITATO
+// app.use('/api/security', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), securityRoutes);
+// logger.info('🔒 Security routes registered at /api/security');
 
 // Admin routes
 app.use('/api/admin/users', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), adminUsersRoutes);
@@ -387,10 +392,8 @@ app.use('/api/scheduled-interventions', authenticate, scheduledInterventionsRout
 app.use('/api/backup', authenticate, simpleBackupRoutes);
 logger.info('✅ System routes registered: audit, health-check, cleanup, scheduled-interventions, backup');
 
-// Professional AI Settings routes
-import professionalAiSettingsRoutes from './routes/professional-ai-settings.routes';
+// Client AI Settings routes
 import clientAiSettingsRoutes from './routes/client-ai-settings.routes';
-app.use('/api/professionals', professionalAiSettingsRoutes);
 app.use('/api/client-settings', clientAiSettingsRoutes);
 
 // Calendar routes - IMPORTANTE!

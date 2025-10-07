@@ -15,12 +15,12 @@ import {
 } from '@heroicons/react/24/outline';
 import { api, apiClient } from '../../services/api';
 import toast from 'react-hot-toast';
-import { Badge } from '../../components/ui/Badge';
-import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
-import { Input } from '../../components/ui/Input';
-import { Select } from '../../components/ui/Select';
-import { TextArea } from '../../components/ui/TextArea';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
+import { Select } from '../../components/ui/select';
+import { TextArea } from '../../components/ui/textarea';
 import EnumsTab from '../../components/admin/EnumsTab';
 import ServiceConfigTab from '../../components/admin/ServiceConfigTab';
 

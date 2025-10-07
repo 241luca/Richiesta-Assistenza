@@ -276,7 +276,7 @@ export function AuditLog(action: AuditAction, category: LogCategory = LogCategor
     descriptor.value = async function (...args: any[]) {
       const startTime = Date.now();
       let result;
-      let error;
+      let error: any;
       
       try {
         result = await originalMethod.apply(this, args);

@@ -36,17 +36,8 @@ const registerSchema = z.object({
   // Campi aggiuntivi
   latitude: z.number().optional(),
   longitude: z.number().optional(),
-  dateOfBirth: z.string().optional(),
   username: z.string().optional(),
   fullName: z.string().optional(),
-  
-  // Privacy
-  privacyAccepted: z.boolean().optional(),
-  termsAccepted: z.boolean().optional(),
-  marketingAccepted: z.boolean().optional(),
-  privacyAcceptedAt: z.string().optional(),
-  termsAcceptedAt: z.string().optional(),
-  marketingAcceptedAt: z.string().optional(),
   
   // Campi professionisti
   professionId: z.string().optional(),
@@ -198,15 +189,6 @@ router.post('/register',
         partitaIva: data.partitaIva || null,
         latitude: data.latitude || null,
         longitude: data.longitude || null,
-        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
-        
-        // Privacy fields
-        privacyAccepted: data.privacyAccepted || false,
-        termsAccepted: data.termsAccepted || false,
-        marketingAccepted: data.marketingAccepted || false,
-        privacyAcceptedAt: data.privacyAcceptedAt ? new Date(data.privacyAcceptedAt) : null,
-        termsAcceptedAt: data.termsAcceptedAt ? new Date(data.termsAcceptedAt) : null,
-        marketingAcceptedAt: data.marketingAcceptedAt ? new Date(data.marketingAcceptedAt) : null,
         
         // Professional fields (if applicable)
         ...(data.role === 'PROFESSIONAL' && {

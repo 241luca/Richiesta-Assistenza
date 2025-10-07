@@ -22,6 +22,82 @@ import { z } from 'zod';
 import { logger } from '../utils/logger';
 import { notificationService } from './notification.service';
 import { prisma } from '../config/database';
+import { Invoice, CreditNote, PaymentRecord, Payment } from '@prisma/client';
+
+// ========================================
+// INTERFACCE TYPESCRIPT
+// ========================================
+
+/**
+ * Dati per creazione fattura
+ */
+interface CreateInvoiceData {
+  customerId: string;
+  customerType?: 'PRIVATE' | 'BUSINESS';
+  customerName: string;
+  customerAddress?: string;
+  customerCity?: string;
+  customerZipCode?: string;
+  customerProvince?: string;
+  customerCountry?: string;
+  customerVatNumber?: string;
+  customerFiscalCode?: string;
+  customerPec?: string;
+  customerSdiCode?: string;
+  customerEmail?: string;
+  documentType?: string;
+  issueDate?: string;
+  description?: string;
+  lineItems: LineItem[];
+  paymentTerms?: number;
+  paymentMethod?: string;
+  bankDetails?: string;
+  notes?: string;
+  internalNotes?: string;
+}
+
+/**
+ * Elemento riga fattura
+ */
+interface LineItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  taxRate?: number;
+  totalPrice?: number;
+}
+
+/**
+ * Totali calcolati
+ */
+interface CalculatedTotals {
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+}
+
+/**
+ * Dati cliente per fattura
+ */
+interface CustomerData {
+  name?: string;
+  address?: string;
+  city?: string;
+  zipCode?: string;
+  province?: string;
+  vatNumber?: string;
+  fiscalCode?: string;
+}
+
+/**
+ * Fattura con relazioni
+ */
+interface InvoiceWithRelations extends Invoice {
+  professional?: any;
+  customer?: any;
+  customerData?: CustomerData;
+  lineItems?: LineItem[];
+}
 
 // ========================================
 // SCHEMA VALIDAZIONE
@@ -73,7 +149,7 @@ export class InvoiceService {
    *   paymentTerms: 30
    * }, 'user-456');
    */
-  async createInvoice(data: any, userId: string) {
+  async createInvoice(data: CreateInvoiceData, userId: string): Promise<Invoice> {
     try {
       logger.info('[InvoiceService] Creating invoice', {
         userId,
@@ -84,7 +160,7 @@ export class InvoiceService {
       const invoiceNumber = await this.generateInvoiceNumber(data.documentType || 'INVOICE');
       
       // Calcola totali
-      const totals = this.calculateTotals(data.lineItems);
+      const totals = this.calculateTotals(data.lineItems || []);
       
       const invoice = await prisma.invoice.create({
         data: {
@@ -133,7 +209,7 @@ export class InvoiceService {
       });
       
       // Genera fattura elettronica se richiesto
-      if (await this.requiresElectronicInvoice(data.customerType, data)) {
+      if (await this.requiresElectronicInvoice(data.customerType || 'PRIVATE', data)) {
         await this.createElectronicInvoice(invoice);
       }
       
@@ -166,7 +242,7 @@ export class InvoiceService {
    * @example
    * const invoice = await invoiceService.generateInvoice('payment-123');
    */
-  async generateInvoice(paymentId: string) {
+  async generateInvoice(paymentId: string): Promise<Invoice> {
     try {
       logger.info('[InvoiceService] Generating invoice from payment', { paymentId });
 
@@ -180,26 +256,26 @@ export class InvoiceService {
         }
       });
 
-      if (!payment) {
-        throw new Error('Payment not found');
+      if (!payment || !payment.client || !payment.professionalId) {
+        throw new Error('Payment not found or incomplete data');
       }
 
       // Crea line items dal pagamento
-      const lineItems = [{
-        description: payment.description || `Pagamento per richiesta ${payment.requestId}`,
+      const lineItems: LineItem[] = [{
+        description: payment.description || `Pagamento per richiesta ${payment.requestId || 'N/D'}`,
         quantity: 1,
         unitPrice: payment.amount,
         taxRate: 22
       }];
 
-      const invoiceData = {
+      const invoiceData: CreateInvoiceData = {
         customerId: payment.clientId,
-        customerName: `${payment.client.firstName} ${payment.client.lastName}`,
-        customerAddress: payment.client.address,
-        customerCity: payment.client.city,
-        customerZipCode: payment.client.zipCode,
-        customerProvince: payment.client.province,
-        customerType: 'PRIVATE',
+        customerName: `${payment.client.firstName || ''} ${payment.client.lastName || ''}`.trim(),
+        customerAddress: payment.client.address || undefined,
+        customerCity: payment.client.city || undefined,
+        customerZipCode: payment.client.zipCode || undefined,
+        customerProvince: payment.client.province || undefined,
+        customerType: 'PRIVATE' as const,
         lineItems,
         paymentTerms: 0, // Già pagata
         documentType: 'INVOICE'
@@ -234,10 +310,10 @@ export class InvoiceService {
    * Genera fattura elettronica in formato XML per SDI
    * 
    * @private
-   * @param {Object} invoice - Fattura da convertire in formato elettronico
+   * @param {Invoice} invoice - Fattura da convertire in formato elettronico
    * @returns {Promise<void>}
    */
-  private async createElectronicInvoice(invoice: any) {
+  private async createElectronicInvoice(invoice: Invoice): Promise<void> {
     try {
       logger.info('[InvoiceService] Creating electronic invoice', {
         invoiceId: invoice.id,
@@ -276,7 +352,8 @@ export class InvoiceService {
       });
 
       // Invia a SDI se richiesto
-      if (settings?.value?.autoSendToSDI) {
+      const settingsValue = settings?.value as any;
+      if (settingsValue?.autoSendToSDI) {
         const sdiResult = await providerInstance.sendToSDI(result.invoiceId);
         
         await prisma.invoice.update({
@@ -307,20 +384,20 @@ export class InvoiceService {
    * Prepara dati fattura nel formato XML SDI
    * 
    * @private
-   * @param {Object} invoice - Fattura da convertire
+   * @param {Invoice} invoice - Fattura da convertire
    * @returns {Object} Dati strutturati per XML SDI
    */
-  private prepareElectronicInvoiceData(invoice: any) {
+  private prepareElectronicInvoiceData(invoice: Invoice): any {
     return {
       DatiTrasmissione: {
         IdTrasmittente: {
           IdPaese: 'IT',
           IdCodice: process.env.VAT_NUMBER || '',
         },
-        ProgressivoInvio: invoice.invoiceNumber.replace(/[^0-9]/g, ''),
+        ProgressivoInvio: (invoice.invoiceNumber || '').replace(/[^0-9]/g, ''),
         FormatoTrasmissione: 'FPR12',
-        CodiceDestinatario: invoice.customerSdiCode || '0000000',
-        PECDestinatario: invoice.customerPec,
+        CodiceDestinatario: (invoice as any).customerSdiCode || '0000000',
+        PECDestinatario: (invoice as any).customerPec,
       },
       CedentePrestatore: {
         DatiAnagrafici: {
@@ -353,11 +430,11 @@ export class InvoiceService {
           },
         },
         Sede: {
-          Indirizzo: invoice.customerAddress,
-          CAP: invoice.customerZipCode,
-          Comune: invoice.customerCity,
-          Provincia: invoice.customerProvince,
-          Nazione: invoice.customerCountry || 'IT',
+          Indirizzo: (invoice as any).customerAddress || '',
+          CAP: (invoice as any).customerZipCode || '',
+          Comune: (invoice as any).customerCity || '',
+          Provincia: (invoice as any).customerProvince || '',
+          Nazione: (invoice as any).customerCountry || 'IT',
         },
       },
       DatiGenerali: {
@@ -368,12 +445,12 @@ export class InvoiceService {
           Numero: invoice.invoiceNumber,
         },
       },
-      DatiBeniServizi: invoice.lineItems.map((item: any) => ({
+      DatiBeniServizi: ((invoice as any).lineItems || []).map((item: LineItem) => ({
         Descrizione: item.description,
         Quantita: item.quantity,
         PrezzoUnitario: item.unitPrice,
-        PrezzoTotale: item.totalPrice,
-        AliquotaIVA: item.taxRate || 22.00,
+        PrezzoTotale: item.quantity * item.unitPrice,
+        AliquotaIVA: item.taxRate || 22.00
       })),
     };
   }
@@ -382,26 +459,32 @@ export class InvoiceService {
    * Invia fattura al cliente via email con PDF allegato
    * 
    * @private
-   * @param {Object} invoice - Fattura da inviare
+   * @param {InvoiceWithRelations} invoice - Fattura da inviare
    * @returns {Promise<void>}
    * @throws {Error} Se invio fallisce
    */
-  private async sendInvoiceToCustomer(invoice: any) {
+  private async sendInvoiceToCustomer(invoice: InvoiceWithRelations): Promise<void> {
     try {
+      const customerEmail = (invoice as any).customerEmail;
+      
       logger.info('[InvoiceService] Sending invoice to customer', {
         invoiceId: invoice.id,
-        customerEmail: invoice.customerEmail
+        customerEmail
       });
+      
+      if (!customerEmail) {
+        throw new Error('Customer email not found');
+      }
 
       // Genera PDF
       const pdfBuffer = await this.generatePDF(invoice.id);
       
       // Prepara email
       const emailData = {
-        to: invoice.customerEmail,
+        to: customerEmail,
         subject: `Fattura ${invoice.invoiceNumber} - ${process.env.COMPANY_NAME}`,
         html: `
-          <p>Gentile ${invoice.customerName},</p>
+          <p>Gentile ${invoice.customerName || 'Cliente'},</p>
           <p>In allegato trovi la fattura ${invoice.invoiceNumber} del ${invoice.issueDate}.</p>
           <p>Importo: €${invoice.totalAmount}</p>
           <p>Scadenza: ${invoice.dueDate}</p>
@@ -422,13 +505,13 @@ export class InvoiceService {
         where: { id: invoice.id },
         data: {
           sentAt: new Date(),
-          sentTo: invoice.customerEmail,
+          sentTo: customerEmail,
         },
       });
       
       logger.info('[InvoiceService] Invoice sent successfully', {
         invoiceId: invoice.id,
-        customerEmail: invoice.customerEmail
+        customerEmail
       });
       
     } catch (error) {
@@ -466,7 +549,7 @@ export class InvoiceService {
           professional: true,
           customer: true
         }
-      });
+      }) as InvoiceWithRelations | null;
       
       if (!invoice) {
         throw new Error('Invoice not found');
@@ -525,16 +608,21 @@ export class InvoiceService {
           doc.fontSize(12).font('Helvetica-Bold')
              .text('DESTINATARIO', 50, 180);
           
-          const customerData = invoice.customerData as any;
-          doc.fontSize(10).font('Helvetica')
-             .text(customerData?.name || invoice.customer?.fullName || 'Cliente', 50, 200)
-             .text(customerData?.address || '', 50, 215)
-             .text(`${customerData?.zipCode || ''} ${customerData?.city || ''} (${customerData?.province || ''})`, 50, 230);
+          const customerData = invoice.customerData || {};
+          const customerName = customerData.name || 
+                              (invoice.customer as any)?.fullName || 
+                              invoice.customerName || 
+                              'Cliente';
           
-          if (customerData?.vatNumber) {
+          doc.fontSize(10).font('Helvetica')
+             .text(customerName, 50, 200)
+             .text(customerData.address || '', 50, 215)
+             .text(`${customerData.zipCode || ''} ${customerData.city || ''} (${customerData.province || ''})`, 50, 230);
+          
+          if (customerData.vatNumber) {
             doc.text(`P.IVA: ${customerData.vatNumber}`, 50, 245);
           }
-          if (customerData?.fiscalCode) {
+          if (customerData.fiscalCode) {
             doc.text(`C.F.: ${customerData.fiscalCode}`, 50, 260);
           }
           
@@ -558,7 +646,7 @@ export class InvoiceService {
           
           // Righe fattura
           doc.font('Helvetica');
-          const lineItems = invoice.lineItems as any[];
+          const lineItems = (invoice.lineItems || []) as LineItem[];
           
           for (const item of lineItems) {
             if (yPosition > 650) {
@@ -588,16 +676,16 @@ export class InvoiceService {
           // TOTALI
           doc.fontSize(10).font('Helvetica');
           doc.text('Imponibile:', 400, yPosition, { width: 80, align: 'right' });
-          doc.text(formatCurrency(invoice.subtotal), 490, yPosition, { width: 80, align: 'right' });
+          doc.text(formatCurrency(invoice.subtotal || 0), 490, yPosition, { width: 80, align: 'right' });
           
           yPosition += 18;
-          doc.text(`IVA ${invoice.taxRate || 22}%:`, 400, yPosition, { width: 80, align: 'right' });
-          doc.text(formatCurrency(invoice.taxAmount), 490, yPosition, { width: 80, align: 'right' });
+          doc.text(`IVA ${(invoice as any).taxRate || 22}%:`, 400, yPosition, { width: 80, align: 'right' });
+          doc.text(formatCurrency(invoice.taxAmount || 0), 490, yPosition, { width: 80, align: 'right' });
           
           yPosition += 18;
           doc.fontSize(12).font('Helvetica-Bold');
           doc.text('TOTALE:', 400, yPosition, { width: 80, align: 'right' });
-          doc.text(formatCurrency(invoice.totalAmount), 490, yPosition, { width: 80, align: 'right' });
+          doc.text(formatCurrency(invoice.totalAmount || 0), 490, yPosition, { width: 80, align: 'right' });
           
           // NOTE
           if (invoice.notes) {
@@ -652,7 +740,7 @@ export class InvoiceService {
     invoiceId: string,
     data: z.infer<typeof UpdatePaymentStatusSchema>,
     userId: string
-  ) {
+  ): Promise<Invoice> {
     try {
       logger.info('[InvoiceService] Updating payment status', {
         invoiceId,
@@ -662,7 +750,7 @@ export class InvoiceService {
 
       const invoice = await prisma.invoice.findUnique({
         where: { id: invoiceId }
-      });
+      }) as Invoice | null;
       
       if (!invoice) {
         throw new Error('Invoice not found');
@@ -764,7 +852,7 @@ export class InvoiceService {
     paymentMethod: string,
     reference: string,
     userId: string
-  ) {
+  ): Promise<void> {
     try {
       logger.info('[InvoiceService] Registering partial payment', {
         invoiceId,
@@ -814,11 +902,11 @@ export class InvoiceService {
       
       if (isFullyPaid) {
         await notificationService.createNotification({
-          userId: invoice.userId,
-          type: 'INVOICE_PAID',
-          title: 'Fattura pagata completamente',
-          message: `La fattura ${invoice.invoiceNumber} è stata pagata completamente`,
-          data: { invoiceId }
+        userId: invoice.userId || '',
+        type: 'INVOICE_PAID',
+        title: 'Fattura pagata completamente',
+        message: `La fattura ${invoice.invoiceNumber} è stata pagata completamente`,
+        data: { invoiceId }
         });
       }
       
@@ -852,10 +940,10 @@ export class InvoiceService {
    */
   async createCreditNote(
     originalInvoiceId: string,
-    lineItems: any[],
+    lineItems: LineItem[],
     reason: string,
     userId: string
-  ) {
+  ): Promise<CreditNote> {
     try {
       logger.info('[InvoiceService] Creating credit note', {
         originalInvoiceId,
@@ -941,7 +1029,7 @@ export class InvoiceService {
    * @example
    * await invoiceService.sendPaymentReminder('invoice-123');
    */
-  async sendPaymentReminder(invoiceId: string) {
+  async sendPaymentReminder(invoiceId: string): Promise<void> {
     try {
       logger.info('[InvoiceService] Sending payment reminder', { invoiceId });
 
@@ -950,7 +1038,7 @@ export class InvoiceService {
         include: {
           user: true
         }
-      });
+      }) as (Invoice & { user?: any }) | null;
       
       if (!invoice) {
         throw new Error('Invoice not found');
@@ -964,11 +1052,16 @@ export class InvoiceService {
       const reminderCount = (invoice.reminderCount || 0) + 1;
       
       // Prepara email promemoria
+      const customerEmail = (invoice as any).customerEmail;
+      if (!customerEmail) {
+        throw new Error('Customer email not found');
+      }
+      
       const emailData = {
-        to: invoice.customerEmail,
+        to: customerEmail,
         subject: `Promemoria pagamento - Fattura ${invoice.invoiceNumber}`,
         html: `
-          <p>Gentile ${invoice.customerName},</p>
+          <p>Gentile ${invoice.customerName || 'Cliente'},</p>
           <p>Ti ricordiamo che la fattura ${invoice.invoiceNumber} del ${invoice.issueDate} 
           risulta ancora non pagata.</p>
           <p>Importo: €${invoice.totalAmount}</p>
@@ -1064,10 +1157,10 @@ export class InvoiceService {
    * Calcola totali da line items
    * 
    * @private
-   * @param {Array} lineItems - Righe fattura
-   * @returns {Object} Totali calcolati {subtotal, taxAmount, totalAmount}
+   * @param {LineItem[]} lineItems - Righe fattura
+   * @returns {CalculatedTotals} Totali calcolati {subtotal, taxAmount, totalAmount}
    */
-  private calculateTotals(lineItems: any[]) {
+  private calculateTotals(lineItems: LineItem[]): CalculatedTotals {
     let subtotal = 0;
     let taxAmount = 0;
 
@@ -1104,12 +1197,12 @@ export class InvoiceService {
    * 
    * @private
    * @param {string} customerType - Tipo cliente
-   * @param {Object} customerData - Dati cliente
+   * @param {CreateInvoiceData} customerData - Dati cliente
    * @returns {Promise<boolean>} true se richiede fattura elettronica
    */
   private async requiresElectronicInvoice(
     customerType: string,
-    customerData: any
+    customerData: CreateInvoiceData
   ): Promise<boolean> {
     // In Italia, fattura elettronica obbligatoria per B2B e B2G
     if (customerType === 'BUSINESS') {

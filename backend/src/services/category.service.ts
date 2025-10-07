@@ -193,7 +193,7 @@ export class CategoryService {
           textColor: data.textColor || '#FFFFFF', // White default
           isActive: data.isActive ?? true,
           displayOrder: data.displayOrder || 0,
-        },
+        } as any, // TypeScript: id e updatedAt sono auto-generati
         include: {
           _count: {
             select: {

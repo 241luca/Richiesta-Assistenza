@@ -178,7 +178,7 @@ class SubcategoryService {
       data: {
         ...data,
         slug,
-      },
+      } as any, // TypeScript: id e updatedAt sono auto-generati
       include: {
       category: true,
       },
@@ -328,7 +328,7 @@ class SubcategoryService {
     }
 
     // Check if AI settings already exist
-    const existingSettings = await prisma.aiSettings.findUnique({
+    const existingSettings = await prisma.subcategoryAiSettings.findUnique({
       where: { subcategoryId },
     });
 
@@ -336,19 +336,19 @@ class SubcategoryService {
     
     if (existingSettings) {
       // Update existing settings
-      aiSettings = await prisma.aiSettings.update({
+      aiSettings = await prisma.subcategoryAiSettings.update({
         where: { subcategoryId },
         data,
       });
     } else {
       // Create new settings - NEED TO PROVIDE ID
-      aiSettings = await prisma.aiSettings.create({
+      aiSettings = await prisma.subcategoryAiSettings.create({
         data: {
           id: uuidv4(), // Generate UUID for ID
           subcategoryId,
           ...data,
           systemPrompt: data.systemPrompt || `Sei un assistente esperto specializzato in ${subcategory.name}. Fornisci risposte professionali e dettagliate.`,
-        },
+        } as any, // TypeScript: updatedAt è auto-generato
       });
     }
 
@@ -392,7 +392,7 @@ class SubcategoryService {
           isActive: true,
         },
         include: {
-          users: true,
+          user: true,
           subcategory: {
             include: {
       category: true,
@@ -408,9 +408,9 @@ class SubcategoryService {
           subcategoryId,
           ...data,
           isActive: true,
-        },
+        } as any, // TypeScript: id e updatedAt sono auto-generati
         include: {
-          users: true,
+          user: true,
           subcategory: {
             include: {
       category: true,
@@ -436,7 +436,7 @@ class SubcategoryService {
         isActive: false,
       },
       include: {
-        users: true,
+        user: true,
         subcategory: true,
       },
     });

@@ -106,7 +106,9 @@ class TravelCalculationService {
         }
       });
       
-      const costPerKm = professionalPricing?.travelRatePerKm || 0.50;
+      const costPerKm = professionalPricing?.travelRatePerKm 
+        ? Number(professionalPricing.travelRatePerKm) 
+        : 0.50;
       const cost = Math.round(result.distance * costPerKm * 100) / 100;
 
       logger.info(`✅ Travel calculated: ${result.distanceText} (${result.durationText}) - Cost: €${cost}`);

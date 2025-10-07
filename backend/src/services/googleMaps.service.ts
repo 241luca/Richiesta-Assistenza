@@ -332,7 +332,12 @@ export class GoogleMapsService {
   static async calculateMultipleDistances(
     origin: string | Coordinates,
     destinations: (string | Coordinates)[],
-    options: { mode?: string; units?: string } = {}
+    options: { 
+      mode?: 'driving' | 'walking' | 'bicycling' | 'transit';
+      units?: 'metric' | 'imperial';
+      avoidTolls?: boolean;
+      avoidHighways?: boolean;
+    } = {}
   ): Promise<DistanceResult[]> {
     if (!this.isInitialized) {
       await this.initialize();
