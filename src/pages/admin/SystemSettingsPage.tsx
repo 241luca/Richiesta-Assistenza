@@ -24,7 +24,7 @@ import {
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
 import { Input } from '@/components/ui/input';
-import { TextArea } from '@/components/ui/TextArea';
+import { TextArea } from '@/components/ui/textarea';
 
 interface SystemSetting {
   id: string;

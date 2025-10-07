@@ -14,7 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '../components/ui/Card';
+import { Card } from '../components/ui/card';
 import { toast } from 'react-hot-toast';
 
 interface TestResult {
