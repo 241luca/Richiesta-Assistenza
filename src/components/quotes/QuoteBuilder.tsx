@@ -24,11 +24,11 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { api, apiClient } from '../../services/api';
-import { Card } from '../ui/Card';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
-import { TextArea } from '../ui/TextArea';
-import { Select } from '../ui/Select';
+import { Card } from '../ui/card';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { TextArea } from '../ui/textarea';
+import { Select } from '../ui/select';
 
 // Validation schema
 const quoteItemSchema = z.object({

@@ -8,9 +8,9 @@ import {
   CurrencyEuroIcon
 } from '@heroicons/react/24/outline';
 import { api } from '../../services/api';
-import { Card } from '../ui/Card';
-import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
+import { Card } from '../ui/card';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
 import { toast } from 'react-hot-toast';
 
 interface QuoteComparisonProps {

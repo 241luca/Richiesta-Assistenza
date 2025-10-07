@@ -5,8 +5,8 @@
  */
 
 import React from 'react';
-import { Card, CardContent } from '../ui/Card';
-import { Button } from '../ui/Button';
+import { Card, CardContent } from ../ui/card';
+import { Button } from ../ui/button';
 import { useRequestTravelInfo } from '../../hooks/useTravel';
 import type { TravelInfoCardProps } from '../../types/travel';
 

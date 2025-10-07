@@ -17,11 +17,11 @@ import {
 } from '@heroicons/react/24/outline';
 import { apiClient } from '../../services/api';
 import toast from 'react-hot-toast';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
-import { Card } from '../ui/Card';
-import { Input } from '../ui/Input';
-import { TextArea } from '../ui/TextArea';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { Input } from '../ui/input';
+import { TextArea } from '../ui/textarea';
 
 // Tipo di configurazione attiva
 type ConfigTab = 'config' | 'patterns' | 'excludeFiles' | 'excludeDirs' | 'schedule';
