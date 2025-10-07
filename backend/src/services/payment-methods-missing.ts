@@ -1,8 +1,12 @@
 /**
  * METODI MANCANTI DA AGGIUNGERE A payment.service.ts
- * Questi metodi sono richiesti dalle route ma mancano nel service
+ * Service per ottenere lista pagamenti con filtri
  */
 
+import { prisma } from '../config/database';
+import { logger } from '../utils/logger';
+
+class PaymentListService {
   /**
    * Lista pagamenti con filtri (per admin)
    */
@@ -114,3 +118,6 @@
       throw error;
     }
   }
+}
+
+export const paymentListService = new PaymentListService();

@@ -1,8 +1,13 @@
 /**
  * Metodi mancanti per Professional Dashboard
- * Da aggiungere a payment.service.ts
+ * Service per statistiche e pagamenti professionisti
  */
 
+import { prisma } from '../config/database';
+import { logger } from '../utils/logger';
+import { subMonths } from 'date-fns';
+
+class ProfessionalPaymentService {
   /**
    * Statistiche professionista dashboard
    */
@@ -83,3 +88,6 @@
       throw error;
     }
   }
+}
+
+export const professionalPaymentService = new ProfessionalPaymentService();

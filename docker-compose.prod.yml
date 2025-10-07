@@ -1,5 +1,10 @@
 version: '3.8'
 
+# ==========================================
+# DOCKER COMPOSE PER VPS
+# Usa immagini pre-compilate da GitHub Container Registry
+# ==========================================
+
 services:
   # ==========================================
   # DATABASE - PostgreSQL
@@ -47,11 +52,10 @@ services:
 
   # ==========================================
   # BACKEND - Express API
+  # Immagine da GitHub Container Registry
   # ==========================================
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/241luca/richiesta-assistenza-backend:latest
     container_name: assistenza-backend
     restart: unless-stopped
     environment:
@@ -94,11 +98,10 @@ services:
 
   # ==========================================
   # WHATSAPP - WppConnect (CONTAINER SEPARATO!)
+  # Immagine da GitHub Container Registry
   # ==========================================
   whatsapp:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.whatsapp
+    image: ghcr.io/241luca/richiesta-assistenza-whatsapp:latest
     container_name: assistenza-whatsapp
     restart: unless-stopped
     environment:
@@ -140,13 +143,10 @@ services:
 
   # ==========================================
   # FRONTEND - React + Nginx
+  # Immagine da GitHub Container Registry
   # ==========================================
   frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-      args:
-        VITE_API_URL: ${BACKEND_URL}
+    image: ghcr.io/241luca/richiesta-assistenza-frontend:latest
     container_name: assistenza-frontend
     restart: unless-stopped
     ports:

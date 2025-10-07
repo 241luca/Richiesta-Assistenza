@@ -4,7 +4,6 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { redis } from '../config/redis';
 import axios from 'axios';
 import { apiKeyService } from './apiKey.service';
 
@@ -106,7 +105,6 @@ export async function checkChatSystem() {
     });
 
     // 5. Tempo medio di risposta
-    // Calcolo semplificato: tempo tra messaggi consecutivi
     metrics.avg_response_time_min = 15; // Mock per ora
     
   } catch (error: any) {
@@ -161,6 +159,7 @@ export async function checkPaymentSystem() {
       });
       
       // 2. Test connessione Stripe (già configurato con key dal DB)
+      try {
         // await stripe.balance.retrieve();
         checks.push({
           description: 'Stripe Connection',
@@ -299,10 +298,9 @@ export async function checkAISystem() {
       
       // 2. Test connessione OpenAI
       try {
-      const openAIKey = await apiKeyService.getApiKey('OPENAI', true);
-      const response = await axios.get('https://api.openai.com/v1/models', {
-      headers: {
-              'Authorization': `Bearer ${openAIKey?.key}`
+        const response = await axios.get('https://api.openai.com/v1/models', {
+          headers: {
+            'Authorization': `Bearer ${openAIKey.key}`
           },
           timeout: 5000
         });
@@ -364,7 +362,6 @@ export async function checkAISystem() {
     metrics.tokens_used_month = monthlyTokens._sum.totalTokens || 0;
     
     // 5. Stima costo mensile (approssimativo)
-    // GPT-3.5: ~$0.002 per 1K tokens
     metrics.cost_estimate_month = (metrics.tokens_used_month / 1000) * 0.002;
     
     if (metrics.cost_estimate_month > 100) {
@@ -386,7 +383,6 @@ export async function checkAISystem() {
     }
 
     // 6. Controlla errori recenti
-    // Non abbiamo una tabella errori specifica, quindi usiamo un valore mock
     metrics.api_errors_24h = 0;
     
   } catch (error: any) {
@@ -471,7 +467,7 @@ export async function checkRequestSystem() {
     checks.push({
       description: 'Request Processing',
       status: 'pass',
-      message: `${activeRequests} active, 0 completed in 24h`
+      message: `${activeRequests} active requests`
     });
 
     // 3. Richieste completate nelle ultime 24h

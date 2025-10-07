@@ -1,0 +1,117 @@
+# ==========================================
+# WHATSAPP SERVICE - WppConnect + Chromium
+# Container separato per isolamento risorse
+# ==========================================
+FROM node:20-bullseye
+
+WORKDIR /app
+
+# ==========================================
+# INSTALLA CHROMIUM E DIPENDENZE
+# ==========================================
+RUN apt-get update && apt-get install -y \
+    chromium \
+    chromium-sandbox \
+    # Dipendenze Chromium
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libatspi2.0-0 \
+    libcairo2 \
+    libcups2 \
+    libdbus-1-3 \
+    libdrm2 \
+    libgbm1 \
+    libglib2.0-0 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libpango-1.0-0 \
+    libx11-6 \
+    libxcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxkbcommon0 \
+    libxrandr2 \
+    xdg-utils \
+    # Pulizia cache
+    && rm -rf /var/lib/apt/lists/*
+
+# Path Chromium
+ENV CHROME_BIN=/usr/bin/chromium
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+# ==========================================
+# INSTALLA DIPENDENZE NPM
+# ==========================================
+COPY package*.json ./
+COPY prisma ./prisma/
+
+RUN npm ci --only=production
+
+# Genera Prisma Client
+RUN npx prisma generate
+
+# ==========================================
+# COPIA SOLO FILE WHATSAPP SERVICE
+# ==========================================
+COPY src/services/wppconnect.service.ts ./src/services/
+COPY src/routes/whatsapp.routes.ts ./src/routes/
+COPY src/types/whatsapp.types.ts ./src/types/
+COPY src/utils ./src/utils/
+COPY src/middleware ./src/middleware/
+
+# Server dedicato WhatsApp
+COPY <<'EOF' /app/src/whatsapp-server.ts
+import express from 'express';
+import cors from 'cors';
+import { whatsappRouter } from './routes/whatsapp.routes';
+
+const app = express();
+const PORT = process.env.PORT || 3201;
+
+app.use(cors());
+app.use(express.json());
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'whatsapp' });
+});
+
+// WhatsApp routes
+app.use('/api/whatsapp', whatsappRouter);
+
+app.listen(PORT, () => {
+  console.log(`WhatsApp Service running on port ${PORT}`);
+});
+EOF
+
+# Compila TypeScript
+RUN npx tsc
+
+# ==========================================
+# CONFIGURAZIONE RUNTIME
+# ==========================================
+
+# Crea directory per sessioni WhatsApp
+RUN mkdir -p tokens logs
+
+# User non-root
+RUN groupadd -r whatsapp && useradd -r -g whatsapp whatsapp && \
+    chown -R whatsapp:whatsapp /app
+
+USER whatsapp
+
+# Esponi porta
+EXPOSE 3201
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3201/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
+
+# Avvio servizio WhatsApp
+CMD ["node", "dist/whatsapp-server.js"]

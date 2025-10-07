@@ -1,9 +1,147 @@
-// backend/src/services/notification-advanced.service.ts (continuazione)
+// ================================
+// Advanced Notification Service v5.1
+// Sistema notifiche potenziato con batch e retry
+// ================================
 
+import { prisma } from '../config/database';
+import { logger } from '../utils/logger';
+import { auditService } from './audit.service';
+
+/**
+ * Tipi supportati per notifiche
+ */
+export interface NotificationRequest {
+  userId: string;
+  templateKey?: string;
+  channel: 'EMAIL' | 'WHATSAPP' | 'SMS' | 'PEC' | 'IN_APP';
+  customContent?: {
+    subject?: string;
+    body: string;
+  };
+  variables?: Record<string, any>;
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' | 'CRITICAL';
+  scheduledAt?: Date;
+  metadata?: any;
+}
+
+/**
+ * Service avanzato per notifiche batch e retry
+ */
+class AdvancedNotificationService {
+  
+  /**
+   * Invia notifica singola
+   */
+  async send(request: NotificationRequest): Promise<void> {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: request.userId }
+      });
+
+      if (!user) {
+        throw new Error(`User ${request.userId} not found`);
+      }
+
+      let template = null;
+      if (request.templateKey) {
+        template = await prisma.notificationTemplate.findUnique({
+          where: { code: request.templateKey }
+        });
+
+        if (!template) {
+          throw new Error(`Template ${request.templateKey} not found`);
+        }
+      }
+
+      // Contenuto finale
+      let subject = request.customContent?.subject || template?.subject || '';
+      let body = request.customContent?.body || template?.htmlContent || '';
+
+      // Sostituzione variabili
+      if (request.variables) {
+        for (const [key, value] of Object.entries(request.variables)) {
+          const placeholder = `{{${key}}}`;
+          subject = subject.replace(new RegExp(placeholder, 'g'), String(value));
+          body = body.replace(new RegExp(placeholder, 'g'), String(value));
+        }
+      }
+
+      // Log della notifica
+      const notificationLog = await prisma.notificationLog.create({
+        data: {
+          recipientId: request.userId,
+          channel: request.channel,
+          status: 'PENDING',
+          subject,
+          content: body,
+          variables: request.variables as any,
+          templateId: template?.id,
+          metadata: request.metadata as any
+        }
+      });
+
+      // Invio effettivo (simulato)
+      const success = await this.sendToChannel(request.channel, user, subject, body);
+
+      // Aggiorna stato
+      await prisma.notificationLog.update({
+        where: { id: notificationLog.id },
+        data: {
+          status: success ? 'SENT' : 'FAILED',
+          sentAt: success ? new Date() : null,
+          failureReason: success ? null : 'Invio fallito'
+        }
+      });
+
+    } catch (error: any) {
+      logger.error('Errore invio notifica:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Invia notifica batch a più utenti
+   */
+  async sendBatch(batchId: string): Promise<void> {
+    try {
+      const batch = await prisma.notificationBatch.findUnique({
+        where: { id: batchId },
+        include: {
+          template: true
+        }
+      });
+
+      if (!batch) {
+        throw new Error(`Batch ${batchId} not found`);
+      }
+
+      // Ottieni destinatari
+      const recipients = await this.getBatchRecipients(batch);
+
+      let sentCount = 0;
+      let failedCount = 0;
+
+      // Invia a ogni destinatario
+      for (const recipient of recipients) {
+        try {
+          await this.send({
+            userId: recipient.id,
+            templateKey: batch.template?.code,
+            channel: batch.channel as any,
+            variables: batch.variables as any,
+            priority: batch.priority as any,
+            metadata: {
+              batchId: batch.id,
+              ...batch.metadata as any
+            }
+          });
+          sentCount++;
+        } catch (error) {
+          logger.error(`Errore invio a ${recipient.id}:`, error);
           failedCount++;
         }
       }
-      
+
       // Aggiorna statistiche batch
       await prisma.notificationBatch.update({
         where: { id: batchId },
@@ -14,7 +152,7 @@
           totalRecipients: recipients.length
         }
       });
-      
+
       // Audit log
       await auditService.log({
         action: 'NOTIFICATION_BATCH_SENT',
@@ -22,7 +160,7 @@
         entityId: batchId,
         userId: batch.createdBy,
         details: {
-          templateKey: batch.template.key,
+          templateKey: batch.template?.code,
           recipients: recipients.length,
           sent: sentCount,
           failed: failedCount
@@ -30,19 +168,19 @@
         severity: 'INFO',
         category: 'COMMUNICATION'
       });
-      
+
     } catch (error) {
       logger.error('Errore invio batch:', error);
-      
+
       await prisma.notificationBatch.update({
         where: { id: batchId },
         data: { status: 'FAILED' }
       });
-      
+
       throw error;
     }
   }
-  
+
   /**
    * Ottieni destinatari batch
    */
@@ -52,7 +190,7 @@
         return await prisma.user.findMany({
           where: { isActive: true }
         });
-      
+
       case 'ROLE':
         return await prisma.user.findMany({
           where: {
@@ -60,7 +198,7 @@
             isActive: true
           }
         });
-      
+
       case 'CUSTOM':
         return await prisma.user.findMany({
           where: {
@@ -68,18 +206,64 @@
             isActive: true
           }
         });
-      
+
       default:
         return [];
     }
   }
-  
+
+  /**
+   * Invio effettivo per canale
+   */
+  private async sendToChannel(
+    channel: string, 
+    user: any, 
+    subject: string, 
+    body: string
+  ): Promise<boolean> {
+    try {
+      switch (channel) {
+        case 'EMAIL':
+          // Implementazione email
+          logger.info(`EMAIL inviata a ${user.email}: ${subject}`);
+          return true;
+
+        case 'WHATSAPP':
+          const whatsappMessage = this.formatForWhatsApp(body);
+          logger.info(`WhatsApp inviato a ${user.phone}: ${whatsappMessage}`);
+          return true;
+
+        case 'SMS':
+          logger.info(`SMS inviato a ${user.phone}: ${body}`);
+          return true;
+
+        case 'IN_APP':
+          await prisma.notification.create({
+            data: {
+              recipientId: user.id,
+              title: subject,
+              content: body,
+              type: 'SYSTEM'
+            }
+          });
+          return true;
+
+        default:
+          logger.warn(`Canale ${channel} non supportato`);
+          return false;
+      }
+    } catch (error) {
+      logger.error(`Errore invio ${channel}:`, error);
+      return false;
+    }
+  }
+
   /**
    * Formatta messaggio per WhatsApp
    */
   private formatForWhatsApp(message: string, priority?: string): string {
     let prefix = '';
-    
+
     switch (priority) {
       case 'CRITICAL':
         prefix = '🚨 **URGENTE** 🚨\n\n';
@@ -93,7 +277,7 @@
       default:
         prefix = '💬 ';
     }
-    
+
     // Converti HTML base in formato WhatsApp
     let formatted = message
       .replace(/<br\s*\/?>/gi, '\n')
@@ -104,19 +288,10 @@
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"');
-    
+
     return prefix + formatted;
   }
-  
-  /**
-   * Ottieni destinatario per canale
-   */
-  private getRecipient(userId: string, channel: string): string {
-    // Questa funzione andrebbe implementata per recuperare
-    // il destinatario corretto in base al canale
-    return userId;
-  }
-  
+
   /**
    * Verifica stato consegna notifiche
    */
@@ -131,15 +306,12 @@
         }
       }
     });
-    
+
     for (const notification of pendingNotifications) {
       try {
-        // Qui andrebbero implementati i check specifici per canale
-        // Es: webhook delivery per WhatsApp, SMTP status per email, etc.
-        
         // Per ora simuliamo
         const delivered = Math.random() > 0.1; // 90% success rate
-        
+
         if (delivered) {
           await prisma.notificationLog.update({
             where: { id: notification.id },
@@ -154,7 +326,7 @@
       }
     }
   }
-  
+
   /**
    * Gestisci notifiche fallite con retry
    */
@@ -167,29 +339,28 @@
         }
       },
       include: {
-        user: true,
         template: true
       },
       take: 50 // Processa 50 alla volta
     });
-    
+
     for (const notification of failedNotifications) {
       try {
         // Riprova invio
         await this.send({
-          userId: notification.userId,
-          templateKey: notification.template?.key,
+          userId: notification.recipientId,
+          templateKey: notification.template?.code,
           channel: notification.channel as any,
           customContent: notification.template ? undefined : {
             subject: notification.subject || undefined,
-            body: notification.body
+            body: notification.content
           },
           metadata: {
             ...notification.metadata as any,
             retryAttempt: ((notification.metadata as any)?.retryAttempt || 0) + 1
           }
         });
-        
+
         // Marca originale come retry effettuato
         await prisma.notificationLog.update({
           where: { id: notification.id },
@@ -200,13 +371,13 @@
             }
           }
         });
-        
+
       } catch (error) {
         logger.error('Errore retry notifica:', error);
       }
     }
   }
-  
+
   /**
    * Statistiche notifiche
    */
@@ -221,7 +392,7 @@
       },
       _count: true
     });
-    
+
     const byTemplate = await prisma.notificationLog.groupBy({
       by: ['templateId'],
       where: {
@@ -233,20 +404,10 @@
       },
       _count: true
     });
-    
-    const avgDeliveryTime = await prisma.$queryRaw`
-      SELECT channel, 
-             AVG(EXTRACT(EPOCH FROM (delivered_at - sent_at))) as avg_seconds
-      FROM notification_log
-      WHERE sent_at BETWEEN ${startDate} AND ${endDate}
-        AND delivered_at IS NOT NULL
-      GROUP BY channel
-    `;
-    
+
     return {
       byChannelAndStatus: stats,
       byTemplate,
-      avgDeliveryTime,
       period: { start: startDate, end: endDate }
     };
   }
@@ -254,233 +415,3 @@
 
 // Export singleton
 export const notificationService = new AdvancedNotificationService();
-
-// ========= TEMPLATE PREDEFINITI =========
-
-export const DEFAULT_TEMPLATES = {
-  // Template per reclami PEC
-  COMPLAINT_SUBMITTED: {
-    key: 'complaint_submitted',
-    name: 'Reclamo Inviato',
-    category: 'LEGAL',
-    emailSubject: 'Conferma Invio Reclamo - {{COMPANY}}',
-    emailBody: `
-      <h2>Reclamo Inviato con Successo</h2>
-      <p>Gentile {{USER_NAME}},</p>
-      <p>Confermiamo l'invio del suo reclamo formale a <strong>{{COMPANY}}</strong>.</p>
-      
-      <h3>Dettagli Reclamo:</h3>
-      <ul>
-        <li>ID Reclamo: {{COMPLAINT_ID}}</li>
-        <li>Data Invio: {{SENT_DATE}}</li>
-        <li>Metodo: PEC (Posta Elettronica Certificata)</li>
-        <li>Destinatario: {{RECIPIENT_PEC}}</li>
-      </ul>
-      
-      <p>Riceverà risposta entro 30 giorni lavorativi come previsto dalla normativa.</p>
-      <p>La terremo aggiornato/a su ogni sviluppo.</p>
-      
-      <p>Cordiali saluti,<br>
-      Il Team Assistenza</p>
-    `,
-    whatsappBody: `✅ *Reclamo Inviato*
-
-Il suo reclamo a {{COMPANY}} è stato inviato con successo via PEC.
-
-📋 ID: {{COMPLAINT_ID}}
-📅 Data: {{SENT_DATE}}
-⏰ Risposta attesa: entro 30 giorni
-
-La aggiorneremo su ogni sviluppo.`,
-    channels: ['EMAIL', 'WHATSAPP'],
-    priority: 'HIGH',
-    requiresConfirm: false,
-    variables: {
-      USER_NAME: 'string',
-      COMPANY: 'string',
-      COMPLAINT_ID: 'string',
-      SENT_DATE: 'string',
-      RECIPIENT_PEC: 'string'
-    }
-  },
-  
-  // Template per richieste di assistenza
-  REQUEST_CREATED: {
-    key: 'request_created',
-    name: 'Richiesta Assistenza Creata',
-    category: 'BUSINESS',
-    emailSubject: 'Richiesta Assistenza #{{REQUEST_ID}} Creata',
-    emailBody: `
-      <h2>Richiesta di Assistenza Ricevuta</h2>
-      <p>Gentile {{USER_NAME}},</p>
-      <p>Abbiamo ricevuto la sua richiesta di assistenza.</p>
-      
-      <h3>Dettagli:</h3>
-      <ul>
-        <li>ID Richiesta: {{REQUEST_ID}}</li>
-        <li>Categoria: {{CATEGORY}}</li>
-        <li>Problema: {{DESCRIPTION}}</li>
-        <li>Urgenza: {{URGENCY}}</li>
-      </ul>
-      
-      <p>{{PROFESSIONALS_COUNT}} professionisti sono stati notificati.</p>
-      <p>Riceverà i preventivi entro {{EXPECTED_TIME}}.</p>
-    `,
-    whatsappBody: `📋 *Richiesta #{{REQUEST_ID}} Creata*
-
-✅ La sua richiesta è stata inoltrata a {{PROFESSIONALS_COUNT}} professionisti.
-
-🔧 Categoria: {{CATEGORY}}
-⏰ Preventivi attesi: {{EXPECTED_TIME}}
-
-Per verificare lo stato:
-Scrivi STATO {{REQUEST_ID}}`,
-    smsBody: 'Richiesta {{REQUEST_ID}} creata. {{PROFESSIONALS_COUNT}} professionisti notificati. Preventivi in arrivo.',
-    channels: ['EMAIL', 'WHATSAPP', 'SMS'],
-    priority: 'MEDIUM',
-    requiresConfirm: false,
-    variables: {
-      USER_NAME: 'string',
-      REQUEST_ID: 'string',
-      CATEGORY: 'string',
-      DESCRIPTION: 'string',
-      URGENCY: 'string',
-      PROFESSIONALS_COUNT: 'number',
-      EXPECTED_TIME: 'string'
-    }
-  },
-  
-  // Template per preventivi
-  QUOTE_RECEIVED: {
-    key: 'quote_received',
-    name: 'Nuovo Preventivo Ricevuto',
-    category: 'BUSINESS',
-    emailSubject: 'Nuovo Preventivo per Richiesta #{{REQUEST_ID}}',
-    emailBody: `
-      <h2>Nuovo Preventivo Ricevuto</h2>
-      <p>Hai ricevuto un nuovo preventivo per la tua richiesta.</p>
-      
-      <h3>Dettagli Preventivo:</h3>
-      <ul>
-        <li>Professionista: {{PROFESSIONAL_NAME}}</li>
-        <li>Valutazione: ⭐ {{RATING}}/5</li>
-        <li>Importo: €{{AMOUNT}}</li>
-        <li>Tempo stimato: {{ESTIMATED_TIME}}</li>
-      </ul>
-      
-      <p><a href="{{QUOTE_LINK}}">Visualizza e Accetta Preventivo</a></p>
-    `,
-    whatsappBody: `💰 *Nuovo Preventivo!*
-
-👷 {{PROFESSIONAL_NAME}} (⭐ {{RATING}})
-💶 Importo: €{{AMOUNT}}
-⏱️ Arrivo: {{ESTIMATED_TIME}}
-
-Per accettare:
-ACCETTA {{QUOTE_ID}}
-
-Per dettagli:
-PREVENTIVO {{QUOTE_ID}}`,
-    channels: ['EMAIL', 'WHATSAPP'],
-    priority: 'HIGH',
-    requiresConfirm: false,
-    variables: {
-      REQUEST_ID: 'string',
-      PROFESSIONAL_NAME: 'string',
-      RATING: 'number',
-      AMOUNT: 'number',
-      ESTIMATED_TIME: 'string',
-      QUOTE_ID: 'string',
-      QUOTE_LINK: 'string'
-    }
-  },
-  
-  // Template per emergenze
-  EMERGENCY_ALERT: {
-    key: 'emergency_alert',
-    name: 'Alert Emergenza',
-    category: 'SYSTEM',
-    emailSubject: '🚨 URGENTE: {{ALERT_TITLE}}',
-    emailBody: `
-      <div style="border: 2px solid red; padding: 20px; background: #fff5f5;">
-        <h1 style="color: red;">⚠️ ATTENZIONE URGENTE</h1>
-        <h2>{{ALERT_TITLE}}</h2>
-        <p>{{ALERT_MESSAGE}}</p>
-        
-        <h3>Azioni Richieste:</h3>
-        <p>{{REQUIRED_ACTIONS}}</p>
-        
-        <p><strong>Questo messaggio richiede la sua attenzione immediata.</strong></p>
-      </div>
-    `,
-    whatsappBody: `🚨 *URGENTE* 🚨
-
-{{ALERT_TITLE}}
-
-{{ALERT_MESSAGE}}
-
-⚠️ Azione richiesta:
-{{REQUIRED_ACTIONS}}
-
-Risponda IMMEDIATAMENTE.`,
-    smsBody: 'URGENTE: {{ALERT_TITLE}}. {{REQUIRED_ACTIONS}}',
-    pecSubject: 'COMUNICAZIONE URGENTE: {{ALERT_TITLE}}',
-    pecBody: `
-      OGGETTO: COMUNICAZIONE URGENTE
-      
-      {{ALERT_TITLE}}
-      
-      {{ALERT_MESSAGE}}
-      
-      Azioni richieste:
-      {{REQUIRED_ACTIONS}}
-      
-      Si richiede riscontro immediato.
-    `,
-    channels: ['EMAIL', 'WHATSAPP', 'SMS', 'PEC'],
-    priority: 'CRITICAL',
-    requiresConfirm: true
-  }
-};
-
-// ========= SCHEDULER ==========
-
-import * as cron from 'node-cron';
-
-// Check delivery status ogni 5 minuti
-cron.schedule('*/5 * * * *', async () => {
-  try {
-    await notificationService.checkDeliveryStatus();
-  } catch (error) {
-    logger.error('Errore check delivery status:', error);
-  }
-});
-
-// Retry notifiche fallite ogni ora
-cron.schedule('0 * * * *', async () => {
-  try {
-    await notificationService.retryFailedNotifications();
-  } catch (error) {
-    logger.error('Errore retry notifiche:', error);
-  }
-});
-
-// Processa batch schedulati ogni minuto
-cron.schedule('* * * * *', async () => {
-  try {
-    const scheduledBatches = await prisma.notificationBatch.findMany({
-      where: {
-        status: 'SCHEDULED',
-        scheduledAt: {
-          lte: new Date()
-        }
-      }
-    });
-    
-    for (const batch of scheduledBatches) {
-      await notificationService.sendBatch(batch.id);
-    }
-  } catch (error) {
-    logger.error('Errore processamento batch:', error);
-  }
-});

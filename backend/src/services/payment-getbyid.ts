@@ -1,6 +1,10 @@
 // METODO MANCANTE - getPaymentById
-// Da aggiungere a payment.service.ts prima del metodo getAdminStats
+// Service per ottenere dettagli pagamento per ID
 
+import { prisma } from '../config/database';
+import { logger } from '../utils/logger';
+
+class PaymentByIdService {
   /**
    * Ottiene dettaglio pagamento per ID
    */
@@ -31,3 +35,6 @@
       throw error;
     }
   }
+}
+
+export const paymentByIdService = new PaymentByIdService();
