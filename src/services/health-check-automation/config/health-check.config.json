@@ -1,0 +1,118 @@
+{
+  "enabled": true,
+  "modules": [
+    {
+      "name": "Database",
+      "description": "PostgreSQL database connection",
+      "endpoint": "database",
+      "critical": true,
+      "timeout": 5000,
+      "retries": 3
+    },
+    {
+      "name": "Redis",
+      "description": "Redis cache connection",
+      "endpoint": "redis",
+      "critical": true,
+      "timeout": 3000,
+      "retries": 3
+    },
+    {
+      "name": "WebSocket",
+      "description": "Socket.io server",
+      "endpoint": "websocket",
+      "critical": false,
+      "timeout": 3000,
+      "retries": 2
+    },
+    {
+      "name": "EmailService",
+      "description": "Email service (Brevo)",
+      "endpoint": "email",
+      "critical": false,
+      "timeout": 5000,
+      "retries": 2
+    },
+    {
+      "name": "OpenAI",
+      "description": "OpenAI API service",
+      "endpoint": "openai",
+      "critical": false,
+      "timeout": 10000,
+      "retries": 2
+    },
+    {
+      "name": "Stripe",
+      "description": "Stripe payment service",
+      "endpoint": "stripe",
+      "critical": false,
+      "timeout": 5000,
+      "retries": 2
+    },
+    {
+      "name": "GoogleMaps",
+      "description": "Google Maps API",
+      "endpoint": "googlemaps",
+      "critical": false,
+      "timeout": 5000,
+      "retries": 2
+    },
+    {
+      "name": "Storage",
+      "description": "File storage system",
+      "endpoint": "storage",
+      "critical": true,
+      "timeout": 3000,
+      "retries": 3
+    }
+  ],
+  "scheduler": {
+    "enabled": true,
+    "interval": "*/5 * * * *",
+    "immediate": false,
+    "timezone": "Europe/Rome"
+  },
+  "alerts": {
+    "enabled": true,
+    "threshold": 3,
+    "cooldown": 300000,
+    "channels": ["email", "websocket"],
+    "recipients": {
+      "email": ["admin@example.com"],
+      "websocket": ["admin"]
+    }
+  },
+  "performance": {
+    "enabled": true,
+    "collectInterval": 30000,
+    "metrics": {
+      "cpu": true,
+      "memory": true,
+      "disk": true,
+      "network": true,
+      "database": true,
+      "api": true
+    },
+    "thresholds": {
+      "cpu": 80,
+      "memory": 85,
+      "disk": 90,
+      "responseTime": 1000,
+      "errorRate": 5
+    }
+  },
+  "reports": {
+    "enabled": true,
+    "schedule": "0 8 * * MON",
+    "format": "pdf",
+    "recipients": ["admin@example.com"],
+    "includeMetrics": true,
+    "includeAlerts": true,
+    "includeRemediation": true
+  },
+  "storage": {
+    "path": "database-backups/health-reports",
+    "maxReports": 52,
+    "compressionEnabled": true
+  }
+}

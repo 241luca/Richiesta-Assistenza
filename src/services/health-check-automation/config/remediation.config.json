@@ -1,0 +1,134 @@
+{
+  "enabled": true,
+  "maxAttempts": 3,
+  "retryDelay": 5000,
+  "rules": [
+    {
+      "id": "database-connection-lost",
+      "name": "Database Connection Lost",
+      "condition": "database.status === 'disconnected'",
+      "actions": [
+        {
+          "type": "restart-connection-pool",
+          "description": "Restart database connection pool",
+          "timeout": 10000
+        }
+      ],
+      "enabled": true,
+      "priority": "critical"
+    },
+    {
+      "id": "redis-connection-lost",
+      "name": "Redis Connection Lost",
+      "condition": "redis.status === 'disconnected'",
+      "actions": [
+        {
+          "type": "restart-redis-client",
+          "description": "Restart Redis client connection",
+          "timeout": 5000
+        }
+      ],
+      "enabled": true,
+      "priority": "high"
+    },
+    {
+      "id": "high-memory-usage",
+      "name": "High Memory Usage",
+      "condition": "system.memoryUsage > 85",
+      "actions": [
+        {
+          "type": "force-garbage-collection",
+          "description": "Force garbage collection",
+          "timeout": 3000
+        },
+        {
+          "type": "clear-cache",
+          "description": "Clear application cache",
+          "timeout": 5000
+        }
+      ],
+      "enabled": true,
+      "priority": "medium"
+    },
+    {
+      "id": "queue-stuck",
+      "name": "Queue Stuck",
+      "condition": "queue.stuck > 10",
+      "actions": [
+        {
+          "type": "clear-dead-jobs",
+          "description": "Clear dead jobs from queue",
+          "timeout": 8000
+        }
+      ],
+      "enabled": true,
+      "priority": "medium"
+    },
+    {
+      "id": "websocket-disconnected",
+      "name": "WebSocket Disconnected",
+      "condition": "websocket.status === 'disconnected'",
+      "actions": [
+        {
+          "type": "restart-socket-io",
+          "description": "Restart Socket.io server",
+          "timeout": 10000
+        }
+      ],
+      "enabled": true,
+      "priority": "high"
+    },
+    {
+      "id": "disk-full",
+      "name": "Disk Full",
+      "condition": "system.diskUsage > 90",
+      "actions": [
+        {
+          "type": "clean-temp-files",
+          "description": "Clean temporary files",
+          "timeout": 15000
+        },
+        {
+          "type": "rotate-logs",
+          "description": "Rotate and compress old logs",
+          "timeout": 20000
+        }
+      ],
+      "enabled": true,
+      "priority": "critical"
+    },
+    {
+      "id": "api-response-slow",
+      "name": "API Response Slow",
+      "condition": "api.averageResponseTime > 1000",
+      "actions": [
+        {
+          "type": "clear-query-cache",
+          "description": "Clear database query cache",
+          "timeout": 5000
+        },
+        {
+          "type": "optimize-connections",
+          "description": "Optimize database connections",
+          "timeout": 8000
+        }
+      ],
+      "enabled": true,
+      "priority": "low"
+    }
+  ],
+  "notifications": {
+    "enabled": true,
+    "channels": ["email", "websocket"],
+    "recipients": ["admin@example.com"],
+    "alertThreshold": 3,
+    "cooldownPeriod": 300000
+  },
+  "logging": {
+    "enabled": true,
+    "level": "info",
+    "file": "logs/remediation.log",
+    "maxSize": "10m",
+    "maxFiles": 7
+  }
+}

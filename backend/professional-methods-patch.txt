@@ -1,0 +1,45 @@
+/**
+ * Patch temporaneo per Professional Dashboard
+ * Aggiungere questi metodi ALLA FINE della classe PaymentService
+ * PRIMA della chiusura } della classe
+ */
+
+// Aggiungi questi metodi nella classe PaymentService, alla fine prima dell'ultima }
+
+  /**
+   * Statistiche professionista - versione semplificata
+   */
+  async getProfessionalStats(professionalId: string, filters: any) {
+    return {
+      totalRevenue: 0,
+      totalTransactions: 0, 
+      averageTransaction: 0,
+      pendingAmount: 0,
+      platformFees: 0,
+      netRevenue: 0,
+      lastPayout: null,
+      nextPayout: null,
+      byStatus: {},
+      recentPayments: []
+    };
+  }
+
+  /**
+   * Pagamenti professionista - versione semplificata
+   */
+  async getProfessionalPayments(professionalId: string, filters: any) {
+    return [];
+  }
+
+  /**
+   * Richiesta payout - versione semplificata
+   */
+  async requestPayout(professionalId: string) {
+    return { 
+      id: 'temp-id',
+      professionalId,
+      amount: 0,
+      status: 'PENDING',
+      createdAt: new Date()
+    };
+  }

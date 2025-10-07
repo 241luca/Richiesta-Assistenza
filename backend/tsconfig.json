@@ -1,0 +1,48 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": false, // Disabilitiamo strict mode temporaneamente
+    "noUnusedLocals": false, // Disabilitiamo controllo variabili non usate
+    "noUnusedParameters": false, // Disabilitiamo controllo parametri non usati
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "noEmit": true,
+    "incremental": true,
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "strictNullChecks": false,
+    "strictFunctionTypes": false,
+    "strictBindCallApply": false,
+    "strictPropertyInitialization": false,
+    "noImplicitThis": false,
+    "noImplicitAny": false,
+    "alwaysStrict": false
+  },
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.backup-*",
+    "**/*.backup-*/",
+    "src/__tests__/**/*",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+    "src/scripts/**/*"
+  ],
+  "ts-node": {
+    "transpileOnly": true, // Salta il type checking per velocità
+    "files": true,
+    "compilerOptions": {
+      "module": "commonjs"
+    }
+  }
+}

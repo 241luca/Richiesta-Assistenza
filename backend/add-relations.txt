@@ -1,0 +1,11 @@
+# Aggiungi al model User (prima di @@index):
+  professionalAiCustomizations ProfessionalAiCustomization[] @relation("ProfessionalAiCustomizations")
+  uploadedDocuments KnowledgeBaseDocument[] @relation("UploadedDocuments")
+  aiConversations AiConversation[] @relation("UserAiConversations")
+
+# Aggiungi al model AssistanceRequest (prima della chiusura }):
+  aiConversations AiConversation[]
+
+# Aggiungi al model SubcategoryAiSettings (prima della chiusura }):
+  aiConversations AiConversation[]
+  professionalCustomizations ProfessionalAiCustomization[]

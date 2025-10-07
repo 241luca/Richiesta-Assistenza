@@ -1,0 +1,186 @@
+{
+  "auth": {
+    "minScore": 90,
+    "checks": {
+      "jwt_valid": { 
+        "required": true,
+        "severity": "critical"
+      },
+      "2fa_adoption": { 
+        "min": 30,
+        "target": 80,
+        "severity": "medium"
+      },
+      "session_timeout": { 
+        "max": 3600,
+        "severity": "high"
+      },
+      "password_strength": {
+        "min": 8,
+        "complexity": true,
+        "severity": "high"
+      }
+    }
+  },
+  "database": {
+    "minScore": 85,
+    "checks": {
+      "connection": { 
+        "required": true,
+        "severity": "critical"
+      },
+      "response_time": { 
+        "max": 100,
+        "warning": 50,
+        "severity": "high"
+      },
+      "size": { 
+        "warning": 5000000000,
+        "critical": 10000000000,
+        "severity": "medium"
+      },
+      "connection_pool": {
+        "min": 5,
+        "max": 20,
+        "severity": "high"
+      }
+    }
+  },
+  "notification": {
+    "minScore": 80,
+    "checks": {
+      "email_service": {
+        "required": true,
+        "severity": "high"
+      },
+      "delivery_rate": {
+        "min": 95,
+        "target": 99,
+        "severity": "high"
+      },
+      "queue_length": {
+        "max": 1000,
+        "warning": 500,
+        "severity": "medium"
+      }
+    }
+  },
+  "backup": {
+    "minScore": 95,
+    "checks": {
+      "last_backup": {
+        "maxAge": 86400,
+        "severity": "critical"
+      },
+      "backup_integrity": {
+        "required": true,
+        "severity": "critical"
+      },
+      "storage_space": {
+        "min": 1000000000,
+        "severity": "high"
+      }
+    }
+  },
+  "chat": {
+    "minScore": 75,
+    "checks": {
+      "socket_connection": {
+        "required": true,
+        "severity": "critical"
+      },
+      "delivery_rate": {
+        "min": 90,
+        "target": 95,
+        "severity": "high"
+      },
+      "response_time": {
+        "max": 200,
+        "warning": 100,
+        "severity": "medium"
+      },
+      "unread_backlog": {
+        "max": 200,
+        "warning": 50,
+        "severity": "low"
+      }
+    }
+  },
+  "payment": {
+    "minScore": 90,
+    "checks": {
+      "stripe_connection": {
+        "required": true,
+        "severity": "critical"
+      },
+      "success_rate": {
+        "min": 85,
+        "target": 95,
+        "severity": "critical"
+      },
+      "pending_payments": {
+        "max": 10,
+        "warning": 5,
+        "severity": "high"
+      },
+      "refund_processing": {
+        "maxAge": 172800,
+        "severity": "medium"
+      }
+    }
+  },
+  "ai": {
+    "minScore": 70,
+    "checks": {
+      "api_connection": {
+        "required": true,
+        "severity": "high"
+      },
+      "token_usage": {
+        "maxDaily": 100000,
+        "warning": 70000,
+        "severity": "medium"
+      },
+      "response_time": {
+        "max": 2000,
+        "warning": 1000,
+        "severity": "medium"
+      },
+      "error_rate": {
+        "max": 5,
+        "warning": 2,
+        "severity": "high"
+      }
+    }
+  },
+  "request": {
+    "minScore": 80,
+    "checks": {
+      "database_connection": {
+        "required": true,
+        "severity": "critical"
+      },
+      "unassigned_requests": {
+        "max": 10,
+        "warning": 5,
+        "maxAge": 172800,
+        "severity": "high"
+      },
+      "completion_rate": {
+        "min": 50,
+        "target": 70,
+        "severity": "high"
+      },
+      "assignment_speed": {
+        "maxHours": 6,
+        "warning": 2,
+        "severity": "medium"
+      },
+      "cancellation_rate": {
+        "max": 20,
+        "warning": 10,
+        "severity": "medium"
+      }
+    }
+  }
+}

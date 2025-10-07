@@ -1,0 +1,136 @@
+{
+  "enabled": true,
+  "collectInterval": 30000,
+  "retentionPeriod": 2592000000,
+  "metrics": {
+    "system": {
+      "enabled": true,
+      "cpu": {
+        "enabled": true,
+        "threshold": 80,
+        "alertOnExceed": true
+      },
+      "memory": {
+        "enabled": true,
+        "threshold": 85,
+        "alertOnExceed": true,
+        "includeDetails": true
+      },
+      "disk": {
+        "enabled": true,
+        "threshold": 90,
+        "alertOnExceed": true,
+        "paths": ["/", "/tmp", "/var/log"]
+      },
+      "network": {
+        "enabled": true,
+        "interfaces": ["eth0", "lo"]
+      }
+    },
+    "application": {
+      "enabled": true,
+      "requestRate": {
+        "enabled": true,
+        "window": 60000
+      },
+      "responseTime": {
+        "enabled": true,
+        "percentiles": [50, 90, 95, 99],
+        "threshold": 1000,
+        "alertOnExceed": true
+      },
+      "errorRate": {
+        "enabled": true,
+        "window": 300000,
+        "threshold": 5,
+        "alertOnExceed": true
+      },
+      "activeConnections": {
+        "enabled": true,
+        "includeDetails": false
+      }
+    },
+    "database": {
+      "enabled": true,
+      "connectionPool": {
+        "enabled": true,
+        "alertOnFull": true
+      },
+      "queryPerformance": {
+        "enabled": true,
+        "slowQueryThreshold": 1000,
+        "logSlowQueries": true
+      },
+      "activeQueries": {
+        "enabled": true,
+        "alertThreshold": 100
+      }
+    },
+    "cache": {
+      "enabled": true,
+      "hitRate": {
+        "enabled": true,
+        "window": 300000
+      },
+      "memory": {
+        "enabled": true,
+        "alertThreshold": 1073741824
+      },
+      "keys": {
+        "enabled": true,
+        "alertThreshold": 100000
+      }
+    },
+    "queue": {
+      "enabled": true,
+      "length": {
+        "enabled": true,
+        "alertThreshold": 1000
+      },
+      "processing": {
+        "enabled": true,
+        "window": 60000
+      },
+      "failed": {
+        "enabled": true,
+        "alertThreshold": 10,
+        "window": 300000
+      }
+    }
+  },
+  "aggregation": {
+    "enabled": true,
+    "intervals": ["1m", "5m", "15m", "1h", "1d"],
+    "retention": {
+      "1m": 3600000,
+      "5m": 86400000,
+      "15m": 604800000,
+      "1h": 2592000000,
+      "1d": 31536000000
+    }
+  },
+  "storage": {
+    "type": "database",
+    "table": "PerformanceMetrics",
+    "compress": true,
+    "batchSize": 100,
+    "flushInterval": 10000
+  },
+  "alerts": {
+    "enabled": true,
+    "debounce": 60000,
+    "channels": ["email", "websocket"],
+    "levels": {
+      "info": false,
+      "warning": true,
+      "error": true,
+      "critical": true
+    }
+  },
+  "export": {
+    "enabled": true,
+    "formats": ["json", "csv", "prometheus"],
+    "endpoint": "/api/admin/metrics",
+    "authentication": true
+  }
+}

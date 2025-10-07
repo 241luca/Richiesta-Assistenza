@@ -1,0 +1,45 @@
+{
+  "enabled": true,
+  "rules": [
+    {
+      "id": "restart-db-connection",
+      "name": "Restart Database Connection",
+      "condition": {
+        "module": "Database",
+        "status": "UNHEALTHY",
+        "threshold": 3
+      },
+      "action": "restartDatabaseConnection",
+      "priority": 1,
+      "enabled": true
+    },
+    {
+      "id": "clear-redis-cache",
+      "name": "Clear Redis Cache",
+      "condition": {
+        "module": "Redis",
+        "status": "UNHEALTHY",
+        "threshold": 2
+      },
+      "action": "clearRedisCache",
+      "priority": 2,
+      "enabled": true
+    },
+    {
+      "id": "restart-websocket",
+      "name": "Restart WebSocket",
+      "condition": {
+        "module": "WebSocket",
+        "status": "UNHEALTHY",
+        "threshold": 2
+      },
+      "action": "restartWebSocket",
+      "priority": 3,
+      "enabled": true
+    }
+  ],
+  "maxRetries": 3,
+  "retryDelay": 5000,
+  "alertOnFailure": true,
+  "logLevel": "info"
+}

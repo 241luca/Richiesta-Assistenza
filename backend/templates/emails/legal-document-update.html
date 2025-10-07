@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aggiornamento Documento Legale</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background-color: #f5f5f5;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+    }
+    .icon {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 20px;
+      background-color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .content {
+      padding: 30px;
+    }
+    .greeting {
+      font-size: 18px;
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .message {
+      background-color: #f8f9fa;
+      border-left: 4px solid #667eea;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+    .info-box {
+      background-color: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 6px;
+      padding: 15px;
+      margin: 20px 0;
+    }
+    .info-box h3 {
+      color: #856404;
+      margin-top: 0;
+      font-size: 16px;
+    }
+    .details {
+      background-color: #f8f9fa;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 20px 0;
+    }
+    .details-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #e9ecef;
+    }
+    .details-item:last-child {
+      border-bottom: none;
+    }
+    .details-label {
+      font-weight: 600;
+      color: #6c757d;
+    }
+    .details-value {
+      color: #333;
+    }
+    .button {
+      display: inline-block;
+      padding: 14px 30px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+      margin: 20px 0;
+      text-align: center;
+      transition: transform 0.2s;
+    }
+    .button:hover {
+      transform: translateY(-2px);
+    }
+    .warning {
+      background-color: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+    .footer {
+      background-color: #f8f9fa;
+      padding: 20px 30px;
+      text-align: center;
+      font-size: 13px;
+      color: #6c757d;
+    }
+    .footer a {
+      color: #667eea;
+      text-decoration: none;
+    }
+    .legal-notice {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #e9ecef;
+      font-size: 12px;
+      color: #6c757d;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="icon">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M9 12H15M9 16H15M17 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3H12.5858C12.851 3 13.1054 3.10536 13.2929 3.29289L18.7071 8.70711C18.8946 8.89464 19 9.149 19 9.41421V19C19 20.1046 18.1046 21 17 21Z" 
+            stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M13 3V8C13 8.55228 13.4477 9 14 9H19" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h1>Aggiornamento Documento Legale</h1>
+    </div>
+    
+    <div class="content">
+      <div class="greeting">
+        Ciao {{userName}},
+      </div>
+      
+      <div class="message">
+        <p style="margin: 0;">
+          Ti informiamo che è stata pubblicata una <strong>nuova versione</strong> del documento 
+          <strong>{{documentName}}</strong> che richiede la tua attenzione e accettazione.
+        </p>
+      </div>
+
+      <div class="info-box">
+        <h3>⚠️ Azione Richiesta</h3>
+        <p style="margin: 0;">
+          Per continuare ad utilizzare i nostri servizi, è necessario che tu prenda visione 
+          e accetti la nuova versione del documento.
+        </p>
+      </div>
+
+      <div class="details">
+        <div class="details-item">
+          <span class="details-label">Documento:</span>
+          <span class="details-value">{{documentName}}</span>
+        </div>
+        <div class="details-item">
+          <span class="details-label">Nuova Versione:</span>
+          <span class="details-value">{{documentVersion}}</span>
+        </div>
+        <div class="details-item">
+          <span class="details-label">Data Effettiva:</span>
+          <span class="details-value">{{effectiveDate}}</span>
+        </div>
+      </div>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="{{actionUrl}}" class="button" style="color: white;">
+          Visualizza e Accetta
+        </a>
+      </div>
+
+      <div class="warning">
+        <p style="margin: 0;">
+          <strong>Importante:</strong> L'accettazione di questo documento è necessaria per 
+          continuare ad utilizzare i nostri servizi in conformità con le normative vigenti.
+        </p>
+      </div>
+
+      <div class="legal-notice">
+        <p>
+          <strong>Perché ricevi questa email?</strong><br>
+          Hai ricevuto questa comunicazione perché sei un utente registrato della nostra piattaforma 
+          e siamo tenuti per legge ad informarti di eventuali aggiornamenti ai documenti legali 
+          che regolano l'utilizzo dei nostri servizi.
+        </p>
+        <p>
+          Se non riconosci questa attività o hai domande, contattaci immediatamente.
+        </p>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>
+        © 2025 Richiesta Assistenza. Tutti i diritti riservati.
+      </p>
+      <p>
+        <a href="{{documentUrl}}">Visualizza nel browser</a> | 
+        <a href="http://localhost:5193/my-consents">Gestisci i tuoi consensi</a>
+      </p>
+      <p style="margin-top: 15px; font-size: 11px;">
+        Questa è una comunicazione automatica importante relativa ai termini del servizio. 
+        Non rispondere a questa email.
+      </p>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,24 @@
+// Aggiungi questo codice al file server.ts dopo gli altri import delle routes
+// Cerca la sezione dove sono importate le altre routes e aggiungi:
+
+import paymentRoutes from './routes/payment.routes';
+
+// Poi cerca dove sono registrate le routes (cerca app.use('/api/...) e aggiungi:
+app.use('/api/payments', paymentRoutes);
+
+// Se non trovi la sezione delle routes, puoi aggiungerlo dopo il middleware ma prima dell'error handler
+// Esempio di dove mettere il codice:
+
+// ... altri middleware ...
+
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+// ... altre routes ...
+app.use('/api/payments', paymentRoutes);  // <-- AGGIUNGERE QUESTA LINEA
+app.use('/api/invoices', invoiceRoutes);   // Se hai anche invoice routes
+
+// Error handling middleware (deve essere DOPO tutte le routes)
+app.use(errorHandler);
+
+// ... resto del codice ...

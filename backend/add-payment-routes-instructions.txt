@@ -1,0 +1,22 @@
+// ISTRUZIONI PER AGGIUNGERE PAYMENT ROUTES AL SERVER.TS
+// Data: 29/01/2025
+
+// STEP 1: Aggiungi questo import dopo gli altri import di routes (cerca "import.*Routes from")
+import paymentRoutes from './routes/payment.routes';
+import invoiceRoutes from './routes/invoice.routes';
+
+// STEP 2: Aggiungi queste righe dove sono registrate le altre routes API (cerca "app.use('/api/")
+// Preferibilmente dopo quotes o prima di notifications
+
+app.use('/api/payments', paymentRoutes);
+app.use('/api/invoices', invoiceRoutes);
+
+// Le routes dovrebbero essere aggiunte in questa sezione del file:
+// ... altre routes ...
+app.use('/api/quotes', quoteRoutes);
+app.use('/api/payments', paymentRoutes);  // <-- AGGIUNGI QUI
+app.use('/api/invoices', invoiceRoutes);  // <-- AGGIUNGI QUI  
+app.use('/api/notifications', notificationRoutes);
+// ... altre routes ...
+
+// NOTA: Assicurati che siano PRIMA di errorHandler e 404 handler

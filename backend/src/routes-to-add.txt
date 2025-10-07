@@ -1,0 +1,10 @@
+// Aggiungi dopo la riga degli altri import di route (circa riga 230)
+
+// Calendar routes
+import calendarRoutes from './routes/calendar/calendar.routes';
+
+// Aggiungi dopo la registrazione delle altre route (circa riga 380, dopo le intervention report routes)
+
+// Calendar routes
+app.use('/api', authenticate, calendarRoutes);
+logger.info('📅 Calendar routes registered at /api/calendar and /api/interventions');

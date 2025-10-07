@@ -1,0 +1,377 @@
+###
+# Admin Modules API Test
+# Test completo per tutte le API del sistema moduli
+# 
+# PREREQUISITI:
+# 1. Backend running su http://localhost:3200
+# 2. User autenticato con ruolo ADMIN o SUPER_ADMIN
+# 3. Token JWT valido
+#
+# SETUP:
+# 1. Eseguire login da frontend o API per ottenere token
+# 2. Sostituire {{adminToken}} con il token JWT ricevuto
+# 3. Testare endpoint uno per uno
+#
+# @author Sistema Richiesta Assistenza
+# @version 1.0.0
+# @updated 2025-10-06
+###
+
+@baseUrl = http://localhost:3200
+@adminToken = JWT_TOKEN_QUI
+
+### ============================================
+### TEST LETTURA MODULI
+### ============================================
+
+### 1. GET - Tutti i moduli
+GET {{baseUrl}}/api/admin/modules
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### 2. GET - Moduli con filtri
+GET {{baseUrl}}/api/admin/modules?category=CORE&isEnabled=true
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### 3. GET - Ricerca moduli per nome
+GET {{baseUrl}}/api/admin/modules?search=whats
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### 4. GET - Moduli CORE
+GET {{baseUrl}}/api/admin/modules/category/CORE
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### 5. GET - Moduli BUSINESS
+GET {{baseUrl}}/api/admin/modules/category/BUSINESS
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### 6. GET - Moduli ADMIN
+GET {{baseUrl}}/api/admin/modules/category/ADMIN
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### 7. GET - Modulo specifico (reviews)
+GET {{baseUrl}}/api/admin/modules/reviews
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### 8. GET - Modulo specifico (whatsapp)
+GET {{baseUrl}}/api/admin/modules/whatsapp
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### 9. GET - Modulo specifico (portfolio)
+GET {{baseUrl}}/api/admin/modules/portfolio
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### ============================================
+### TEST ABILITAZIONE/DISABILITAZIONE
+### ============================================
+
+### 10. POST - Abilita modulo portfolio
+POST {{baseUrl}}/api/admin/modules/portfolio/enable
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "reason": "Test enable from API - Sessione 4"
+}
+
+### 11. POST - Disabilita modulo portfolio
+POST {{baseUrl}}/api/admin/modules/portfolio/disable
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "reason": "Test disable from API - Sessione 4"
+}
+
+### 12. POST - Prova ad abilitare modulo core (dovrebbe fallire)
+POST {{baseUrl}}/api/admin/modules/users/disable
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "reason": "Test disable core module (should fail)"
+}
+
+### 13. POST - Abilita modulo già abilitato (dovrebbe fallire)
+POST {{baseUrl}}/api/admin/modules/users/enable
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "reason": "Test enable already enabled module"
+}
+
+### ============================================
+### TEST CONFIGURAZIONE
+### ============================================
+
+### 14. PUT - Aggiorna configurazione WhatsApp
+PUT {{baseUrl}}/api/admin/modules/whatsapp/config
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "config": {
+    "timeout": 5000,
+    "retries": 3,
+    "sessionName": "production",
+    "updatedBy": "API Test",
+    "lastUpdate": "2025-10-06T15:00:00Z"
+  }
+}
+
+### 15. PUT - Aggiorna configurazione Portfolio
+PUT {{baseUrl}}/api/admin/modules/portfolio/config
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "config": {
+    "maxItems": 10,
+    "allowImages": true,
+    "maxImageSize": 5242880,
+    "apiTestMode": true
+  }
+}
+
+### ============================================
+### TEST SETTINGS
+### ============================================
+
+### 16. GET - Settings modulo WhatsApp
+GET {{baseUrl}}/api/admin/modules/whatsapp/settings
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### 17. GET - Settings modulo Portfolio
+GET {{baseUrl}}/api/admin/modules/portfolio/settings
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### 18. GET - Settings modulo Reviews
+GET {{baseUrl}}/api/admin/modules/reviews/settings
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### 19. PUT - Aggiorna setting WhatsApp session_name
+PUT {{baseUrl}}/api/admin/modules/whatsapp/settings/session_name
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "value": "production-api-test"
+}
+
+### 20. PUT - Aggiorna setting Portfolio max_items
+PUT {{baseUrl}}/api/admin/modules/portfolio/settings/max_items
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "value": "12"
+}
+
+### ============================================
+### TEST HISTORY & AUDIT
+### ============================================
+
+### 21. GET - History modulo Reviews (ultimi 10)
+GET {{baseUrl}}/api/admin/modules/reviews/history?limit=10
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### 22. GET - History modulo WhatsApp (ultimi 5)
+GET {{baseUrl}}/api/admin/modules/whatsapp/history?limit=5
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### 23. GET - History modulo Portfolio (tutti i default)
+GET {{baseUrl}}/api/admin/modules/portfolio/history
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### ============================================
+### TEST UTILITY & STATISTICS
+### ============================================
+
+### 24. GET - Statistiche moduli
+GET {{baseUrl}}/api/admin/modules/stats
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### 25. GET - Valida dipendenze sistema
+GET {{baseUrl}}/api/admin/modules/dependencies/validate
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### 26. GET - Lista moduli con dipendenze
+GET {{baseUrl}}/api/admin/modules/dependencies/list
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### ============================================
+### TEST ERRORI E EDGE CASES
+### ============================================
+
+### 27. GET - Modulo inesistente (404)
+GET {{baseUrl}}/api/admin/modules/nonexistent-module
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### 28. POST - Abilita modulo inesistente (400)
+POST {{baseUrl}}/api/admin/modules/nonexistent-module/enable
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "reason": "Test module not found"
+}
+
+### 29. PUT - Setting inesistente (400)
+PUT {{baseUrl}}/api/admin/modules/whatsapp/settings/nonexistent-setting
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "value": "test"
+}
+
+### 30. GET - Categoria inesistente (400)
+GET {{baseUrl}}/api/admin/modules/category/NONEXISTENT
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### ============================================
+### TEST SEQUENCE COMPLETA
+### ============================================
+
+### 31. SEQUENCE - Test completo enable/disable/config/history
+
+# Step 1: Stato iniziale portfolio
+GET {{baseUrl}}/api/admin/modules/portfolio
+Authorization: Bearer {{adminToken}}
+
+###
+
+# Step 2: Disabilita portfolio
+POST {{baseUrl}}/api/admin/modules/portfolio/disable
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "reason": "Test sequence - Step 2 disable"
+}
+
+###
+
+# Step 3: Verifica stato disabilitato
+GET {{baseUrl}}/api/admin/modules/portfolio
+Authorization: Bearer {{adminToken}}
+
+###
+
+# Step 4: Abilita portfolio
+POST {{baseUrl}}/api/admin/modules/portfolio/enable
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "reason": "Test sequence - Step 4 enable"
+}
+
+###
+
+# Step 5: Aggiorna configurazione
+PUT {{baseUrl}}/api/admin/modules/portfolio/config
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "config": {
+    "testSequence": true,
+    "lastStep": 5,
+    "timestamp": "2025-10-06T15:30:00Z"
+  }
+}
+
+###
+
+# Step 6: Verifica history (dovrebbe mostrare disable/enable/config)
+GET {{baseUrl}}/api/admin/modules/portfolio/history?limit=5
+Authorization: Bearer {{adminToken}}
+
+###
+
+# Step 7: Verifica stato finale
+GET {{baseUrl}}/api/admin/modules/portfolio
+Authorization: Bearer {{adminToken}}
+
+### ============================================
+### ISTRUZIONI PER L'USO
+### ============================================
+
+###
+# COME USARE QUESTO FILE:
+#
+# 1. SETUP TOKEN:
+#    - Accedi al frontend su http://localhost:5193
+#    - Login come ADMIN o SUPER_ADMIN
+#    - Copia il JWT token dalle DevTools (Application > Local Storage > token)
+#    - Sostituisci {{adminToken}} sopra con il token copiato
+#
+# 2. ESEGUI TEST:
+#    - In VS Code: installa REST Client extension
+#    - Clicca "Send Request" sopra ogni ### sezione
+#    - In Postman: importa questo file come collection
+#    - In curl: copia i comandi e sostituisci le variabili
+#
+# 3. VERIFICA RISULTATI:
+#    - Status 200 = OK
+#    - Status 400 = Bad Request (input non valido)
+#    - Status 401 = Unauthorized (token scaduto/invalido)
+#    - Status 403 = Forbidden (non hai permessi ADMIN)
+#    - Status 404 = Not Found (risorsa non trovata)
+#    - Status 500 = Internal Error (errore server)
+#
+# 4. ASPETTATIVE:
+#    - Test 1-9: Tutti dovrebbero restituire 200
+#    - Test 10-11: 200 se modulo può essere enabled/disabled
+#    - Test 12: 400 (modulo core non disabilitabile)
+#    - Test 13: 400 (modulo già abilitato)
+#    - Test 14-15: 200 se modulo esiste
+#    - Test 16-20: 200 se settings esistono
+#    - Test 21-26: 200 con dati del sistema
+#    - Test 27-30: 400/404 (errori attesi)
+#    - Test 31: Sequenza 200 se tutto OK
+#
+# 5. DEBUG:
+#    - Controlla logs backend per errori dettagliati
+#    - Verifica database che le modifiche siano state salvate
+#    - Controlla che il modulo esista nel seed del database
+###
+
+###
+# QUICK CURL COMMANDS:
+###
+
+# Token di esempio (sostituire con il vero)
+# export TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+# Test rapido tutti i moduli:
+# curl -H "Authorization: Bearer $TOKEN" http://localhost:3200/api/admin/modules
+
+# Test enable portfolio:
+# curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+#      -d '{"reason":"Test curl"}' \
+#      http://localhost:3200/api/admin/modules/portfolio/enable
+
+# Test statistics:
+# curl -H "Authorization: Bearer $TOKEN" http://localhost:3200/api/admin/modules/stats

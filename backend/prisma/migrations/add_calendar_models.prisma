@@ -1,0 +1,121 @@
+// Aggiunte al file schema.prisma per il calendario enterprise
+
+model ProfessionalAvailability {
+  id              String   @id @default(cuid())
+  professionalId  String
+  dayOfWeek       Int      // 0=Domenica, 6=Sabato
+  startTime       String   // Format: "HH:mm"
+  endTime         String   // Format: "HH:mm"
+  isActive        Boolean  @default(true)
+  effectiveFrom   DateTime?
+  effectiveUntil  DateTime?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  professional    User     @relation("ProfessionalAvailability", fields: [professionalId], references: [id], onDelete: Cascade)
+  
+  @@unique([professionalId, dayOfWeek, startTime, endTime])
+  @@index([professionalId])
+  @@index([isActive])
+}
+
+model ProfessionalUnavailability {
+  id                String   @id @default(cuid())
+  professionalId    String
+  startDate         DateTime
+  endDate           DateTime
+  reason            String?
+  description       String?
+  allDay            Boolean  @default(true)
+  recurring         Boolean  @default(false)
+  recurringPattern  Json?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  professional      User     @relation("ProfessionalUnavailability", fields: [professionalId], references: [id], onDelete: Cascade)
+  
+  @@index([professionalId])
+  @@index([startDate, endDate])
+  @@index([isActive])
+}
+
+model CalendarSettings {
+  id                            String    @id @default(cuid())
+  professionalId                String    @unique
+  defaultView                   String    @default("week")
+  weekStartsOn                  Int       @default(1)
+  timeSlotDuration              Int       @default(30)
+  minTime                       String    @default("08:00")
+  maxTime                       String    @default("20:00")
+  showWeekends                  Boolean   @default(true)
+  defaultInterventionDuration   Int       @default(60)
+  defaultBufferTime             Int       @default(15)
+  maxConcurrentInterventions    Int       @default(1)
+  autoConfirmInterventions      Boolean   @default(false)
+  sendReminders                 Boolean   @default(true)
+  reminderTiming                Int[]     @default([1440, 60])
+  syncWithGoogle                Boolean   @default(false)
+  googleCalendarId              String?
+  googleRefreshToken            String?   @db.Text
+  googleAccessToken             String?   @db.Text
+  googleTokenExpiry             DateTime?
+  lastGoogleSync                DateTime?
+  colorScheme                   Json      @default("{}")
+  timeZone                      String    @default("Europe/Rome")
+  createdAt                     DateTime  @default(now())
+  updatedAt                     DateTime  @updatedAt
+  
+  professional                  User      @relation("CalendarSettings", fields: [professionalId], references: [id], onDelete: Cascade)
+  
+  @@index([professionalId])
+  @@index([syncWithGoogle])
+}
+
+model InterventionTemplate {
+  id                String   @id @default(cuid())
+  professionalId    String
+  name              String
+  description       String?
+  categoryId        String?
+  subcategoryId     String?
+  estimatedDuration Int      @default(60)
+  preparationTime   Int      @default(0)
+  travelTime        Int      @default(0)
+  bufferTime        Int      @default(15)
+  color             String   @default("#3B82F6")
+  defaultPrice      Decimal? @db.Decimal(10, 2)
+  notes             String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  professional      User        @relation("InterventionTemplates", fields: [professionalId], references: [id], onDelete: Cascade)
+  category          Category?   @relation(fields: [categoryId], references: [id])
+  subcategory       Subcategory? @relation(fields: [subcategoryId], references: [id])
+  
+  @@index([professionalId])
+  @@index([categoryId])
+  @@index([isActive])
+}
+
+model GoogleCalendarSyncLog {
+  id              String   @id @default(cuid())
+  professionalId  String
+  syncType        String   // FULL, INCREMENTAL, MANUAL
+  status          String   // SUCCESS, FAILED, PARTIAL
+  eventsCreated   Int      @default(0)
+  eventsUpdated   Int      @default(0)
+  eventsDeleted   Int      @default(0)
+  errors          Json?
+  startedAt       DateTime
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+  
+  professional    User     @relation("GoogleSyncLogs", fields: [professionalId], references: [id], onDelete: Cascade)
+  
+  @@index([professionalId])
+  @@index([status])
+  @@index([createdAt])
+}

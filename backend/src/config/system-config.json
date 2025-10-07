@@ -1,0 +1,163 @@
+{
+  "name": "Sistema Richiesta Assistenza",
+  "version": "5.1.0",
+  "releaseDate": "2025-09-29",
+  "environment": "development",
+  "status": "production-ready",
+  "completion": 85,
+  "features": {
+    "core": {
+      "authentication": true,
+      "twoFactorAuth": true,
+      "requestManagement": true,
+      "quoteSystem": true,
+      "paymentSystem": true,
+      "invoicing": true,
+      "notifications": true
+    },
+    "integrations": {
+      "stripe": {
+        "enabled": true,
+        "version": "2024-06-20",
+        "features": ["payments", "invoices", "refunds", "payouts"]
+      },
+      "googleMaps": {
+        "enabled": true,
+        "services": ["places", "geocoding", "distance-matrix"]
+      },
+      "openai": {
+        "enabled": true,
+        "models": ["gpt-4", "gpt-3.5-turbo"],
+        "features": ["chat", "suggestions", "categorization"]
+      },
+      "whatsapp": {
+        "enabled": true,
+        "provider": "wppconnect",
+        "version": "1.37.5"
+      },
+      "email": {
+        "enabled": true,
+        "provider": "brevo"
+      }
+    },
+    "dashboard": {
+      "admin": {
+        "users": true,
+        "payments": true,
+        "analytics": true,
+        "system": true,
+        "scripts": true,
+        "backup": true
+      },
+      "professional": {
+        "requests": true,
+        "quotes": true,
+        "payments": true,
+        "calendar": true,
+        "reports": true
+      },
+      "client": {
+        "requests": true,
+        "quotes": true,
+        "payments": true,
+        "chat": true
+      }
+    }
+  },
+  "database": {
+    "provider": "postgresql",
+    "orm": "prisma",
+    "version": "6.16.2",
+    "tables": 97,
+    "paymentTables": 11
+  },
+  "api": {
+    "endpoints": 225,
+    "publicEndpoints": 9,
+    "websocketNamespaces": 4,
+    "rateLimiting": true,
+    "documentation": "50%"
+  },
+  "frontend": {
+    "framework": "react",
+    "version": "19.1.1",
+    "bundler": "vite",
+    "bundlerVersion": "7.1.3",
+    "styling": "tailwindcss",
+    "stateManagement": "react-query",
+    "components": 60
+  },
+  "backend": {
+    "framework": "express",
+    "version": "5.1.0",
+    "language": "typescript",
+    "runtime": "node",
+    "nodeVersion": "20.x",
+    "services": 42,
+    "middleware": 15,
+    "routes": 62
+  },
+  "testing": {
+    "coverage": 75,
+    "unitTests": 120,
+    "integrationTests": 45,
+    "e2eTests": 25
+  },
+  "deployment": {
+    "environment": "development",
+    "ports": {
+      "frontend": 5193,
+      "backend": 3200,
+      "redis": 6379,
+      "postgres": 5432
+    },
+    "ssl": false,
+    "cors": true
+  },
+  "payments": {
+    "provider": "stripe",
+    "commission": 15,
+    "taxRate": 22,
+    "currency": "EUR",
+    "methods": ["card", "bank_transfer", "paypal", "cash"],
+    "testMode": true,
+    "exampleData": {
+      "payments": 7,
+      "invoices": 3,
+      "payouts": 2
+    }
+  },
+  "changelog": {
+    "v5.1.0": {
+      "date": "2025-09-29",
+      "features": [
+        "Sistema pagamenti Stripe completo",
+        "Dashboard pagamenti admin e professional",
+        "Sistema fatturazione automatica",
+        "Payout automatici professionisti",
+        "Fix routing notifiche 403",
+        "Documentazione pagamenti completa"
+      ]
+    },
+    "v5.0.0": {
+      "date": "2025-09-27",
+      "features": [
+        "Verifica completa sistema",
+        "Sistema personalizzazione",
+        "WhatsApp WppConnect",
+        "Sistema cleanup",
+        "Socket.io centralizzato"
+      ]
+    }
+  },
+  "team": {
+    "lead": "Luca Mambelli",
+    "email": "lucamambelli@lmtecnologie.it",
+    "company": "LM Tecnologie"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/241luca/Richiesta-Assistenza"
+  },
+  "license": "proprietary"
+}

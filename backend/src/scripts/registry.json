@@ -1,0 +1,490 @@
+{
+  "scripts": [
+    {
+      "id": "test-typescript",
+      "name": "Test TypeScript Completo",
+      "description": "Verifica tutti gli errori TypeScript nel progetto backend",
+      "category": "testing",
+      "path": "testing/test-typescript.js",
+      "risk": "low",
+      "parameters": [],
+      "requireConfirmation": false,
+      "minRole": "ADMIN",
+      "timeout": 60000,
+      "enabled": true
+    },
+    {
+      "id": "test-request-service",
+      "name": "Test Request Service",
+      "description": "Esegue test unitari sul servizio delle richieste di assistenza",
+      "category": "testing",
+      "path": "testing/test-request-service.js",
+      "risk": "low",
+      "parameters": [
+        {
+          "name": "verbose",
+          "type": "boolean",
+          "default": false,
+          "description": "Output dettagliato dei test"
+        }
+      ],
+      "requireConfirmation": false,
+      "minRole": "ADMIN",
+      "timeout": 120000,
+      "enabled": true
+    },
+    {
+      "id": "test-api-endpoints",
+      "name": "Test API Endpoints",
+      "description": "Verifica che tutti gli endpoint API rispondano correttamente",
+      "category": "testing",
+      "path": "testing/test-api-endpoints.js",
+      "risk": "low",
+      "parameters": [
+        {
+          "name": "category",
+          "type": "select",
+          "options": ["all", "auth", "requests", "quotes", "users", "notifications"],
+          "default": "all",
+          "description": "Categoria di endpoint da testare"
+        }
+      ],
+      "requireConfirmation": false,
+      "minRole": "ADMIN",
+      "timeout": 180000,
+      "enabled": true
+    },
+    {
+      "id": "test-system-complete",
+      "name": "Test Sistema Completo",
+      "description": "Esegue una suite completa di test su tutto il sistema",
+      "category": "testing",
+      "path": "testing/test-system-complete.js",
+      "risk": "low",
+      "parameters": [],
+      "requireConfirmation": false,
+      "minRole": "ADMIN",
+      "timeout": 300000,
+      "enabled": true
+    },
+    {
+      "id": "typescript-errors-check",
+      "name": "TypeScript Errors Check",
+      "description": "Controlla errori TypeScript in backend e frontend, ordinati per numero di errori",
+      "category": "testing",
+      "path": "testing/typescript-errors-check.ts",
+      "risk": "low",
+      "parameters": [
+        {
+          "name": "area",
+          "type": "select",
+          "options": ["all", "backend", "frontend"],
+          "default": "all",
+          "description": "Area da controllare"
+        },
+        {
+          "name": "showDetails",
+          "type": "boolean",
+          "default": true,
+          "description": "Mostra dettagli degli errori"
+        },
+        {
+          "name": "limit",
+          "type": "number",
+          "default": 20,
+          "description": "Numero massimo di file da mostrare per area"
+        }
+      ],
+      "requireConfirmation": false,
+      "minRole": "ADMIN",
+      "timeout": 120000,
+      "enabled": true
+    },
+    {
+      "id": "check-response-formatter",
+      "name": "Check ResponseFormatter Usage",
+      "description": "Verifica che tutte le routes usino ResponseFormatter e che i services NON lo usino",
+      "category": "testing",
+      "path": "testing/check-response-formatter.ts",
+      "risk": "low",
+      "parameters": [
+        {
+          "name": "showCode",
+          "type": "boolean",
+          "default": true,
+          "description": "Mostra il codice delle violazioni"
+        },
+        {
+          "name": "checkServices",
+          "type": "boolean",
+          "default": true,
+          "description": "Controlla anche che i services NON usino ResponseFormatter"
+        }
+      ],
+      "requireConfirmation": false,
+      "minRole": "ADMIN",
+      "timeout": 60000,
+      "enabled": true
+    },
+    {
+      "id": "create-health-tables",
+      "name": "Create Health Check Tables",
+      "description": "Crea le tabelle necessarie per il sistema Health Check nel database",
+      "category": "database",
+      "path": "database/create-health-tables.ts",
+      "risk": "medium",
+      "parameters": [],
+      "requireConfirmation": true,
+      "minRole": "SUPER_ADMIN",
+      "timeout": 30000,
+      "enabled": true
+    },
+    {
+      "id": "backup-database",
+      "name": "Database Backup",
+      "description": "Crea un backup completo del database PostgreSQL",
+      "category": "database",
+      "path": "database/backup-database.ts",
+      "risk": "low",
+      "parameters": [
+        {
+          "name": "compress",
+          "type": "boolean",
+          "default": true,
+          "description": "Comprimi il file di backup"
+        },
+        {
+          "name": "excludeTables",
+          "type": "array",
+          "required": false,
+          "description": "Tabelle da escludere dal backup",
+          "default": []
+        }
+      ],
+      "requireConfirmation": false,
+      "minRole": "ADMIN",
+      "timeout": 300000,
+      "enabled": true
+    },
+    {
+      "id": "restore-database",
+      "name": "Database Restore",
+      "description": "Ripristina il database da un backup",
+      "category": "database",
+      "path": "database/restore-database.ts",
+      "risk": "critical",
+      "parameters": [
+        {
+          "name": "backupFile",
+          "type": "string",
+          "required": true,
+          "description": "Nome del file di backup da ripristinare"
+        },
+        {
+          "name": "dropExisting",
+          "type": "boolean",
+          "default": false,
+          "description": "Elimina il database esistente prima del restore"
+        }
+      ],
+      "requireConfirmation": true,
+      "minRole": "SUPER_ADMIN",
+      "timeout": 600000,
+      "enabled": true
+    },
+    {
+      "id": "cleanup-old-data",
+      "name": "Pulizia Dati Vecchi",
+      "description": "Rimuove dati obsoleti dal database per ottimizzare lo spazio",
+      "category": "maintenance",
+      "path": "maintenance/cleanup-old-data.ts",
+      "risk": "medium",
+      "parameters": [
+        {
+          "name": "days",
+          "type": "number",
+          "default": 90,
+          "description": "Mantieni dati degli ultimi N giorni"
+        },
+        {
+          "name": "tables",
+          "type": "select",
+          "options": ["logs", "notifications", "audit", "all"],
+          "default": "all",
+          "description": "Tabelle da pulire"
+        }
+      ],
+      "requireConfirmation": true,
+      "minRole": "ADMIN",
+      "timeout": 120000,
+      "enabled": true
+    },
+    {
+      "id": "clear-cache",
+      "name": "Clear Cache",
+      "description": "Pulisce la cache Redis del sistema",
+      "category": "maintenance",
+      "path": "maintenance/clear-cache.ts",
+      "risk": "low",
+      "parameters": [
+        {
+          "name": "pattern",
+          "type": "string",
+          "required": false,
+          "description": "Pattern delle chiavi da eliminare (es: user:*)",
+          "default": "*"
+        }
+      ],
+      "requireConfirmation": false,
+      "minRole": "ADMIN",
+      "timeout": 30000,
+      "enabled": true
+    },
+    {
+      "id": "run-health-check",
+      "name": "Health Check Manuale",
+      "description": "Esegue un health check completo del sistema",
+      "category": "health-check",
+      "path": "health-check/run-health-check.ts",
+      "risk": "low",
+      "parameters": [
+        {
+          "name": "module",
+          "type": "select",
+          "options": ["all", "auth", "database", "notifications", "payments", "ai", "backup"],
+          "default": "all",
+          "description": "Modulo da controllare"
+        },
+        {
+          "name": "verbose",
+          "type": "boolean",
+          "default": false,
+          "description": "Output dettagliato"
+        }
+      ],
+      "requireConfirmation": false,
+      "minRole": "ADMIN",
+      "timeout": 60000,
+      "enabled": true
+    },
+    {
+      "id": "generate-health-report",
+      "name": "Genera Report Health Check",
+      "description": "Genera un report PDF dello stato del sistema",
+      "category": "report",
+      "path": "report/generate-health-report.ts",
+      "risk": "low",
+      "parameters": [
+        {
+          "name": "startDate",
+          "type": "date",
+          "required": true,
+          "description": "Data inizio periodo"
+        },
+        {
+          "name": "endDate",
+          "type": "date",
+          "required": true,
+          "description": "Data fine periodo"
+        },
+        {
+          "name": "format",
+          "type": "select",
+          "options": ["pdf", "csv", "json"],
+          "default": "pdf",
+          "description": "Formato output"
+        }
+      ],
+      "requireConfirmation": false,
+      "minRole": "ADMIN",
+      "timeout": 120000,
+      "enabled": true
+    },
+    {
+      "id": "security-audit",
+      "name": "Security Audit",
+      "description": "Esegue un audit di sicurezza completo del sistema",
+      "category": "security",
+      "path": "security/security-audit.ts",
+      "risk": "low",
+      "parameters": [
+        {
+          "name": "checkType",
+          "type": "select",
+          "options": ["full", "permissions", "passwords", "sessions", "api-keys"],
+          "default": "full",
+          "description": "Tipo di controllo"
+        }
+      ],
+      "requireConfirmation": false,
+      "minRole": "SUPER_ADMIN",
+      "timeout": 180000,
+      "enabled": true
+    },
+    {
+      "id": "reset-user-password",
+      "name": "Reset Password Utente",
+      "description": "Reset forzato della password di un utente",
+      "category": "security",
+      "path": "security/reset-password.ts",
+      "risk": "high",
+      "parameters": [
+        {
+          "name": "email",
+          "type": "string",
+          "required": true,
+          "description": "Email dell'utente"
+        },
+        {
+          "name": "sendEmail",
+          "type": "boolean",
+          "default": true,
+          "description": "Invia email con nuova password"
+        }
+      ],
+      "requireConfirmation": true,
+      "minRole": "SUPER_ADMIN",
+      "timeout": 30000,
+      "enabled": true
+    },
+    {
+      "id": "optimize-database",
+      "name": "Ottimizza Database",
+      "description": "Ottimizza le tabelle e ricostruisce gli indici del database",
+      "category": "database",
+      "path": "database/optimize-database.ts",
+      "risk": "medium",
+      "parameters": [
+        {
+          "name": "vacuum",
+          "type": "boolean",
+          "default": true,
+          "description": "Esegui VACUUM ANALYZE"
+        },
+        {
+          "name": "reindex",
+          "type": "boolean",
+          "default": true,
+          "description": "Ricostruisci indici"
+        }
+      ],
+      "requireConfirmation": true,
+      "minRole": "ADMIN",
+      "timeout": 300000,
+      "enabled": true
+    },
+    {
+      "id": "export-audit-log",
+      "name": "Export Audit Log",
+      "description": "Esporta i log di audit per analisi",
+      "category": "report",
+      "path": "report/export-audit-log.ts",
+      "risk": "low",
+      "parameters": [
+        {
+          "name": "startDate",
+          "type": "date",
+          "required": true,
+          "description": "Data inizio"
+        },
+        {
+          "name": "endDate",
+          "type": "date",
+          "required": true,
+          "description": "Data fine"
+        },
+        {
+          "name": "category",
+          "type": "select",
+          "options": ["all", "auth", "data", "admin", "security"],
+          "default": "all",
+          "description": "Categoria log"
+        },
+        {
+          "name": "format",
+          "type": "select",
+          "options": ["csv", "json", "pdf"],
+          "default": "csv",
+          "description": "Formato export"
+        }
+      ],
+      "requireConfirmation": false,
+      "minRole": "ADMIN",
+      "timeout": 120000,
+      "enabled": true
+    },
+    {
+      "id": "test-email-system",
+      "name": "Test Sistema Email",
+      "description": "Invia una email di test per verificare la configurazione",
+      "category": "maintenance",
+      "path": "maintenance/test-email.ts",
+      "risk": "low",
+      "parameters": [
+        {
+          "name": "recipient",
+          "type": "string",
+          "required": true,
+          "description": "Email destinatario"
+        },
+        {
+          "name": "template",
+          "type": "select",
+          "options": ["test", "welcome", "notification"],
+          "default": "test",
+          "description": "Template da usare"
+        }
+      ],
+      "requireConfirmation": false,
+      "minRole": "ADMIN",
+      "timeout": 30000,
+      "enabled": true
+    }
+  ],
+  "categories": [
+    {
+      "id": "testing",
+      "name": "Testing",
+      "description": "Script per test automatici del sistema",
+      "icon": "beaker",
+      "color": "orange"
+    },
+    {
+      "id": "database",
+      "name": "Database",
+      "description": "Script per gestione database",
+      "icon": "database",
+      "color": "blue"
+    },
+    {
+      "id": "maintenance",
+      "name": "Manutenzione",
+      "description": "Script di manutenzione sistema",
+      "icon": "wrench",
+      "color": "yellow"
+    },
+    {
+      "id": "health-check",
+      "name": "Health Check",
+      "description": "Script per controlli sistema",
+      "icon": "heart",
+      "color": "green"
+    },
+    {
+      "id": "report",
+      "name": "Report",
+      "description": "Generazione report e export",
+      "icon": "document",
+      "color": "purple"
+    },
+    {
+      "id": "security",
+      "name": "Sicurezza",
+      "description": "Script per sicurezza e audit",
+      "icon": "shield",
+      "color": "red"
+    }
+  ],
+  "version": "1.2.0",
+  "lastUpdated": "2025-09-11T10:00:00Z"
+}

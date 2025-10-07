@@ -1,0 +1,138 @@
+// Aggiunto il 05/10/2025 - SESSIONE 1
+// ============================================
+
+model SystemModule {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?  @db.Text
+  category    ModuleCategory
+  
+  // Stato
+  isEnabled   Boolean  @default(true)
+  isCore      Boolean  @default(false) // Se true, non disabilitabile
+  
+  // Dipendenze
+  dependsOn   String[] // Array codici moduli richiesti
+  requiredFor String[] // Array codici moduli che lo richiedono
+  
+  // Configurazioni modulo
+  config      Json?    // Settings specifici del modulo
+  
+  // Feature flags
+  features    Json?    // {"premium": true, "beta": false}
+  
+  // Tracking modifiche
+  enabledAt   DateTime?
+  enabledBy   String?
+  disabledAt  DateTime?
+  disabledBy  String?
+  
+  // Metadata
+  icon        String?
+  color       String?
+  order       Int      @default(100)
+  version     String   @default("1.0.0")
+  
+  // Relazioni
+  settings    ModuleSetting[]
+  history     ModuleHistory[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([code])
+  @@index([category])
+  @@index([isEnabled])
+  @@map("system_modules")
+}
+
+model ModuleSetting {
+  id          String       @id @default(cuid())
+  moduleCode  String
+  module      SystemModule @relation(fields: [moduleCode], references: [code], onDelete: Cascade)
+  
+  key         String
+  value       String       @db.Text
+  type        SettingType  
+  
+  label       String
+  description String?
+  category    String?      // Per raggruppare settings nel UI
+  
+  // Validazione
+  isRequired  Boolean      @default(false)
+  isSecret    Boolean      @default(false)
+  validation  Json?        // {min: 0, max: 100, pattern: "..."}
+  
+  // UI hints
+  placeholder String?
+  helpText    String?
+  order       Int          @default(100)
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  @@unique([moduleCode, key])
+  @@index([moduleCode])
+  @@map("module_settings")
+}
+
+model ModuleHistory {
+  id          String       @id @default(cuid())
+  moduleCode  String
+  module      SystemModule @relation(fields: [moduleCode], references: [code], onDelete: Cascade)
+  
+  action      ModuleAction
+  oldValue    Json?
+  newValue    Json?
+  
+  performedBy String
+  user        User         @relation("ModuleHistoryPerformedBy", fields: [performedBy], references: [id])
+  
+  ipAddress   String?
+  userAgent   String?
+  reason      String?      @db.Text
+  
+  createdAt   DateTime     @default(now())
+  
+  @@index([moduleCode])
+  @@index([action])
+  @@index([createdAt])
+  @@map("module_history")
+}
+
+// Enum per categorie moduli
+enum ModuleCategory {
+  CORE           // Autenticazione, utenti
+  BUSINESS       // Richieste, preventivi, pagamenti
+  COMMUNICATION  // Chat, notifiche, email, WhatsApp
+  ADVANCED       // AI, portfolio, recensioni
+  REPORTING      // Rapporti intervento, analytics
+  AUTOMATION     // Cleanup, backup, scheduler
+  INTEGRATIONS   // Google Maps, Stripe, WppConnect
+  ADMIN          // Admin tools, script manager
+}
+
+// Enum per tipi di setting
+enum SettingType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
+  PASSWORD
+  URL
+  EMAIL
+  PHONE
+}
+
+// Enum per azioni modulo
+enum ModuleAction {
+  ENABLED
+  DISABLED
+  CONFIG_CHANGED
+  SETTING_UPDATED
+  DEPENDENCY_ADDED
+  DEPENDENCY_REMOVED
+  MIGRATED
+}

@@ -1,0 +1,104 @@
+// Aggiungi questi metodi alla classe PaymentService nel file payment.service.ts
+
+  /**
+   * Ottiene lista pagamenti con filtri
+   */
+  async getPayments(filters: any) {
+    try {
+      const payments = await prisma.payment.findMany({
+        where: filters,
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          },
+          quote: {
+            select: {
+              id: true,
+              totalAmount: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        take: 100
+      });
+
+      return payments;
+    } catch (error) {
+      logger.error('Error getting payments:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Ottiene singolo pagamento per ID
+   */
+  async getPaymentById(id: string) {
+    try {
+      const payment = await prisma.payment.findUnique({
+        where: { id },
+        include: {
+          user: true,
+          quote: true,
+          refunds: true
+        }
+      });
+
+      return payment;
+    } catch (error) {
+      logger.error('Error getting payment by id:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Genera report pagamenti
+   */
+  async generatePaymentReport(filters: any, groupBy: string) {
+    try {
+      // TODO: Implementare aggregazione dati per report
+      const payments = await prisma.payment.findMany({
+        where: {
+          createdAt: {
+            gte: filters.dateRange.start,
+            lte: filters.dateRange.end
+          }
+        }
+      });
+
+      const summary = {
+        totalAmount: payments.reduce((sum, p) => sum + p.amount, 0),
+        totalTransactions: payments.length,
+        averageAmount: payments.length > 0 ? 
+          payments.reduce((sum, p) => sum + p.amount, 0) / payments.length : 0,
+        byStatus: {} as any,
+        byType: {} as any
+      };
+
+      // Raggruppa per status
+      payments.forEach(p => {
+        if (!summary.byStatus[p.status]) {
+          summary.byStatus[p.status] = { count: 0, amount: 0 };
+        }
+        summary.byStatus[p.status].count++;
+        summary.byStatus[p.status].amount += p.amount;
+
+        if (!summary.byType[p.type]) {
+          summary.byType[p.type] = { count: 0, amount: 0 };
+        }
+        summary.byType[p.type].count++;
+        summary.byType[p.type].amount += p.amount;
+      });
+
+      return summary;
+    } catch (error) {
+      logger.error('Error generating payment report:', error);
+      throw error;
+    }
+  }

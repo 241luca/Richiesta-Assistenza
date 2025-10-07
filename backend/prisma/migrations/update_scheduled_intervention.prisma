@@ -1,0 +1,59 @@
+// Aggiornamento del modello ScheduledIntervention nel file schema.prisma
+
+model ScheduledIntervention {
+  id                  String            @id @default(cuid())
+  requestId           String
+  professionalId      String
+  title               String?
+  proposedDate        DateTime
+  confirmedDate       DateTime?
+  endDate             DateTime?
+  status              String            @default("PROPOSED")
+  description         String?
+  estimatedDuration   Int?
+  actualDuration      Int?
+  notes               String?
+  clientConfirmed     Boolean           @default(false)
+  clientDeclineReason String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  createdBy           String?
+  
+  // Nuovi campi per calendario enterprise
+  location            String?
+  address             String?
+  city                String?
+  postalCode          String?
+  latitude            Float?
+  longitude           Float?
+  allDay              Boolean           @default(false)
+  recurring           Boolean           @default(false)
+  recurringPattern    Json?
+  recurringEndDate    DateTime?
+  parentEventId       String?
+  googleEventId       String?
+  googleCalendarId    String?
+  lastSyncedAt        DateTime?
+  syncStatus          String?           @default("PENDING")
+  color               String?           @default("#3B82F6")
+  reminderMinutes     Int?              @default(30)
+  reminderSent        Boolean           @default(false)
+  travelTime          Int?              @default(0)
+  preparationTime     Int?              @default(0)
+  bufferTime          Int?              @default(15)
+  isCancelled         Boolean           @default(false)
+  cancellationReason  String?
+  cancelledAt         DateTime?
+  cancelledBy         String?
+  metadata            Json?
+  
+  createdByUser       User?             @relation("InterventionsCreated", fields: [createdBy], references: [id])
+  professional        User              @relation("ProfessionalInterventions", fields: [professionalId], references: [id])
+  request             AssistanceRequest @relation(fields: [requestId], references: [id])
+
+  @@index([professionalId])
+  @@index([proposedDate])
+  @@index([requestId])
+  @@index([status])
+  @@index([googleEventId])
+}

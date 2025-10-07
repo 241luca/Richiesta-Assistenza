@@ -1,0 +1,131 @@
+[
+  {
+    "id": "auth-jwt-fix",
+    "module": "auth-system",
+    "condition": {
+      "errorContains": "JWT verification failed"
+    },
+    "actions": [
+      {
+        "type": "clear_cache",
+        "target": "jwt_keys",
+        "description": "Clear JWT key cache"
+      },
+      {
+        "type": "restart_service",
+        "target": "auth",
+        "description": "Restart authentication service"
+      }
+    ],
+    "enabled": true,
+    "maxAttempts": 3,
+    "cooldownMinutes": 15,
+    "notifyOnSuccess": true,
+    "notifyOnFailure": true
+  },
+  {
+    "id": "database-connection-fix",
+    "module": "database-health",
+    "condition": {
+      "checkFailed": "connection_test",
+      "scoreBelow": 50
+    },
+    "actions": [
+      {
+        "type": "run_script",
+        "script": "scripts/health-checks/remediation/restart-database-pool.sh",
+        "description": "Restart database connection pool"
+      }
+    ],
+    "enabled": true,
+    "maxAttempts": 2,
+    "cooldownMinutes": 30,
+    "notifyOnSuccess": true,
+    "notifyOnFailure": true
+  },
+  {
+    "id": "notification-queue-fix",
+    "module": "notification-system",
+    "condition": {
+      "warningContains": "queue backlog"
+    },
+    "actions": [
+      {
+        "type": "run_script",
+        "script": "scripts/health-checks/remediation/flush-notification-queue.sh",
+        "description": "Flush stale notification queue items"
+      }
+    ],
+    "enabled": true,
+    "maxAttempts": 5,
+    "cooldownMinutes": 10,
+    "notifyOnSuccess": false,
+    "notifyOnFailure": true
+  },
+  {
+    "id": "chat-websocket-fix",
+    "module": "chat-system",
+    "condition": {
+      "errorContains": "WebSocket connection lost"
+    },
+    "actions": [
+      {
+        "type": "restart_service",
+        "target": "websocket",
+        "description": "Restart WebSocket server"
+      }
+    ],
+    "enabled": true,
+    "maxAttempts": 3,
+    "cooldownMinutes": 20,
+    "notifyOnSuccess": true,
+    "notifyOnFailure": true
+  },
+  {
+    "id": "cache-cleanup",
+    "module": "database-health",
+    "condition": {
+      "warningContains": "cache size exceeded"
+    },
+    "actions": [
+      {
+        "type": "clear_cache",
+        "target": "redis",
+        "description": "Clear Redis cache"
+      },
+      {
+        "type": "database_cleanup",
+        "target": "old_sessions",
+        "description": "Clean old session data"
+      }
+    ],
+    "enabled": true,
+    "maxAttempts": 2,
+    "cooldownMinutes": 60,
+    "notifyOnSuccess": false,
+    "notifyOnFailure": true
+  },
+  {
+    "id": "ai-token-limit",
+    "module": "ai-system",
+    "condition": {
+      "warningContains": "token limit approaching"
+    },
+    "actions": [
+      {
+        "type": "notify_only",
+        "description": "Alert administrators about token usage"
+      },
+      {
+        "type": "run_script",
+        "script": "scripts/health-checks/remediation/reset-ai-limits.sh",
+        "description": "Reset daily AI token limits"
+      }
+    ],
+    "enabled": true,
+    "maxAttempts": 1,
+    "cooldownMinutes": 1440,
+    "notifyOnSuccess": true,
+    "notifyOnFailure": false
+  }
+]

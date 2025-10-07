@@ -1,0 +1,1 @@
+export { GuaranteeBanner } from './GuaranteeBanner';
