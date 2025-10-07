@@ -5,28 +5,17 @@
     "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "./src",
-    "strict": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
+    "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": false,
+    "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "allowJs": true,
     "incremental": true,
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "strictNullChecks": false,
-    "strictFunctionTypes": false,
-    "strictBindCallApply": false,
-    "strictPropertyInitialization": false,
-    "noImplicitThis": false,
-    "noImplicitAny": false,
-    "alwaysStrict": false,
-    "noImplicitReturns": false,
-    "noFallthroughCasesInSwitch": false
+    "experimentalDecorators": true
   },
   "include": ["src/**/*"],
   "exclude": [
@@ -40,7 +29,7 @@
     "src/scripts/**/*"
   ],
   "ts-node": {
-    "transpileOnly": true,
+    "transpileOnly": false,
     "files": true,
     "compilerOptions": {
       "module": "commonjs"
