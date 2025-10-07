@@ -14,7 +14,7 @@ lerna-debug.log*
 .pnpm-debug.log*
 
 # === PACKAGE MANAGERS ===
-package-lock.json
+# package-lock.json - SERVE PER DOCKER BUILD!
 yarn.lock
 .pnp
 .pnp.js
