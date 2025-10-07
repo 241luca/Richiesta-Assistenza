@@ -12,7 +12,6 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     chromium \
     chromium-sandbox \
-    # Dipendenze Chromium
     fonts-liberation \
     libasound2 \
     libatk-bridge2.0-0 \
@@ -37,7 +36,6 @@ RUN apt-get update && apt-get install -y \
     libxkbcommon0 \
     libxrandr2 \
     xdg-utils \
-    # Pulizia cache
     && rm -rf /var/lib/apt/lists/*
 
 # Path Chromium
@@ -57,38 +55,10 @@ RUN npm ci --only=production
 RUN npx prisma generate
 
 # ==========================================
-# COPIA SOLO FILE WHATSAPP SERVICE
+# COPIA FILE WHATSAPP SERVICE
 # ==========================================
-COPY src/services/wppconnect.service.ts ./src/services/
-COPY src/routes/whatsapp.routes.ts ./src/routes/
-COPY src/types/whatsapp.types.ts ./src/types/
-COPY src/utils ./src/utils/
-COPY src/middleware ./src/middleware/
-
-# Server dedicato WhatsApp
-COPY <<'EOF' /app/src/whatsapp-server.ts
-import express from 'express';
-import cors from 'cors';
-import { whatsappRouter } from './routes/whatsapp.routes';
-
-const app = express();
-const PORT = process.env.PORT || 3201;
-
-app.use(cors());
-app.use(express.json());
-
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'whatsapp' });
-});
-
-// WhatsApp routes
-app.use('/api/whatsapp', whatsappRouter);
-
-app.listen(PORT, () => {
-  console.log(`WhatsApp Service running on port ${PORT}`);
-});
-EOF
+COPY src ./src
+COPY tsconfig.json ./
 
 # Compila TypeScript
 RUN npx tsc
