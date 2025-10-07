@@ -44,3 +44,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
 
 # Avvio Nginx
 CMD ["nginx", "-g", "daemon off;"]
+
+# Build: v1.0
