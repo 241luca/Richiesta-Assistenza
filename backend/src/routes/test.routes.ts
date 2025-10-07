@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/rbac';
-import testController from '../controllers/TestController';
+import testController from '../controllers/testController';
 
 const router = Router();
 
