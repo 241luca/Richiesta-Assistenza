@@ -17,7 +17,7 @@ async function setupStripeKeys() {
       id: 'stripe-secret-key',
       service: 'STRIPE',
       name: 'Stripe Secret Key',
-      key: 'sk_test_51ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890',
+      key: 'sk_test_YOUR_STRIPE_SECRET_KEY_HERE',
       isActive: true,
       permissions: {
         environment: 'test',
@@ -29,7 +29,7 @@ async function setupStripeKeys() {
       id: 'stripe-public-key',
       service: 'STRIPE_PUBLIC',
       name: 'Stripe Publishable Key',
-      key: 'pk_test_51ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890',
+      key: 'pk_test_YOUR_STRIPE_PUBLISHABLE_KEY_HERE',
       isActive: true,
       permissions: {
         environment: 'test',
@@ -41,7 +41,7 @@ async function setupStripeKeys() {
       id: 'stripe-webhook-secret',
       service: 'STRIPE_WEBHOOK',
       name: 'Stripe Webhook Secret',
-      key: 'whsec_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890',
+      key: 'whsec_YOUR_WEBHOOK_SECRET_HERE',
       isActive: true,
       permissions: {
         environment: 'test',

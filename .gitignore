@@ -230,9 +230,8 @@ electron-dist/
 *.yml.local
 
 # === DOCUMENTAZIONE PRIVATA ===
-DOCUMENTAZIONE/
-ISTRUZIONI-PROGETTO.md
-LEGGIMI-DOCUMENTAZIONE.md
+# NOTA: I file principali di documentazione DEVONO essere nel repo!
+# ESCLUSI solo i file temporanei e di backup
 *.backup
 *.backup-*
 *-backup-*
