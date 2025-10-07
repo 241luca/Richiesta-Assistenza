@@ -5,15 +5,14 @@
     "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "./src",
-    "strict": false, // Disabilitiamo strict mode temporaneamente
-    "noUnusedLocals": false, // Disabilitiamo controllo variabili non usate
-    "noUnusedParameters": false, // Disabilitiamo controllo parametri non usati
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
+    "forceConsistentCasingInFileNames": false,
     "resolveJsonModule": true,
     "allowJs": true,
-    "noEmit": true,
     "incremental": true,
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
@@ -25,7 +24,9 @@
     "strictPropertyInitialization": false,
     "noImplicitThis": false,
     "noImplicitAny": false,
-    "alwaysStrict": false
+    "alwaysStrict": false,
+    "noImplicitReturns": false,
+    "noFallthroughCasesInSwitch": false
   },
   "include": ["src/**/*"],
   "exclude": [
@@ -39,7 +40,7 @@
     "src/scripts/**/*"
   ],
   "ts-node": {
-    "transpileOnly": true, // Salta il type checking per velocità
+    "transpileOnly": true,
     "files": true,
     "compilerOptions": {
       "module": "commonjs"
