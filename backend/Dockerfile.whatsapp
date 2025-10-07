@@ -50,7 +50,7 @@ COPY package*.json ./
 COPY tsconfig.json ./
 COPY prisma ./prisma/
 
-RUN npm ci --only=production
+RUN npm install --only=production --legacy-peer-deps
 RUN npx prisma generate
 
 # Copia TUTTO il codice sorgente
