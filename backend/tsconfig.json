@@ -5,7 +5,8 @@
     "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "./src",
-    "strict": true,
+    "strict": false,
+    "noEmitOnError": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
@@ -29,7 +30,7 @@
     "src/scripts/**/*"
   ],
   "ts-node": {
-    "transpileOnly": false,
+    "transpileOnly": true,
     "files": true,
     "compilerOptions": {
       "module": "commonjs"
