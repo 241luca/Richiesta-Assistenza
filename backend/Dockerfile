@@ -5,6 +5,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Aumenta memoria Node.js per TypeScript
+ENV NODE_OPTIONS="--max-old-space-size=3072"
+
 # Copia file dipendenze
 COPY package*.json ./
 COPY prisma ./prisma/
