@@ -292,6 +292,7 @@ model AssistanceRequest {
   Invoice                Invoice[]
   review                 Review?
   portfolio              Portfolio?
+  complaints             Complaint[]            @relation("RequestComplaints")
 
   @@index([categoryId])
   @@index([clientId])
@@ -1011,6 +1012,26 @@ model NotificationLog {
   @@index([sentAt])
   @@index([status])
   @@index([templateId])
+}
+
+// Log Email inviate
+model EmailLog {
+  id          String   @id @default(cuid())
+  to          String
+  from        String
+  subject     String
+  body        String   @db.Text
+  status      String   @default("pending") // pending, sent, failed
+  provider    String?  // brevo, smtp, etc
+  messageId   String?  // ID messaggio provider
+  error       String?  @db.Text
+  metadata    Json?
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+  
+  @@index([to])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model NotificationPreference {
@@ -1910,6 +1931,10 @@ model User {
   userPoints        UserPoints?
   pointTransactions PointTransaction[]
   moduleHistoryActions ModuleHistory[]
+  
+  // ✅ SISTEMA PEC (Posta Elettronica Certificata) - NUOVO 08/01/2025
+  complaints        Complaint[]       @relation("UserComplaints")
+  complaintDrafts   ComplaintDraft[]  @relation("UserComplaintDrafts")
 
   @@index([email])
   @@index([latitude, longitude])
@@ -2476,7 +2501,7 @@ model DocumentNotificationTemplate {
   includeAdmins  Boolean  @default(true)
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  updatedAt      DateTime @default(now()) @updatedAt
 
   @@index([documentType, eventType])
   @@index([isActive])
@@ -3104,165 +3129,415 @@ model ProfessionalPaymentSettings {
   // Commissioni custom
   useStandardFees Boolean @default(true)
   customFees      Json? // Struttura commissioni personalizzate
-  volumeTiers     Json? // Scaglioni volume
+  volumeTiers     Json? // Sconti per volume
 
-  // Limiti
-  maxTransaction Float?
-  maxDaily       Float?
-  maxMonthly     Float?
-
-  // Controlli
-  blockOverlimit          Boolean @default(true)
-  notifyLargeTransactions Float?
-  manualReviewThreshold   Float?
-
-  // Stripe Connect
-  stripeConnectId     String?
-  stripeAccountStatus String? @default("pending")
-
-  // Fatturazione
-  invoiceProvider     String?
-  invoiceApiKey       String?
-  invoiceAutoGenerate Boolean @default(false)
-
-  // Dati fatturazione
-  businessName String?
-  vatNumber    String?
-  taxCode      String?
-  sdiCode      String?
-  pecEmail     String?
-
-  // Audit
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  updatedBy String?
-
-  // Note e stato
-  adminNotes String? @db.Text
-  riskLevel  String? @default("LOW")
-  status     String  @default("ACTIVE")
-
-  professional  User  @relation(fields: [professionalId], references: [id])
-  updatedByUser User? @relation("PaymentSettingsUpdatedBy", fields: [updatedBy], references: [id])
-}
-
-
-// ============================================
-// SISTEMA GESTIONE MODULI v5.2
-// Data: 05 Ottobre 2025
-// ============================================
-
-model SystemModule {
-  id          String   @id @default(cuid())
-  code        String   @unique
-  name        String
-  description String?  @db.Text
-  category    ModuleCategory
-  
-  // Stato
-  isEnabled   Boolean  @default(true)
-  isCore      Boolean  @default(false) // Se true, non disabilitabile
-  
-  // Dipendenze
-  dependsOn   String[] // Array codici moduli richiesti
-  requiredFor String[] // Array codici moduli che lo richiedono
-  
-  // Configurazioni modulo
-  config      Json?    // Settings specifici del modulo
-  
-  // Feature flags
-  features    Json?    // {"premium": true, "beta": false}
-  
-  // Tracking modifiche
-  enabledAt   DateTime?
-  enabledBy   String?
-  disabledAt  DateTime?
-  disabledBy  String?
-  
   // Metadata
-  icon        String?
-  color       String?
-  order       Int      @default(100)
-  version     String   @default("1.0.0")
-  
-  // Relazioni
-  settings    ModuleSetting[]
-  history     ModuleHistory[]
-  
+  notes       String?
+  isActive    Boolean  @default(true)
+  lastPayoutAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
-  @@index([code])
-  @@index([category])
-  @@index([isEnabled])
-  @@map("system_modules")
+  updatedBy   String?
+
+  professional User  @relation(fields: [professionalId], references: [id])
+  updater      User? @relation("PaymentSettingsUpdatedBy", fields: [updatedBy], references: [id])
 }
 
-model ModuleSetting {
-  id          String       @id @default(cuid())
-  moduleCode  String
-  module      SystemModule @relation(fields: [moduleCode], references: [code], onDelete: Cascade)
-  
-  key         String
-  value       String       @db.Text
-  type        SettingType  
-  
-  label       String
-  description String?
-  category    String?      // Per raggruppare settings nel UI
-  
-  // Validazione
-  isRequired  Boolean      @default(false)
-  isSecret    Boolean      @default(false)
-  validation  Json?        // {min: 0, max: 100, pattern: "..."}
-  
-  // UI hints
-  placeholder String?
-  helpText    String?
-  order       Int          @default(100)
-  
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  
-  @@unique([moduleCode, key])
-  @@index([moduleCode])
-  @@map("module_settings")
+// Split pagamenti tra professionisti (per lavori condivisi)
+model PaymentSplit {
+  id             String  @id @default(cuid())
+  paymentId      String
+  professionalId String
+  amount         Float? @default(0)
+  percentage     Float?
+  description    String?
+  status         String  @default("PENDING") // PENDING, COMPLETED, FAILED
+  processedAt    DateTime?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+
+  payment      Payment @relation(fields: [paymentId], references: [id])
+  professional User    @relation("ProfessionalSplits", fields: [professionalId], references: [id])
+
+  @@index([paymentId])
+  @@index([professionalId])
+  @@index([status])
 }
+
+// Pagamenti principali
+model Payment {
+  id             String        @id @default(cuid())
+  requestId      String?
+  quoteId        String?
+  professionalId String?
+  clientId       String
+  amount         Float
+  currency       String        @default("EUR")
+  type           PaymentType
+  status         PaymentStatus @default(PENDING)
+  method         PaymentMethod?
+
+  // Stripe
+  stripePaymentIntentId String? @unique
+  stripeChargeId        String?
+  stripeCustomerId      String?
+
+  // Commission split
+  platformFee       Float?
+  professionalAmount Float?
+  netAmount         Float?
+
+  // Tracking
+  paidAt       DateTime?
+  refundedAt   DateTime?
+  failedAt     DateTime?
+  failureReason String?
+
+  // Metadata
+  description String?
+  notes       String?
+  metadata    Json?
+  receiptUrl  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  // Relazioni
+  request      AssistanceRequest? @relation(fields: [requestId], references: [id])
+  quote        Quote?             @relation(fields: [quoteId], references: [id])
+  professional User?              @relation("ProfessionalPayments", fields: [professionalId], references: [id])
+  client       User               @relation("ClientPayments", fields: [clientId], references: [id])
+  creator      User?              @relation("PaymentCreatedBy", fields: [createdBy], references: [id])
+
+  splits   PaymentSplit[]
+  invoices Invoice[]
+  refunds  Refund[]
+
+  @@index([requestId])
+  @@index([quoteId])
+  @@index([professionalId])
+  @@index([clientId])
+  @@index([status])
+  @@index([stripePaymentIntentId])
+  @@index([paidAt])
+}
+
+// Fatture
+model Invoice {
+  id             String        @id @default(cuid())
+  invoiceNumber  String        @unique
+  requestId      String?
+  quoteId        String?
+  paymentId      String?
+  professionalId String?
+  customerId     String
+
+  // Tipo documento
+  documentType DocumentType @default(INVOICE)
+  status       InvoiceStatus @default(DRAFT)
+
+  // Importi
+  subtotal Float? @default(0)
+  taxAmount Float? @default(0)
+  taxRate Float? @default(22)
+  total    Float? @default(0)
+  paidAmount Float @default(0)
+  currency String @default("EUR")
+
+  // Date
+  issueDate  DateTime? @default(now())
+  dueDate    DateTime?
+  paidDate   DateTime?
+  sentAt     DateTime?
+  reminderSentAt DateTime?
+
+  // Contenuto
+  items       Json? // Array di line items
+  customerData Json? // Dati cliente snapshot
+  notes       String?
+  terms       String?
+  footerNotes String?
+
+  // File
+  pdfUrl      String?
+  pdfPath     String?
+  generatedAt DateTime?
+  
+  // Fatturazione Elettronica
+  isElectronic Boolean @default(false)
+  sdiStatus String?
+  xmlFile String?
+  electronicProvider String?
+
+  // Metadata
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  // Relazioni
+  request      AssistanceRequest? @relation(fields: [requestId], references: [id])
+  quote        Quote?             @relation(fields: [quoteId], references: [id])
+  payment      Payment?           @relation(fields: [paymentId], references: [id])
+  professional User?              @relation("ProfessionalInvoices", fields: [professionalId], references: [id])
+  customer     User               @relation("CustomerInvoices", fields: [customerId], references: [id])
+  creator      User?              @relation("InvoiceCreatedBy", fields: [createdBy], references: [id])
+
+  @@index([invoiceNumber])
+  @@index([requestId])
+  @@index([quoteId])
+  @@index([paymentId])
+  @@index([professionalId])
+  @@index([customerId])
+  @@index([status])
+  @@index([issueDate])
+}
+
+// Modello Nota di Credito (Credit Note)
+model CreditNote {
+  id                  String   @id @default(cuid())
+  creditNoteNumber    String   @unique
+  originalInvoiceId   String
+  reason              String
+  issueDate           DateTime @default(now())
+  
+  // Dati cliente (snapshot)
+  customerId         String?
+  customerName       String
+  customerAddress    String
+  customerCity       String
+  customerZipCode    String
+  customerProvince   String
+  customerCountry    String
+  customerVatNumber  String?
+  customerFiscalCode String?
+  
+  // Items
+  lineItems Json // Array di line items
+  
+  // Importi
+  subtotal    Float
+  taxAmount   Float
+  totalAmount Float
+  
+  // Stato
+  status String @default("ISSUED")
+  
+  // Metadata
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([originalInvoiceId])
+  @@index([creditNoteNumber])
+  @@index([customerId])
+}
+
+// Payout (pagamenti ai professionisti)
+model Payout {
+  id             String @id @default(cuid())
+  professionalId String
+  amount         Float? @default(0)
+  currency       String @default("EUR")
+  method         PaymentMethod?
+  status         String @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+
+  // Stripe Connect
+  stripeTransferId String? @unique
+
+  // Date
+  scheduledFor DateTime?
+  processedAt  DateTime?
+  failedAt     DateTime?
+  completedAt  DateTime?
+
+  // Errori
+  failureReason String?
+  errorDetails  Json?
+
+  // Metadata
+  description     String?
+  notes           String?
+  metadata        Json?
+  includesPayments Json? // Array di payment IDs inclusi
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  processedBy String?
+
+  professional User  @relation("ProfessionalPayouts", fields: [professionalId], references: [id])
+  processor    User? @relation("PayoutProcessedBy", fields: [processedBy], references: [id])
+
+  @@index([professionalId])
+  @@index([status])
+  @@index([scheduledFor])
+  @@index([stripeTransferId])
+}
+
+// Rimborsi
+model Refund {
+  id        String @id @default(cuid())
+  paymentId String
+  amount    Float
+  currency  String @default("EUR")
+  reason    String?
+  status    String @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+
+  // Stripe
+  stripeRefundId String? @unique
+
+  // Date
+  requestedAt DateTime  @default(now())
+  processedAt DateTime?
+  failedAt    DateTime?
+  completedAt DateTime?
+
+  // Metadata
+  failureReason String?
+  notes         String?
+  metadata      Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+  creator User?   @relation("RefundCreatedBy", fields: [createdBy], references: [id])
+
+  @@index([paymentId])
+  @@index([status])
+  @@index([stripeRefundId])
+}
+
+// Regole commissioni
+model CommissionRule {
+  id             String  @id @default(cuid())
+  name           String
+  description    String?
+  professionalId String?
+  categoryId     String?
+
+  // Tipo commissione
+  commissionType String @default("PERCENTAGE") // PERCENTAGE, FIXED, TIERED
+  percentage     Float?
+  fixedAmount    Float?
+  tiers          Json? // Per commissioni a scaglioni
+
+  // Condizioni
+  minAmount Float?
+  maxAmount Float?
+  conditions Json?
+
+  // Priorità e attivazione
+  priority  Int     @default(0)
+  isActive  Boolean @default(true)
+  isDefault Boolean @default(false)
+
+  // Date validità
+  validFrom DateTime?
+  validTo   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  professional User? @relation(fields: [professionalId], references: [id])
+
+  @@index([professionalId])
+  @@index([categoryId])
+  @@index([isActive])
+  @@index([priority])
+}
+
+// Stripe Connect per professionisti
+model StripeConnect {
+  id             String @id @default(cuid())
+  professionalId String @unique
+
+  // Stripe Account
+  stripeAccountId       String  @unique
+  stripeAccountType     String? // standard, express, custom
+  chargesEnabled        Boolean @default(false)
+  payoutsEnabled        Boolean @default(false)
+  detailsSubmitted      Boolean @default(false)
+  requirementsCurrently Json?
+  requirementsEventually Json?
+
+  // Metadata
+  metadata Json?
+
+  // Date
+  connectedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  professional User @relation(fields: [professionalId], references: [id])
+
+  @@index([stripeAccountId])
+}
+
+// ==========================================
+// SISTEMA TRACKING MODULI - NUOVO v5.1
+// ==========================================
 
 model ModuleHistory {
-  id          String       @id @default(cuid())
-  moduleCode  String
-  module      SystemModule @relation(fields: [moduleCode], references: [code], onDelete: Cascade)
-  
-  action      ModuleAction
-  oldValue    Json?
-  newValue    Json?
-  
-  performedBy String
-  user        User         @relation(fields: [performedBy], references: [id])
-  
-  // ✅ FIX RELAZIONE: Campo mancante per Referral
-  referralId  String?
-  referral    Referral? @relation(fields: [referralId], references: [id])
-  
-  ipAddress   String?
-  userAgent   String?
-  reason      String?      @db.Text
-  
-  createdAt   DateTime     @default(now())
-  
-  @@index([moduleCode])
+  id         String   @id @default(cuid())
+  userId     String
+  moduleType String   // 'REFERRAL', 'PORTFOLIO', 'PAYMENT', etc
+  action     String   // 'CREATED', 'UPDATED', 'VIEWED', etc
+  entityId   String?  // ID dell'entità (referralId, portfolioId, etc)
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id])
+  referral Referral? @relation(fields: [entityId], references: [id])
+
+  @@index([userId])
+  @@index([moduleType])
   @@index([action])
   @@index([createdAt])
-  @@index([referralId])
-  @@map("module_history")
 }
 
-// Enum per categorie moduli
 
-enum ModuleCategory {
-  CORE
-  BUSINESS
+// ============================================
+
+// ==========================================
+// SISTEMA PEC (RECLAMI) - NUOVO 18/01/2025
+// ==========================================
+
+// Enum per stati reclamo
+enum ComplaintStatus {
+  DRAFT       // Bozza
+  SUBMITTED   // Inviato
+  IN_REVIEW   // In revisione
+  RESOLVED    // Risolto
+  REJECTED    // Respinto
+  CLOSED      // Chiuso
+}
+
+// Enum per priorità reclamo
+enum ComplaintPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// Enum per nomi moduli sistema
+enum ModuleName {
+  AUTHENTICATION
+  NOTIFICATIONS
+  PAYMENTS
+  WHATSAPP
+  AI_ASSISTANT
+  CALENDAR
+  REPORTS
+  BACKUP
+  ANALYTICS
+  SECURITY
+  COMPLAINTS  // PEC system
   COMMUNICATION
   ADVANCED
   REPORTING
@@ -3271,495 +3546,193 @@ enum ModuleCategory {
   ADMIN
 }
 
-// Enum per tipi di setting
-enum SettingType {
-  STRING
-  NUMBER
-  BOOLEAN
-  JSON
-  PASSWORD
-  URL
-  EMAIL
-  PHONE
-}
-
-// Enum per azioni modulo
-enum ModuleAction {
-  ENABLED
-  DISABLED
-  CONFIG_CHANGED
-  SETTING_UPDATED
-  DEPENDENCY_ADDED
-  DEPENDENCY_REMOVED
-  MIGRATED
-}
-
-model Payment {
-  id String @id @default(cuid())
-
-  // Collegamenti
-  requestId      String?
-  quoteId        String?
-  professionalId String?
-  clientId       String
-
-  // Dettagli importo
-  amount   Float
-  currency String        @default("EUR")
-  type     PaymentType
-  status   PaymentStatus @default(PENDING)
-
-  // Split payment
-  totalAmount           Float // Totale pagato dal cliente
-  professionalAmount    Float? // Parte professionista
-  platformFee           Float? // Commissione marketplace
-  platformFeePercentage Float? // Percentuale commissione
-
-  // Gateway info
-  paymentMethod         PaymentMethod?
-  stripePaymentId       String?        @unique
-  stripePaymentIntentId String?
-  paypalOrderId         String?
-  bankTransferRef       String?
-
-  // Customer info
-  customerType  String  @default("PRIVATE") // PRIVATE, BUSINESS
-  customerEmail String?
-  customerPhone String?
-
-  // Fatturazione
-  requiresInvoice Boolean       @default(false)
-  invoiceType     DocumentType? // RECEIPT, INVOICE, ELECTRONIC
-  invoiceId       String?       @unique
-
-  // Metadata
-  description String? @db.Text
-  metadata    Json? // Dati aggiuntivi
-
-  // Date
-  paidAt      DateTime?
-  processedAt DateTime?
-  failedAt    DateTime?
-  refundedAt  DateTime?
-
-  // Audit
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  createdBy String?
-
-  // Relations
-  request       AssistanceRequest? @relation(fields: [requestId], references: [id])
-  quote         Quote?             @relation(fields: [quoteId], references: [id])
-  professional  User?              @relation("ProfessionalPayments", fields: [professionalId], references: [id])
-  client        User               @relation("ClientPayments", fields: [clientId], references: [id])
-  invoice       Invoice?           @relation
-  createdByUser User?              @relation("PaymentCreatedBy", fields: [createdBy], references: [id])
-  refunds       Refund[]
-  payoutItems   PayoutItem[]
-  paymentSplits PaymentSplit[]
-
-  @@index([stripePaymentId])
-  @@index([status])
-  @@index([professionalId, status])
-  @@index([clientId])
-}
-
-// Tabella fatture
-model Invoice {
-  id String @id @default(cuid())
-
-  // Numerazione
-  invoiceNumber String       @unique // ANNO/NUMERO progressivo
-  documentType  DocumentType @default(INVOICE)
-
-  // Collegamenti
-  paymentId      String? @unique
-  requestId      String?
-  quoteId        String?
-  professionalId String?
-  customerId     String
-
-  // Dati cliente (snapshot)
-  customerData Json // Nome, indirizzo, CF/P.IVA
-
-  // Dettagli economici
-  lineItems   Json // Array di righe fattura
-  subtotal    Float
-  taxRate     Float @default(22) // IVA %
-  taxAmount   Float
-  totalAmount Float
-
-  // Stato pagamento
-  status     InvoiceStatus @default(DRAFT)
-  paidAmount Float         @default(0)
-  dueDate    DateTime?
-  paidDate   DateTime?
-
-  // Gestione
-  createdManually Boolean @default(false)
-  createdBy       String?
-
-  // Fattura elettronica
-  isElectronic    Boolean   @default(false)
-  sdiId           String? // ID Sistema di Interscambio
-  xmlFile         String?   @db.Text
-  sdiStatus       String? // SENT, ACCEPTED, REJECTED
-  sdiSentAt       DateTime?
-  sdiResponseFile String?   @db.Text
-
-  // Files
-  pdfUrl      String?
-  attachments Json? // Array di allegati
-
-  // Metadata
-  notes         String? @db.Text
-  internalNotes String? @db.Text // Non visibili al cliente
-  paymentTerms  String? // Termini di pagamento
-
-  // Date
-  sentAt         DateTime?
-  viewedAt       DateTime?
-  reminderSentAt DateTime?
-
-  // Audit
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  payment         Payment?           @relation(fields: [paymentId], references: [id])
-  request         AssistanceRequest? @relation(fields: [requestId], references: [id])
-  quote           Quote?             @relation(fields: [quoteId], references: [id])
-  professional    User?              @relation("ProfessionalInvoices", fields: [professionalId], references: [id])
-  customer        User               @relation("CustomerInvoices", fields: [customerId], references: [id])
-  createdByUser   User?              @relation("InvoiceCreatedBy", fields: [createdBy], references: [id])
-  invoicePayments InvoicePayment[]
-  creditNotes     CreditNote[]
-
-  @@index([invoiceNumber])
-  @@index([status])
-  @@index([professionalId])
-  @@index([customerId])
-}
-
-// Pagamenti parziali fatture
-model InvoicePayment {
-  id        String  @id @default(cuid())
-  invoiceId String
-  paymentId String? // NULL se pagamento manuale
-
-  amount        Float
-  paymentMethod PaymentMethod?
-  paymentDate   DateTime
-  reference     String? // Riferimento bonifico, assegno, etc
-
-  notes String? @db.Text
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  invoice Invoice @relation(fields: [invoiceId], references: [id])
-
-  @@index([invoiceId])
-}
-
-// Note di credito
-model CreditNote {
-  id               String @id @default(cuid())
-  creditNoteNumber String @unique
-
-  originalInvoiceId String
-  reason            String @db.Text
-
-  lineItems   Json
-  amount      Float
-  taxAmount   Float
-  totalAmount Float
-
-  status String @default("DRAFT") // DRAFT, ISSUED, APPLIED
-
-  issuedAt  DateTime?
-  appliedAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  originalInvoice Invoice @relation(fields: [originalInvoiceId], references: [id])
-
-  @@index([originalInvoiceId])
-}
-
-// Tabella payouts ai professionisti
-model Payout {
-  id             String @id @default(cuid())
-  professionalId String
-
-  // Periodo
-  periodStart DateTime
-  periodEnd   DateTime
-
-  // Importi
-  totalEarned Float
-  platformFee Float
-  netPayout   Float
-
-  // Stato
-  status PaymentStatus @default(PENDING)
-
-  // Metodo pagamento
-  paymentMethod  PaymentMethod?
-  transactionRef String? // Riferimento bonifico
-
-  // Date
-  scheduledAt DateTime?
-  processedAt DateTime?
-  paidAt      DateTime?
-  failedAt    DateTime?
-
-  // Note
-  notes         String? @db.Text
-  failureReason String?
-
-  // Audit
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  processedBy String?
-
-  // Relations
-  professional    User           @relation("ProfessionalPayouts", fields: [professionalId], references: [id])
-  processedByUser User?          @relation("PayoutProcessedBy", fields: [processedBy], references: [id])
-  payoutItems     PayoutItem[]
-  paymentSplits   PaymentSplit[]
-
-  @@index([professionalId, status])
-  @@index([scheduledAt])
-}
-
-// Dettaglio items in un payout
-model PayoutItem {
-  id        String @id @default(cuid())
-  payoutId  String
-  paymentId String
-
-  grossAmount Float
-  platformFee Float
-  netAmount   Float
-
-  description String?
-
-  createdAt DateTime @default(now())
-
-  payout  Payout  @relation(fields: [payoutId], references: [id])
-  payment Payment @relation(fields: [paymentId], references: [id])
-
-  @@index([payoutId])
-  @@index([paymentId])
-}
-
-// Rimborsi
-model Refund {
-  id        String @id @default(cuid())
-  paymentId String
-
-  amount Float
-  reason String        @db.Text
-  status PaymentStatus @default(PENDING)
-
-  stripeRefundId String? @unique
-
-  processedAt DateTime?
-  failedAt    DateTime?
-
-  notes String? @db.Text
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  createdBy String?
-
-  payment       Payment @relation(fields: [paymentId], references: [id])
-  createdByUser User?   @relation("RefundCreatedBy", fields: [createdBy], references: [id])
-
-  @@index([paymentId])
-}
-
-// Regole commissioni personalizzate
-model CommissionRule {
-  id             String  @id @default(cuid())
-  professionalId String?
-
-  ruleName String
-  ruleType String // BASE, CATEGORY, TIME, VOLUME, SPECIAL
-
-  conditions    Json // Es: {category: 'emergency', dayType: 'weekend'}
-  feePercentage Float?
-  feeFixed      Float?
-
-  priority Int     @default(0) // Ordine applicazione
-  active   Boolean @default(true)
-
-  validFrom  DateTime?
-  validUntil DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  professional User? @relation(fields: [professionalId], references: [id])
-
-  @@index([professionalId, active])
-}
-
-// Tabella split payment
-model PaymentSplit {
-  id             String @id @default(cuid())
-  paymentId      String
-  professionalId String
-
-  // Importi
-  grossAmount        Float // Importo lordo
-  platformFee        Float // Commissione piattaforma
-  platformFeePercent Float // Percentuale commissione
-  netAmount          Float // Importo netto al professionista
-
-  // Tipo split
-  splitType String @default("DEFERRED") // IMMEDIATE, DEFERRED
-
-  // Per split differiti (MANAGED)
-  payoutId     String? // Collegamento al payout
-  payoutStatus String  @default("PENDING") // PENDING, SCHEDULED, PROCESSING, COMPLETED
-
-  // Per split immediati (AUTONOMOUS)
-  stripeTransferId String? // ID trasferimento Stripe Connect
-  transferredAt    DateTime?
-
-  // Calcolo commissioni applicate
-  appliedRules Json? // Regole commissioni applicate
-
-  // Timestamp
-  createdAt   DateTime  @default(now())
-  processedAt DateTime?
-
-  // Relations
-  payment      Payment @relation(fields: [paymentId], references: [id])
-  professional User    @relation("ProfessionalSplits", fields: [professionalId], references: [id])
-  payout       Payout? @relation(fields: [payoutId], references: [id])
-
-  @@index([paymentId])
-  @@index([professionalId])
-  @@index([payoutId])
-}
-
-// Configurazione Stripe Connect
-model StripeConnect {
-  id             String @id @default(cuid())
-  professionalId String @unique
-
-  accountId   String @unique // Stripe account ID
-  accountType String // express, standard, custom
-
-  chargesEnabled Boolean @default(false)
-  payoutsEnabled Boolean @default(false)
-
-  detailsSubmitted Boolean @default(false)
-  currentlyDue     Json? // Campi richiesti da Stripe
-
-  metadata Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  professional User @relation(fields: [professionalId], references: [id])
-}
-
-// Log transazioni per audit
-model PaymentLog {
-  id        String  @id @default(cuid())
-  paymentId String?
-  invoiceId String?
-  payoutId  String?
-
-  action String // CREATE, UPDATE, PROCESS, REFUND, etc
-  status String
-
-  details      Json
-  errorMessage String? @db.Text
-
-  ipAddress String?
-  userAgent String?
-
-  performedBy String?
-
-  createdAt DateTime @default(now())
-
-  @@index([paymentId])
-  @@index([invoiceId])
-  @@index([payoutId])
-  @@index([createdAt])
-}
-
-// ========================================
-// AGGIUNTE PER SISTEMA PAGAMENTI E FATTURAZIONE
-// Data: 28/09/2025
-// 
-// ISTRUZIONI:
-// 1. Copia tutto questo contenuto
-// 2. Incollalo alla FINE del tuo file schema.prisma
-// 3. Esegui: npx prisma migrate dev --name sistema-pagamenti
-// ========================================
-
-// ========================================
-// NUOVE TABELLE PER SISTEMA PAGAMENTI
-// ========================================
-// ==========================================
-// TABELLE AGGIUNTE PER FIX PAGAMENTI - 29/01/2025
-// ==========================================
-
-enum RefundStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
-  CANCELLED
-}
-
-enum RefundReason {
-  DUPLICATE
-  FRAUDULENT
-  REQUESTED_BY_CUSTOMER
-  SERVICE_NOT_PROVIDED
-  OTHER
-}
-
-// ==========================================
-// TABELLE PER FOOTER LINKS - 18/01/2025
-// ==========================================
-
-model FooterLink {
+// Tabella reclami (complaints)
+model Complaint {
   id          String   @id @default(cuid())
-  section     String   // Es: 'company', 'support', 'legal', 'social'
-  label       String   // Testo da mostrare
-  url         String   // URL di destinazione
-  icon        String?  // Nome icona opzionale (per social)
-  order       Int      @default(0) // Ordine di visualizzazione
-  isExternal  Boolean  @default(false) // Se apre in nuova scheda
-  isActive    Boolean  @default(true) // Se il link è attivo
+  userId      String
+  requestId   String?  // Può essere collegato a una richiesta
+  
+  // Dati reclamo
+  subject     String
+  description String   @db.Text
+  category    String?  // Es: 'service', 'payment', 'communication'
+  priority    ComplaintPriority @default(MEDIUM)
+  status      ComplaintStatus   @default(SUBMITTED)
+  
+  // Tracking
+  submittedAt   DateTime  @default(now())
+  reviewedAt    DateTime?
+  resolvedAt    DateTime?
+  closedAt      DateTime?
+  
+  // Assegnazione
+  assignedTo    String?   // Admin che gestisce il reclamo
+  
+  // Risposta
+  response      String?   @db.Text
+  internalNotes String?   @db.Text // Note interne non visibili al cliente
+  
+  // Allegati
+  attachments   Json?     // Array di URL file allegati
+  
+  // Audit
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relazioni
+  user    User               @relation("UserComplaints", fields: [userId], references: [id])
+  request AssistanceRequest? @relation("RequestComplaints", fields: [requestId], references: [id])
+  
+  @@index([userId])
+  @@index([requestId])
+  @@index([status])
+  @@index([priority])
+  @@index([submittedAt])
+}
+
+// Tabella bozze reclami (per salvare reclami non ancora inviati)
+model ComplaintDraft {
+  id          String   @id @default(cuid())
+  userId      String
+  requestId   String?
+  
+  // Dati bozza
+  subject     String?
+  description String?  @db.Text
+  category    String?
+  priority    ComplaintPriority @default(MEDIUM)
+  
+  // Allegati temporanei
+  attachments Json?
+  
+  // Auto-save tracking
+  lastSavedAt DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
-  @@index([section, order])
+  // Scadenza bozza (elimina dopo 30 giorni)
+  expiresAt   DateTime?
+  
+  // Relazione
+  user User @relation("UserComplaintDrafts", fields: [userId], references: [id])
+  
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// Tabella per tracciare attivazioni/disattivazioni moduli
+// ==========================================
+// ENUM SISTEMA MODULI - NUOVO v5.1
+// ==========================================
+
+// Categorie moduli
+enum ModuleCategory {
+  CORE           // Moduli essenziali del sistema
+  BUSINESS       // Funzionalità business principali
+  COMMUNICATION  // Sistema comunicazioni
+  ADVANCED       // Funzionalità avanzate
+  REPORTING      // Sistema reportistica
+  AUTOMATION     // Automazioni
+  INTEGRATIONS   // Integrazioni esterne
+  ADMIN          // Amministrazione
+  SECURITY       // Sicurezza
+}
+
+// Tipi di impostazioni moduli
+enum SettingType {
+  STRING         // Testo semplice
+  NUMBER         // Numero
+  BOOLEAN        // Vero/Falso
+  PASSWORD       // Password (criptata)
+  JSON           // Oggetto JSON
+  SELECT         // Selezione da lista
+  MULTI_SELECT   // Selezione multipla
+  TEXT           // Testo lungo
+  EMAIL          // Email
+  URL            // URL
+}
+
+// Azioni sui moduli
+enum ModuleAction {
+  ENABLED        // Modulo abilitato
+  DISABLED       // Modulo disabilitato
+  INSTALLED      // Modulo installato
+  UNINSTALLED    // Modulo disinstallato
+  UPDATED        // Modulo aggiornato
+  CONFIGURED     // Modulo configurato
+}
+
+// ==========================================
+// TABELLE SISTEMA MODULI - NUOVO v5.1
+// ==========================================
+
+// Tabella moduli sistema (66 moduli)
+model SystemModule {
+  id          String         @id @default(cuid())
+  code        String         @unique // es: 'auth', 'payments', 'whatsapp'
+  name        String         // Nome visualizzato
+  description String?        // Descrizione funzionalità
+  category    ModuleCategory // Categoria modulo
+  icon        String?        // Emoji o icon name
+  color       String?        // Colore hex (#RRGGBB)
+  
+  // Stato
+  isCore      Boolean  @default(false) // Modulo essenziale (non disattivabile)
+  isEnabled   Boolean  @default(true)  // Modulo attivo
+  isActive    Boolean  @default(true)  // Modulo disponibile
+  
+  // Configurazione
+  config      Json?           // Configurazione specifica modulo
+  dependsOn   String[]        // Array codici moduli dipendenze
+  order       Int     @default(0) // Ordine visualizzazione
+  
+  // Metadata
+  version     String?         // Versione modulo
+  author      String?         // Autore/Fornitore
+  
+  // Timestamp
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relazioni
+  settings    ModuleSetting[]
+  
+  @@index([code])
+  @@index([category])
+  @@index([isEnabled])
   @@index([isActive])
 }
 
-model FooterSection {
-  id          String   @id @default(cuid())
-  key         String   @unique // Es: 'company', 'support', 'legal', 'contact'
-  title       String   // Titolo della sezione
-  order       Int      @default(0) // Ordine delle sezioni
-  isVisible   Boolean  @default(true) // Se la sezione è visibile
+// Tabella impostazioni moduli
+model ModuleSetting {
+  id          String      @id @default(cuid())
+  moduleCode  String      // Riferimento a SystemModule.code
+  key         String      // Chiave impostazione (es: 'api_key', 'max_retries')
+  value       String?     // Valore impostazione (string)
+  type        SettingType // Tipo dato
+  
+  // Metadata
+  label       String      // Label visualizzata
+  description String?     // Descrizione aiuto
+  placeholder String?     // Placeholder input
+  
+  // Validazione
+  validation  Json?       // Regole validazione (min, max, pattern, etc)
+  isRequired  Boolean  @default(false)
+  isSecret    Boolean  @default(false) // Per password/API keys
+  
+  // UI
+  order       Int      @default(0)
+  group       String?  // Raggruppamento impostazioni
+  
+  // Timestamp
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
-  @@index([order])
-  @@index([isVisible])
+  // Relazioni
+  module      SystemModule @relation(fields: [moduleCode], references: [code])
+  
+  @@unique([moduleCode, key])
+  @@index([moduleCode])
+  @@index([type])
 }
-
-
-// ============================================
