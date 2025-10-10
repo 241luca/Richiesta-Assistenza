@@ -1,7 +1,7 @@
 import { prisma } from '../config/database';
 import { customAlphabet } from 'nanoid';
 import { emailService } from './email.service';
-import { notificationService } from './unified-notification-center.service';
+import { notificationService } from './notification.service';
 import logger from '../utils/logger';
 
 /**

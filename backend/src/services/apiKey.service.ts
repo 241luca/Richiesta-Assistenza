@@ -1,7 +1,7 @@
 import { prisma } from '../config/database';
 import { ApiKey } from '@prisma/client';
 import { logger } from '../utils/logger';
-import crypto from 'crypto';
+import { randomBytes, createCipheriv, createDecipheriv } from 'crypto';
 
 export interface ApiKeyInput {
   service: 'GOOGLE_MAPS' | 'BREVO' | 'OPENAI' | 'TINYMCE' | 'whatsapp' | 'STRIPE' | 'STRIPE_PUBLIC' | 'STRIPE_WEBHOOK';
@@ -18,9 +18,9 @@ export class ApiKeyService {
     // In produzione usare una chiave di crittografia sicura da env
     const algorithm = 'aes-256-cbc';
     const secretKey = process.env.ENCRYPTION_KEY || 'default-encryption-key-change-in-production';
-    const iv = crypto.randomBytes(16);
+    const iv = randomBytes(16);
     
-    const cipher = crypto.createCipheriv(algorithm, Buffer.from(secretKey.padEnd(32).slice(0, 32)), iv);
+    const cipher = createCipheriv(algorithm, Buffer.from(secretKey.padEnd(32).slice(0, 32)), iv);
     let encrypted = cipher.update(key, 'utf8', 'hex');
     encrypted += cipher.final('hex');
     
@@ -50,7 +50,7 @@ export class ApiKeyService {
 
       const iv = Buffer.from(ivHex, 'hex');
       
-      const decipher = crypto.createDecipheriv(algorithm, Buffer.from(secretKey.padEnd(32).slice(0, 32)), iv);
+      const decipher = createDecipheriv(algorithm, Buffer.from(secretKey.padEnd(32).slice(0, 32)), iv);
       let decrypted = decipher.update(encrypted, 'hex', 'utf8');
       decrypted += decipher.final('utf8');
       

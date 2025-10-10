@@ -622,9 +622,13 @@ export class ResponseFormatter {
       // Estrai il messaggio dall'oggetto
       errorMessage = message.message || message.error || 'An error occurred';
       errorCode = message.code || code || 'INTERNAL_ERROR';
-    } else {
+    } else if (typeof message === 'string') {
       // Usa direttamente la stringa
       errorMessage = message;
+      errorCode = code || 'INTERNAL_ERROR';
+    } else {
+      // Fallback per casi imprevisti
+      errorMessage = 'An error occurred';
       errorCode = code || 'INTERNAL_ERROR';
     }
     

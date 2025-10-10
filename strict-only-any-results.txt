@@ -1,0 +1,43 @@
+
+📊 TEST SOLO noImplicitAny
+==========================
+
+Totale errori: 648
+
+PRIMI 30 ERRORI:
+src/config/whatsapp-accounts.config.ts(1,37): error TS2307: Cannot find module '../services/multi-account-whatsapp.service' or its corresponding type declarations.
+src/controllers/testController.ts(38,9): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/controllers/testController.ts(76,9): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/controllers/testController.ts(114,9): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/middleware/compression.ts(19,7): error TS2353: Object literal may only specify known properties, and 'zlib' does not exist in type 'BrotliOptions'.
+src/middleware/compression.ts(46,42): error TS2339: Property 'includes' does not exist on type 'string | number | string[]'.
+src/middleware/module.middleware.ts(7,11): error TS2430: Interface 'AuthRequest' incorrectly extends interface 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/middleware/security.ts(265,23): error TS2339: Property 'rateLimit' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/middleware/security.ts(285,23): error TS2339: Property 'rateLimit' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/address.routes.ts(25,11): error TS2430: Interface 'AuthRequest' incorrectly extends interface 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/admin-simple.routes.ts(45,9): error TS7018: Object literal's property 'recentUsers' implicitly has an 'any[]' type.
+src/routes/admin-simple.routes.ts(46,9): error TS7018: Object literal's property 'recentRequests' implicitly has an 'any[]' type.
+src/routes/admin-simple.routes.ts(47,9): error TS7018: Object literal's property 'recentQuotes' implicitly has an 'any[]' type.
+src/routes/admin-simple.routes.ts(64,7): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/routes/admin-users.routes.ts(188,34): error TS2339: Property 'payments' does not exist on type '{ quotes: number; clientRequests: number; professionalRequests: number; }'.
+src/routes/admin-users.routes.ts(220,50): error TS2345: Argument of type '{ email?: string; username?: string; password?: string; firstName?: string; lastName?: string; phone?: string; role?: "SUPER_ADMIN" | "ADMIN" | "PROFESSIONAL" | "CLIENT"; codiceFiscale?: string; partitaIva?: string; ... 9 more ...; sendWelcomeEmail?: boolean; }' is not assignable to parameter of type 'UserCreateData'.
+src/routes/admin/api-keys.routes.ts(26,50): error TS2345: Argument of type 'string' is not assignable to parameter of type '"STRIPE" | "GOOGLE_MAPS" | "BREVO" | "OPENAI" | "TINYMCE" | "whatsapp" | "STRIPE_PUBLIC" | "STRIPE_WEBHOOK"'.
+src/routes/admin/api-keys.routes.ts(45,44): error TS2339: Property 'updateApiKey' does not exist on type 'ApiKeyService'.
+src/routes/admin/api-keys.routes.ts(67,43): error TS2339: Property 'createApiKey' does not exist on type 'ApiKeyService'.
+src/routes/admin/api-keys.routes.ts(79,54): error TS2345: Argument of type 'string' is not assignable to parameter of type '"STRIPE" | "GOOGLE_MAPS" | "BREVO" | "OPENAI" | "TINYMCE" | "whatsapp" | "STRIPE_PUBLIC" | "STRIPE_WEBHOOK"'.
+src/routes/admin/approval-workflows.routes.ts(21,13): error TS7034: Variable 'workflows' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/routes/admin/approval-workflows.routes.ts(24,9): error TS7005: Variable 'workflows' implicitly has an 'any[]' type.
+src/routes/admin/dashboard.routes.ts(176,31): error TS2339: Property 'AssistanceRequest' does not exist on type '{ id: string; createdAt: Date; status: QuoteStatus; amount: Decimal; request: { title: string; }; }'.
+src/routes/admin/document-categories.routes.ts(72,13): error TS7034: Variable 'tree' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/routes/admin/document-categories.routes.ts(75,9): error TS7005: Variable 'tree' implicitly has an 'any[]' type.
+src/routes/admin/document-config.routes.ts(23,11): error TS7018: Object literal's property 'byRole' implicitly has an 'any[]' type.
+src/routes/admin/document-config.routes.ts(59,13): error TS7034: Variable 'configs' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/routes/admin/document-config.routes.ts(62,9): error TS7005: Variable 'configs' implicitly has an 'any[]' type.
+src/routes/admin/document-config.routes.ts(150,13): error TS7034: Variable 'settings' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/routes/admin/document-config.routes.ts(153,9): error TS7005: Variable 'settings' implicitly has an 'any[]' type.
+
+ANALISI RAPIDA:
+❌ ANCORA TROPPI
+
+STIMA: 13 giorni di correzione + 2 giorni test
+  

@@ -5,8 +5,22 @@
     "lib": ["ES2020"],
     "outDir": "./dist",
     "rootDir": "./src",
-    "strict": false,
-    "noEmitOnError": false,
+    
+    // ⚠️ STRICT MODE PARZIALE - ATTIVATO 10/10/2025
+    "strict": false,                      // Manteniamo false (generale)
+    "noImplicitAny": true,                // ✅ ATTIVATO - Obbliga a definire tipi
+    "strictFunctionTypes": true,          // ✅ ATTIVATO - Controlla tipi funzioni
+    
+    // ⚠️ IMPORTANTE: Non bloccare la compilazione durante la transizione
+    "noEmitOnError": false,               // Compila anche con errori TypeScript
+    
+    // Altri controlli strict - da attivare in futuro
+    "strictNullChecks": false,
+    "strictBindCallApply": false,
+    "strictPropertyInitialization": false,
+    "noImplicitThis": false,
+    "alwaysStrict": false,
+    
     "esModuleInterop": true,
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
@@ -18,7 +32,6 @@
     "allowSyntheticDefaultImports": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "noImplicitAny": false,
     "downlevelIteration": true
   },
   "include": ["src/**/*"],

@@ -2885,6 +2885,7 @@ model User {
   whatsappContactsAsProfessional                                               WhatsAppContact[]             @relation("WhatsAppContactProfessional")
   whatsappContactsAsUser                                                       WhatsAppContact[]             @relation("WhatsAppContactUser")
   WhatsAppMessage                                                              WhatsAppMessage[]
+  whatsappConfigs                                                              ProfessionalWhatsApp[]        @relation("ProfessionalWhatsAppConfig")
 
   @@index([createdAt])
   @@index([email])
@@ -3469,4 +3470,220 @@ enum VersionStatus {
   PUBLISHED
   ARCHIVED
   SUPERSEDED
+}
+// ==========================================
+// MODELLI WHATSAPP PER DUAL MODE DETECTOR
+// ==========================================
+
+// Enum necessari per WhatsApp
+enum WhatsAppStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum DetectionMode {
+  PROFESSIONAL
+  CLIENT
+  UNKNOWN
+}
+
+enum ContactType {
+  CLIENT
+  PROFESSIONAL
+  TRUSTED
+  BLOCKED
+}
+
+enum ContactStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+// ==========================================
+// MODELLO PRINCIPALE - ProfessionalWhatsApp
+// ==========================================
+
+model ProfessionalWhatsApp {
+  id                      String                                @id @default(uuid())
+  professionalId          String
+  phoneNumber             String
+  instanceId              String                                @unique
+  sendappApiKey           String?
+  status                  WhatsAppStatus                        @default(PENDING)
+  activationDate          DateTime?
+  suspensionDate          DateTime?
+  suspensionReason        String?
+  
+  // Phone Recognition Lists
+  professionalPhones      String[]                              @default([])
+  trustedNumbers          String[]                              @default([])
+  blacklistedNumbers      String[]                              @default([])
+  
+  // AI Configurations (stored as JSON)
+  aiConfigProfessional    Json?
+  aiConfigClient          Json?
+  
+  // Knowledge Bases
+  kbProfessionalIds       String[]                              @default([])
+  kbClientIds             String[]                              @default([])
+  
+  // System Prompts
+  systemPromptProfessional String?
+  systemPromptClient       String?
+  
+  // Detection Settings
+  autoDetectMode          Boolean                               @default(true)
+  defaultMode             DetectionMode                         @default(CLIENT)
+  confidenceThreshold     Float                                 @default(0.7)
+  
+  // Billing
+  planId                  String?
+  billingCycle            String                                @default("MONTHLY")
+  nextBillingDate         DateTime?
+  messagesLimit           Int                                   @default(1000)
+  messagesUsed            Int                                   @default(0)
+  aiResponsesLimit        Int                                   @default(500)
+  aiResponsesUsed         Int                                   @default(0)
+  
+  // Settings
+  settings                Json?
+  businessHours           Json?
+  autoReplySettings       Json?
+  
+  // Metadata
+  createdAt               DateTime                              @default(now())
+  updatedAt               DateTime                              @updatedAt
+  createdBy               String?
+  
+  // Relations
+  professional            User                                  @relation("ProfessionalWhatsAppConfig", fields: [professionalId], references: [id], onDelete: Cascade)
+  contacts                ProfessionalWhatsAppContact[]
+  analytics               ProfessionalWhatsAppAnalytics[]
+  
+  @@index([professionalId])
+  @@index([instanceId])
+  @@index([status])
+}
+
+// ==========================================
+// MODELLO CONTATTI - ProfessionalWhatsAppContact
+// ==========================================
+
+model ProfessionalWhatsAppContact {
+  id                      String                                @id @default(uuid())
+  whatsappId              String
+  
+  // Contact Info
+  phoneNumber             String
+  name                    String?
+  email                   String?
+  
+  // Classification - CRITICAL!
+  contactType             ContactType                           @default(CLIENT)
+  isVerified              Boolean                               @default(false)
+  verifiedBy              String?
+  verifiedAt              DateTime?
+  
+  // WhatsApp Info
+  whatsappName            String?
+  whatsappAvatar          String?
+  lastSeen                DateTime?
+  
+  // Business Data
+  customerSince           DateTime?
+  totalMessages           Int                                   @default(0)
+  totalOrders             Int                                   @default(0)
+  totalRevenue            Float                                 @default(0)
+  
+  // AI Interaction Stats
+  aiInteractionsTech      Int                                   @default(0)
+  aiInteractionsClient    Int                                   @default(0)
+  lastAiMode              String?
+  
+  // Notes
+  tags                    String[]                              @default([])
+  notes                   String?
+  internalNotes           String?
+  
+  // Status
+  status                  ContactStatus                         @default(ACTIVE)
+  blocked                 Boolean                               @default(false)
+  blockedReason           String?
+  
+  customFields            Json?
+  createdAt               DateTime                              @default(now())
+  updatedAt               DateTime                              @updatedAt
+  
+  // Relations
+  whatsapp                ProfessionalWhatsApp                  @relation(fields: [whatsappId], references: [id], onDelete: Cascade)
+  
+  @@unique([whatsappId, phoneNumber])
+  @@index([whatsappId])
+  @@index([phoneNumber])
+  @@index([contactType])
+  @@index([status])
+}
+
+// ==========================================
+// MODELLO OVERRIDE - ProfessionalWhatsAppDetectionOverride
+// ==========================================
+
+model ProfessionalWhatsAppDetectionOverride {
+  id                      String                                @id @default(uuid())
+  whatsappId              String
+  phoneNumber             String
+  originalDetection       DetectionMode
+  overriddenTo            DetectionMode
+  overriddenBy            String
+  reason                  String?
+  shouldLearnFrom         Boolean                               @default(true)
+  createdAt               DateTime                              @default(now())
+  
+  @@index([whatsappId])
+  @@index([phoneNumber])
+  @@index([createdAt])
+}
+
+// ==========================================
+// MODELLO ANALYTICS - ProfessionalWhatsAppAnalytics
+// ==========================================
+
+model ProfessionalWhatsAppAnalytics {
+  id                      String                                @id @default(uuid())
+  whatsappId              String
+  date                    DateTime                              @db.Date
+  hour                    Int?
+  
+  // Messages by Mode
+  messagesSentTech        Int                                   @default(0)
+  messagesSentClient      Int                                   @default(0)
+  messagesReceived        Int                                   @default(0)
+  
+  // Detection Metrics
+  correctDetections       Int                                   @default(0)
+  incorrectDetections     Int                                   @default(0)
+  manualOverrides         Int                                   @default(0)
+  detectionAccuracy       Float?
+  
+  // Contacts
+  uniqueContacts          Int                                   @default(0)
+  professionalContacts    Int                                   @default(0)
+  clientContacts          Int                                   @default(0)
+  
+  // AI Metrics
+  aiResponsesTech         Int                                   @default(0)
+  aiResponsesClient       Int                                   @default(0)
+  aiSuccessRate           Float?
+  
+  createdAt               DateTime                              @default(now())
+  
+  // Relations
+  whatsapp                ProfessionalWhatsApp                  @relation(fields: [whatsappId], references: [id], onDelete: Cascade)
+  
+  @@unique([whatsappId, date, hour])
+  @@index([whatsappId])
+  @@index([date])
 }

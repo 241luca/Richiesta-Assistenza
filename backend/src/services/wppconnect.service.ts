@@ -97,6 +97,9 @@ export class WPPConnectService {
         }
       }
       
+      // ✅ FIX: Genera ID univoco e aggiungi updatedAt
+      const contactId = `wpp_contact_${phoneNumber}_${Date.now()}`;
+      
       const contact = await prisma.whatsAppContact.upsert({
         where: { phoneNumber },
         update: {
@@ -105,9 +108,11 @@ export class WPPConnectService {
           lastMessageAt: new Date(),
           totalMessages: { increment: 1 },
           userId: userId || undefined,
-          professionalId: professionalId || undefined
+          professionalId: professionalId || undefined,
+          updatedAt: new Date(), // ✅ Campo obbligatorio
         },
         create: {
+          id: contactId, // ✅ Campo obbligatorio
           phoneNumber,
           name: message.notifyName || message.sender?.pushname || phoneNumber,
           pushname: message.sender?.pushname || undefined,
@@ -117,7 +122,8 @@ export class WPPConnectService {
           lastMessageAt: new Date(),
           totalMessages: 1,
           userId: userId || undefined,
-          professionalId: professionalId || undefined
+          professionalId: professionalId || undefined,
+          updatedAt: new Date(), // ✅ Campo obbligatorio
         }
       });
       
@@ -232,9 +238,16 @@ export class WPPConnectService {
       logger.info('📝 Dati messaggio pronti per il salvataggio');
       logger.info('📊 Totale campi compilati:', Object.keys(messageData).filter(k => messageData[k] !== undefined).length);
       
+      // ✅ FIX: Genera ID univoco e aggiungi updatedAt
+      const messageDbId = `wpp_msg_db_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
       // Salva nel database
       const saved = await prisma.whatsAppMessage.create({
-        data: messageData
+        data: {
+          ...messageData,
+          id: messageDbId, // ✅ Campo obbligatorio
+          updatedAt: new Date(), // ✅ Campo obbligatorio
+        }
       });
       
       logger.info('✅ MESSAGGIO SALVATO CON SUCCESSO!');
@@ -564,9 +577,13 @@ export class WPPConnectService {
       
       logger.info('✅ Messaggio inviato con successo!');
       
+      // ✅ FIX: Genera ID univoco e aggiungi updatedAt
+      const msgDbId = `wpp_msg_sent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
       // Salva nel database
       await prisma.whatsAppMessage.create({
         data: {
+          id: msgDbId, // ✅ Campo obbligatorio
           messageId: result?.id || `msg_${Date.now()}`,
           phoneNumber: phoneNumber,
           message: text,
@@ -577,23 +594,30 @@ export class WPPConnectService {
           to: chatId,
           type: 'chat',
           fromMe: true,
-          chatId: chatId
+          chatId: chatId,
+          updatedAt: new Date(), // ✅ Campo obbligatorio
         }
       });
+      
+      // ✅ FIX: Genera ID univoco e aggiungi updatedAt
+      const contactUpdateId = `wpp_contact_${phoneNumber}_${Date.now()}`;
       
       // Aggiorna il contatto
       await prisma.whatsAppContact.upsert({
         where: { phoneNumber },
         update: {
           lastMessageAt: new Date(),
-          totalMessages: { increment: 1 }
+          totalMessages: { increment: 1 },
+          updatedAt: new Date(), // ✅ Campo obbligatorio
         },
         create: {
+          id: contactUpdateId, // ✅ Campo obbligatorio
           phoneNumber,
           name: phoneNumber,
           firstMessageAt: new Date(),
           lastMessageAt: new Date(),
-          totalMessages: 1
+          totalMessages: 1,
+          updatedAt: new Date(), // ✅ Campo obbligatorio
         }
       });
       

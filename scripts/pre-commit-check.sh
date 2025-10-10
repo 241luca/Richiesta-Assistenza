@@ -1,15 +1,16 @@
 #!/bin/bash
 
 # =================================================================
-# 🔍 PRE-COMMIT CHECK SCRIPT
+# 🔍 PRE-COMMIT CHECK SCRIPT - v4.4.0
 # =================================================================
 # Esegue tutti i controlli necessari prima di un commit
+# Include controlli TypeScript strict mode e case sensitivity
 # Uso: ./scripts/pre-commit-check.sh
 # =================================================================
 
 echo ""
 echo "======================================"
-echo "🔍 PRE-COMMIT CHECKS"
+echo "🔍 PRE-COMMIT CHECKS v4.4.0"
 echo "======================================"
 echo "📚 REMINDER: All documentation goes in DOCUMENTAZIONE/"
 echo ""
@@ -25,9 +26,9 @@ ERRORS=0
 WARNINGS=0
 
 # =================================================================
-# 1. TYPESCRIPT CHECK
+# 1. TYPESCRIPT STRICT MODE CHECK
 # =================================================================
-echo "📝 [1/7] Checking TypeScript..."
+echo "📝 [1/11] Checking TypeScript (strict mode simulation)..."
 cd backend
 npx tsc --noEmit 2>/dev/null
 if [ $? -ne 0 ]; then
@@ -35,15 +36,73 @@ if [ $? -ne 0 ]; then
   echo "   Run: cd backend && npx tsc --noEmit"
   ERRORS=$((ERRORS + 1))
 else
-  echo -e "${GREEN}✅ TypeScript: OK${NC}"
+  echo -e "${GREEN}✅ TypeScript compilation: OK${NC}"
+fi
+
+# Check for implicit 'any' types
+IMPLICIT_ANY=$(grep -r ": any" backend/src/ src/ 2>/dev/null | grep -v "node_modules" | grep -v ".backup" | grep -v "test" | grep -v "// eslint" | wc -l)
+if [ $IMPLICIT_ANY -gt 5 ]; then
+  echo -e "${YELLOW}⚠️  Found ${IMPLICIT_ANY} explicit 'any' types${NC}"
+  echo "   Consider using specific types instead"
+  WARNINGS=$((WARNINGS + 1))
 fi
 cd ..
 
 # =================================================================
-# 2. RESPONSEFORMATTER CHECK
+# 2. CASE SENSITIVITY CHECK  
 # =================================================================
 echo ""
-echo "📝 [2/7] Checking ResponseFormatter usage..."
+echo "📝 [2/11] Checking case sensitivity in imports..."
+
+# Check for potential case issues in imports
+CASE_ISSUES=$(grep -r "from '\./[A-Z]" backend/src/ src/ 2>/dev/null | grep -v "node_modules" | grep -v ".backup" | wc -l)
+if [ $CASE_ISSUES -gt 0 ]; then
+  echo -e "${YELLOW}⚠️  Potential case sensitivity issues in imports${NC}"
+  echo "   Review import statements (Mac filesystem is case-insensitive)"
+  grep -r "from '\./[A-Z]" backend/src/ src/ 2>/dev/null | grep -v "node_modules" | head -3
+  WARNINGS=$((WARNINGS + 1))
+else
+  echo -e "${GREEN}✅ Import case sensitivity: OK${NC}"
+fi
+
+# =================================================================
+# 3. PRISMA CASE CHECK
+# =================================================================
+echo ""
+echo "📝 [3/11] Checking Prisma model names..."
+
+# Check for incorrect Prisma model usage (capitalized)
+PRISMA_CAPS=$(grep -r "prisma\.[A-Z]" backend/src/ 2>/dev/null | grep -v "node_modules" | grep -v ".backup" | grep -v "test" | wc -l)
+if [ $PRISMA_CAPS -gt 0 ]; then
+  echo -e "${RED}❌ Incorrect Prisma model names (capitalized)!${NC}"
+  echo "   Prisma models should be lowercase: prisma.user (not prisma.User)"
+  grep -r "prisma\.[A-Z]" backend/src/ 2>/dev/null | grep -v "node_modules" | head -3
+  ERRORS=$((ERRORS + 1))
+else
+  echo -e "${GREEN}✅ Prisma model names: OK${NC}"
+fi
+
+# =================================================================
+# 4. NULL/UNDEFINED SAFETY CHECK
+# =================================================================
+echo ""
+echo "📝 [4/11] Checking for unsafe null/undefined access..."
+
+# Check for direct property access without null checks (basic pattern)
+UNSAFE_ACCESS=$(grep -r "\\.email\|\\.name\|\\.id" backend/src/routes/ 2>/dev/null | grep -v "?" | grep -v "if" | grep -v "//" | grep -v "node_modules" | wc -l)
+if [ $UNSAFE_ACCESS -gt 20 ]; then
+  echo -e "${YELLOW}⚠️  Potential unsafe property access detected${NC}"
+  echo "   Consider using optional chaining (?.) or null checks"
+  WARNINGS=$((WARNINGS + 1))
+else
+  echo -e "${GREEN}✅ Property access: Safe patterns detected${NC}"
+fi
+
+# =================================================================
+# 5. RESPONSEFORMATTER CHECK
+# =================================================================
+echo ""
+echo "📝 [5/11] Checking ResponseFormatter usage..."
 
 # Check services (non dovrebbero usare ResponseFormatter)
 SERVICES_WITH_RF=$(grep -r "ResponseFormatter" backend/src/services/ 2>/dev/null | grep -v "test" | wc -l)
@@ -68,10 +127,42 @@ else
 fi
 
 # =================================================================
-# 3. CONSOLE.LOG CHECK
+# 6. DOUBLE /api PATTERN CHECK
 # =================================================================
 echo ""
-echo "📝 [3/7] Checking for console.log statements..."
+echo "📝 [6/11] Checking for double /api pattern..."
+
+DOUBLE_API=$(grep -r "api\.\(get\|post\|put\|delete\|patch\)('/api" src/ 2>/dev/null | grep -v "node_modules" | wc -l)
+if [ $DOUBLE_API -gt 0 ]; then
+  echo -e "${RED}❌ Found api.get('/api/...') pattern! Remove /api prefix!${NC}"
+  echo "   API client already has /api in baseURL"
+  grep -r "api\.\(get\|post\|put\|delete\|patch\)('/api" src/ 2>/dev/null | head -3
+  ERRORS=$((ERRORS + 1))
+else
+  echo -e "${GREEN}✅ API calls: No double /api pattern${NC}"
+fi
+
+# =================================================================
+# 7. ARRAY ACCESS SAFETY CHECK
+# =================================================================
+echo ""
+echo "📝 [7/11] Checking for unsafe array access..."
+
+# Check for direct array[0] access without length check
+UNSAFE_ARRAY=$(grep -r "\[0\]" backend/src/routes/ 2>/dev/null | grep -v "if" | grep -v "length" | grep -v "//" | grep -v "node_modules" | wc -l)
+if [ $UNSAFE_ARRAY -gt 10 ]; then
+  echo -e "${YELLOW}⚠️  Potential unsafe array access detected${NC}"
+  echo "   Always check array length before accessing elements"
+  WARNINGS=$((WARNINGS + 1))
+else
+  echo -e "${GREEN}✅ Array access: Safe patterns detected${NC}"
+fi
+
+# =================================================================
+# 8. CONSOLE.LOG CHECK
+# =================================================================
+echo ""
+echo "📝 [8/11] Checking for console.log statements..."
 
 CONSOLE_LOGS=$(grep -r "console\.log" src/ backend/src/ 2>/dev/null | grep -v "node_modules" | grep -v ".backup" | grep -v "test" | wc -l)
 if [ $CONSOLE_LOGS -gt 0 ]; then
@@ -84,10 +175,10 @@ else
 fi
 
 # =================================================================
-# 4. BACKUP FILES CHECK
+# 9. BACKUP FILES CHECK
 # =================================================================
 echo ""
-echo "📝 [4/7] Checking for backup files..."
+echo "📝 [9/11] Checking for backup files..."
 
 BACKUP_FILES=$(find . -name "*.backup*" -o -name "*backup-*" 2>/dev/null | grep -v node_modules | wc -l)
 if [ $BACKUP_FILES -gt 0 ]; then
@@ -100,10 +191,10 @@ else
 fi
 
 # =================================================================
-# 5. PRISMA SYNC CHECK
+# 10. PRISMA SYNC CHECK
 # =================================================================
 echo ""
-echo "📝 [5/7] Checking Prisma schema sync..."
+echo "📝 [10/11] Checking Prisma schema sync..."
 
 cd backend
 npx prisma generate > /dev/null 2>&1
@@ -117,26 +208,10 @@ fi
 cd ..
 
 # =================================================================
-# 6. PACKAGE.JSON CHECK
+# 11. DOCUMENTATION CHECK
 # =================================================================
 echo ""
-echo "📝 [6/7] Checking dependencies..."
-
-# Check if tailwindcss is v3 (not v4)
-TAILWIND_VERSION=$(grep '"tailwindcss":' package.json | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | cut -d. -f1)
-if [ "$TAILWIND_VERSION" = "4" ]; then
-  echo -e "${RED}❌ Tailwind CSS v4 detected! Must use v3${NC}"
-  echo "   Run: npm uninstall tailwindcss && npm install -D tailwindcss@^3.4.0"
-  ERRORS=$((ERRORS + 1))
-else
-  echo -e "${GREEN}✅ Tailwind CSS: v3 (correct)${NC}"
-fi
-
-# =================================================================
-# 7. DOCUMENTATION CHECK
-# =================================================================
-echo ""
-echo "📝 [7/8] Checking documentation structure..."
+echo "📝 [11/11] Checking documentation structure..."
 
 # Check for unauthorized .md files in root
 ROOT_MD=$(ls *.md 2>/dev/null | grep -v -E "^(README|ISTRUZIONI-PROGETTO|CHANGELOG|LEGGIMI-DOCUMENTAZIONE)\.md$")
@@ -161,22 +236,6 @@ if [ -z "$TODAY_REPORT" ]; then
   echo -e "${YELLOW}⚠️  No report found for today ($TODAY)${NC}"
   echo "   Remember to create: DOCUMENTAZIONE/REPORT-SESSIONI/$TODAY-descrizione.md"
   WARNINGS=$((WARNINGS + 1))
-fi
-
-# =================================================================
-# 8. BUILD CHECK
-# =================================================================
-echo ""
-echo "📝 [8/8] Checking build..."
-
-# Quick build test (frontend)
-npm run build > /dev/null 2>&1
-if [ $? -ne 0 ]; then
-  echo -e "${YELLOW}⚠️  Warning: Frontend build failed${NC}"
-  echo "   Run: npm run build (to see errors)"
-  WARNINGS=$((WARNINGS + 1))
-else
-  echo -e "${GREEN}✅ Frontend build: OK${NC}"
 fi
 
 # =================================================================

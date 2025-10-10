@@ -13,7 +13,7 @@
 import { Redis } from 'ioredis';
 import { prisma } from '../config/database';
 import { logger } from '../utils/logger';
-import crypto from 'crypto';
+import { createHash } from 'crypto';
 
 interface Coordinates {
   lat: number;
@@ -110,7 +110,7 @@ export class GoogleMapsCacheService {
    * Genera una chiave cache sicura e consistente
    */
   private static generateCacheKey(type: keyof typeof this.PREFIXES, input: string): string {
-    const hash = crypto.createHash('sha256').update(input.toLowerCase().trim()).digest('hex');
+    const hash = createHash('sha256').update(input.toLowerCase().trim()).digest('hex');
     return `${this.PREFIXES[type]}${hash}`;
   }
 

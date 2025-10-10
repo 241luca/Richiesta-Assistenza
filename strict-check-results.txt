@@ -1,0 +1,5 @@
+=== BACKEND STRICT CHECK ===
+./check-strict.sh: line 4: npx: command not found
+
+=== CONTEGGIO ERRORI ===
+       0

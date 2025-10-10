@@ -1,0 +1,105 @@
+
+📊 RISULTATI TEST STRICT MODE PARZIALE
+========================================
+
+Configurazione:
+- noImplicitAny: true
+- strictFunctionTypes: true  
+- Tutti gli altri: false
+
+Totale errori trovati: 648
+
+DISTRIBUZIONE ERRORI:
+TS2322: 113 errori
+TS2339: 106 errori
+TS2353: 86 errori
+TS7018: 47 errori
+TS2345: 45 errori
+TS2561: 30 errori
+TS7006: 28 errori
+TS2559: 28 errori
+TS2551: 27 errori
+TS2554: 20 errori
+TS2307: 19 errori
+TS7005: 19 errori
+TS7034: 18 errori
+TS2430: 10 errori
+TS7053: 7 errori
+TS2304: 7 errori
+TS2305: 6 errori
+TS7010: 4 errori
+TS2393: 4 errori
+TS2552: 4 errori
+TS2352: 3 errori
+TS2724: 3 errori
+TS2820: 2 errori
+TS2740: 2 errori
+TS2614: 2 errori
+TS2351: 2 errori
+TS7017: 1 errori
+TS7016: 1 errori
+TS1117: 1 errori
+TS2440: 1 errori
+TS2769: 1 errori
+TS1064: 1 errori
+
+PRIMI 50 ERRORI:
+src/config/whatsapp-accounts.config.ts(1,37): error TS2307: Cannot find module '../services/multi-account-whatsapp.service' or its corresponding type declarations.
+src/controllers/testController.ts(38,9): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/controllers/testController.ts(76,9): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/controllers/testController.ts(114,9): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/middleware/compression.ts(19,7): error TS2353: Object literal may only specify known properties, and 'zlib' does not exist in type 'BrotliOptions'.
+src/middleware/compression.ts(46,42): error TS2339: Property 'includes' does not exist on type 'string | number | string[]'.
+src/middleware/module.middleware.ts(7,11): error TS2430: Interface 'AuthRequest' incorrectly extends interface 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/middleware/security.ts(265,23): error TS2339: Property 'rateLimit' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/middleware/security.ts(285,23): error TS2339: Property 'rateLimit' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/address.routes.ts(25,11): error TS2430: Interface 'AuthRequest' incorrectly extends interface 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+src/routes/admin-simple.routes.ts(45,9): error TS7018: Object literal's property 'recentUsers' implicitly has an 'any[]' type.
+src/routes/admin-simple.routes.ts(46,9): error TS7018: Object literal's property 'recentRequests' implicitly has an 'any[]' type.
+src/routes/admin-simple.routes.ts(47,9): error TS7018: Object literal's property 'recentQuotes' implicitly has an 'any[]' type.
+src/routes/admin-simple.routes.ts(64,7): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/routes/admin-users.routes.ts(188,34): error TS2339: Property 'payments' does not exist on type '{ quotes: number; clientRequests: number; professionalRequests: number; }'.
+src/routes/admin-users.routes.ts(220,50): error TS2345: Argument of type '{ email?: string; username?: string; password?: string; firstName?: string; lastName?: string; phone?: string; role?: "SUPER_ADMIN" | "ADMIN" | "PROFESSIONAL" | "CLIENT"; codiceFiscale?: string; partitaIva?: string; ... 9 more ...; sendWelcomeEmail?: boolean; }' is not assignable to parameter of type 'UserCreateData'.
+src/routes/admin/api-keys.routes.ts(26,50): error TS2345: Argument of type 'string' is not assignable to parameter of type '"STRIPE" | "GOOGLE_MAPS" | "BREVO" | "OPENAI" | "TINYMCE" | "whatsapp" | "STRIPE_PUBLIC" | "STRIPE_WEBHOOK"'.
+src/routes/admin/api-keys.routes.ts(45,44): error TS2339: Property 'updateApiKey' does not exist on type 'ApiKeyService'.
+src/routes/admin/api-keys.routes.ts(67,43): error TS2339: Property 'createApiKey' does not exist on type 'ApiKeyService'.
+src/routes/admin/api-keys.routes.ts(79,54): error TS2345: Argument of type 'string' is not assignable to parameter of type '"STRIPE" | "GOOGLE_MAPS" | "BREVO" | "OPENAI" | "TINYMCE" | "whatsapp" | "STRIPE_PUBLIC" | "STRIPE_WEBHOOK"'.
+src/routes/admin/approval-workflows.routes.ts(21,13): error TS7034: Variable 'workflows' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/routes/admin/approval-workflows.routes.ts(24,9): error TS7005: Variable 'workflows' implicitly has an 'any[]' type.
+src/routes/admin/dashboard.routes.ts(176,31): error TS2339: Property 'AssistanceRequest' does not exist on type '{ id: string; createdAt: Date; status: QuoteStatus; amount: Decimal; request: { title: string; }; }'.
+src/routes/admin/document-categories.routes.ts(72,13): error TS7034: Variable 'tree' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/routes/admin/document-categories.routes.ts(75,9): error TS7005: Variable 'tree' implicitly has an 'any[]' type.
+src/routes/admin/document-config.routes.ts(23,11): error TS7018: Object literal's property 'byRole' implicitly has an 'any[]' type.
+src/routes/admin/document-config.routes.ts(59,13): error TS7034: Variable 'configs' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/routes/admin/document-config.routes.ts(62,9): error TS7005: Variable 'configs' implicitly has an 'any[]' type.
+src/routes/admin/document-config.routes.ts(150,13): error TS7034: Variable 'settings' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/routes/admin/document-config.routes.ts(153,9): error TS7005: Variable 'settings' implicitly has an 'any[]' type.
+src/routes/admin/document-config.routes.ts(221,9): error TS7018: Object literal's property 'settings' implicitly has an 'any[]' type.
+src/routes/admin/document-fields.routes.ts(20,13): error TS7034: Variable 'fields' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/routes/admin/document-fields.routes.ts(23,9): error TS7005: Variable 'fields' implicitly has an 'any[]' type.
+src/routes/admin/document-fields.routes.ts(50,9): error TS7018: Object literal's property 'byType' implicitly has an 'any[]' type.
+src/routes/admin/document-fields.routes.ts(51,9): error TS7018: Object literal's property 'byDocumentType' implicitly has an 'any[]' type.
+src/routes/admin/document-notifications.routes.ts(20,13): error TS7034: Variable 'templates' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/routes/admin/document-notifications.routes.ts(23,9): error TS7005: Variable 'templates' implicitly has an 'any[]' type.
+src/routes/admin/document-permissions.routes.ts(20,13): error TS7034: Variable 'permissions' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/routes/admin/document-permissions.routes.ts(23,9): error TS7005: Variable 'permissions' implicitly has an 'any[]' type.
+src/routes/admin/document-permissions.routes.ts(47,11): error TS7018: Object literal's property 'byRole' implicitly has an 'any[]' type.
+src/routes/admin/document-permissions.routes.ts(48,11): error TS7018: Object literal's property 'byDocumentType' implicitly has an 'any[]' type.
+src/routes/admin/document-stats.routes.ts(4,24): error TS2307: Cannot find module '../../lib/prisma' or its corresponding type declarations.
+src/routes/admin/document-ui-configs.routes.ts(20,13): error TS7034: Variable 'configs' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/routes/admin/document-ui-configs.routes.ts(23,9): error TS7005: Variable 'configs' implicitly has an 'any[]' type.
+src/routes/admin/document-ui-configs.routes.ts(48,11): error TS7018: Object literal's property 'byRole' implicitly has an 'any[]' type.
+src/routes/admin/health-check.routes.ts(409,45): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/routes/admin/health-check.routes.ts(503,42): error TS2339: Property 'generateReport' does not exist on type 'HealthCheckReportGenerator'.
+src/routes/admin/health-check.routes.ts(523,43): error TS2339: Property 'getReportHistory' does not exist on type 'HealthCheckReportGenerator'.
+src/routes/admin/health-check.routes.ts(540,44): error TS2339: Property 'getReportPath' does not exist on type 'HealthCheckReportGenerator'.
+src/routes/admin/health-check.routes.ts(580,27): error TS2339: Property 'addRule' does not exist on type 'AutoRemediationSystem'.
+
+ANALISI:
+❌ DIFFICILE - Molti errori da correggere
+
+STIMA TEMPO:
+- Correzione errori: 13 giorni
+- Testing: 1-2 giorni
+- Totale: 15 giorni lavorativi
+  

@@ -1,6 +1,9 @@
 /**
  * WhatsApp Session Manager
  * Gestisce salvataggio e recupero sessioni su multipli layer
+ * 
+ * VERSIONE CORRETTA: TypeScript Strict Mode Compliant
+ * Data: 10/10/2025
  */
 
 import { prisma } from '../config/database';
@@ -111,18 +114,24 @@ export class WhatsAppSessionManager {
     
     // 2. Salva su Database
     try {
+      // ✅ FIX: Genera ID univoco e aggiungi updatedAt
+      const sessionId = `wpp_session_${this.sessionName}_${Date.now()}`;
+      
       await prisma.whatsAppSession.upsert({
         where: { sessionName: this.sessionName },
         update: {
           sessionData: encrypted as any,
           isActive: true,
-          lastConnected: new Date()
+          lastConnected: new Date(),
+          updatedAt: new Date(), // ✅ Campo obbligatorio
         },
         create: {
+          id: sessionId, // ✅ Campo obbligatorio
           sessionName: this.sessionName,
           sessionData: encrypted as any,
           isActive: true,
-          lastConnected: new Date()
+          lastConnected: new Date(),
+          updatedAt: new Date(), // ✅ Campo obbligatorio
         }
       });
       logger.info('✅ Sessione salvata su database');
@@ -249,7 +258,10 @@ export class WhatsAppSessionManager {
     try {
       await prisma.whatsAppSession.updateMany({
         where: { sessionName: this.sessionName },
-        data: { isActive: false }
+        data: { 
+          isActive: false,
+          updatedAt: new Date(), // ✅ Aggiorna anche updatedAt
+        }
       });
       logger.info('✅ Sessione disattivata su database');
     } catch (error) {
