@@ -64,15 +64,20 @@ export function handleMessageEvents(socket: AuthenticatedSocket, io: Server) {
       }
 
       // Salva il messaggio nel database
-      const message = await prisma.message.create({
+      const createdMessage = await prisma.message.create({
         data: {
           content: data.content,
           senderId: socket.userId!,
           recipientId: data.recipientId,
-          requestId: data.requestId,
+          ...(data.requestId ? { requestId: data.requestId } : {}), // FIXED: usa spread condizionale
           attachments: data.attachments || [],
           isRead: false
-        },
+        }
+      });
+
+      // Recupera il messaggio con il sender incluso
+      const message = await prisma.message.findUnique({
+        where: { id: createdMessage.id },
         include: {
           sender: {
             select: {
@@ -84,6 +89,10 @@ export function handleMessageEvents(socket: AuthenticatedSocket, io: Server) {
           }
         }
       });
+
+      if (!message) {
+        throw new Error('Message created but not found');
+      }
 
       // Invia il messaggio al destinatario se online
       io.to(`User:${data.recipientId}`).emit('message:new', {
@@ -155,7 +164,8 @@ export function handleMessageEvents(socket: AuthenticatedSocket, io: Server) {
       });
 
       // Notifica il mittente che i messaggi sono stati letti
-      const senderIds = [...new Set(messages.map(m => m.senderId))];
+      // FIXED: usa Array.from invece di spread operator per compatibilità
+      const senderIds = Array.from(new Set(messages.map(m => m.senderId)));
       senderIds.forEach(senderId => {
         io.to(`User:${senderId}`).emit('message:read', {
           messageIds,
@@ -328,11 +338,11 @@ export function handleMessageEvents(socket: AuthenticatedSocket, io: Server) {
         throw new Error('Message not found or not authorized to delete');
       }
 
-      // Soft delete - marca come eliminato invece di rimuovere
+      // Soft delete - marca come eliminato con deletedAt
+      // FIXED: usa deletedAt invece di isDeleted che non esiste
       await prisma.message.update({
         where: { id: messageId },
         data: {
-          isDeleted: true,
           deletedAt: new Date()
         }
       });
@@ -355,14 +365,15 @@ export function handleMessageEvents(socket: AuthenticatedSocket, io: Server) {
 
 /**
  * Conta i messaggi non letti per un utente
+ * FIXED: usa recipientId come parametro correttamente
  */
 export async function getUnreadMessageCount(recipientId: string): Promise<number> {
   try {
     return await prisma.message.count({
       where: {
-        recipientId: userId,
+        recipientId: recipientId, // FIXED: usa il parametro corretto
         isRead: false,
-        isDeleted: false
+        deletedAt: null // FIXED: usa deletedAt invece di isDeleted
       }
     });
   } catch (error) {
@@ -373,14 +384,16 @@ export async function getUnreadMessageCount(recipientId: string): Promise<number
 
 /**
  * Recupera le conversazioni recenti per un utente
+ * FIXED: usa recipientId come parametro correttamente
  */
 export async function getRecentConversations(recipientId: string) {
   try {
     // Query complessa per ottenere le conversazioni recenti
+    // FIXED: usa recipientId invece di userId non definito
     const conversations = await prisma.$queryRaw`
       SELECT DISTINCT ON (other_user_id)
         CASE 
-          WHEN m."senderId" = ${userId} THEN m."recipientId"
+          WHEN m."senderId" = ${recipientId} THEN m."recipientId"
           ELSE m."senderId"
         END as other_user_id,
         m.id as last_message_id,
@@ -393,11 +406,11 @@ export async function getRecentConversations(recipientId: string) {
         u."status"
       FROM "Message" m
       INNER JOIN "User" u ON u.id = CASE 
-        WHEN m."senderId" = ${userId} THEN m."recipientId"
+        WHEN m."senderId" = ${recipientId} THEN m."recipientId"
         ELSE m."senderId"
       END
-      WHERE (m."senderId" = ${userId} OR m."recipientId" = ${userId})
-        AND m."isDeleted" = false
+      WHERE (m."senderId" = ${recipientId} OR m."recipientId" = ${recipientId})
+        AND m."deletedAt" IS NULL
       ORDER BY other_user_id, m."createdAt" DESC
       LIMIT 20
     `;
