@@ -1,9 +1,21 @@
-import { User } from '@prisma/client';
+/**
+ * Type definitions per Express Request
+ * Aggiunge la proprietà 'user' che viene popolata dal middleware authenticate
+ */
+
+import { Role } from '@prisma/client';
 
 declare global {
   namespace Express {
     interface Request {
-      user?: User;
+      user?: {
+        id: string;
+        email: string;
+        fullName: string;
+        role: Role;
+        professionalId?: string;
+      };
+      requestId?: string;
     }
   }
 }

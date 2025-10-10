@@ -3,6 +3,15 @@ import { moduleService } from '../services/module.service';
 import { ResponseFormatter } from '../utils/responseFormatter';
 import { logger } from '../utils/logger';
 
+// Extend Express Request type
+interface AuthRequest extends Request {
+  user?: {
+    id: string;
+    role?: string;
+    [key: string]: any;
+  };
+}
+
 // Cache semplice in memoria per migliorare le prestazioni
 const moduleStatusCache = new Map<string, { isEnabled: boolean; cachedAt: number }>();
 const CACHE_TTL = 60000; // 1 minuto
@@ -23,7 +32,7 @@ const CACHE_TTL = 60000; // 1 minuto
  * });
  */
 export const requireModule = (moduleCode: string) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       logger.info(`[ModuleMiddleware] Checking module: ${moduleCode}`, {
         path: req.path,
@@ -87,7 +96,7 @@ export const requireModule = (moduleCode: string) => {
  * });
  */
 export const requireModules = (moduleCodes: string[]) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       logger.info(`[ModuleMiddleware] Checking multiple modules:`, {
         modules: moduleCodes,
@@ -156,7 +165,7 @@ export const requireModules = (moduleCodes: string[]) => {
  * });
  */
 export const requireModuleCached = (moduleCode: string) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const now = Date.now();
       const cached = moduleStatusCache.get(moduleCode);
@@ -258,7 +267,7 @@ export const clearModuleCache = () => {
  * });
  */
 export const warnIfModuleDisabled = (moduleCode: string) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const isEnabled = await moduleService.isModuleEnabled(moduleCode);
       if (!isEnabled) {

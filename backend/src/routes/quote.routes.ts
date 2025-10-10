@@ -1,4 +1,10 @@
-import { Router, Request, Response } from 'express';
+/**
+ * Quote Routes - Sistema Preventivi
+ * VERSIONE CORRETTA: TypeScript Strict Mode
+ * Data: 08/10/2025
+ */
+
+import { Router, Request, Response, NextFunction } from 'express';
 import { body, param, query } from 'express-validator';
 import { validate } from '../middleware/validate';
 import { authenticate } from '../middleware/auth';
@@ -10,15 +16,67 @@ import { AppError } from '../utils/errors';
 import { logger } from '../utils/logger';
 import { ResponseFormatter } from '../utils/responseFormatter';
 
-interface AuthRequest extends Request {
-  user?: any;
+// ==================== INTERFACCE ====================
+
+interface UserPayload {
+  id: string;
+  email: string;
+  role: string;
+  fullName?: string;
 }
+
+interface AuthRequest extends Request {
+  user?: UserPayload;
+}
+
+interface QuoteWhereClause {
+  requestId?: string;
+  status?: string | { not: string };
+  professionalId?: string;
+  request?: {
+    clientId: string;
+  };
+}
+
+interface QuoteItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  taxRate?: number;
+  discount?: number;
+  notes?: string;
+  order?: number;
+}
+
+interface CreateQuoteData {
+  requestId: string;
+  professionalId: string;
+  title: string;
+  description?: string;
+  validUntil: Date;
+  notes?: string;
+  termsConditions?: string;
+  items: QuoteItem[];
+}
+
+interface UpdateQuoteData {
+  title?: string;
+  description?: string;
+  validUntil?: Date;
+  notes?: string;
+  termsConditions?: string;
+  items?: QuoteItem[];
+  updateReason?: string;
+}
+
+// ==================== SETUP ====================
 
 const prisma = new PrismaClient();
 const router = Router();
 
-// Tutti gli endpoint richiedono autenticazione
 router.use(authenticate);
+
+// ==================== ROUTES ====================
 
 /**
  * GET /api/quotes
@@ -28,58 +86,64 @@ router.get(
   '/',
   [
     query('requestId').optional().isUUID(),
-    query('status').optional().isIn(['DRAFT', 'PENDING', 'ACCEPTED', 'REJECTED', 'EXPIRED']),
+    query('status')
+      .optional()
+      .isIn(['DRAFT', 'PENDING', 'ACCEPTED', 'REJECTED', 'EXPIRED']),
     query('professionalId').optional().isUUID(),
     query('page').optional().isInt({ min: 1 }),
-    query('limit').optional().isInt({ min: 1, max: 100 })
+    query('limit').optional().isInt({ min: 1, max: 100 }),
   ],
   validate,
-  async (req: AuthRequest, res, next) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const { requestId, status, professionalId, page = 1, limit = 20 } = req.query;
       const user = req.user!;
 
-      // Build where clause based on role
-      const where: any = {};
+      const where: QuoteWhereClause = {};
 
-      if (requestId) {
+      if (requestId && typeof requestId === 'string') {
         where.requestId = requestId;
       }
 
-      if (status) {
+      if (status && typeof status === 'string') {
         where.status = status;
       }
 
-      // Filter by role
       if (user.role === 'CLIENT') {
-        where.request = {  // Corretto
-          clientId: user.id
+        where.request = {
+          clientId: user.id,
         };
         where.status = where.status || { not: 'DRAFT' };
-        
+
         if (status && status !== 'DRAFT') {
-          where.status = status;
+          where.status = status as string;
         } else if (!status) {
           where.status = { not: 'DRAFT' };
         } else if (status === 'DRAFT') {
-          return res.json(ResponseFormatter.success({
-            data: [], 
-            pagination: { page: 1, limit: Number(limit), total: 0, pages: 0 }
-          }));
+          return res.json(
+            ResponseFormatter.success({
+              data: [],
+              pagination: { page: 1, limit: Number(limit), total: 0, pages: 0 },
+            })
+          );
         }
       } else if (user.role === 'PROFESSIONAL') {
         where.professionalId = user.id;
       }
 
-      if (professionalId && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')) {
+      if (
+        professionalId &&
+        typeof professionalId === 'string' &&
+        (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')
+      ) {
         where.professionalId = professionalId;
       }
-      
+
       const quotes = await prisma.quote.findMany({
         where,
         include: {
           items: {
-            orderBy: { order: 'asc' }
+            orderBy: { order: 'asc' },
           },
           request: {
             include: {
@@ -89,74 +153,75 @@ router.get(
                   firstName: true,
                   lastName: true,
                   fullName: true,
-                  email: true
-                }
+                  email: true,
+                },
               },
               category: true,
-              subcategory: true
-            }
+              subcategory: true,
+            },
           },
-          professional: {  // Nome corretto della relazione
+          professional: {
             select: {
               id: true,
               firstName: true,
               lastName: true,
               fullName: true,
               email: true,
-              professionData: true
-            }
-          }
+              Profession: true,
+            },
+          },
         },
         skip: (Number(page) - 1) * Number(limit),
         take: Number(limit),
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
       });
-      
-      const transformedQuotes = quotes.map(quote => {
+
+      const transformedQuotes = quotes.map((quote) => {
         let totalAmount = 0;
         if (quote.items && quote.items.length > 0) {
           totalAmount = quote.items.reduce((sum, item) => {
-            return sum + (Number(item.totalPrice) * 100);
+            return sum + Number(item.totalPrice) * 100;
           }, 0);
         } else {
           totalAmount = Number(quote.amount) * 100;
         }
-        
+
         return {
           ...quote,
           totalAmount,
-          // Alias per backward compatibility
-          request: quote.request,  // Già corretto
-          professional: quote.professional,  // Già corretto
-          items: quote.items.map(item => ({
+          request: quote.request,
+          professional: quote.professional,
+          items: quote.items.map((item) => ({
             ...item,
             unitPrice: Number(item.unitPrice) * 100,
             totalPrice: Number(item.totalPrice) * 100,
             taxAmount: Number(item.taxAmount) * 100,
-            discount: Number(item.discount) * 100
-          }))
+            discount: Number(item.discount) * 100,
+          })),
         };
       });
 
       const total = await prisma.quote.count({ where });
 
-      // ✅ USO CORRETTO ResponseFormatter (come da istruzioni)
-      res.json(ResponseFormatter.success({
-        data: transformedQuotes,
-        pagination: {
-          page: Number(page),
-          limit: Number(limit),
-          total,
-          pages: Math.ceil(total / Number(limit))
-        }
-      }));
-      
-    } catch (error: any) {
+      res.json(
+        ResponseFormatter.success({
+          data: transformedQuotes,
+          pagination: {
+            page: Number(page),
+            limit: Number(limit),
+            total,
+            pages: Math.ceil(total / Number(limit)),
+          },
+        })
+      );
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Error in GET /api/quotes:', error);
-      res.status(500).json(ResponseFormatter.error(
-        'Errore nel recupero dei preventivi',
-        'FETCH_ERROR'
-      ));
+      res
+        .status(500)
+        .json(
+          ResponseFormatter.error('Errore nel recupero dei preventivi', 'FETCH_ERROR')
+        );
     }
   }
 );
@@ -173,68 +238,96 @@ router.post(
     body('description').optional(),
     body('validUntil').optional().isISO8601(),
     body('notes').optional(),
-    body('termsConditions').optional(), 
+    body('termsConditions').optional(),
     body('items').isArray({ min: 1 }).withMessage('Almeno una voce richiesta'),
-    body('items.*.description').notEmpty().withMessage('Descrizione voce richiesta'),
-    body('items.*.quantity').isFloat({ min: 0.01 }).withMessage('Quantità deve essere maggiore di 0'),
-    body('items.*.unitPrice').isFloat({ min: 0 }).withMessage('Prezzo unitario non valido'),
-    body('items.*.taxRate').isFloat({ min: 0, max: 1 }).withMessage('Aliquota IVA non valida')
+    body('items.*.description')
+      .notEmpty()
+      .withMessage('Descrizione voce richiesta'),
+    body('items.*.quantity')
+      .isFloat({ min: 0.01 })
+      .withMessage('Quantità deve essere maggiore di 0'),
+    body('items.*.unitPrice')
+      .isFloat({ min: 0 })
+      .withMessage('Prezzo unitario non valido'),
+    body('items.*.taxRate')
+      .isFloat({ min: 0, max: 1 })
+      .withMessage('Aliquota IVA non valida'),
   ],
   validate,
-  async (req: AuthRequest, res, next) => {
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const user = req.user!;
-      const { requestId, title, description, validUntil, notes, termsConditions, items } = req.body;
+      const {
+        requestId,
+        title,
+        description,
+        validUntil,
+        notes,
+        termsConditions,
+        items,
+      } = req.body;
 
-      // Verifica che l'utente sia un professionista
-      if (user.role !== 'PROFESSIONAL' && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
-        return res.status(403).json(
-          ResponseFormatter.error('Solo i professionisti possono creare preventivi', 'FORBIDDEN')
-        );
+      if (
+        user.role !== 'PROFESSIONAL' &&
+        user.role !== 'ADMIN' &&
+        user.role !== 'SUPER_ADMIN'
+      ) {
+        return res
+          .status(403)
+          .json(
+            ResponseFormatter.error(
+              'Solo i professionisti possono creare preventivi',
+              'FORBIDDEN'
+            )
+          );
       }
 
-      // Verifica che la richiesta esista
       const request = await prisma.assistanceRequest.findUnique({
         where: { id: requestId },
-        include: { client: true }
+        include: { client: true },
       });
 
       if (!request) {
-        return res.status(404).json(
-          ResponseFormatter.error('Richiesta non trovata', 'NOT_FOUND')
-        );
+        return res
+          .status(404)
+          .json(ResponseFormatter.error('Richiesta non trovata', 'NOT_FOUND'));
       }
 
-      // Se è un professionista, verifica che la richiesta sia assegnata a lui
       if (user.role === 'PROFESSIONAL' && request.professionalId !== user.id) {
-        return res.status(403).json(
-          ResponseFormatter.error('Non puoi creare preventivi per richieste non assegnate a te', 'FORBIDDEN')
-        );
+        return res
+          .status(403)
+          .json(
+            ResponseFormatter.error(
+              'Non puoi creare preventivi per richieste non assegnate a te',
+              'FORBIDDEN'
+            )
+          );
       }
 
-      // Crea il preventivo
-      const quoteData = {
+      const quoteData: CreateQuoteData = {
         requestId,
         professionalId: user.id,
         title,
         description,
-        validUntil: validUntil ? new Date(validUntil) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Default 30 giorni
+        validUntil: validUntil
+          ? new Date(validUntil)
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         notes,
         termsConditions,
-        items: items.map((item: any) => ({
+        items: items.map((item: QuoteItem) => ({
           description: item.description,
           quantity: item.quantity,
-          unitPrice: item.unitPrice, // GIÀ in euro dal frontend
+          unitPrice: item.unitPrice,
           taxRate: item.taxRate || 0.22,
-          totalPrice: item.quantity * item.unitPrice
-        }))
+          totalPrice: item.quantity * item.unitPrice,
+        })),
       };
 
       const quote = await quoteService.createQuote(quoteData);
 
-      return res.status(201).json(
-        ResponseFormatter.success(quote, 'Preventivo creato con successo')
-      );
+      return res
+        .status(201)
+        .json(ResponseFormatter.success(quote, 'Preventivo creato con successo'));
     } catch (error) {
       logger.error('Error creating quote:', error);
       next(error);
@@ -250,7 +343,7 @@ router.get(
   '/:id',
   [param('id').isUUID()],
   validate,
-  async (req: AuthRequest, res, next) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
       const user = req.user!;
@@ -263,42 +356,49 @@ router.get(
             include: {
               client: true,
               category: true,
-              subcategory: true
-            }
+              subcategory: true,
+            },
           },
-          professional: {  // Nome corretto della relazione
+          professional: {
             select: {
               id: true,
               firstName: true,
               lastName: true,
               fullName: true,
               email: true,
-              professionData: true
-            }
-          }
-        }
+              Profession: true,
+            },
+          },
+        },
       });
 
       if (!quote) {
-        return res.status(404).json(ResponseFormatter.error('Quote not found', 'NOT_FOUND'));
+        return res
+          .status(404)
+          .json(ResponseFormatter.error('Quote not found', 'NOT_FOUND'));
       }
 
-      // Check authorization
       if (user.role === 'CLIENT') {
         if (quote.status === 'DRAFT') {
-          return res.status(403).json(ResponseFormatter.error('Quote not available', 'FORBIDDEN'));
+          return res
+            .status(403)
+            .json(ResponseFormatter.error('Quote not available', 'FORBIDDEN'));
         }
         if (quote.request.clientId !== user.id) {
-          return res.status(403).json(ResponseFormatter.error('Unauthorized', 'FORBIDDEN'));
+          return res
+            .status(403)
+            .json(ResponseFormatter.error('Unauthorized', 'FORBIDDEN'));
         }
       } else if (user.role === 'PROFESSIONAL' && quote.professionalId !== user.id) {
-        return res.status(403).json(ResponseFormatter.error('Unauthorized', 'FORBIDDEN'));
+        return res
+          .status(403)
+          .json(ResponseFormatter.error('Unauthorized', 'FORBIDDEN'));
       }
 
       let totalAmount = 0;
       if (quote.items && quote.items.length > 0) {
         totalAmount = quote.items.reduce((sum, item) => {
-          return sum + (Number(item.totalPrice) * 100);
+          return sum + Number(item.totalPrice) * 100;
         }, 0);
       } else {
         totalAmount = Number(quote.amount) * 100;
@@ -308,35 +408,38 @@ router.get(
         ...quote,
         totalAmount,
         amount: Number(quote.amount) * 100,
-        depositAmount: quote.depositAmount ? Number(quote.depositAmount) * 100 : null,
-        // Alias per backward compatibility
-        request: quote.request,  // Già corretto
-        professional: quote.professional,  // Già corretto
-        items: quote.items.map(item => ({
+        depositAmount: quote.depositAmount
+          ? Number(quote.depositAmount) * 100
+          : null,
+        request: quote.request,
+        professional: quote.professional,
+        items: quote.items.map((item) => ({
           ...item,
           unitPrice: Number(item.unitPrice) * 100,
           totalPrice: Number(item.totalPrice) * 100,
           taxAmount: Number(item.taxAmount) * 100,
-          discount: Number(item.discount) * 100
-        }))
+          discount: Number(item.discount) * 100,
+        })),
       };
 
-      // ✅ USO CORRETTO ResponseFormatter (come da istruzioni)
       res.json(ResponseFormatter.success(transformedQuote));
-      
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Error in GET /api/quotes/:id:', error);
-      res.status(500).json(ResponseFormatter.error(
-        'Errore nel recupero del preventivo',
-        'FETCH_ERROR'
-      ));
+      res
+        .status(500)
+        .json(
+          ResponseFormatter.error(
+            'Errore nel recupero del preventivo',
+            'FETCH_ERROR'
+          )
+        );
     }
   }
 );
 
 /**
  * PUT /api/quotes/:id
- * Modifica un preventivo esistente (crea nuova revisione)
+ * Modifica un preventivo esistente
  */
 router.put(
   '/:id',
@@ -347,68 +450,92 @@ router.put(
     body('validUntil').optional().isISO8601(),
     body('notes').optional(),
     body('termsConditions').optional(),
-    body('items').optional().isArray({ min: 1 }).withMessage('Almeno una voce richiesta'),
-    body('items.*.description').optional().notEmpty().withMessage('Descrizione voce richiesta'),
-    body('items.*.quantity').optional().isFloat({ min: 0.01 }).withMessage('Quantità deve essere maggiore di 0'),
-    body('items.*.unitPrice').optional().isFloat({ min: 0 }).withMessage('Prezzo unitario non valido'),
-    body('items.*.taxRate').optional().isFloat({ min: 0, max: 1 }).withMessage('Aliquota IVA non valida'),
-    body('updateReason').optional().isString().withMessage('Motivo modifica deve essere una stringa')
+    body('items')
+      .optional()
+      .isArray({ min: 1 })
+      .withMessage('Almeno una voce richiesta'),
+    body('items.*.description')
+      .optional()
+      .notEmpty()
+      .withMessage('Descrizione voce richiesta'),
+    body('items.*.quantity')
+      .optional()
+      .isFloat({ min: 0.01 })
+      .withMessage('Quantità deve essere maggiore di 0'),
+    body('items.*.unitPrice')
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage('Prezzo unitario non valido'),
+    body('items.*.taxRate')
+      .optional()
+      .isFloat({ min: 0, max: 1 })
+      .withMessage('Aliquota IVA non valida'),
+    body('updateReason')
+      .optional()
+      .isString()
+      .withMessage('Motivo modifica deve essere una stringa'),
   ],
   validate,
-  async (req: AuthRequest, res, next) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
       const user = req.user!;
-      const updateData = req.body;
+      const updateData: UpdateQuoteData = req.body;
 
-      // Verifica che il preventivo esista
       const quote = await prisma.quote.findUnique({
         where: { id },
-        include: { request: true }  // Nome corretto della relazione
+        include: { request: true },
       });
 
       if (!quote) {
-        return res.status(404).json(
-          ResponseFormatter.error('Preventivo non trovato', 'QUOTE_NOT_FOUND')
-        );
+        return res
+          .status(404)
+          .json(
+            ResponseFormatter.error('Preventivo non trovato', 'QUOTE_NOT_FOUND')
+          );
       }
 
-      // Verifica autorizzazioni
       if (user.role === 'PROFESSIONAL' && quote.professionalId !== user.id) {
-        return res.status(403).json(
-          ResponseFormatter.error('Non autorizzato a modificare questo preventivo', 'UNAUTHORIZED')
-        );
+        return res
+          .status(403)
+          .json(
+            ResponseFormatter.error(
+              'Non autorizzato a modificare questo preventivo',
+              'UNAUTHORIZED'
+            )
+          );
       }
 
-      // Verifica che il preventivo sia modificabile (solo DRAFT o PENDING)
       if (quote.status !== 'DRAFT' && quote.status !== 'PENDING') {
-        return res.status(400).json(
-          ResponseFormatter.error(
-            `Non puoi modificare un preventivo con stato ${quote.status}`,
-            'INVALID_STATUS'
-          )
-        );
+        return res
+          .status(400)
+          .json(
+            ResponseFormatter.error(
+              `Non puoi modificare un preventivo con stato ${quote.status}`,
+              'INVALID_STATUS'
+            )
+          );
       }
 
-      // Prepara i dati per l'aggiornamento
-      const updateInput = {
+      const updateInput: UpdateQuoteData = {
         title: updateData.title,
         description: updateData.description,
-        validUntil: updateData.validUntil ? new Date(updateData.validUntil) : undefined,
+        validUntil: updateData.validUntil
+          ? new Date(updateData.validUntil)
+          : undefined,
         notes: updateData.notes,
         termsConditions: updateData.termsConditions,
-        items: updateData.items?.map((item: any) => ({
+        items: updateData.items?.map((item: QuoteItem) => ({
           description: item.description,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           taxRate: item.taxRate || 0.22,
           discount: item.discount || 0,
-          notes: item.notes
+          notes: item.notes,
         })),
-        updateReason: updateData.updateReason || 'Modifica preventivo'
+        updateReason: updateData.updateReason || 'Modifica preventivo',
       };
 
-      // Chiama il service per aggiornare il preventivo
       const updatedQuote = await quoteService.updateQuote(id, updateInput, user.id);
 
       return res.json(
@@ -417,13 +544,18 @@ router.put(
     } catch (error) {
       logger.error('Error updating quote:', error);
       if (error instanceof AppError) {
-        return res.status(error.statusCode).json(
-          ResponseFormatter.error(error.message, error.code || 'UPDATE_ERROR')
-        );
+        return res
+          .status(error.statusCode)
+          .json(ResponseFormatter.error(error.message, error.code || 'UPDATE_ERROR'));
       }
-      return res.status(500).json(
-        ResponseFormatter.error('Errore nell\'aggiornamento del preventivo', 'SERVER_ERROR')
-      );
+      return res
+        .status(500)
+        .json(
+          ResponseFormatter.error(
+            'Errore nell\'aggiornamento del preventivo',
+            'SERVER_ERROR'
+          )
+        );
     }
   }
 );
@@ -436,62 +568,71 @@ router.delete(
   '/:id',
   [param('id').isUUID().withMessage('ID preventivo non valido')],
   validate,
-  async (req: AuthRequest, res, next) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
       const user = req.user!;
 
-      // Verifica che il preventivo esista
       const quote = await prisma.quote.findUnique({
         where: { id },
-        include: { request: true }  // Nome corretto della relazione
+        include: { request: true },
       });
 
       if (!quote) {
-        return res.status(404).json(
-          ResponseFormatter.error('Preventivo non trovato', 'QUOTE_NOT_FOUND')
-        );
+        return res
+          .status(404)
+          .json(
+            ResponseFormatter.error('Preventivo non trovato', 'QUOTE_NOT_FOUND')
+          );
       }
 
-      // Verifica autorizzazioni
       if (user.role === 'PROFESSIONAL' && quote.professionalId !== user.id) {
-        return res.status(403).json(
-          ResponseFormatter.error('Non autorizzato a cancellare questo preventivo', 'UNAUTHORIZED')
-        );
+        return res
+          .status(403)
+          .json(
+            ResponseFormatter.error(
+              'Non autorizzato a cancellare questo preventivo',
+              'UNAUTHORIZED'
+            )
+          );
       }
 
       if (user.role === 'CLIENT') {
-        return res.status(403).json(
-          ResponseFormatter.error('I clienti non possono cancellare preventivi', 'FORBIDDEN')
-        );
+        return res
+          .status(403)
+          .json(
+            ResponseFormatter.error(
+              'I clienti non possono cancellare preventivi',
+              'FORBIDDEN'
+            )
+          );
       }
 
-      // Non permettere cancellazione di preventivi accettati
       if (quote.status === 'ACCEPTED') {
-        return res.status(400).json(
-          ResponseFormatter.error(
-            'Non puoi cancellare un preventivo accettato',
-            'INVALID_STATUS'
-          )
-        );
+        return res
+          .status(400)
+          .json(
+            ResponseFormatter.error(
+              'Non puoi cancellare un preventivo accettato',
+              'INVALID_STATUS'
+            )
+          );
       }
 
-      // Salva i dettagli del preventivo prima di cancellarlo per il log
       const quoteDetails = await prisma.quote.findUnique({
         where: { id },
         include: {
           items: true,
-          request: {  // Nome corretto della relazione
+          request: {
             select: {
               id: true,
               title: true,
-              clientId: true
-            }
-          }
-        }
+              clientId: true,
+            },
+          },
+        },
       });
 
-      // Log dettagliato della cancellazione
       logger.info('Quote deletion:', {
         action: 'DELETE_QUOTE',
         quoteId: id,
@@ -504,32 +645,30 @@ router.delete(
           version: quoteDetails?.version,
           professionalId: quoteDetails?.professionalId,
           requestId: quoteDetails?.requestId,
-          requestTitle: quoteDetails?.request?.title,  // Riferimento corretto
+          requestTitle: quoteDetails?.request?.title,
           itemCount: quoteDetails?.items?.length || 0,
-          totalValue: quoteDetails?.items?.reduce((sum, item) => 
-            sum + (Number(item.totalPrice) || 0), 0
-          ) || 0
+          totalValue:
+            quoteDetails?.items?.reduce(
+              (sum, item) => sum + (Number(item.totalPrice) || 0),
+              0
+            ) || 0,
         },
         reason: req.body?.reason || 'Cancellazione manuale',
         timestamp: new Date().toISOString(),
-        ipAddress: req.ip || 'unknown'
+        ipAddress: req.ip || 'unknown',
       });
 
-      // Usa una transazione per cancellare preventivo e items insieme
       await prisma.$transaction(async (tx) => {
-        // Prima cancella tutti gli item
         await tx.quoteItem.deleteMany({
-          where: { quoteId: id }
+          where: { quoteId: id },
         });
-        
-        // Poi cancella eventuali revisioni
+
         await tx.quoteRevision.deleteMany({
-          where: { quoteId: id }
+          where: { quoteId: id },
         });
-        
-        // Infine cancella il preventivo
+
         await tx.quote.delete({
-          where: { id }
+          where: { id },
         });
       });
 
@@ -541,65 +680,69 @@ router.delete(
       );
     } catch (error) {
       logger.error('Error deleting quote:', error);
-      res.status(500).json(
-        ResponseFormatter.error('Errore nella cancellazione del preventivo', 'SERVER_ERROR')
-      );
+      res
+        .status(500)
+        .json(
+          ResponseFormatter.error(
+            'Errore nella cancellazione del preventivo',
+            'SERVER_ERROR'
+          )
+        );
     }
   }
 );
 
 /**
  * GET /api/quotes/:id/revisions
- * Ottieni la cronologia delle revisioni di un preventivo
+ * Ottieni la cronologia delle revisioni
  */
 router.get(
   '/:id/revisions',
   [param('id').isUUID().withMessage('ID preventivo non valido')],
   validate,
-  async (req: AuthRequest, res, next) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
       const user = req.user!;
 
-      // Verifica che il preventivo esista
       const quote = await prisma.quote.findUnique({
         where: { id },
-        include: { request: true }  // Nome corretto della relazione
+        include: { request: true },
       });
 
       if (!quote) {
-        return res.status(404).json(
-          ResponseFormatter.error('Preventivo non trovato', 'QUOTE_NOT_FOUND')
-        );
+        return res
+          .status(404)
+          .json(
+            ResponseFormatter.error('Preventivo non trovato', 'QUOTE_NOT_FOUND')
+          );
       }
 
-      // Verifica autorizzazioni
       if (user.role === 'CLIENT' && quote.request.clientId !== user.id) {
-        return res.status(403).json(
-          ResponseFormatter.error('Non autorizzato', 'UNAUTHORIZED')
-        );
+        return res
+          .status(403)
+          .json(ResponseFormatter.error('Non autorizzato', 'UNAUTHORIZED'));
       }
 
       if (user.role === 'PROFESSIONAL' && quote.professionalId !== user.id) {
-        return res.status(403).json(
-          ResponseFormatter.error('Non autorizzato', 'UNAUTHORIZED')
-        );
+        return res
+          .status(403)
+          .json(ResponseFormatter.error('Non autorizzato', 'UNAUTHORIZED'));
       }
 
-      // Ottieni le revisioni
       const revisions = await prisma.quoteRevision.findMany({
         where: { quoteId: id },
         include: {
-          professional: {  // Corretto da User
+          professional: {
             select: {
               id: true,
               firstName: true,
               lastName: true,
-              fullName: true
-            }
-          }
+              fullName: true,
+            },
+          },
         },
-        orderBy: { version: 'desc' }
+        orderBy: { version: 'desc' },
       });
 
       res.json(
@@ -610,101 +753,108 @@ router.get(
       );
     } catch (error) {
       logger.error('Error fetching quote revisions:', error);
-      res.status(500).json(
-        ResponseFormatter.error('Errore nel recupero delle revisioni', 'SERVER_ERROR')
-      );
+      res
+        .status(500)
+        .json(
+          ResponseFormatter.error('Errore nel recupero delle revisioni', 'SERVER_ERROR')
+        );
     }
   }
 );
 
 /**
  * POST /api/quotes/:id/accept
- * 🆕 QUICK ACTION: Accetta preventivo (solo CLIENT)
+ * Accetta preventivo (solo CLIENT)
  */
 router.post(
   '/:id/accept',
   [param('id').isUUID().withMessage('ID preventivo non valido')],
   validate,
-  async (req: AuthRequest, res) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
       const user = req.user!;
 
-      // Solo i clienti possono accettare preventivi
       if (user.role !== 'CLIENT') {
-        return res.status(403).json(
-          ResponseFormatter.error('Solo i clienti possono accettare preventivi', 'FORBIDDEN')
-        );
+        return res
+          .status(403)
+          .json(
+            ResponseFormatter.error(
+              'Solo i clienti possono accettare preventivi',
+              'FORBIDDEN'
+            )
+          );
       }
 
-      // Verifica che il preventivo esista
       const quote = await prisma.quote.findUnique({
         where: { id },
         include: {
           request: {
             include: {
-              client: true
-            }
+              client: true,
+            },
           },
-          professional: true
-        }
+          professional: true,
+        },
       });
 
       if (!quote) {
-        return res.status(404).json(
-          ResponseFormatter.error('Preventivo non trovato', 'NOT_FOUND')
-        );
+        return res
+          .status(404)
+          .json(ResponseFormatter.error('Preventivo non trovato', 'NOT_FOUND'));
       }
 
-      // Verifica che il cliente sia il proprietario della richiesta
       if (quote.request.clientId !== user.id) {
-        return res.status(403).json(
-          ResponseFormatter.error('Non autorizzato ad accettare questo preventivo', 'FORBIDDEN')
-        );
+        return res
+          .status(403)
+          .json(
+            ResponseFormatter.error(
+              'Non autorizzato ad accettare questo preventivo',
+              'FORBIDDEN'
+            )
+          );
       }
 
-      // Verifica che il preventivo sia in stato PENDING
       if (quote.status !== 'PENDING') {
-        return res.status(400).json(
-          ResponseFormatter.error(
-            `Impossibile accettare un preventivo con stato ${quote.status}`,
-            'INVALID_STATUS'
-          )
-        );
+        return res
+          .status(400)
+          .json(
+            ResponseFormatter.error(
+              `Impossibile accettare un preventivo con stato ${quote.status}`,
+              'INVALID_STATUS'
+            )
+          );
       }
 
-      // Aggiorna il preventivo
       const updatedQuote = await prisma.$transaction(async (tx) => {
-        // Accetta il preventivo
         const acceptedQuote = await tx.quote.update({
           where: { id },
           data: {
             status: 'ACCEPTED',
             acceptedAt: new Date(),
-            updatedAt: new Date()
+            updatedAt: new Date(),
           },
           include: {
             request: {
               include: {
-                client: true
-              }
+                client: true,
+              },
             },
-            professional: true
-          }
+            professional: true,
+          },
         });
 
-        // Rifiuta automaticamente tutti gli altri preventivi per la stessa richiesta
         await tx.quote.updateMany({
           where: {
             requestId: quote.requestId,
             id: { not: id },
-            status: 'PENDING'
+            status: 'PENDING',
           },
           data: {
             status: 'REJECTED',
             rejectedAt: new Date(),
-            updatedAt: new Date()
-          }
+            updatedAt: new Date(),
+          },
         });
 
         return acceptedQuote;
@@ -712,216 +862,240 @@ router.post(
 
       logger.info(`Quote ${id} accepted by client ${user.id}`);
 
-      // Invia notifica al professionista
       try {
-        const { notificationService } = await import('../services/notification.service');
+        const { notificationService } = await import(
+          '../services/notification.service'
+        );
         await notificationService.sendToUser(quote.professionalId, {
           title: '✅ Preventivo Accettato!',
           message: `Il tuo preventivo di €${quote.amount} è stato accettato da ${quote.request.client.firstName}`,
           type: 'quote_accepted',
           relatedId: id,
-          relatedType: 'quote'
+          relatedType: 'quote',
         });
       } catch (notifError) {
         logger.warn('Could not send notification:', notifError);
       }
 
       return res.json(
-        ResponseFormatter.success(
-          updatedQuote,
-          'Preventivo accettato con successo!'
-        )
+        ResponseFormatter.success(updatedQuote, 'Preventivo accettato con successo!')
       );
     } catch (error) {
       logger.error('Error accepting quote:', error);
-      return res.status(500).json(
-        ResponseFormatter.error('Errore nell\'accettazione del preventivo', 'ACCEPT_ERROR')
-      );
+      return res
+        .status(500)
+        .json(
+          ResponseFormatter.error(
+            'Errore nell\'accettazione del preventivo',
+            'ACCEPT_ERROR'
+          )
+        );
     }
   }
 );
 
 /**
  * POST /api/quotes/:id/reject
- * 🆕 QUICK ACTION: Rifiuta preventivo (solo CLIENT)
+ * Rifiuta preventivo (solo CLIENT)
  */
 router.post(
   '/:id/reject',
   [
     param('id').isUUID().withMessage('ID preventivo non valido'),
-    body('reason').optional().isString().withMessage('Il motivo deve essere una stringa')
+    body('reason')
+      .optional()
+      .isString()
+      .withMessage('Il motivo deve essere una stringa'),
   ],
   validate,
-  async (req: AuthRequest, res) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
       const { reason } = req.body;
       const user = req.user!;
 
-      // Solo i clienti possono rifiutare preventivi
       if (user.role !== 'CLIENT') {
-        return res.status(403).json(
-          ResponseFormatter.error('Solo i clienti possono rifiutare preventivi', 'FORBIDDEN')
-        );
+        return res
+          .status(403)
+          .json(
+            ResponseFormatter.error(
+              'Solo i clienti possono rifiutare preventivi',
+              'FORBIDDEN'
+            )
+          );
       }
 
-      // Verifica che il preventivo esista
       const quote = await prisma.quote.findUnique({
         where: { id },
         include: {
           request: {
             include: {
-              client: true
-            }
+              client: true,
+            },
           },
-          professional: true
-        }
+          professional: true,
+        },
       });
 
       if (!quote) {
-        return res.status(404).json(
-          ResponseFormatter.error('Preventivo non trovato', 'NOT_FOUND')
-        );
+        return res
+          .status(404)
+          .json(ResponseFormatter.error('Preventivo non trovato', 'NOT_FOUND'));
       }
 
-      // Verifica che il cliente sia il proprietario della richiesta
       if (quote.request.clientId !== user.id) {
-        return res.status(403).json(
-          ResponseFormatter.error('Non autorizzato a rifiutare questo preventivo', 'FORBIDDEN')
-        );
+        return res
+          .status(403)
+          .json(
+            ResponseFormatter.error(
+              'Non autorizzato a rifiutare questo preventivo',
+              'FORBIDDEN'
+            )
+          );
       }
 
-      // Verifica che il preventivo sia in stato PENDING
       if (quote.status !== 'PENDING') {
-        return res.status(400).json(
-          ResponseFormatter.error(
-            `Impossibile rifiutare un preventivo con stato ${quote.status}`,
-            'INVALID_STATUS'
-          )
-        );
+        return res
+          .status(400)
+          .json(
+            ResponseFormatter.error(
+              `Impossibile rifiutare un preventivo con stato ${quote.status}`,
+              'INVALID_STATUS'
+            )
+          );
       }
 
-      // Aggiorna il preventivo
       const updatedQuote = await prisma.quote.update({
         where: { id },
         data: {
           status: 'REJECTED',
           rejectedAt: new Date(),
           rejectionReason: reason || null,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         },
         include: {
           request: {
             include: {
-              client: true
-            }
+              client: true,
+            },
           },
-          professional: true
-        }
+          professional: true,
+        },
       });
 
-      logger.info(`Quote ${id} rejected by client ${user.id}${reason ? ` with reason: ${reason}` : ''}`);
+      logger.info(
+        `Quote ${id} rejected by client ${user.id}${
+          reason ? ` with reason: ${reason}` : ''
+        }`
+      );
 
-      // Invia notifica al professionista
       try {
-        const { notificationService } = await import('../services/notification.service');
-        const message = reason 
+        const { notificationService } = await import(
+          '../services/notification.service'
+        );
+        const message = reason
           ? `Il tuo preventivo è stato rifiutato. Motivo: ${reason}`
           : 'Il tuo preventivo è stato rifiutato';
-          
+
         await notificationService.sendToUser(quote.professionalId, {
           title: '❌ Preventivo Rifiutato',
           message,
           type: 'quote_rejected',
           relatedId: id,
-          relatedType: 'quote'
+          relatedType: 'quote',
         });
       } catch (notifError) {
         logger.warn('Could not send notification:', notifError);
       }
 
       return res.json(
-        ResponseFormatter.success(
-          updatedQuote,
-          'Preventivo rifiutato'
-        )
+        ResponseFormatter.success(updatedQuote, 'Preventivo rifiutato')
       );
     } catch (error) {
       logger.error('Error rejecting quote:', error);
-      return res.status(500).json(
-        ResponseFormatter.error('Errore nel rifiuto del preventivo', 'REJECT_ERROR')
-      );
+      return res
+        .status(500)
+        .json(
+          ResponseFormatter.error('Errore nel rifiuto del preventivo', 'REJECT_ERROR')
+        );
     }
   }
 );
 
-// GET /api/quotes/:id/pdf - Download PDF of quote
-router.get('/:id/pdf', authenticate, async (req: AuthRequest, res) => {
+/**
+ * GET /api/quotes/:id/pdf
+ * Download PDF del preventivo
+ */
+router.get('/:id/pdf', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { id: quoteId } = req.params;
     const user = req.user!;
-    
-    // Check if quote exists and user has access
+
     const quote = await prisma.quote.findUnique({
       where: { id: quoteId },
       include: {
-        request: {  // Nome corretto della relazione!
+        request: {
           include: {
-            client: true
-          }
+            client: true,
+          },
         },
-        professional: true // Nome corretto per il professionista
-      }
+        professional: true,
+      },
     });
-    
+
     if (!quote) {
-      return res.status(404).json(ResponseFormatter.error('Quote not found', 'NOT_FOUND'));
+      return res
+        .status(404)
+        .json(ResponseFormatter.error('Quote not found', 'NOT_FOUND'));
     }
-    
-    // Check permissions
-    const canAccess = (
-      user.role === 'ADMIN' || 
+
+    const canAccess =
+      user.role === 'ADMIN' ||
       user.role === 'SUPER_ADMIN' ||
-      quote.professionalId === user.id || 
-      quote.request?.clientId === user.id
-    );
-    
+      quote.professionalId === user.id ||
+      quote.request?.clientId === user.id;
+
     if (!canAccess) {
-      return res.status(403).json(ResponseFormatter.error('Access denied', 'FORBIDDEN'));
+      return res
+        .status(403)
+        .json(ResponseFormatter.error('Access denied', 'FORBIDDEN'));
     }
-    
-    // Import PDF service
+
     const { pdfService } = await import('../services/pdf.service');
-    
-    // Generate PDF
+
     const pdfPath = await pdfService.generateQuotePDF(quoteId);
-    
-    // Set headers for PDF download
+
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="preventivo-${quoteId.slice(0, 8)}.pdf"`);
-    
-    // Send file
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="preventivo-${quoteId.slice(0, 8)}.pdf"`
+    );
+
     res.sendFile(pdfPath, (err) => {
       if (err) {
         logger.error('Error sending quote PDF:', err);
         if (!res.headersSent) {
-          res.status(500).json(ResponseFormatter.error('Error downloading PDF', 'PDF_ERROR'));
+          res
+            .status(500)
+            .json(ResponseFormatter.error('Error downloading PDF', 'PDF_ERROR'));
         }
       }
-      
-      // Clean up file after sending
+
       setTimeout(() => {
         try {
-          pdfService.deletePDF(`preventivo-${quoteId.slice(0, 8)}-v${quote.version}.pdf`);
+          pdfService.deletePDF(
+            `preventivo-${quoteId.slice(0, 8)}-v${quote.version}.pdf`
+          );
         } catch (cleanupErr) {
           logger.warn('Could not clean up quote PDF file:', cleanupErr);
         }
       }, 5000);
     });
-    
   } catch (error) {
     logger.error('Error generating quote PDF:', error);
-    res.status(500).json(ResponseFormatter.error('Error generating PDF', 'PDF_ERROR'));
+    res
+      .status(500)
+      .json(ResponseFormatter.error('Error generating PDF', 'PDF_ERROR'));
   }
 });
 

@@ -1,5 +1,0 @@
-// Aggiungi questa riga dopo la riga 332 di server.ts (dopo app.use('/api/geocode', authenticate, geocodingRoutes);)
-
-// API Keys route - accessibile senza percorso admin per il frontend
-app.use('/api/apikeys', authenticate, apiKeysRoutes);
-logger.info('🔑 API Keys routes registered at /api/apikeys');

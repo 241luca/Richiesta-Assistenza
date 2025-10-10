@@ -1,0 +1,13 @@
+// Enum per azioni moduli
+enum ModuleAction {
+  CREATED
+  UPDATED
+  DELETED
+  VIEWED
+  EXPORTED
+  IMPORTED
+  ACTIVATED
+  DEACTIVATED
+  CONFIGURED
+}
+

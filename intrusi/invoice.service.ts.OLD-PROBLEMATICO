@@ -1,0 +1,1253 @@
+import { PrismaClient, Invoice, CreditNote, PaymentRecord, DocumentType, PaymentStatus, Prisma } from '@prisma/client';
+import { z } from 'zod';
+import { logger } from '../utils/logger';
+import { notificationService } from './notification.service';
+import PDFDocument from 'pdfkit';
+
+const prisma = new PrismaClient();
+
+// ========================================
+// TYPES & INTERFACES
+// ========================================
+
+interface InvoiceLineItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  vatRate: number;
+  discount?: number;
+  totalPrice?: number;
+}
+
+interface CustomerData {
+  name: string;
+  email: string;
+  fiscalCode?: string;
+  vatNumber?: string;
+  address: string;
+  city: string;
+  zipCode: string;
+  province?: string;
+  country: string;
+  sdiCode?: string;
+  pecEmail?: string;
+}
+
+interface InvoiceTotals {
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+}
+
+interface InvoiceCreateData {
+  documentType?: DocumentType;
+  paymentId?: string;
+  requestId?: string;
+  quoteId?: string;
+  customerId?: string;
+  customerType?: 'PRIVATE' | 'BUSINESS';
+  customerData: CustomerData;
+  lineItems: InvoiceLineItem[];
+  notes?: string;
+  internalNotes?: string;
+  dueDate?: string;
+  paymentTerms?: number;
+  paymentMethod?: string;
+  bankDetails?: string;
+  professionalId: string;
+  createdBy: string;
+}
+
+interface InvoiceFilters {
+  customerId?: string;
+  professionalId?: string;
+  documentType?: DocumentType;
+  paymentStatus?: PaymentStatus;
+  search?: string;
+  dateRange?: {
+    from?: Date;
+    to?: Date;
+  };
+  amountRange?: {
+    min?: number;
+    max?: number;
+  };
+}
+
+interface PaginationOptions {
+  page: number;
+  limit: number;
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+}
+
+interface PaymentRecordData {
+  amount: number;
+  paymentMethod?: string;
+  paymentDate: string;
+  reference?: string;
+  notes?: string;
+  createdBy: string;
+}
+
+interface EmailOptions {
+  to: string;
+  cc?: string[];
+  customMessage?: string;
+}
+
+interface CreditNoteData {
+  originalInvoiceId: string;
+  reason: string;
+  lineItems: InvoiceLineItem[];
+  amount: number;
+  createdBy: string;
+}
+
+interface StatisticsOptions {
+  startDate?: Date;
+  endDate?: Date;
+  groupBy: string;
+}
+
+// ✅ Interfaccia per valore settings che può contenere autoSendToSDI
+interface InvoiceSystemSettings {
+  autoSendToSDI?: boolean;
+  [key: string]: any;
+}
+
+// Schema per aggiornamento pagamento
+const UpdatePaymentStatusSchema = z.object({
+  status: z.enum(['PAID', 'PARTIALLY_PAID', 'OVERDUE']),
+  paidAmount: z.number().optional(),
+  paymentDate: z.string().optional(),
+  paymentMethod: z.string().optional(),
+  notes: z.string().optional()
+});
+
+// ========================================
+// SERVICE CLASS
+// ========================================
+
+export class InvoiceService {
+  private electronicInvoiceProviders: Map<string, any> = new Map();
+
+  constructor() {
+    this.initializeProviders();
+  }
+
+  /**
+   * Crea una nuova fattura
+   */
+  async createInvoice(data: InvoiceCreateData, userId: string): Promise<Invoice> {
+    try {
+      const invoiceNumber = await this.generateInvoiceNumber(data.documentType || 'INVOICE');
+      
+      // Calcola totali
+      const totals = this.calculateTotals(data.lineItems);
+      
+      const invoice = await prisma.invoice.create({
+        data: {
+          invoiceNumber,
+          documentType: data.documentType || 'INVOICE',
+          issueDate: new Date(),
+          dueDate: data.dueDate ? new Date(data.dueDate) : this.calculateDueDate(data.paymentTerms || 30),
+          
+          // Collegamenti
+          paymentId: data.paymentId,
+          requestId: data.requestId,
+          quoteId: data.quoteId,
+          professionalId: data.professionalId,
+          customerId: data.customerId,
+          
+          // Cliente
+          customerType: data.customerType || 'PRIVATE',
+          customerData: data.customerData as Prisma.InputJsonValue,
+          
+          // Dettagli
+          description: data.notes || '',
+          lineItems: data.lineItems as Prisma.InputJsonValue,
+          
+          // Totali
+          subtotal: totals.subtotal,
+          taxAmount: totals.taxAmount,
+          taxRate: 22, // IVA standard italiana
+          totalAmount: totals.totalAmount,
+          
+          // Pagamento
+          paymentTerms: data.paymentTerms || 30,
+          paymentMethod: data.paymentMethod || 'BANK_TRANSFER',
+          bankDetails: data.bankDetails,
+          
+          // Note
+          notes: data.notes,
+          internalNotes: data.internalNotes,
+          
+          // Metadata
+          userId,
+          status: 'DRAFT',
+          paymentStatus: 'NOT_PAID',
+          paidAmount: 0
+        }
+      });
+      
+      // Genera fattura elettronica se richiesto
+      if (await this.requiresElectronicInvoice(data.customerType || 'PRIVATE', data.customerData)) {
+        await this.createElectronicInvoice(invoice);
+      }
+      
+      logger.info(`Invoice created: ${invoice.invoiceNumber}`);
+      return invoice;
+      
+    } catch (error) {
+      logger.error('Error creating invoice:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Recupera una singola fattura
+   */
+  async getInvoice(invoiceId: string): Promise<Invoice> {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        professional: true,
+        customer: true,
+        payment: true,
+        request: true,
+        quote: true
+      }
+    });
+
+    if (!invoice) {
+      throw new Error('Invoice not found');
+    }
+
+    return invoice;
+  }
+
+  /**
+   * Lista fatture con filtri e paginazione
+   */
+  async listInvoices(
+    filters: InvoiceFilters,
+    pagination: PaginationOptions
+  ): Promise<{ invoices: Invoice[]; total: number; pages: number }> {
+    const { page, limit, sortBy, sortOrder } = pagination;
+    const skip = (page - 1) * limit;
+
+    // Costruisci where clause
+    const where: Prisma.InvoiceWhereInput = {};
+
+    if (filters.customerId) where.customerId = filters.customerId;
+    if (filters.professionalId) where.professionalId = filters.professionalId;
+    if (filters.documentType) where.documentType = filters.documentType;
+    if (filters.paymentStatus) where.paymentStatus = filters.paymentStatus;
+
+    if (filters.dateRange) {
+      where.issueDate = {};
+      if (filters.dateRange.from) where.issueDate.gte = filters.dateRange.from;
+      if (filters.dateRange.to) where.issueDate.lte = filters.dateRange.to;
+    }
+
+    if (filters.amountRange) {
+      where.totalAmount = {};
+      if (filters.amountRange.min) where.totalAmount.gte = filters.amountRange.min;
+      if (filters.amountRange.max) where.totalAmount.lte = filters.amountRange.max;
+    }
+
+    if (filters.search) {
+      where.OR = [
+        { invoiceNumber: { contains: filters.search, mode: 'insensitive' } },
+        { description: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+
+    // Query con paginazione
+    const [invoices, total] = await Promise.all([
+      prisma.invoice.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { [sortBy]: sortOrder },
+        include: {
+          professional: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true
+            }
+          },
+          customer: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true
+            }
+          }
+        }
+      }),
+      prisma.invoice.count({ where })
+    ]);
+
+    return {
+      invoices,
+      total,
+      pages: Math.ceil(total / limit)
+    };
+  }
+
+  /**
+   * Aggiorna una fattura
+   */
+  async updateInvoice(
+    invoiceId: string,
+    updates: Partial<InvoiceCreateData>
+  ): Promise<Invoice> {
+    const data: Prisma.InvoiceUpdateInput = {};
+
+    if (updates.customerData) {
+      data.customerData = updates.customerData as Prisma.InputJsonValue;
+    }
+
+    if (updates.lineItems) {
+      data.lineItems = updates.lineItems as Prisma.InputJsonValue;
+      const totals = this.calculateTotals(updates.lineItems);
+      data.subtotal = totals.subtotal;
+      data.taxAmount = totals.taxAmount;
+      data.totalAmount = totals.totalAmount;
+    }
+
+    if (updates.notes !== undefined) data.notes = updates.notes;
+    if (updates.dueDate) data.dueDate = new Date(updates.dueDate);
+
+    const updated = await prisma.invoice.update({
+      where: { id: invoiceId },
+      data
+    });
+
+    logger.info(`Invoice updated: ${updated.invoiceNumber}`);
+    return updated;
+  }
+
+  /**
+   * Registra un pagamento su una fattura
+   */
+  async recordPayment(
+    invoiceId: string,
+    paymentData: PaymentRecordData
+  ): Promise<{ invoice: Invoice; payment: PaymentRecord }> {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: invoiceId }
+    });
+
+    if (!invoice) {
+      throw new Error('Invoice not found');
+    }
+
+    const newPaidAmount = (invoice.paidAmount || 0) + paymentData.amount;
+    const isFullyPaid = newPaidAmount >= invoice.totalAmount;
+
+    // Aggiorna fattura
+    const updatedInvoice = await prisma.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        paidAmount: newPaidAmount,
+        paymentStatus: isFullyPaid ? 'PAID' : 'PARTIAL',
+        paidDate: isFullyPaid ? new Date() : undefined,
+      }
+    });
+
+    // Crea record pagamento
+    const payment = await prisma.paymentRecord.create({
+      data: {
+        invoiceId,
+        amount: paymentData.amount,
+        paymentDate: new Date(paymentData.paymentDate),
+        paymentMethod: paymentData.paymentMethod || 'BANK_TRANSFER',
+        reference: paymentData.reference || `PAY-${Date.now()}`,
+        notes: paymentData.notes,
+        userId: paymentData.createdBy,
+      }
+    });
+
+    logger.info(`Payment recorded: ${paymentData.amount} for invoice ${invoice.invoiceNumber}`);
+
+    // Notifica se pagato completamente
+    if (isFullyPaid) {
+      await notificationService.emitToUser(invoice.userId, 'INVOICE_PAID', {
+        invoiceId,
+        invoiceNumber: invoice.invoiceNumber,
+        amount: newPaidAmount
+      });
+    }
+
+    return { invoice: updatedInvoice, payment };
+  }
+
+  /**
+   * Invia fattura via email
+   */
+  async sendInvoiceEmail(
+    invoiceId: string,
+    options: EmailOptions
+  ): Promise<void> {
+    try {
+      const invoice = await this.getInvoice(invoiceId);
+      const pdfBuffer = await this.generatePDF(invoiceId);
+
+      const customerData = invoice.customerData as unknown as CustomerData;
+
+      // ✅ Usa broadcast invece di sendEmail non esistente
+      await notificationService.broadcast('invoice:sent', {
+        invoiceId,
+        invoiceNumber: invoice.invoiceNumber,
+        to: options.to,
+        cc: options.cc,
+        customMessage: options.customMessage,
+        customerName: customerData.name,
+        amount: invoice.totalAmount,
+        dueDate: invoice.dueDate,
+        pdfAttached: true
+      });
+
+      // Aggiorna stato
+      await prisma.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          sentAt: new Date(),
+          sentTo: options.to,
+        },
+      });
+
+      logger.info(`Invoice sent to ${options.to}`);
+
+    } catch (error) {
+      logger.error('Error sending invoice email:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Invia promemoria pagamento
+   */
+  async sendPaymentReminder(invoiceId: string, customMessage?: string): Promise<void> {
+    try {
+      const invoice = await this.getInvoice(invoiceId);
+
+      if (invoice.paymentStatus === 'PAID') {
+        throw new Error('Invoice already paid');
+      }
+
+      const customerData = invoice.customerData as unknown as CustomerData;
+      const daysOverdue = Math.floor(
+        (Date.now() - new Date(invoice.dueDate).getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      // ✅ Usa broadcast per notifica promemoria
+      await notificationService.broadcast('payment:reminder', {
+        invoiceId,
+        invoiceNumber: invoice.invoiceNumber,
+        customerEmail: customerData.email,
+        customerName: customerData.name,
+        amount: invoice.totalAmount,
+        dueDate: invoice.dueDate,
+        daysOverdue,
+        customMessage
+      });
+
+      // Aggiorna contatore promemoria
+      await prisma.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          reminderCount: { increment: 1 },
+          lastReminderAt: new Date(),
+          paymentStatus: daysOverdue > 30 ? 'OVERDUE' : invoice.paymentStatus,
+        }
+      });
+
+      logger.info(`Payment reminder sent for invoice ${invoice.invoiceNumber}`);
+
+    } catch (error) {
+      logger.error('Error sending payment reminder:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Genera fattura elettronica
+   */
+  async generateElectronicInvoice(invoiceId: string): Promise<any> {
+    try {
+      const invoice = await this.getInvoice(invoiceId);
+      await this.createElectronicInvoice(invoice);
+
+      return {
+        success: true,
+        invoiceId,
+        message: 'Fattura elettronica generata con successo'
+      };
+    } catch (error) {
+      logger.error('Error generating electronic invoice:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Genera fattura elettronica (metodo privato)
+   */
+  private async createElectronicInvoice(invoice: Invoice): Promise<void> {
+    try {
+      const provider = process.env.ELECTRONIC_INVOICE_PROVIDER || 'aruba';
+      const providerInstance = this.electronicInvoiceProviders.get(provider);
+      
+      if (!providerInstance) {
+        logger.warn(`Provider fatturazione elettronica non configurato: ${provider}`);
+        return;
+      }
+
+      // Prepara dati per fatturazione elettronica
+      const xmlData = this.prepareElectronicInvoiceData(invoice);
+      
+      // Genera XML
+      const result = await providerInstance.generateInvoice(xmlData);
+      
+      // Salva riferimento nel database
+      await prisma.invoice.update({
+        where: { id: invoice.id },
+        data: {
+          electronicInvoiceGenerated: true,
+          electronicProvider: provider,
+          sdiId: result.sdiId,
+          xmlFile: result.xmlContent,
+          sdiStatus: 'SENT',
+        },
+      });
+
+      // Controlla se invio automatico è abilitato
+      const settings = await prisma.systemSettings.findUnique({
+        where: { key: 'invoice_settings' }
+      });
+
+      // ✅ Type guard per verificare che value sia un oggetto
+      const settingsValue = settings?.value;
+      let autoSendToSDI = false;
+      
+      if (settingsValue && typeof settingsValue === 'string') {
+        try {
+          const parsedValue = JSON.parse(settingsValue) as InvoiceSystemSettings;
+          autoSendToSDI = parsedValue.autoSendToSDI || false;
+        } catch {
+          logger.warn('Could not parse invoice_settings value');
+        }
+      }
+
+      // Invia a SDI se richiesto
+      if (autoSendToSDI) {
+        const sdiResult = await providerInstance.sendToSDI(result.invoiceId);
+        
+        await prisma.invoice.update({
+          where: { id: invoice.id },
+          data: {
+            sdiStatus: sdiResult.status,
+            sdiResponse: sdiResult.response as Prisma.InputJsonValue,
+          },
+        });
+      }
+
+      logger.info(`Fattura elettronica creata: ${invoice.invoiceNumber}`);
+
+    } catch (error) {
+      logger.error('Errore creazione fattura elettronica:', error);
+      // Non bloccare il processo principale
+    }
+  }
+
+  /**
+   * Prepara dati per fattura elettronica
+   */
+  private prepareElectronicInvoiceData(invoice: Invoice): any {
+    const customerData = invoice.customerData as unknown as CustomerData;
+    const lineItems = invoice.lineItems as unknown as InvoiceLineItem[];
+
+    return {
+      DatiTrasmissione: {
+        IdTrasmittente: {
+          IdPaese: 'IT',
+          IdCodice: process.env.VAT_NUMBER || '',
+        },
+        ProgressivoInvio: invoice.invoiceNumber.replace(/[^0-9]/g, ''),
+        FormatoTrasmissione: 'FPR12',
+        CodiceDestinatario: customerData.sdiCode || '0000000',
+        PECDestinatario: customerData.pecEmail,
+      },
+      CedentePrestatore: {
+        DatiAnagrafici: {
+          IdFiscaleIVA: {
+            IdPaese: 'IT',
+            IdCodice: process.env.VAT_NUMBER,
+          },
+          Anagrafica: {
+            Denominazione: process.env.COMPANY_NAME,
+          },
+          RegimeFiscale: 'RF01',
+        },
+        Sede: {
+          Indirizzo: process.env.COMPANY_ADDRESS,
+          CAP: process.env.COMPANY_ZIP,
+          Comune: process.env.COMPANY_CITY,
+          Provincia: process.env.COMPANY_PROVINCE,
+          Nazione: 'IT',
+        },
+      },
+      CessionarioCommittente: {
+        DatiAnagrafici: {
+          IdFiscaleIVA: customerData.vatNumber ? {
+            IdPaese: 'IT',
+            IdCodice: customerData.vatNumber,
+          } : undefined,
+          CodiceFiscale: customerData.fiscalCode,
+          Anagrafica: {
+            Denominazione: customerData.name,
+          },
+        },
+        Sede: {
+          Indirizzo: customerData.address,
+          CAP: customerData.zipCode,
+          Comune: customerData.city,
+          Provincia: customerData.province,
+          Nazione: customerData.country || 'IT',
+        },
+      },
+      DatiGenerali: {
+        DatiGeneraliDocumento: {
+          TipoDocumento: this.mapDocumentTypeToSDI(invoice.documentType),
+          Divisa: 'EUR',
+          Data: invoice.issueDate,
+          Numero: invoice.invoiceNumber,
+        },
+      },
+      DatiBeniServizi: lineItems.map((item: InvoiceLineItem) => ({
+        Descrizione: item.description,
+        Quantita: item.quantity,
+        PrezzoUnitario: item.unitPrice,
+        PrezzoTotale: item.quantity * item.unitPrice,
+        AliquotaIVA: item.vatRate || 22.00,
+      })),
+    };
+  }
+
+  /**
+   * Statistiche fatturazione
+   */
+  async getInvoiceStatistics(
+    professionalId: string,
+    options: StatisticsOptions
+  ): Promise<any> {
+    const where: Prisma.InvoiceWhereInput = { professionalId };
+
+    if (options.startDate) {
+      where.issueDate = { gte: options.startDate };
+    }
+    if (options.endDate) {
+      where.issueDate = { ...where.issueDate, lte: options.endDate };
+    }
+
+    const [
+      totalInvoices,
+      totalAmount,
+      paidAmount,
+      pendingAmount,
+      overdueInvoices
+    ] = await Promise.all([
+      prisma.invoice.count({ where }),
+      prisma.invoice.aggregate({
+        where,
+        _sum: { totalAmount: true }
+      }),
+      prisma.invoice.aggregate({
+        where: { ...where, paymentStatus: 'PAID' },
+        _sum: { totalAmount: true }
+      }),
+      prisma.invoice.aggregate({
+        where: { ...where, paymentStatus: { in: ['NOT_PAID', 'PARTIAL'] } },
+        _sum: { totalAmount: true }
+      }),
+      prisma.invoice.count({
+        where: { ...where, paymentStatus: 'OVERDUE' }
+      })
+    ]);
+
+    return {
+      totalInvoices,
+      totalAmount: totalAmount._sum.totalAmount || 0,
+      paidAmount: paidAmount._sum.totalAmount || 0,
+      pendingAmount: pendingAmount._sum.totalAmount || 0,
+      overdueInvoices,
+      averageInvoiceAmount: totalInvoices > 0 
+        ? (totalAmount._sum.totalAmount || 0) / totalInvoices 
+        : 0
+    };
+  }
+
+  /**
+   * Genera PDF fattura completo
+   */
+  async generatePDF(invoiceId: string): Promise<Buffer> {
+    // Recupera fattura con tutti i dati
+    const invoice = await this.getInvoice(invoiceId);
+    
+    return new Promise((resolve, reject) => {
+      try {
+        const doc = new PDFDocument({ margin: 50 });
+        const chunks: Buffer[] = [];
+        
+        doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+        
+        // Helper per formattare valuta
+        const formatCurrency = (amount: number): string => {
+          return new Intl.NumberFormat('it-IT', {
+            style: 'currency',
+            currency: 'EUR'
+          }).format(amount);
+        };
+        
+        // Helper per formattare data
+        const formatDate = (date: Date): string => {
+          return new Date(date).toLocaleDateString('it-IT');
+        };
+        
+        const customerData = invoice.customerData as unknown as CustomerData;
+        const lineItems = invoice.lineItems as unknown as InvoiceLineItem[];
+        
+        // HEADER AZIENDA
+        doc.fontSize(20).font('Helvetica-Bold')
+           .text(process.env.COMPANY_NAME || 'Sistema Assistenza SRL', 50, 50);
+        
+        doc.fontSize(10).font('Helvetica')
+           .text(`P.IVA: ${process.env.COMPANY_VAT || 'IT12345678901'}`, 50, 75)
+           .text(`${process.env.COMPANY_ADDRESS || 'Via Example 123'}`, 50, 90)
+           .text(`${process.env.COMPANY_ZIP || '20100'} ${process.env.COMPANY_CITY || 'Milano'} (${process.env.COMPANY_PROVINCE || 'MI'})`, 50, 105)
+           .text(`Email: ${process.env.COMPANY_EMAIL || 'info@assistenza.it'}`, 50, 120)
+           .text(`Tel: ${process.env.COMPANY_PHONE || '+39 02 12345678'}`, 50, 135);
+        
+        // TIPO DOCUMENTO E NUMERO
+        const docTitle = this.getDocumentTitle(invoice.documentType);
+        doc.fontSize(18).font('Helvetica-Bold')
+           .text(docTitle.toUpperCase(), 400, 50, { align: 'right' });
+        
+        doc.fontSize(12).font('Helvetica')
+           .text(`N° ${invoice.invoiceNumber}`, 400, 75, { align: 'right' })
+           .text(`Data: ${formatDate(invoice.issueDate)}`, 400, 95, { align: 'right' })
+           .text(`Scadenza: ${formatDate(invoice.dueDate)}`, 400, 115, { align: 'right' });
+        
+        // DATI CLIENTE
+        doc.fontSize(12).font('Helvetica-Bold')
+           .text('DESTINATARIO', 50, 180);
+        
+        doc.fontSize(10).font('Helvetica')
+           .text(customerData.name, 50, 200)
+           .text(customerData.address, 50, 215)
+           .text(`${customerData.zipCode} ${customerData.city} ${customerData.province ? `(${customerData.province})` : ''}`, 50, 230);
+        
+        if (customerData.vatNumber) {
+          doc.text(`P.IVA: ${customerData.vatNumber}`, 50, 245);
+        }
+        if (customerData.fiscalCode) {
+          doc.text(`C.F.: ${customerData.fiscalCode}`, 50, 260);
+        }
+        if (customerData.sdiCode && customerData.sdiCode !== '0000000') {
+          doc.text(`Codice SDI: ${customerData.sdiCode}`, 50, 275);
+        }
+        if (customerData.pecEmail) {
+          doc.text(`PEC: ${customerData.pecEmail}`, 50, 290);
+        }
+        
+        // TABELLA DETTAGLI
+        let yPosition = 340;
+        
+        // Header tabella
+        doc.fontSize(10).font('Helvetica-Bold');
+        doc.text('DESCRIZIONE', 50, yPosition);
+        doc.text('QTÀ', 300, yPosition, { width: 50, align: 'right' });
+        doc.text('PREZZO', 360, yPosition, { width: 70, align: 'right' });
+        doc.text('IVA %', 440, yPosition, { width: 40, align: 'right' });
+        doc.text('TOTALE', 490, yPosition, { width: 80, align: 'right' });
+        
+        // Linea sotto header
+        doc.moveTo(50, yPosition + 15)
+           .lineTo(570, yPosition + 15)
+           .stroke();
+        
+        yPosition += 25;
+        
+        // Righe fattura
+        doc.font('Helvetica');
+        
+        for (const item of lineItems) {
+          // Controllo overflow pagina
+          if (yPosition > 650) {
+            doc.addPage();
+            yPosition = 50;
+          }
+          
+          const itemTotal = item.quantity * item.unitPrice;
+          
+          doc.fontSize(9);
+          doc.text(item.description, 50, yPosition, { width: 240 });
+          doc.text(item.quantity.toString(), 300, yPosition, { width: 50, align: 'right' });
+          doc.text(formatCurrency(item.unitPrice), 360, yPosition, { width: 70, align: 'right' });
+          doc.text(`${item.vatRate || 22}%`, 440, yPosition, { width: 40, align: 'right' });
+          doc.text(formatCurrency(itemTotal), 490, yPosition, { width: 80, align: 'right' });
+          
+          yPosition += 20;
+        }
+        
+        // Linea sopra totali
+        doc.moveTo(350, yPosition)
+           .lineTo(570, yPosition)
+           .stroke();
+        
+        yPosition += 10;
+        
+        // TOTALI
+        doc.fontSize(10).font('Helvetica');
+        doc.text('Imponibile:', 400, yPosition, { width: 80, align: 'right' });
+        doc.text(formatCurrency(invoice.subtotal), 490, yPosition, { width: 80, align: 'right' });
+        
+        yPosition += 18;
+        doc.text(`IVA ${invoice.taxRate}%:`, 400, yPosition, { width: 80, align: 'right' });
+        doc.text(formatCurrency(invoice.taxAmount), 490, yPosition, { width: 80, align: 'right' });
+        
+        yPosition += 18;
+        doc.fontSize(12).font('Helvetica-Bold');
+        doc.text('TOTALE:', 400, yPosition, { width: 80, align: 'right' });
+        doc.text(formatCurrency(invoice.totalAmount), 490, yPosition, { width: 80, align: 'right' });
+        
+        // STATO PAGAMENTO
+        yPosition += 30;
+        doc.fontSize(10).font('Helvetica');
+        
+        if (invoice.paymentStatus === 'PAID' || invoice.paidAmount >= invoice.totalAmount) {
+          doc.fillColor('green')
+             .text('PAGATA', 50, yPosition)
+             .fillColor('black');
+          if (invoice.paidDate) {
+            doc.text(`Pagata il: ${formatDate(invoice.paidDate)}`, 50, yPosition + 15);
+          }
+        } else if (invoice.paidAmount > 0) {
+          doc.fillColor('orange')
+             .text(`PARZIALMENTE PAGATA - Ricevuti ${formatCurrency(invoice.paidAmount)}`, 50, yPosition)
+             .fillColor('black');
+        } else {
+          doc.fillColor('red')
+             .text('DA PAGARE', 50, yPosition)
+             .fillColor('black');
+        }
+        
+        // NOTE
+        if (invoice.notes) {
+          yPosition += 40;
+          doc.fontSize(10).font('Helvetica-Bold')
+             .text('NOTE:', 50, yPosition);
+          doc.fontSize(9).font('Helvetica')
+             .text(invoice.notes, 50, yPosition + 15, { width: 520 });
+        }
+        
+        // FOOTER
+        const bottomY = doc.page.height - 100;
+        
+        // Termini di pagamento
+        doc.fontSize(8).font('Helvetica')
+           .text(`Termini di pagamento: ${invoice.paymentTerms} giorni`, 50, bottomY);
+        
+        // Info bancarie per bonifico (se non pagata)
+        if (invoice.paymentStatus !== 'PAID') {
+          doc.fontSize(8)
+             .text('Coordinate bancarie per il pagamento:', 50, bottomY + 15)
+             .text(`IBAN: ${process.env.COMPANY_IBAN || 'IT00X0000000000000000000000'}`, 50, bottomY + 28)
+             .text(`BIC/SWIFT: ${process.env.COMPANY_SWIFT || 'XXXXXXXX'}`, 50, bottomY + 41);
+        }
+        
+        // Numero pagina su tutte le pagine
+        const totalPages = Math.ceil((yPosition + 100) / 750);
+        for (let i = 0; i < totalPages; i++) {
+          if (i > 0) doc.switchToPage(i);
+          doc.fontSize(8).text(
+            `Pagina ${i + 1} di ${totalPages}`,
+            50,
+            doc.page.height - 50,
+            { align: 'center' }
+          );
+        }
+        
+        doc.end();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Aggiorna stato pagamento
+   */
+  async updatePaymentStatus(
+    invoiceId: string,
+    data: z.infer<typeof UpdatePaymentStatusSchema>,
+    userId: string
+  ): Promise<Invoice> {
+    try {
+      const invoice = await prisma.invoice.findUnique({
+        where: { id: invoiceId }
+      });
+      
+      if (!invoice) {
+        throw new Error('Invoice not found');
+      }
+      
+      // Calcola nuovo stato
+      let paymentStatus: PaymentStatus = data.status as PaymentStatus;
+      let paidAmount = data.paidAmount || 0;
+      
+      if (data.status === 'PARTIALLY_PAID') {
+        paidAmount = (invoice.paidAmount || 0) + (data.paidAmount || 0);
+        
+        if (paidAmount >= invoice.totalAmount) {
+          paymentStatus = 'PAID';
+          paidAmount = invoice.totalAmount;
+        }
+      } else if (data.status === 'PAID') {
+        paidAmount = invoice.totalAmount;
+      }
+      
+      // Aggiorna invoice
+      const updated = await prisma.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          paymentStatus,
+          paidAmount,
+          paidDate: data.paymentDate ? new Date(data.paymentDate) : undefined,
+          paymentMethod: data.paymentMethod,
+          notes: data.notes ? `${invoice.notes || ''}\n${data.notes}` : invoice.notes,
+        }
+      });
+      
+      // Crea record di pagamento
+      if (data.paidAmount && data.paidAmount > 0) {
+        await prisma.paymentRecord.create({
+          data: {
+            invoiceId,
+            amount: data.paidAmount,
+            paymentDate: new Date(data.paymentDate || Date.now()),
+            paymentMethod: data.paymentMethod || 'BANK_TRANSFER',
+            reference: `PAY-${Date.now()}`,
+            notes: data.notes,
+            userId,
+          }
+        });
+      }
+      
+      // Invia notifica
+      if (paymentStatus === 'PAID') {
+        await notificationService.emitToUser(invoice.userId, 'PAYMENT_RECEIVED', {
+          invoiceId,
+          invoiceNumber: invoice.invoiceNumber,
+          amount: paidAmount
+        });
+      }
+      
+      logger.info(`Payment status updated for invoice ${invoice.invoiceNumber}: ${paymentStatus}`);
+      return updated;
+      
+    } catch (error) {
+      logger.error('Error updating payment status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Registra pagamento parziale
+   */
+  async registerPartialPayment(
+    invoiceId: string,
+    amount: number,
+    paymentMethod: string,
+    reference: string,
+    userId: string
+  ): Promise<void> {
+    try {
+      const invoice = await prisma.invoice.findUnique({
+        where: { id: invoiceId }
+      });
+      
+      if (!invoice) {
+        throw new Error('Invoice not found');
+      }
+      
+      const newPaidAmount = (invoice.paidAmount || 0) + amount;
+      const isFullyPaid = newPaidAmount >= invoice.totalAmount;
+      
+      // Aggiorna fattura
+      await prisma.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          paidAmount: newPaidAmount,
+          paymentStatus: isFullyPaid ? 'PAID' : 'PARTIAL',
+          paidDate: isFullyPaid ? new Date() : undefined,
+        }
+      });
+      
+      // Registra pagamento
+      await prisma.paymentRecord.create({
+        data: {
+          invoiceId,
+          amount,
+          paymentDate: new Date(),
+          paymentMethod,
+          reference,
+          userId,
+        }
+      });
+      
+      logger.info(`Partial payment registered: ${amount} for invoice ${invoice.invoiceNumber}`);
+      
+      if (isFullyPaid) {
+        await notificationService.emitToUser(invoice.userId, 'INVOICE_PAID', {
+          invoiceId,
+          invoiceNumber: invoice.invoiceNumber,
+          message: 'Fattura pagata completamente'
+        });
+      }
+      
+    } catch (error) {
+      logger.error('Error registering partial payment:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Crea nota di credito
+   */
+  async createCreditNote(data: CreditNoteData): Promise<CreditNote> {
+    try {
+      const originalInvoice = await prisma.invoice.findUnique({
+        where: { id: data.originalInvoiceId }
+      });
+      
+      if (!originalInvoice) {
+        throw new Error('Original invoice not found');
+      }
+      
+      const creditNoteNumber = await this.generateCreditNoteNumber();
+      const totals = this.calculateTotals(data.lineItems);
+      
+      const customerData = originalInvoice.customerData as unknown as CustomerData;
+      
+      const creditNote = await prisma.creditNote.create({
+        data: {
+          creditNoteNumber,
+          originalInvoiceId: data.originalInvoiceId,
+          issueDate: new Date(),
+          
+          // Cliente (copia da fattura originale)
+          customerId: originalInvoice.customerId,
+          customerName: customerData.name,
+          customerAddress: customerData.address,
+          customerCity: customerData.city,
+          customerZipCode: customerData.zipCode,
+          customerProvince: customerData.province || '',
+          customerCountry: customerData.country,
+          customerVatNumber: customerData.vatNumber,
+          customerFiscalCode: customerData.fiscalCode,
+          
+          // Dettagli nota di credito
+          reason: data.reason,
+          lineItems: data.lineItems as Prisma.InputJsonValue,
+          subtotal: totals.subtotal,
+          taxAmount: totals.taxAmount,
+          totalAmount: totals.totalAmount,
+          
+          // Metadata
+          userId: data.createdBy,
+          status: 'ISSUED',
+        }
+      });
+      
+      // Aggiorna fattura originale
+      await prisma.invoice.update({
+        where: { id: data.originalInvoiceId },
+        data: {
+          creditNoteId: creditNote.id,
+          creditedAmount: totals.totalAmount,
+        }
+      });
+      
+      logger.info(`Credit note created: ${creditNote.creditNoteNumber}`);
+      return creditNote;
+      
+    } catch (error) {
+      logger.error('Error creating credit note:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Genera numero fattura progressivo
+   */
+  private async generateInvoiceNumber(documentType: DocumentType): Promise<string> {
+    const year = new Date().getFullYear();
+    const prefix = this.getDocumentPrefix(documentType);
+    
+    // Trova l'ultimo numero per l'anno corrente
+    const lastInvoice = await prisma.invoice.findFirst({
+      where: {
+        invoiceNumber: { startsWith: `${prefix}${year}/` }
+      },
+      orderBy: { invoiceNumber: 'desc' }
+    });
+
+    let nextNumber = 1;
+    if (lastInvoice) {
+      const lastNumber = parseInt(lastInvoice.invoiceNumber.split('/')[1]);
+      nextNumber = lastNumber + 1;
+    }
+
+    return `${prefix}${year}/${nextNumber.toString().padStart(5, '0')}`;
+  }
+
+  /**
+   * Genera numero nota di credito
+   */
+  private async generateCreditNoteNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    
+    const lastCreditNote = await prisma.creditNote.findFirst({
+      where: {
+        creditNoteNumber: { startsWith: `NC${year}/` }
+      },
+      orderBy: { creditNoteNumber: 'desc' }
+    });
+
+    let nextNumber = 1;
+    if (lastCreditNote) {
+      const lastNumber = parseInt(lastCreditNote.creditNoteNumber.split('/')[1]);
+      nextNumber = lastNumber + 1;
+    }
+
+    return `NC${year}/${nextNumber.toString().padStart(5, '0')}`;
+  }
+
+  /**
+   * Calcola totali da line items
+   */
+  private calculateTotals(lineItems: InvoiceLineItem[]): InvoiceTotals {
+    let subtotal = 0;
+    let taxAmount = 0;
+
+    for (const item of lineItems) {
+      const itemTotal = item.quantity * item.unitPrice;
+      const itemTax = itemTotal * (item.vatRate || 22) / 100;
+      
+      subtotal += itemTotal;
+      taxAmount += itemTax;
+    }
+
+    return {
+      subtotal: Math.round(subtotal * 100) / 100,
+      taxAmount: Math.round(taxAmount * 100) / 100,
+      totalAmount: Math.round((subtotal + taxAmount) * 100) / 100
+    };
+  }
+
+  /**
+   * Calcola data scadenza
+   */
+  private calculateDueDate(days: number): Date {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    return date;
+  }
+
+  /**
+   * Verifica se richiede fattura elettronica
+   */
+  private async requiresElectronicInvoice(
+    customerType: string,
+    customerData: CustomerData
+  ): Promise<boolean> {
+    // In Italia, fattura elettronica obbligatoria per B2B e B2G
+    if (customerType === 'BUSINESS') {
+      return true;
+    }
+
+    // Per privati, obbligatoria solo se hanno richiesto SDI
+    if (customerData.sdiCode && customerData.sdiCode !== '0000000') {
+      return true;
+    }
+
+    // Se hanno PEC, probabilmente la vogliono
+    if (customerData.pecEmail) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Mappa tipo documento a codice SDI
+   */
+  private mapDocumentTypeToSDI(type: DocumentType): string {
+    const mapping: Record<DocumentType, string> = {
+      'INVOICE': 'TD01',
+      'PROFORMA': 'TD00',
+      'CREDIT_NOTE': 'TD04',
+      'DEBIT_NOTE': 'TD05',
+      'RECEIPT': 'TD24',
+      'ELECTRONIC': 'TD01',
+    };
+    return mapping[type] || 'TD01';
+  }
+
+  /**
+   * Ottieni prefisso documento
+   */
+  private getDocumentPrefix(type: DocumentType): string {
+    const prefixes: Record<DocumentType, string> = {
+      'INVOICE': 'FT',
+      'PROFORMA': 'PF',
+      'CREDIT_NOTE': 'NC',
+      'DEBIT_NOTE': 'ND',
+      'RECEIPT': 'RC',
+      'ELECTRONIC': 'FE',
+    };
+    return prefixes[type] || 'DOC';
+  }
+
+  /**
+   * Ottieni titolo documento
+   */
+  private getDocumentTitle(type: DocumentType): string {
+    const titles: Record<DocumentType, string> = {
+      'INVOICE': 'Fattura',
+      'PROFORMA': 'Fattura Proforma',
+      'CREDIT_NOTE': 'Nota di Credito',
+      'DEBIT_NOTE': 'Nota di Debito',
+      'RECEIPT': 'Ricevuta',
+      'ELECTRONIC': 'Fattura Elettronica',
+    };
+    return titles[type] || 'Documento';
+  }
+
+  /**
+   * Inizializza provider fatturazione elettronica
+   */
+  private initializeProviders(): void {
+    // TODO: Implementare integrazione con provider reali (Aruba, InfoCert, etc.)
+    logger.info('Electronic invoice providers initialized');
+  }
+}
+
+export const invoiceService = new InvoiceService();

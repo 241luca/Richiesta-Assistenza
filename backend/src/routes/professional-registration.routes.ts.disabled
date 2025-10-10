@@ -1,29 +1,99 @@
-import express from 'express';
-import multer from 'multer';
+/**
+ * Professional Registration Routes
+ * Gestione registrazione professionisti (3 tipi)
+ * 
+ * @version 1.0.1
+ * @updated 2025-10-08
+ */
+
+import express, { Request, Response } from 'express';
+import multer, { FileFilterCallback } from 'multer';
 import bcrypt from 'bcrypt';
 import { prisma } from '../config/database';
 import { ResponseFormatter } from '../utils/responseFormatter';
 import { validateRequest } from '../middleware/validation';
 import { z } from 'zod';
-import logger from '../utils/logger';
+import { logger } from '../utils/logger';
 import { auditLogger } from '../middleware/auditLogger';
 import { OccasionalWorkerService } from '../services/occasional-worker.service';
 
 const router = express.Router();
 
+// ============================================
+// TYPES & INTERFACES
+// ============================================
+
+interface MulterFiles {
+  identityDocument?: Express.Multer.File[];
+  vatCertificate?: Express.Multer.File[];
+  chamberOfCommerce?: Express.Multer.File[];
+}
+
+interface RegistrationData {
+  registrationType: 'occasional' | 'individual' | 'company';
+  activityType: 'OCCASIONAL' | 'INDIVIDUAL' | 'COMPANY';
+  
+  // Dati personali
+  firstName: string;
+  lastName: string;
+  personalFiscalCode: string;
+  email: string;
+  personalPhone: string;
+  password: string;
+  
+  // Indirizzo personale
+  personalAddress?: string;
+  personalCity: string;
+  personalProvince: string;
+  personalPostalCode?: string;
+  
+  // Professione
+  professionId: string;
+  yearsExperience?: string;
+  
+  // Dati fiscali
+  vatNumber?: string;
+  companyPhone?: string;
+  companyEmail?: string;
+  pec?: string;
+  sdiCode?: string;
+  
+  // Dati azienda
+  businessName?: string;
+  companyFiscalCode?: string;
+  companyRole?: 'OWNER' | 'EMPLOYEE' | 'COLLABORATOR';
+  
+  // Sedi
+  legalAddress?: string;
+  legalCity?: string;
+  legalProvince?: string;
+  legalPostalCode?: string;
+  
+  hasOperativeAddress?: string;
+  operativeAddress?: string;
+  operativeCity?: string;
+  operativeProvince?: string;
+  operativePostalCode?: string;
+}
+
+// ============================================
+// MULTER CONFIGURATION
+// ============================================
+
 // Configurazione upload documenti
 const storage = multer.diskStorage({
   destination: 'uploads/documents/',
-  filename: (req, file, cb) => {
+  filename: (req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + '.' + file.originalname.split('.').pop());
+    const extension = file.originalname.split('.').pop() || 'bin';
+    cb(null, file.fieldname + '-' + uniqueSuffix + '.' + extension);
   }
 });
 
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  fileFilter: (req, file, cb) => {
+  fileFilter: (req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
@@ -32,6 +102,10 @@ const upload = multer({
     }
   }
 });
+
+// ============================================
+// VALIDATION SCHEMAS
+// ============================================
 
 // Schema validazione registrazione professionista
 const registerProfessionalSchema = z.object({
@@ -81,6 +155,10 @@ const registerProfessionalSchema = z.object({
   operativePostalCode: z.string().length(5).optional(),
 });
 
+// ============================================
+// ROUTES
+// ============================================
+
 /**
  * POST /api/auth/register-professional
  * Registrazione completa professionista (3 tipi)
@@ -92,11 +170,11 @@ router.post('/register-professional',
     { name: 'chamberOfCommerce', maxCount: 1 }
   ]),
   auditLogger('PROFESSIONAL_REGISTRATION'),
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       // Parse e valida dati
-      const data = registerProfessionalSchema.parse(req.body);
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const data = registerProfessionalSchema.parse(req.body) as RegistrationData;
+      const files = req.files as MulterFiles;
       
       // Verifica unicità email
       const existingEmail = await prisma.user.findUnique({
@@ -148,15 +226,16 @@ router.post('/register-professional',
         });
         
         // Salva documento identità
-        if (files.identityDocument) {
+        if (files.identityDocument && files.identityDocument[0]) {
+          const file = files.identityDocument[0];
           await prisma.document.create({
             data: {
               userId: user.id,
               type: 'IDENTITY',
-              fileName: files.identityDocument[0].filename,
-              filePath: files.identityDocument[0].path,
-              fileSize: files.identityDocument[0].size,
-              mimeType: files.identityDocument[0].mimetype
+              fileName: file.filename,
+              filePath: file.path,
+              fileSize: file.size,
+              mimeType: file.mimetype
             }
           });
         }
@@ -173,6 +252,12 @@ router.post('/register-professional',
       
       // 2. DITTA INDIVIDUALE
       if (data.registrationType === 'individual') {
+        if (!data.vatNumber) {
+          return res.status(400).json(
+            ResponseFormatter.error('P.IVA richiesta per ditta individuale', 'VAT_REQUIRED')
+          );
+        }
+
         const hashedPassword = await bcrypt.hash(data.password, 10);
         
         const user = await prisma.$transaction(async (tx) => {
@@ -192,7 +277,7 @@ router.post('/register-professional',
               personalPostalCode: data.personalPostalCode,
               
               // Dati fiscali
-              vatNumber: data.vatNumber!,
+              vatNumber: data.vatNumber,
               companyPhone: data.companyPhone,
               companyEmail: data.companyEmail,
               pec: data.pec,
@@ -246,28 +331,30 @@ router.post('/register-professional',
         });
         
         // Salva documenti
-        if (files.identityDocument) {
+        if (files.identityDocument && files.identityDocument[0]) {
+          const file = files.identityDocument[0];
           await prisma.document.create({
             data: {
               userId: user.id,
               type: 'IDENTITY',
-              fileName: files.identityDocument[0].filename,
-              filePath: files.identityDocument[0].path,
-              fileSize: files.identityDocument[0].size,
-              mimeType: files.identityDocument[0].mimetype
+              fileName: file.filename,
+              filePath: file.path,
+              fileSize: file.size,
+              mimeType: file.mimetype
             }
           });
         }
         
-        if (files.vatCertificate) {
+        if (files.vatCertificate && files.vatCertificate[0]) {
+          const file = files.vatCertificate[0];
           await prisma.document.create({
             data: {
               userId: user.id,
               type: 'VAT_CERTIFICATE',
-              fileName: files.vatCertificate[0].filename,
-              filePath: files.vatCertificate[0].path,
-              fileSize: files.vatCertificate[0].size,
-              mimeType: files.vatCertificate[0].mimetype
+              fileName: file.filename,
+              filePath: file.path,
+              fileSize: file.size,
+              mimeType: file.mimetype
             }
           });
         }
@@ -284,6 +371,14 @@ router.post('/register-professional',
       
       // 3. SOCIETÀ
       if (data.registrationType === 'company') {
+        if (!data.businessName || !data.vatNumber || !data.companyPhone || 
+            !data.companyEmail || !data.legalAddress || !data.legalCity || 
+            !data.legalProvince || !data.legalPostalCode) {
+          return res.status(400).json(
+            ResponseFormatter.error('Dati azienda incompleti', 'COMPANY_DATA_REQUIRED')
+          );
+        }
+
         const hashedPassword = await bcrypt.hash(data.password, 10);
         
         const result = await prisma.$transaction(async (tx) => {
@@ -410,43 +505,46 @@ router.post('/register-professional',
         });
         
         // Salva documenti
-        if (files.identityDocument) {
+        if (files.identityDocument && files.identityDocument[0]) {
+          const file = files.identityDocument[0];
           await prisma.document.create({
             data: {
               userId: result.user.id,
               type: 'IDENTITY',
-              fileName: files.identityDocument[0].filename,
-              filePath: files.identityDocument[0].path,
-              fileSize: files.identityDocument[0].size,
-              mimeType: files.identityDocument[0].mimetype
+              fileName: file.filename,
+              filePath: file.path,
+              fileSize: file.size,
+              mimeType: file.mimetype
             }
           });
         }
         
-        if (files.vatCertificate) {
+        if (files.vatCertificate && files.vatCertificate[0]) {
+          const file = files.vatCertificate[0];
           await prisma.document.create({
             data: {
               userId: result.user.id,
               companyId: result.company.id,
               type: 'VAT_CERTIFICATE',
-              fileName: files.vatCertificate[0].filename,
-              filePath: files.vatCertificate[0].path,
-              fileSize: files.vatCertificate[0].size,
-              mimeType: files.vatCertificate[0].mimetype
+              fileName: file.filename,
+              filePath: file.path,
+              fileSize: file.size,
+              mimeType: file.mimetype
             }
           });
         }
         
-        if (files.chamberOfCommerce) {
+        if (files.chamberOfCommerce && files.chamberOfCommerce[0]) {
+          const file = files.chamberOfCommerce[0];
           await prisma.document.create({
             data: {
               userId: result.user.id,
               companyId: result.company.id,
               type: 'CHAMBER_OF_COMMERCE',
-              fileName: files.chamberOfCommerce[0].filename,
-              filePath: files.chamberOfCommerce[0].path,
-              fileSize: files.chamberOfCommerce[0].size,
-              mimeType: files.chamberOfCommerce[0].mimetype
+              fileName: file.filename,
+              filePath: file.path,
+              fileSize: file.size,
+              mimeType: file.mimetype
             }
           });
         }
@@ -469,8 +567,11 @@ router.post('/register-professional',
         ResponseFormatter.error('Tipo registrazione non valido', 'INVALID_TYPE')
       );
       
-    } catch (error: any) {
-      logger.error('Registration error:', error);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      
+      logger.error('Registration error:', { error: errorMessage, stack: errorStack });
       
       if (error instanceof z.ZodError) {
         return res.status(400).json(
@@ -497,11 +598,11 @@ router.post('/register-professional',
  * Verifica disponibilità in real-time
  */
 router.get('/check-availability',
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       const { field, value } = req.query;
       
-      if (!field || !value) {
+      if (!field || !value || typeof field !== 'string' || typeof value !== 'string') {
         return res.status(400).json(
           ResponseFormatter.error('Field e value richiesti', 'PARAMS_REQUIRED')
         );
@@ -512,31 +613,31 @@ router.get('/check-availability',
       switch (field) {
         case 'email':
           const emailUser = await prisma.user.findUnique({
-            where: { email: value as string }
+            where: { email: value }
           });
           exists = !!emailUser;
           break;
           
         case 'personalFiscalCode':
           const cfUser = await prisma.user.findFirst({
-            where: { personalFiscalCode: value as string }
+            where: { personalFiscalCode: value }
           });
           exists = !!cfUser;
           break;
           
         case 'vatNumber':
           const vatUser = await prisma.user.findFirst({
-            where: { vatNumber: value as string }
+            where: { vatNumber: value }
           });
           const vatCompany = await prisma.company.findFirst({
-            where: { vatNumber: value as string }
+            where: { vatNumber: value }
           });
           exists = !!vatUser || !!vatCompany;
           break;
           
         case 'businessName':
           const company = await prisma.company.findFirst({
-            where: { businessName: value as string }
+            where: { businessName: value }
           });
           exists = !!company;
           break;
@@ -555,7 +656,9 @@ router.get('/check-availability',
       );
       
     } catch (error) {
-      logger.error('Check availability error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('Check availability error:', { error: errorMessage });
+      
       return res.status(500).json(
         ResponseFormatter.error('Errore verifica disponibilità', 'CHECK_ERROR')
       );

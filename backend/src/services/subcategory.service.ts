@@ -85,10 +85,10 @@ class SubcategoryService {
             color: true,
           },
         },
-        aiSettings: includeAiSettings,
+        SubcategoryAiSettings: includeAiSettings,
         _count: {
           select: {
-            professionalUserSubcategories: {
+            ProfessionalUserSubcategory: {
               where: {
                 isActive: true,
                 user: {  // Maiuscolo!
@@ -100,7 +100,7 @@ class SubcategoryService {
           },
         },
         // Aggiungiamo anche la lista dei professionisti attivi per debug
-        professionalUserSubcategories: {
+        ProfessionalUserSubcategory: {
           where: {
             isActive: true,
             user: {  // Maiuscolo!
@@ -129,10 +129,10 @@ class SubcategoryService {
       },
       include: {
       category: true,
-        aiSettings: true,
+        SubcategoryAiSettings: true,
         _count: {
           select: {
-            professionalUserSubcategories: true,
+            ProfessionalUserSubcategory: true,
             requests: true,
           },
         },
@@ -223,7 +223,7 @@ class SubcategoryService {
       data,
       include: {
       category: true,
-        aiSettings: true,
+        SubcategoryAiSettings: true,
       },
     });
 
@@ -290,7 +290,7 @@ class SubcategoryService {
             fullName: true,
             email: true,
             phone: true,
-            professionData: true,
+            Profession: true,
             hourlyRate: true,
             avatar: true,
             city: true,

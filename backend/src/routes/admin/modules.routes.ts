@@ -10,12 +10,12 @@
  * - Statistics e monitoring
  * 
  * @module routes/admin/modules
- * @version 1.0.0
- * @updated 2025-10-06
+ * @version 1.0.1
+ * @updated 2025-10-08
  * @author Sistema Richiesta Assistenza
  */
 
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { authenticate } from '../../middleware/auth';
 import { authorize } from '../../middleware/authorize';
 import { moduleService } from '../../services/module.service';
@@ -23,6 +23,38 @@ import { ResponseFormatter } from '../../utils/responseFormatter';
 import { logger } from '../../utils/logger';
 
 const router = Router();
+
+// ============================================
+// TYPES & INTERFACES
+// ============================================
+
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    email: string;
+    role: string;
+    fullName?: string;
+  };
+}
+
+interface ModuleFilters {
+  category?: string;
+  isEnabled?: boolean;
+  isCore?: boolean;
+  search?: string;
+}
+
+interface UpdateConfigBody {
+  config: Record<string, any>;
+}
+
+interface UpdateSettingBody {
+  value: string;
+}
+
+interface ModuleActionBody {
+  reason?: string;
+}
 
 // ============================================
 // MIDDLEWARE GLOBALI
@@ -54,24 +86,34 @@ router.use(authenticate, authorize('ADMIN', 'SUPER_ADMIN'));
  * GET /api/admin/modules?category=CORE&isEnabled=true
  * GET /api/admin/modules?search=whats
  */
-router.get('/', async (req, res) => {
+router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
     logger.info('[ModulesRoutes] Fetching all modules', {
       userId: req.user.id,
       query: req.query
     });
 
-    const filters = {
-      category: req.query.category as any,
-      isEnabled: req.query.isEnabled !== undefined ? req.query.isEnabled === 'true' : undefined,
-      isCore: req.query.isCore !== undefined ? req.query.isCore === 'true' : undefined,
-      search: req.query.search as string
-    };
-
-    // Rimuovi filtri undefined
-    Object.keys(filters).forEach(key => 
-      filters[key] === undefined && delete filters[key]
-    );
+    const filters: ModuleFilters = {};
+    
+    if (typeof req.query.category === 'string') {
+      filters.category = req.query.category;
+    }
+    
+    if (req.query.isEnabled !== undefined && typeof req.query.isEnabled === 'string') {
+      filters.isEnabled = req.query.isEnabled === 'true';
+    }
+    
+    if (req.query.isCore !== undefined && typeof req.query.isCore === 'string') {
+      filters.isCore = req.query.isCore === 'true';
+    }
+    
+    if (typeof req.query.search === 'string') {
+      filters.search = req.query.search;
+    }
 
     const modules = await moduleService.getAllModules(filters);
     
@@ -79,11 +121,14 @@ router.get('/', async (req, res) => {
       modules,
       'Moduli recuperati con successo'
     ));
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     logger.error('[ModulesRoutes] Error fetching modules:', {
-      error: error.message,
-      userId: req.user.id,
-      stack: error.stack
+      error: errorMessage,
+      userId: req.user?.id,
+      stack: errorStack
     });
     
     return res.status(500).json(
@@ -105,27 +150,32 @@ router.get('/', async (req, res) => {
  * @example
  * GET /api/admin/modules/category/CORE
  */
-router.get('/category/:category', async (req, res) => {
+router.get('/category/:category', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
     logger.info('[ModulesRoutes] Fetching modules by category', {
       category: req.params.category,
       userId: req.user.id
     });
 
-    const modules = await moduleService.getModulesByCategory(
-      req.params.category as any
-    );
+    const modules = await moduleService.getModulesByCategory(req.params.category);
     
     return res.json(ResponseFormatter.success(
       modules,
       `Moduli categoria ${req.params.category} recuperati con successo`
     ));
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     logger.error('[ModulesRoutes] Error fetching modules by category:', {
-      error: error.message,
+      error: errorMessage,
       category: req.params.category,
-      userId: req.user.id,
-      stack: error.stack
+      userId: req.user?.id,
+      stack: errorStack
     });
     
     return res.status(400).json(
@@ -147,8 +197,12 @@ router.get('/category/:category', async (req, res) => {
  * @example
  * GET /api/admin/modules/reviews
  */
-router.get('/:code', async (req, res) => {
+router.get('/:code', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
     logger.info('[ModulesRoutes] Fetching module by code', {
       code: req.params.code,
       userId: req.user.id
@@ -160,12 +214,15 @@ router.get('/:code', async (req, res) => {
       module,
       'Modulo recuperato con successo'
     ));
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     logger.error('[ModulesRoutes] Error fetching module by code:', {
-      error: error.message,
+      error: errorMessage,
       code: req.params.code,
-      userId: req.user.id,
-      stack: error.stack
+      userId: req.user?.id,
+      stack: errorStack
     });
     
     return res.status(404).json(
@@ -195,18 +252,24 @@ router.get('/:code', async (req, res) => {
  * POST /api/admin/modules/portfolio/enable
  * { "reason": "Test enable from API" }
  */
-router.post('/:code/enable', async (req, res) => {
+router.post('/:code/enable', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
+    const body = req.body as ModuleActionBody;
+
     logger.info('[ModulesRoutes] Enabling module', {
       code: req.params.code,
       userId: req.user.id,
-      reason: req.body.reason
+      reason: body.reason
     });
 
     const module = await moduleService.enableModule(
       req.params.code,
       req.user.id,
-      req.body.reason
+      body.reason
     );
     
     return res.json(
@@ -215,17 +278,20 @@ router.post('/:code/enable', async (req, res) => {
         'Modulo abilitato con successo'
       )
     );
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     logger.error('[ModulesRoutes] Error enabling module:', {
-      error: error.message,
+      error: errorMessage,
       code: req.params.code,
-      userId: req.user.id,
-      stack: error.stack
+      userId: req.user?.id,
+      stack: errorStack
     });
     
     return res.status(400).json(
       ResponseFormatter.error(
-        error.message,
+        errorMessage,
         'ENABLE_ERROR'
       )
     );
@@ -246,18 +312,24 @@ router.post('/:code/enable', async (req, res) => {
  * POST /api/admin/modules/portfolio/disable
  * { "reason": "Test disable" }
  */
-router.post('/:code/disable', async (req, res) => {
+router.post('/:code/disable', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
+    const body = req.body as ModuleActionBody;
+
     logger.info('[ModulesRoutes] Disabling module', {
       code: req.params.code,
       userId: req.user.id,
-      reason: req.body.reason
+      reason: body.reason
     });
 
     const module = await moduleService.disableModule(
       req.params.code,
       req.user.id,
-      req.body.reason
+      body.reason
     );
     
     return res.json(
@@ -266,17 +338,20 @@ router.post('/:code/disable', async (req, res) => {
         'Modulo disabilitato con successo'
       )
     );
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     logger.error('[ModulesRoutes] Error disabling module:', {
-      error: error.message,
+      error: errorMessage,
       code: req.params.code,
-      userId: req.user.id,
-      stack: error.stack
+      userId: req.user?.id,
+      stack: errorStack
     });
     
     return res.status(400).json(
       ResponseFormatter.error(
-        error.message,
+        errorMessage,
         'DISABLE_ERROR'
       )
     );
@@ -301,17 +376,23 @@ router.post('/:code/disable', async (req, res) => {
  * PUT /api/admin/modules/whatsapp/config
  * { "config": { "timeout": 5000, "retries": 3 } }
  */
-router.put('/:code/config', async (req, res) => {
+router.put('/:code/config', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
+    const body = req.body as UpdateConfigBody;
+
     logger.info('[ModulesRoutes] Updating module config', {
       code: req.params.code,
       userId: req.user.id,
-      config: req.body.config
+      config: body.config
     });
 
     const module = await moduleService.updateModuleConfig(
       req.params.code,
-      req.body.config,
+      body.config,
       req.user.id
     );
     
@@ -321,17 +402,20 @@ router.put('/:code/config', async (req, res) => {
         'Configurazione aggiornata con successo'
       )
     );
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     logger.error('[ModulesRoutes] Error updating module config:', {
-      error: error.message,
+      error: errorMessage,
       code: req.params.code,
-      userId: req.user.id,
-      stack: error.stack
+      userId: req.user?.id,
+      stack: errorStack
     });
     
     return res.status(400).json(
       ResponseFormatter.error(
-        error.message,
+        errorMessage,
         'CONFIG_UPDATE_ERROR'
       )
     );
@@ -352,8 +436,12 @@ router.put('/:code/config', async (req, res) => {
  * @example
  * GET /api/admin/modules/whatsapp/settings
  */
-router.get('/:code/settings', async (req, res) => {
+router.get('/:code/settings', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
     logger.info('[ModulesRoutes] Fetching module settings', {
       code: req.params.code,
       userId: req.user.id
@@ -365,12 +453,15 @@ router.get('/:code/settings', async (req, res) => {
       settings,
       'Settings recuperati con successo'
     ));
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     logger.error('[ModulesRoutes] Error fetching module settings:', {
-      error: error.message,
+      error: errorMessage,
       code: req.params.code,
-      userId: req.user.id,
-      stack: error.stack
+      userId: req.user?.id,
+      stack: errorStack
     });
     
     return res.status(400).json(
@@ -397,19 +488,25 @@ router.get('/:code/settings', async (req, res) => {
  * PUT /api/admin/modules/whatsapp/settings/session_name
  * { "value": "production" }
  */
-router.put('/:code/settings/:key', async (req, res) => {
+router.put('/:code/settings/:key', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
+    const body = req.body as UpdateSettingBody;
+
     logger.info('[ModulesRoutes] Updating module setting', {
       code: req.params.code,
       key: req.params.key,
-      value: req.body.value,
+      value: body.value,
       userId: req.user.id
     });
 
     const setting = await moduleService.updateModuleSetting(
       req.params.code,
       req.params.key,
-      req.body.value,
+      body.value,
       req.user.id
     );
     
@@ -419,18 +516,21 @@ router.put('/:code/settings/:key', async (req, res) => {
         'Setting aggiornato con successo'
       )
     );
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     logger.error('[ModulesRoutes] Error updating module setting:', {
-      error: error.message,
+      error: errorMessage,
       code: req.params.code,
       key: req.params.key,
-      userId: req.user.id,
-      stack: error.stack
+      userId: req.user?.id,
+      stack: errorStack
     });
     
     return res.status(400).json(
       ResponseFormatter.error(
-        error.message,
+        errorMessage,
         'SETTING_UPDATE_ERROR'
       )
     );
@@ -454,15 +554,21 @@ router.put('/:code/settings/:key', async (req, res) => {
  * @example
  * GET /api/admin/modules/reviews/history?limit=10
  */
-router.get('/:code/history', async (req, res) => {
+router.get('/:code/history', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
     logger.info('[ModulesRoutes] Fetching module history', {
       code: req.params.code,
       limit: req.query.limit,
       userId: req.user.id
     });
 
-    const limit = parseInt(req.query.limit as string) || 50;
+    const limitQuery = req.query.limit;
+    const limit = typeof limitQuery === 'string' ? parseInt(limitQuery, 10) : 50;
+    
     const history = await moduleService.getModuleHistory(
       req.params.code,
       limit
@@ -472,12 +578,15 @@ router.get('/:code/history', async (req, res) => {
       history,
       'Storico recuperato con successo'
     ));
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     logger.error('[ModulesRoutes] Error fetching module history:', {
-      error: error.message,
+      error: errorMessage,
       code: req.params.code,
-      userId: req.user.id,
-      stack: error.stack
+      userId: req.user?.id,
+      stack: errorStack
     });
     
     return res.status(400).json(
@@ -503,8 +612,12 @@ router.get('/:code/history', async (req, res) => {
  * GET /api/admin/modules/stats
  * Risposta: { total: 66, enabled: 65, disabled: 1, core: 12, byCategory: [...] }
  */
-router.get('/stats', async (req, res) => {
+router.get('/stats', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
     logger.info('[ModulesRoutes] Fetching module statistics', {
       userId: req.user.id
     });
@@ -515,11 +628,14 @@ router.get('/stats', async (req, res) => {
       stats,
       'Statistiche recuperate con successo'
     ));
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     logger.error('[ModulesRoutes] Error fetching module stats:', {
-      error: error.message,
-      userId: req.user.id,
-      stack: error.stack
+      error: errorMessage,
+      userId: req.user?.id,
+      stack: errorStack
     });
     
     return res.status(500).json(
@@ -541,8 +657,12 @@ router.get('/stats', async (req, res) => {
  * GET /api/admin/modules/dependencies/validate
  * Risposta: { valid: true, errors: [], warnings: [] }
  */
-router.get('/dependencies/validate', async (req, res) => {
+router.get('/dependencies/validate', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
     logger.info('[ModulesRoutes] Validating module dependencies', {
       userId: req.user.id
     });
@@ -553,11 +673,14 @@ router.get('/dependencies/validate', async (req, res) => {
       validation,
       validation.valid ? 'Validazione completata: nessun errore' : 'Validazione completata: errori trovati'
     ));
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     logger.error('[ModulesRoutes] Error validating dependencies:', {
-      error: error.message,
-      userId: req.user.id,
-      stack: error.stack
+      error: errorMessage,
+      userId: req.user?.id,
+      stack: errorStack
     });
     
     return res.status(500).json(
@@ -578,8 +701,12 @@ router.get('/dependencies/validate', async (req, res) => {
  * @example
  * GET /api/admin/modules/dependencies/list
  */
-router.get('/dependencies/list', async (req, res) => {
+router.get('/dependencies/list', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
     logger.info('[ModulesRoutes] Fetching modules with dependencies', {
       userId: req.user.id
     });
@@ -590,11 +717,14 @@ router.get('/dependencies/list', async (req, res) => {
       modules,
       'Moduli con dipendenze recuperati con successo'
     ));
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     logger.error('[ModulesRoutes] Error fetching modules with dependencies:', {
-      error: error.message,
-      userId: req.user.id,
-      stack: error.stack
+      error: errorMessage,
+      userId: req.user?.id,
+      stack: errorStack
     });
     
     return res.status(500).json(

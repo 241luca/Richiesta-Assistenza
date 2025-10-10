@@ -134,11 +134,11 @@ class ModuleService {
           { order: 'asc' }
         ],
         include: {
-          _count: {
-            select: { 
-              settings: true
-            }
-          }
+        _count: {
+        select: {
+        ModuleSetting: true
+        }
+        }
         }
       });
 
@@ -662,8 +662,10 @@ class ModuleService {
       // Log history
       await prisma.moduleHistory.create({
         data: {
-          moduleCode: code,
+          userId: userId,
+          moduleType: 'SYSTEM_MODULE',
           action: 'ENABLED',
+          moduleCode: code,
           performedBy: userId,
           reason,
           newValue: { isEnabled: true } as Prisma.InputJsonValue
@@ -761,8 +763,10 @@ class ModuleService {
       // Log
       await prisma.moduleHistory.create({
         data: {
-          moduleCode: code,
+          userId: userId,
+          moduleType: 'SYSTEM_MODULE',
           action: 'DISABLED',
+          moduleCode: code,
           performedBy: userId,
           reason,
           oldValue: { isEnabled: true } as Prisma.InputJsonValue,
@@ -837,8 +841,10 @@ class ModuleService {
       // Log
       await prisma.moduleHistory.create({
         data: {
-          moduleCode: code,
+          userId: userId,
+          moduleType: 'SYSTEM_MODULE',
           action: 'CONFIG_CHANGED',
+          moduleCode: code,
           performedBy: userId,
           oldValue: oldConfig as Prisma.InputJsonValue,
           newValue: config as Prisma.InputJsonValue
@@ -942,8 +948,10 @@ class ModuleService {
       // Log
       await prisma.moduleHistory.create({
         data: {
-          moduleCode: code,
+          userId: userId,
+          moduleType: 'SYSTEM_MODULE',
           action: 'SETTING_UPDATED',
+          moduleCode: code,
           performedBy: userId,
           oldValue: { [settingKey]: setting.value } as Prisma.InputJsonValue,
           newValue: { [settingKey]: value } as Prisma.InputJsonValue

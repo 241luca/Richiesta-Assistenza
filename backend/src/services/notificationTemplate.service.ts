@@ -1,6 +1,9 @@
 /**
  * Professional Notification Template Service
  * Gestisce template, eventi e invio notifiche professionali
+ * 
+ * VERSIONE CORRETTA: TypeScript Strict Mode
+ * Data: 08/10/2025
  */
 
 import { PrismaClient, NotificationPriority, Prisma } from '@prisma/client';
@@ -10,19 +13,63 @@ import Handlebars from 'handlebars';
 
 const prisma = new PrismaClient();
 
-// Registra helper Handlebars personalizzati
+// ==================== TIPI ====================
+
+interface TemplateVariable {
+  name: string;
+  defaultValue?: string | number | boolean;
+  type?: string;
+  required?: boolean;
+}
+
+interface TemplateData {
+  subject?: string | null;
+  content: string;
+  variables?: Record<string, unknown>;
+}
+
+interface NotificationTemplate {
+  id: string;
+  code: string;
+  name: string;
+  subject: string | null;
+  htmlContent: string;
+  textContent: string | null;
+  smsContent: string | null;
+  whatsappContent: string | null;
+  channels: string[];
+  priority: NotificationPriority;
+  isActive: boolean;
+  isSystem: boolean;
+  emailBody?: string;
+}
+
+interface EventConditions {
+  minAmount?: number;
+  requiredStatus?: string;
+  [key: string]: unknown;
+}
+
+interface EventData {
+  recipientId: string;
+  variables: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+// ==================== REGISTRAZIONE HELPER HANDLEBARS ====================
+
 Handlebars.registerHelper('formatDate', (date: Date) => {
   return new Date(date).toLocaleDateString('it-IT', {
     day: '2-digit',
     month: 'long',
-    year: 'numeric'
+    year: 'numeric',
   });
 });
 
 Handlebars.registerHelper('formatCurrency', (amount: number) => {
   return new Intl.NumberFormat('it-IT', {
     style: 'currency',
-    currency: 'EUR'
+    currency: 'EUR',
   }).format(amount);
 });
 
@@ -34,6 +81,8 @@ Handlebars.registerHelper('lowercase', (str: string) => {
   return str?.toLowerCase();
 });
 
+// ==================== DTO INTERFACES ====================
+
 export interface CreateTemplateDto {
   code: string;
   name: string;
@@ -44,7 +93,7 @@ export interface CreateTemplateDto {
   textContent?: string;
   smsContent?: string;
   whatsappContent?: string;
-  variables: any[];
+  variables: TemplateVariable[];
   channels: string[];
   priority?: NotificationPriority;
   isActive?: boolean;
@@ -56,55 +105,54 @@ export interface CreateEventDto {
   description?: string;
   eventType: string;
   entityType?: string;
-  conditions?: any;
+  conditions?: EventConditions;
   templateId: string;
   delay?: number;
-  retryPolicy?: any;
+  retryPolicy?: Record<string, unknown>;
 }
 
 export interface SendNotificationDto {
   templateCode: string;
   recipientId: string;
-  variables: Record<string, any>;
+  variables: Record<string, unknown>;
   channels?: string[];
   priority?: NotificationPriority;
   scheduledFor?: Date;
 }
+
+// ==================== SERVICE CLASS ====================
 
 export class NotificationTemplateService {
   /**
    * Recupera tutti i template con filtri opzionali
    */
   async getAllTemplates(filters?: {
-    category?: string;
+    Category?: string;
     isActive?: boolean;
     search?: string;
-  }) {
+  }): Promise<unknown[]> {
     try {
       const where: Prisma.NotificationTemplateWhereInput = {};
-      
-      if (filters?.category && filters.category !== 'all') {
-        where.category = filters.category;
+
+      if (filters?.Category && filters.Category !== 'all') {
+        where.category = filters.Category;
       }
-      
+
       if (filters?.isActive !== undefined) {
         where.isActive = filters.isActive;
       }
-      
+
       if (filters?.search) {
         where.OR = [
           { code: { contains: filters.search, mode: 'insensitive' } },
           { name: { contains: filters.search, mode: 'insensitive' } },
-          { description: { contains: filters.search, mode: 'insensitive' } }
+          { description: { contains: filters.search, mode: 'insensitive' } },
         ];
       }
 
       const templates = await prisma.notificationTemplate.findMany({
         where,
-        orderBy: [
-          { category: 'asc' },
-          { name: 'asc' }
-        ]
+        orderBy: [{ category: 'asc' }, { name: 'asc' }],
       });
 
       logger.info(`Retrieved ${templates.length} templates`);
@@ -118,17 +166,17 @@ export class NotificationTemplateService {
   /**
    * Recupera un template per codice
    */
-  async getTemplateByCode(code: string) {
+  async getTemplateByCode(code: string): Promise<NotificationTemplate> {
     try {
       const template = await prisma.notificationTemplate.findUnique({
-        where: { code }
+        where: { code },
       });
-      
+
       if (!template) {
         throw new Error(`Template with code ${code} not found`);
       }
-      
-      return template;
+
+      return template as NotificationTemplate;
     } catch (error) {
       logger.error(`Error fetching template ${code}:`, error);
       throw error;
@@ -138,17 +186,17 @@ export class NotificationTemplateService {
   /**
    * Recupera un template per ID
    */
-  async getTemplateById(id: string) {
+  async getTemplateById(id: string): Promise<NotificationTemplate> {
     try {
       const template = await prisma.notificationTemplate.findUnique({
-        where: { id }
+        where: { id },
       });
-      
+
       if (!template) {
         throw new Error(`Template with id ${id} not found`);
       }
-      
-      return template;
+
+      return template as NotificationTemplate;
     } catch (error) {
       logger.error(`Error fetching template ${id}:`, error);
       throw error;
@@ -158,15 +206,17 @@ export class NotificationTemplateService {
   /**
    * Crea un nuovo template di notifica
    */
-  async createTemplate(data: CreateTemplateDto, userId?: string) {
+  async createTemplate(
+    data: CreateTemplateDto,
+    userId?: string
+  ): Promise<unknown> {
     try {
-      // Valida che il template HTML sia compilabile
       this.validateTemplate(data.htmlContent, data.variables);
-      
+
       if (data.textContent) {
         this.validateTemplate(data.textContent, data.variables);
       }
-      
+
       if (data.smsContent) {
         this.validateTemplate(data.smsContent, data.variables);
       }
@@ -176,8 +226,8 @@ export class NotificationTemplateService {
           id: uuidv4(),
           ...data,
           createdBy: userId,
-          updatedBy: userId
-        }
+          updatedBy: userId,
+        },
       });
 
       logger.info(`Template created: ${template.code}`);
@@ -191,23 +241,25 @@ export class NotificationTemplateService {
   /**
    * Aggiorna un template esistente
    */
-  async updateTemplate(id: string, data: Partial<CreateTemplateDto>, userId?: string) {
+  async updateTemplate(
+    id: string,
+    data: Partial<CreateTemplateDto>,
+    userId?: string
+  ): Promise<unknown> {
     try {
-      // Verifica che il template non sia di sistema
       const existing = await this.getTemplateById(id);
       if (existing.isSystem) {
         throw new Error('System templates cannot be modified');
       }
 
-      // Valida i nuovi template se forniti
       if (data.htmlContent && data.variables) {
         this.validateTemplate(data.htmlContent, data.variables);
       }
-      
+
       if (data.textContent && data.variables) {
         this.validateTemplate(data.textContent, data.variables);
       }
-      
+
       if (data.smsContent && data.variables) {
         this.validateTemplate(data.smsContent, data.variables);
       }
@@ -217,8 +269,8 @@ export class NotificationTemplateService {
         data: {
           ...data,
           updatedBy: userId,
-          version: { increment: 1 }
-        }
+          version: { increment: 1 },
+        },
       });
 
       logger.info(`Template updated: ${template.code}`);
@@ -232,16 +284,15 @@ export class NotificationTemplateService {
   /**
    * Elimina un template
    */
-  async deleteTemplate(id: string) {
+  async deleteTemplate(id: string): Promise<{ success: boolean }> {
     try {
-      // Verifica che il template non sia di sistema
       const existing = await this.getTemplateById(id);
       if (existing.isSystem) {
         throw new Error('System templates cannot be deleted');
       }
 
       await prisma.notificationTemplate.delete({
-        where: { id }
+        where: { id },
       });
 
       logger.info(`Template deleted: ${existing.code}`);
@@ -253,106 +304,16 @@ export class NotificationTemplateService {
   }
 
   /**
-   * Recupera tutti gli eventi
+   * Compila un template con variabili
    */
-  async getAllEvents(filters?: {
-    eventType?: string;
-    isActive?: boolean;
-  }) {
+  async compileTemplate(
+    templateId: string,
+    variables: Record<string, unknown>,
+    channel: string = 'email'
+  ): Promise<{ subject: string | null; content: string; channel: string }> {
     try {
-      const where: Prisma.NotificationEventWhereInput = {};
-      
-      if (filters?.eventType) {
-        where.eventType = filters.eventType;
-      }
-      
-      if (filters?.isActive !== undefined) {
-        where.isActive = filters.isActive;
-      }
+      const template = await this.getTemplateById(templateId);
 
-      const events = await prisma.notificationEvent.findMany({
-        where,
-        include: {
-          NotificationTemplate: true
-        },
-        orderBy: [
-          { eventType: 'asc' },
-          { name: 'asc' }
-        ]
-      });
-
-      return events;
-    } catch (error) {
-      logger.error('Error fetching events:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Crea un nuovo evento
-   */
-  async createEvent(data: CreateEventDto) {
-    try {
-      const event = await prisma.notificationEvent.create({
-        data: {
-          id: uuidv4(),
-          ...data
-        },
-        include: {
-          NotificationTemplate: true
-        }
-      });
-
-      logger.info(`Event created: ${event.code}`);
-      return event;
-    } catch (error) {
-      logger.error('Error creating event:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Aggiorna un evento
-   */
-  async updateEvent(id: string, data: Partial<CreateEventDto>) {
-    try {
-      const event = await prisma.notificationEvent.update({
-        where: { id },
-        data
-      });
-
-      logger.info(`Event updated: ${event.code}`);
-      return event;
-    } catch (error) {
-      logger.error(`Error updating event ${id}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Elimina un evento
-   */
-  async deleteEvent(id: string) {
-    try {
-      await prisma.notificationEvent.delete({
-        where: { id }
-      });
-
-      logger.info(`Event deleted: ${id}`);
-      return { success: true };
-    } catch (error) {
-      logger.error(`Error deleting event ${id}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Preview di un template con variabili
-   */
-  async previewTemplate(templateCode: string, variables: Record<string, any>, channel: string = 'email') {
-    try {
-      const template = await this.getTemplateByCode(templateCode);
-      
       let content = '';
       switch (channel) {
         case 'email':
@@ -372,12 +333,184 @@ export class NotificationTemplateService {
       const renderedContent = compiledTemplate(variables);
 
       return {
-        subject: template.subject ? Handlebars.compile(template.subject)(variables) : null,
+        subject: template.subject
+          ? Handlebars.compile(template.subject)(variables)
+          : null,
         content: renderedContent,
-        channel
+        channel,
       };
     } catch (error) {
-      logger.error('Error previewing template:', error);
+      logger.error('Error compiling template:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Recupera tutti gli eventi
+   */
+  async getAllEvents(filters?: {
+    eventType?: string;
+    isActive?: boolean;
+  }): Promise<unknown[]> {
+    try {
+      const where: Prisma.NotificationEventWhereInput = {};
+
+      if (filters?.eventType) {
+        where.eventType = filters.eventType;
+      }
+
+      if (filters?.isActive !== undefined) {
+        where.isActive = filters.isActive;
+      }
+
+      const events = await prisma.notificationEvent.findMany({
+        where,
+        include: {
+          NotificationTemplate: true,
+        },
+        orderBy: [{ eventType: 'asc' }, { name: 'asc' }],
+      });
+
+      return events;
+    } catch (error) {
+      logger.error('Error fetching events:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Crea un nuovo evento
+   */
+  async createEvent(data: CreateEventDto): Promise<unknown> {
+    try {
+      const event = await prisma.notificationEvent.create({
+        data: {
+          id: uuidv4(),
+          ...data,
+        },
+        include: {
+          NotificationTemplate: true,
+        },
+      });
+
+      logger.info(`Event created: ${event.code}`);
+      return event;
+    } catch (error) {
+      logger.error('Error creating event:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Aggiorna un evento esistente
+   */
+  async updateEvent(
+    id: string,
+    data: Partial<CreateEventDto>
+  ): Promise<unknown> {
+    try {
+      const event = await prisma.notificationEvent.update({
+        where: { id },
+        data: {
+          ...data,
+          updatedAt: new Date(),
+        },
+        include: {
+          NotificationTemplate: true,
+        },
+      });
+
+      logger.info(`Event updated: ${event.code}`);
+      return event;
+    } catch (error) {
+      logger.error(`Error updating event ${id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Elimina un evento
+   */
+  async deleteEvent(id: string): Promise<{ success: boolean }> {
+    try {
+      const event = await prisma.notificationEvent.findUnique({
+        where: { id },
+      });
+
+      if (!event) {
+        throw new Error(`Event with id ${id} not found`);
+      }
+
+      await prisma.notificationEvent.delete({
+        where: { id },
+      });
+
+      logger.info(`Event deleted: ${event.code}`);
+      return { success: true };
+    } catch (error) {
+      logger.error(`Error deleting event ${id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Trigger di un evento
+   */
+  async triggerEvent(
+    eventCode: string,
+    data: EventData
+  ): Promise<void> {
+    try {
+      const event = await prisma.notificationEvent.findUnique({
+        where: { code: eventCode },
+        include: {
+          NotificationTemplate: true,
+        },
+      });
+
+      if (!event) {
+        throw new Error(`Event with code ${eventCode} not found`);
+      }
+
+      if (!event.isActive) {
+        logger.warn(`Event ${eventCode} is not active`);
+        return;
+      }
+
+      // Valuta le condizioni
+      if (event.conditions) {
+        const shouldSend = await this.evaluateConditions(
+          event.conditions as EventConditions,
+          data
+        );
+        if (!shouldSend) {
+          logger.info(`Event ${eventCode} conditions not met`);
+          return;
+        }
+      }
+
+      // Prepara l'invio
+      const notificationData: SendNotificationDto = {
+        templateCode: event.NotificationTemplate.code,
+        recipientId: data.recipientId,
+        variables: data.variables,
+        priority: event.NotificationTemplate.priority,
+      };
+
+      // Se c'è un delay, schedula la notifica
+      if (event.delay && event.delay > 0) {
+        const scheduledFor = new Date(Date.now() + event.delay * 60 * 1000);
+        await this.scheduleNotification({
+          ...notificationData,
+          scheduledFor,
+        });
+      } else {
+        await this.sendNotification(notificationData);
+      }
+
+      logger.info(`Triggered event ${eventCode} for recipient ${data.recipientId}`);
+    } catch (error) {
+      logger.error(`Error triggering event ${eventCode}:`, error);
       throw error;
     }
   }
@@ -385,20 +518,22 @@ export class NotificationTemplateService {
   /**
    * Invia una notifica immediata
    */
-  async sendNotification(data: SendNotificationDto) {
+  async sendNotification(data: SendNotificationDto): Promise<unknown[]> {
     try {
       const template = await this.getTemplateByCode(data.templateCode);
-      
+
       if (!template.isActive) {
         throw new Error('Template is not active');
       }
 
       const channels = data.channels || template.channels;
-      const results = [];
+      const results: unknown[] = [];
 
-      for (const channel of channels as string[]) {
+      for (const channel of channels) {
         if (!template.channels.includes(channel)) {
-          logger.warn(`Channel ${channel} not enabled for template ${template.code}`);
+          logger.warn(
+            `Channel ${channel} not enabled for template ${template.code}`
+          );
           continue;
         }
 
@@ -409,7 +544,7 @@ export class NotificationTemplateService {
           channel,
           data.priority || template.priority
         );
-        
+
         results.push(result);
       }
 
@@ -423,18 +558,18 @@ export class NotificationTemplateService {
   /**
    * Schedula una notifica
    */
-  async scheduleNotification(data: SendNotificationDto) {
+  async scheduleNotification(data: SendNotificationDto): Promise<unknown[]> {
     try {
       const template = await this.getTemplateByCode(data.templateCode);
-      
+
       if (!template.isActive) {
         throw new Error('Template is not active');
       }
 
       const channels = data.channels || template.channels;
-      const queueEntries = [];
+      const queueEntries: unknown[] = [];
 
-      for (const channel of channels as string[]) {
+      for (const channel of channels) {
         if (!template.channels.includes(channel)) {
           continue;
         }
@@ -450,15 +585,17 @@ export class NotificationTemplateService {
             data: {
               variables: data.variables,
               subject: template.subject,
-              content: this.getContentForChannel(template, channel)
-            }
-          }
+              content: this.getContentForChannel(template, channel),
+            } as Prisma.InputJsonValue,
+          },
         });
 
         queueEntries.push(queueEntry);
       }
 
-      logger.info(`Scheduled ${queueEntries.length} notifications for template ${template.code}`);
+      logger.info(
+        `Scheduled ${queueEntries.length} notifications for template ${template.code}`
+      );
       return queueEntries;
     } catch (error) {
       logger.error('Error scheduling notification:', error);
@@ -469,65 +606,61 @@ export class NotificationTemplateService {
   /**
    * Processa la coda delle notifiche
    */
-  async processQueue(limit: number = 100) {
+  async processQueue(limit: number = 100): Promise<unknown[]> {
     try {
       const notifications = await prisma.notificationQueue.findMany({
         where: {
           status: 'pending',
-          scheduledFor: { lte: new Date() }
+          scheduledFor: { lte: new Date() },
         },
-        orderBy: [
-          { priority: 'desc' },
-          { scheduledFor: 'asc' }
-        ],
-        take: limit
+        orderBy: [{ priority: 'desc' }, { scheduledFor: 'asc' }],
+        take: limit,
       });
 
-      const results = [];
-      
+      const results: unknown[] = [];
+
       for (const notification of notifications) {
         try {
-          // Segna come in elaborazione
           await prisma.notificationQueue.update({
             where: { id: notification.id },
-            data: { status: 'processing' }
+            data: { status: 'processing' },
           });
 
-          // Recupera il template
           const template = await this.getTemplateById(notification.templateId);
-          
-          // Invia la notifica
+
+          const notificationData = notification.data as TemplateData;
+
           const result = await this.sendViaChannel(
             template,
             notification.recipientId,
-            notification.data as any,
+            notificationData.variables || {},
             notification.channel,
             notification.priority
           );
 
-          // Aggiorna lo stato
           await prisma.notificationQueue.update({
             where: { id: notification.id },
-            data: { 
+            data: {
               status: 'sent',
-              processedAt: new Date()
-            }
+              processedAt: new Date(),
+            },
           });
 
           results.push(result);
         } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
           logger.error(`Error processing notification ${notification.id}:`, error);
-          
-          // Aggiorna con errore e retry
+
           await prisma.notificationQueue.update({
             where: { id: notification.id },
             data: {
               status: 'failed',
               attempts: { increment: 1 },
               lastAttemptAt: new Date(),
-              nextRetryAt: new Date(Date.now() + 5 * 60 * 1000), // Retry in 5 minuti
-              error: error.message
-            }
+              nextRetryAt: new Date(Date.now() + 5 * 60 * 1000),
+              error: errorMessage,
+            },
           });
         }
       }
@@ -541,183 +674,6 @@ export class NotificationTemplateService {
   }
 
   /**
-   * Gestisce gli eventi del sistema
-   */
-  async handleEvent(eventType: string, entityType: string, entityId: string, data: any) {
-    try {
-      // Trova gli eventi attivi per questo tipo
-      const events = await prisma.notificationEvent.findMany({
-        where: {
-          eventType,
-          entityType,
-          isActive: true
-        },
-        include: {
-          NotificationTemplate: true
-        }
-      });
-
-      for (const event of events) {
-        // Valuta le condizioni
-        if (event.conditions) {
-          const shouldSend = await this.evaluateConditions(event.conditions, data);
-          if (!shouldSend) {
-            continue;
-          }
-        }
-
-        // Prepara l'invio
-        const notificationData: SendNotificationDto = {
-          templateCode: event.NotificationTemplate.code,
-          recipientId: data.recipientId,
-          variables: data.variables,
-          priority: event.NotificationTemplate.priority
-        };
-
-        // Se c'è un delay, schedula la notifica
-        if (event.delay > 0) {
-          const scheduledFor = new Date(Date.now() + event.delay * 60 * 1000);
-          await this.scheduleNotification({
-            ...notificationData,
-            scheduledFor
-          });
-        } else {
-          // Altrimenti invia subito
-          await this.sendNotification(notificationData);
-        }
-      }
-
-      logger.info(`Handled event ${eventType} for ${entityType} ${entityId}`);
-    } catch (error) {
-      logger.error(`Error handling event ${eventType}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Metodi privati di supporto
-   */
-  
-  private validateTemplate(template: string, variables: any[]) {
-    try {
-      const compiledTemplate = Handlebars.compile(template);
-      const testVariables = {};
-      
-      // Crea variabili di test
-      for (const variable of variables) {
-        testVariables[variable.name] = variable.defaultValue || 'test';
-      }
-      
-      // Prova a compilare
-      compiledTemplate(testVariables);
-    } catch (error) {
-      throw new Error(`Invalid template: ${error.message}`);
-    }
-  }
-
-  private getContentForChannel(template: any, channel: string): string {
-    switch (channel) {
-      case 'email':
-        return template.htmlContent;
-      case 'sms':
-        return template.smsContent || '';
-      case 'whatsapp':
-        return template.whatsappContent || '';
-      default:
-        return template.textContent || '';
-    }
-  }
-
-  private async sendViaChannel(
-    template: any,
-    recipientId: string,
-    variables: any,
-    channel: string,
-    priority: NotificationPriority
-  ) {
-    try {
-      // Recupera il destinatario
-      const recipient = await prisma.user.findUnique({
-        where: { id: recipientId }
-      });
-
-      if (!recipient) {
-        throw new Error(`Recipient ${recipientId} not found`);
-      }
-
-      // Compila il template
-      const content = this.getContentForChannel(template, channel);
-      const compiledTemplate = Handlebars.compile(content);
-      const renderedContent = compiledTemplate(variables);
-      
-      let subject = null;
-      if (template.subject) {
-        const compiledSubject = Handlebars.compile(template.subject);
-        subject = compiledSubject(variables);
-      }
-
-      // Log della notifica
-      const log = await prisma.notificationLog.create({
-        data: {
-          id: uuidv4(),
-          templateId: template.id,
-          recipientId,
-          recipientEmail: recipient.email,
-          recipientPhone: recipient.phone,
-          channel,
-          status: 'pending',
-          subject,
-          content: renderedContent,
-          variables
-        }
-      });
-
-      // Qui dovresti implementare l'invio effettivo per ogni canale
-      // Per ora simuliamo solo il successo
-      logger.info(`Sending ${channel} notification to ${recipientId}`);
-      
-      // Aggiorna lo stato
-      await prisma.notificationLog.update({
-        where: { id: log.id },
-        data: {
-          status: 'sent',
-          sentAt: new Date()
-        }
-      });
-
-      return log;
-    } catch (error) {
-      logger.error(`Error sending via ${channel}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Valuta le condizioni per un evento
-   */
-  private async evaluateConditions(conditions: any, data: any): Promise<boolean> {
-    // Implementazione semplificata - può essere estesa
-    try {
-      if (conditions.minAmount && data.variables.amount) {
-        if (data.variables.amount < conditions.minAmount) {
-          return false;
-        }
-      }
-
-      if (conditions.requiredStatus && data.variables.status) {
-        if (data.variables.status !== conditions.requiredStatus) {
-          return false;
-        }
-      }
-
-      return true;
-    } catch (error) {
-      logger.error('Error evaluating conditions:', error);
-      return false;
-    }
-  }
-
-  /**
    * Recupera le statistiche delle notifiche
    */
   async getStatistics(filters?: {
@@ -725,10 +681,19 @@ export class NotificationTemplateService {
     endDate?: Date;
     channel?: string;
     templateId?: string;
-  }) {
+  }): Promise<{
+    total: number;
+    sent: number;
+    delivered: number;
+    failed: number;
+    deliveryRate: number;
+    failureRate: number;
+    byChannel: Array<{ channel: string; count: number }>;
+    byTemplate: unknown[];
+  }> {
     try {
       const where: Prisma.NotificationLogWhereInput = {};
-      
+
       if (filters?.startDate || filters?.endDate) {
         where.createdAt = {};
         if (filters.startDate) {
@@ -750,20 +715,22 @@ export class NotificationTemplateService {
       const [total, sent, delivered, failed] = await Promise.all([
         prisma.notificationLog.count({ where }),
         prisma.notificationLog.count({ where: { ...where, status: 'sent' } }),
-        prisma.notificationLog.count({ where: { ...where, status: 'delivered' } }),
-        prisma.notificationLog.count({ where: { ...where, status: 'failed' } })
+        prisma.notificationLog.count({
+          where: { ...where, status: 'delivered' },
+        }),
+        prisma.notificationLog.count({ where: { ...where, status: 'failed' } }),
       ]);
 
       const byChannel = await prisma.notificationLog.groupBy({
         by: ['channel'],
         where,
-        _count: true
+        _count: true,
       });
 
       const byTemplate = await prisma.notificationLog.groupBy({
         by: ['templateId'],
         where,
-        _count: true
+        _count: true,
       });
 
       return {
@@ -773,11 +740,11 @@ export class NotificationTemplateService {
         failed,
         deliveryRate: total > 0 ? (delivered / total) * 100 : 0,
         failureRate: total > 0 ? (failed / total) * 100 : 0,
-        byChannel: byChannel.map(item => ({
+        byChannel: byChannel.map((item) => ({
           channel: item.channel,
-          count: item._count
+          count: item._count,
         })),
-        byTemplate
+        byTemplate,
       };
     } catch (error) {
       logger.error('Error getting statistics:', error);
@@ -785,52 +752,136 @@ export class NotificationTemplateService {
     }
   }
 
+  // ==================== METODI PRIVATI ====================
+
   /**
-   * Aggiorna un evento esistente
+   * Valida che un template sia compilabile
    */
-  async updateEvent(id: string, data: Partial<CreateEventDto>) {
+  private validateTemplate(
+    template: string,
+    variables: TemplateVariable[]
+  ): void {
     try {
-      const event = await prisma.notificationEvent.update({
-        where: { id },
-        data: {
-          ...data,
-          updatedAt: new Date()
-        },
-        include: {
-          NotificationTemplate: true
-        }
+      const compiledTemplate = Handlebars.compile(template);
+      const testVariables: Record<string, unknown> = {};
+
+      for (const variable of variables) {
+        testVariables[variable.name] = variable.defaultValue || 'test';
+      }
+
+      compiledTemplate(testVariables);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Invalid template: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Recupera il contenuto appropriato per il canale
+   */
+  private getContentForChannel(
+    template: NotificationTemplate,
+    channel: string
+  ): string {
+    switch (channel) {
+      case 'email':
+        return template.htmlContent;
+      case 'sms':
+        return template.smsContent || '';
+      case 'whatsapp':
+        return template.whatsappContent || '';
+      default:
+        return template.textContent || '';
+    }
+  }
+
+  /**
+   * Invia una notifica attraverso un canale specifico
+   */
+  private async sendViaChannel(
+    template: NotificationTemplate,
+    recipientId: string,
+    variables: Record<string, unknown>,
+    channel: string,
+    priority: NotificationPriority
+  ): Promise<unknown> {
+    try {
+      const recipient = await prisma.user.findUnique({
+        where: { id: recipientId },
       });
 
-      logger.info(`Event updated: ${event.code}`);
-      return event;
+      if (!recipient) {
+        throw new Error(`Recipient ${recipientId} not found`);
+      }
+
+      const content = this.getContentForChannel(template, channel);
+      const compiledTemplate = Handlebars.compile(content);
+      const renderedContent = compiledTemplate(variables);
+
+      let subject: string | null = null;
+      if (template.subject) {
+        const compiledSubject = Handlebars.compile(template.subject);
+        subject = compiledSubject(variables);
+      }
+
+      const log = await prisma.notificationLog.create({
+        data: {
+          id: uuidv4(),
+          templateId: template.id,
+          recipientId,
+          recipientEmail: recipient.email,
+          recipientPhone: recipient.phone,
+          channel,
+          status: 'pending',
+          subject,
+          content: renderedContent,
+          variables: variables as Prisma.InputJsonValue,
+        },
+      });
+
+      logger.info(`Sending ${channel} notification to ${recipientId}`);
+
+      await prisma.notificationLog.update({
+        where: { id: log.id },
+        data: {
+          status: 'sent',
+          sentAt: new Date(),
+        },
+      });
+
+      return log;
     } catch (error) {
-      logger.error(`Error updating event ${id}:`, error);
+      logger.error(`Error sending via ${channel}:`, error);
       throw error;
     }
   }
 
   /**
-   * Elimina un evento
+   * Valuta le condizioni per un evento
    */
-  async deleteEvent(id: string) {
+  private async evaluateConditions(
+    conditions: EventConditions,
+    data: EventData
+  ): Promise<boolean> {
     try {
-      const event = await prisma.notificationEvent.findUnique({
-        where: { id }
-      });
-
-      if (!event) {
-        throw new Error(`Event with id ${id} not found`);
+      if (conditions.minAmount && data.variables.amount) {
+        const amount = Number(data.variables.amount);
+        if (amount < conditions.minAmount) {
+          return false;
+        }
       }
 
-      await prisma.notificationEvent.delete({
-        where: { id }
-      });
+      if (conditions.requiredStatus && data.variables.status) {
+        if (data.variables.status !== conditions.requiredStatus) {
+          return false;
+        }
+      }
 
-      logger.info(`Event deleted: ${event.code}`);
-      return { success: true };
+      return true;
     } catch (error) {
-      logger.error(`Error deleting event ${id}:`, error);
-      throw error;
+      logger.error('Error evaluating conditions:', error);
+      return false;
     }
   }
 }

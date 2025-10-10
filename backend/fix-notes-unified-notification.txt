@@ -1,0 +1,44 @@
+// Lista modifiche per unified-notification-center.service.ts
+
+MODIFICHE NECESSARIE:
+
+1. LINEA 232: Cambiare 'userId' in 'recipientId'
+   PRIMA: userId: payload.userId,
+   DOPO:  recipientId: payload.userId,
+
+2. LINEA 240: Fix metadata type
+   PRIMA: metadata: payload.metadata || {},
+   DOPO:  metadata: (payload.metadata || {}) as Prisma.InputJsonValue,
+
+3. LINEA 255: Rimuovere campo 'status' (non esiste nel model)
+   ELIMINARE: status: results.every((r) => r.success) ? 'SENT' : 'PARTIAL',
+
+4. LINEA 257: Fix deliveryStatus type
+   PRIMA: deliveryStatus: results as Prisma.InputJsonValue,
+   DOPO:  deliveryStatus: JSON.parse(JSON.stringify(results)),
+
+5. LINEA 261, 287: Cambiare auditService.log in auditService.create
+   PRIMA: await auditService.log({
+   DOPO:  await auditLog.create({
+
+6. LINEA 324, 344: prisma.notificationDelivery non esiste ancora
+   SOLUZIONE: Commentare temporaneamente queste sezioni
+
+7. LINEA 573, 584, 600, 620, 643, 670: Cambiare 'userId' in 'recipientId'
+
+8. LINEA 682: prisma.userNotificationPreferences non esiste
+   CAMBIARE IN: prisma.notificationPreference
+
+9. LINEA 705: prisma.pushSubscription non esiste ancora  
+   COMMENTARE temporaneamente
+
+10. LINEA 733: notificationPreferences non esiste in User
+    CAMBIARE IN: notificationPreference (singolare)
+
+11. LINEA 865: prisma.scheduledNotification non esiste ancora
+    COMMENTARE temporaneamente
+
+12. LINEA 882-883: template.emailBody non esiste
+    CAMBIARE IN: template.htmlContent
+
+13. LINEA 1073: Cambiare 'userId' in 'recipientId'

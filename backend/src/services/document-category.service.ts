@@ -21,7 +21,7 @@ export class DocumentCategoryService {
         where,
         include: {
           parent: true,
-          children: {
+          other_DocumentCategory: {
             orderBy: { sortOrder: 'asc' }
           }
         },
@@ -44,13 +44,13 @@ export class DocumentCategoryService {
   async getStatistics() {
     try {
       const [total, active, withChildren] = await Promise.all([
-        prisma.documentCategory.count(),
-        prisma.documentCategory.count({ where: { isActive: true } }),
-        prisma.documentCategory.count({ 
-          where: { 
-            children: { some: {} } 
-          } 
-        })
+      prisma.documentCategory.count(),
+      prisma.documentCategory.count({ where: { isActive: true } }),
+      prisma.documentCategory.count({
+      where: {
+      other_DocumentCategory: { some: {} }
+      }
+      })
       ]);
 
       return {
@@ -75,7 +75,7 @@ export class DocumentCategoryService {
         where: { id },
         include: {
           parent: true,
-          children: {
+          other_DocumentCategory: {
             orderBy: { sortOrder: 'asc' }
           }
         }
@@ -101,7 +101,7 @@ export class DocumentCategoryService {
         where: { code },
         include: {
           parent: true,
-          children: true
+          other_DocumentCategory: true
         }
       });
 
@@ -148,7 +148,7 @@ export class DocumentCategoryService {
         data: categoryData,
         include: {
           parent: true,
-          children: true
+          other_DocumentCategory: true
         }
       });
 
@@ -213,7 +213,7 @@ export class DocumentCategoryService {
         data: updateData,
         include: {
           parent: true,
-          children: true
+          other_DocumentCategory: true
         }
       });
 
@@ -273,13 +273,13 @@ export class DocumentCategoryService {
     const category = await prisma.documentCategory.findUnique({
       where: { id: childId },
       include: { 
-        children: true 
+        other_DocumentCategory: true 
       }
     });
 
-    if (!category || !category.children) return false;
+    if (!category || !category.other_DocumentCategory) return false;
 
-    for (const child of category.children) {
+    for (const child of category.other_DocumentCategory) {
       if (child.id === parentId) return true;
       if (await this.isDescendant(parentId, child.id)) return true;
     }
@@ -314,7 +314,7 @@ export class DocumentCategoryService {
         if (cat.parentId) {
           const parent = map.get(cat.parentId);
           if (parent) {
-            parent.children.push(node);
+            parent.other_DocumentCategory.push(node);
           }
         } else {
           tree.push(node);

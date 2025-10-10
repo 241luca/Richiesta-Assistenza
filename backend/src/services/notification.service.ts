@@ -23,7 +23,7 @@ import { Prisma, NotificationPriority } from '@prisma/client';
 import { Server } from 'socket.io';
 import { logger } from '../utils/logger';
 import { sendNotificationToUser, broadcastNotificationToOrganization } from '../websocket/handlers/notification.handler';
-import { sendEmail } from './email.service';
+import { emailService } from './email.service';
 import { v4 as uuidv4 } from 'uuid';
 import { auditLogService } from './auditLog.service';
 
@@ -963,7 +963,7 @@ export class NotificationService {
 
       if (!user) return;
 
-      await sendEmail({
+      await emailService.sendEmail({
         to: user.email,
         subject: data.title,
         html: this._formatEmailContent(data, user)

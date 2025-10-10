@@ -21,10 +21,10 @@ router.get('/:id', authenticate, async (req: any, res) => {
       where: { id: professionalId },
       include: {
         // Professione dalla tabella Profession
-        professionData: true,
+        Profession: true,
         
         // Competenze/sottocategorie assegnate
-        professionalUserSubcategories: {
+        ProfessionalUserSubcategory: {
           include: {
             subcategory: {
               include: {
@@ -54,9 +54,9 @@ router.get('/:id', authenticate, async (req: any, res) => {
     logger.info(`✅ Professional found:`);
     logger.info(`   - Name: ${professional.firstName} ${professional.lastName}`);
     logger.info(`   - professionId: ${professional.professionId}`);
-    logger.info(`   - professionData: ${professional.professionData?.name || 'null'}`);
+    logger.info(`   - Profession: ${professional.Profession?.name || 'null'}`);
     logger.info(`   - profession (string): ${professional.profession}`);
-    logger.info(`   - Competenze: ${professional.professionalUserSubcategories?.length || 0}`);
+    logger.info(`   - Competenze: ${professional.ProfessionalUserSubcategory?.length || 0}`);
     
     // Se ha una professionId, recupera anche le categorie associate
     let professionCategories = [];
@@ -143,8 +143,8 @@ router.put('/:id/profession', authenticate, async (req: any, res) => {
         updatedAt: new Date()
       },
       include: {
-        professionData: true,
-        professionalUserSubcategories: {
+        Profession: true,
+        ProfessionalUserSubcategory: {
           include: {
             subcategory: {
               include: {
@@ -157,7 +157,7 @@ router.put('/:id/profession', authenticate, async (req: any, res) => {
     });
     
     logger.info(`✅ Professional updated successfully`);
-    logger.info(`   New profession: ${updated.professionData?.name || 'none'}`);
+    logger.info(`   New profession: ${updated.Profession?.name || 'none'}`);
     
     // Recupera anche le categorie se c'è una professione
     let professionCategories = [];

@@ -75,7 +75,7 @@ router.get('/', async (req: AuthRequest, res, next) => {
         client: true,
         professional: {
           include: {
-            professionData: true
+            Profession: true
           }
         },
         category: true,
@@ -85,7 +85,7 @@ router.get('/', async (req: AuthRequest, res, next) => {
             professional: true
           }
         },
-        attachments: true
+        RequestAttachment: true
       },
       orderBy: {
         createdAt: 'desc'
@@ -501,7 +501,7 @@ router.post('/for-client', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Au
         client: true,
         professional: {
           include: {
-            professionData: true
+            Profession: true
           }
         },
         category: true,
@@ -549,7 +549,7 @@ router.get('/:id', async (req: AuthRequest, res, next) => {
         client: true,
         professional: {
           include: {
-            professionData: true
+            Profession: true
           }
         },
         category: true,
@@ -559,7 +559,7 @@ router.get('/:id', async (req: AuthRequest, res, next) => {
             professional: true  // Quote->User relation (professional)
           }
         },
-        attachments: true
+        RequestAttachment: true
         // Rimosso 'updates' che non esiste nello schema
       }
     });
@@ -677,7 +677,7 @@ router.post(
           client: true,
           professional: {
             include: {
-              professionData: true
+              Profession: true
             }
           },
           category: true,
@@ -841,7 +841,7 @@ router.post('/:id/assign', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Au
         client: true,
         professional: {
           include: {
-            professionData: true
+            Profession: true
           }
         },
         category: true,
@@ -916,7 +916,7 @@ router.patch('/:id/schedule', requireRole(['PROFESSIONAL']), async (req: AuthReq
         client: true,
         professional: {
           include: {
-            professionData: true
+            Profession: true
           }
         },
         category: true,
@@ -1445,7 +1445,7 @@ router.patch('/:id/coordinates', async (req: AuthRequest, res, next) => {
         category: true,
         subcategory: true,
         quotes: true,
-        attachments: true
+        RequestAttachment: true
       }
     });
 

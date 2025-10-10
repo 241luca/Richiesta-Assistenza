@@ -1,127 +1,162 @@
 #!/usr/bin/env python3
 """
-Script per correggere lo schema Prisma
-Problema: model ProfessionalPaymentSettings incompleto + enum con commenti inline
+Script per aggiungere tabelle e campi mancanti allo schema Prisma
+Data: 09/10/2025
 """
 
 import re
-from datetime import datetime
 
-# File paths
-SCHEMA_FILE = "/Users/lucamambelli/Desktop/Richiesta-Assistenza/backend/prisma/schema.prisma"
-BACKUP_FILE = f"/Users/lucamambelli/Desktop/Richiesta-Assistenza/backend/prisma/schema.prisma.backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+# Leggi lo schema originale
+with open('prisma/schema.prisma', 'r') as f:
+    schema = f.read()
 
-print("🔧 Inizio correzione schema.prisma...")
+print("✅ Schema caricato")
 
-# 1. Backup
-print(f"📦 Creazione backup in: {BACKUP_FILE}")
-with open(SCHEMA_FILE, 'r', encoding='utf-8') as f:
-    content = f.read()
-    
-with open(BACKUP_FILE, 'w', encoding='utf-8') as f:
-    f.write(content)
+# 1. FIX: Aggiorna enum ComplaintStatus
+print("\n📝 1. Aggiornamento ComplaintStatus...")
+old_complaint_enum = r'''enum ComplaintStatus {
+  DRAFT       // Bozza
+  SUBMITTED   // Inviato
+  IN_REVIEW   // In revisione
+  RESOLVED    // Risolto
+  REJECTED    // Respinto
+  CLOSED      // Chiuso
+}'''
 
-# 2. Fix model ProfessionalPaymentSettings - aggiungo chiusura
-print("🔧 Correzione model ProfessionalPaymentSettings...")
+new_complaint_enum = '''enum ComplaintStatus {
+  DRAFT       // Bozza
+  SUBMITTED   // Inviato
+  SENDING     // In invio (PEC)
+  SENT        // Inviato (PEC)
+  IN_REVIEW   // In revisione
+  RESOLVED    // Risolto
+  REJECTED    // Respinto
+  CLOSED      // Chiuso
+}'''
 
-# Cerco la riga "blockOverlimit" e aggiungo i campi mancanti + chiusura
-pattern = r'(blockOverlimit\s+Boolean\s+@default\(true\))\s*// ===='
-replacement = r'''blockOverlimit          Boolean @default(true)
+if old_complaint_enum in schema:
+    schema = schema.replace(old_complaint_enum, new_complaint_enum)
+    print("   ✅ ComplaintStatus aggiornato con SENDING e SENT")
+else:
+    print("   ⚠️ Pattern ComplaintStatus non trovato esattamente - skip")
 
-  notifyLargeTransactions Float?
-  manualReviewThreshold   Float?
+# 2. FIX: Aggiungi campi a Notification
+print("\n📝 2. Aggiornamento model Notification...")
 
-  // Stripe Connect (se AUTONOMOUS)
-  stripeConnectId     String?
-  stripeAccountStatus String? @default("pending")
+# Trova il model Notification e aggiungi campi prima della sezione relazioni
+notification_pattern = r'(model Notification \{[^}]+)(  recipient   User)'
 
-  // Fatturazione
-  invoiceProvider     String?
-  invoiceApiKey       String?
-  invoiceAutoGenerate Boolean @default(false)
+notification_additions = '''  userId      String?      // Alias compatibilità (= recipientId)
+  status      String?      // PENDING, SENT, FAILED, PARTIAL  
+  sentAt      DateTime?    // Timestamp invio
+  deliveryStatus Json?     // Stato per canale
+  
+'''
 
-  // Dati fatturazione
-  businessName String?
-  vatNumber    String?
-  taxCode      String?
-  sdiCode      String?
-  pecEmail     String?
+schema = re.sub(notification_pattern, r'\1' + notification_additions + r'\2', schema)
+print("   ✅ Campi aggiunti a Notification")
 
-  // Audit
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  updatedBy String?
+# 3. AGGIUNGI: Nuove tabelle alla fine dello schema
+print("\n📝 3. Aggiunta nuove tabelle...")
 
-  // Note e stato
-  adminNotes String? @db.Text
-  riskLevel  String? @default("LOW")
-  status     String  @default("ACTIVE")
+new_tables = '''
+// ==========================================
+// TABELLE NOTIFICHE AVANZATE - FIX 09/10/2025
+// ==========================================
 
-  professional  User  @relation(fields: [professionalId], references: [id])
-  updatedByUser User? @relation("PaymentSettingsUpdatedBy", fields: [updatedBy], references: [id])
+// Tracciamento consegne notifiche
+model NotificationDelivery {
+  id             String   @id @default(cuid())
+  notificationId String
+  channel        String   // EMAIL, SMS, WHATSAPP, PUSH
+  status         String   // PENDING, SENT, DELIVERED, FAILED
+  messageId      String?  // ID messaggio provider
+  deliveredAt    DateTime?
+  failedAt       DateTime?
+  error          String?  @db.Text
+  attempts       Int      @default(0)
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@index([notificationId])
+  @@index([channel])
+  @@index([status])
 }
 
-// ===='''
+// Sottoscrizioni Push Web
+model PushSubscription {
+  id             String   @id @default(cuid())
+  userId         String
+  endpoint       String   @db.Text
+  keys           Json     // p256dh e auth
+  deviceType     String?  // mobile, desktop, tablet
+  deviceName     String?
+  browser        String?
+  isActive       Boolean  @default(true)
+  lastUsedAt     DateTime?
+  unsubscribedAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([isActive])
+}
 
-content = re.sub(pattern, replacement, content)
+// Notifiche programmate
+model ScheduledNotification {
+  id           String   @id @default(cuid())
+  userId       String
+  type         String
+  priority     String   @default("NORMAL")
+  title        String
+  message      String   @db.Text
+  data         Json?
+  channels     String[] @default([])
+  scheduledAt  DateTime
+  processedAt  DateTime?
+  status       String   @default("SCHEDULED")
+  attempts     Int      @default(0)
+  error        String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([scheduledAt])
+  @@index([status])
+}
 
-# 3. Rimuovo i campi duplicati (righe orfane) tra enum ModuleAction e model Payment
-print("🗑️  Rimozione campi duplicati...")
+// Storia abilitazioni moduli
+model ModuleHistory {
+  id         String       @id @default(cuid())
+  moduleCode String
+  action     ModuleAction
+  userId     String
+  referralId String?
+  metadata   Json?
+  createdAt  DateTime     @default(now())
+  
+  user     User      @relation(fields: [userId], references: [id])
+  referral Referral? @relation(fields: [referralId], references: [id])
+  
+  @@index([moduleCode])
+  @@index([action])
+  @@index([userId])
+  @@index([createdAt])
+}
+'''
 
-# Pattern per rimuovere tutto tra "enum ModuleAction" e "model Payment"
-# che contiene i campi orfani
-lines = content.split('\n')
-new_lines = []
-skip = False
-skip_count = 0
+# Aggiungi le nuove tabelle alla fine (prima dell'ultimo '}' o alla fine)
+schema = schema.rstrip() + '\n' + new_tables + '\n'
 
-for i, line in enumerate(lines):
-    # Inizio skip dopo "enum ModuleAction {" quando vedo la chiusura "}"
-    if 'enum ModuleAction' in line:
-        skip_section_start = i
-        
-    # Cerco la fine dell'enum ModuleAction
-    if skip_section_start and line.strip() == '}' and skip_count == 0:
-        # Questo è la fine di ModuleAction, inizia lo skip delle righe orfane
-        new_lines.append(line)
-        skip = True
-        skip_count += 1
-        continue
-        
-    # Fine skip quando trovo "model Payment" o altro model
-    if skip and line.strip().startswith('model ') and 'Payment' in line:
-        skip = False
-        
-    # Aggiungo la riga solo se non stiamo skippando
-    if not skip:
-        new_lines.append(line)
+print("   ✅ 4 nuove tabelle aggiunte")
 
-content = '\n'.join(new_lines)
+# Salva lo schema modificato
+with open('prisma/schema.prisma', 'w') as f:
+    f.write(schema)
 
-# 4. Fix enum con commenti inline
-print("🔧 Fix enum con commenti inline...")
-
-# ModuleCategory
-content = re.sub(r'CORE\s+//.*', 'CORE', content)
-content = re.sub(r'BUSINESS\s+//.*', 'BUSINESS', content)
-content = re.sub(r'COMMUNICATION\s+//.*', 'COMMUNICATION', content)
-content = re.sub(r'ADVANCED\s+//.*', 'ADVANCED', content)
-content = re.sub(r'REPORTING\s+//.*', 'REPORTING', content)
-content = re.sub(r'AUTOMATION\s+//.*', 'AUTOMATION', content)
-content = re.sub(r'INTEGRATIONS\s+//.*', 'INTEGRATIONS', content)
-content = re.sub(r'ADMIN\s+//.*', 'ADMIN', content)
-
-# 5. Salvo il file corretto
-print("💾 Salvataggio file corretto...")
-with open(SCHEMA_FILE, 'w', encoding='utf-8') as f:
-    f.write(content)
-
-print("✅ Correzione completata!")
-print("")
-print("📋 Prossimi passi:")
-print("1. cd /Users/lucamambelli/Desktop/Richiesta-Assistenza/backend")
-print("2. npx prisma validate")
-print("3. npx prisma generate")
-print("4. npx prisma db push")
-print("")
-print(f"⚠️  Backup salvato in: {BACKUP_FILE}")
+print("\n✅ Schema aggiornato con successo!")
+print("\n📋 PROSSIMI STEP:")
+print("   1. npx prisma format")
+print("   2. npx prisma generate")
+print("   3. npx prisma db push")

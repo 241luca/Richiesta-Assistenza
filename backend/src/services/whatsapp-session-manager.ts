@@ -4,9 +4,9 @@
  */
 
 import { prisma } from '../config/database';
-import fs from 'fs/promises';
-import path from 'path';
-import crypto from 'crypto';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as crypto from 'crypto';
 import logger from '../utils/logger';
 
 // Import Redis se disponibile (opzionale)

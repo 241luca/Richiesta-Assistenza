@@ -1,0 +1,15 @@
+// ❌ QUESTO FILE È STATO ELIMINATO
+// 
+// PROBLEMA: Conteneva codice backend (Prisma, pdfkit) nel frontend
+// SOLUZIONE: Usare api.ts con metodi invoices per chiamare il backend
+//
+// Data eliminazione: 9 Gennaio 2025
+// Backup salvato come: invoice.service.ts.backup-20250109-143000
+//
+// Per le operazioni sulle fatture, usa:
+// import { api } from './api';
+// 
+// Esempio:
+// const invoices = await api.invoices.getAll();
+// const invoice = await api.invoices.getById(id);
+// const pdf = await api.invoices.downloadPDF(id);

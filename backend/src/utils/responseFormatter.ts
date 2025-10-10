@@ -129,8 +129,8 @@ export function formatUser(user: any): any {
     country: user.country,
     profession: user.profession,
     professionId: user.professionId,  // AGGIUNTO per supportare professioni tabellate
-    professionData: user.professionData || user.Profession,  // FIX: Cerca sia professionData che Profession
-    professionalUserSubcategories: user.professionalUserSubcategories || [],  // AGGIUNTO: Include le sottocategorie!
+    Profession: user.Profession || user.Profession,  // FIX: Cerca sia professionData che Profession
+    ProfessionalUserSubcategory: user.ProfessionalUserSubcategory || [],  // AGGIUNTO: Include le sottocategorie!
     specializations: user.specializations,
     hourlyRate: user.hourlyRate ? Number(user.hourlyRate) : null,
     currency: user.currency,
@@ -609,16 +609,30 @@ export class ResponseFormatter {
 
   /**
    * Formatta una risposta di errore
-   * @param message - Il messaggio di errore
+   * @param message - Il messaggio di errore (o un oggetto con { code, error, message })
    * @param code - Il codice errore
    * @param details - Dettagli aggiuntivi dell'errore
    */
-  static error(message: string, code?: string, details?: any) {
+  static error(message: string | { code?: string; error?: string; message?: string }, code?: string, details?: any) {
+    // Se il primo parametro è un oggetto, estraiamo i valori
+    let errorMessage: string;
+    let errorCode: string | undefined;
+    
+    if (typeof message === 'object' && message !== null) {
+      // Estrai il messaggio dall'oggetto
+      errorMessage = message.message || message.error || 'An error occurred';
+      errorCode = message.code || code || 'INTERNAL_ERROR';
+    } else {
+      // Usa direttamente la stringa
+      errorMessage = message;
+      errorCode = code || 'INTERNAL_ERROR';
+    }
+    
     return {
       success: false,
-      message,
+      message: errorMessage,
       error: {
-        code: code || 'INTERNAL_ERROR',
+        code: errorCode,
         details: details || null
       },
       timestamp: new Date().toISOString(),

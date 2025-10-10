@@ -1,12 +1,22 @@
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import { authenticate, requireRole } from '../middleware/auth';
 import { prisma } from '../config/database';
 import { ResponseFormatter } from '../utils/responseFormatter';
 import { notificationService } from '../services/notification.service';
 import { logger } from '../utils/logger';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 
 const router = Router();
+
+// Type per request con user autenticato
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    email: string;
+    role: string;
+  };
+}
 
 // ===== ADMIN ENDPOINTS =====
 
@@ -40,9 +50,10 @@ router.get('/stats', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async 
       select: { metadata: true }
     });
 
-    const channelCounts = {};
+    const channelCounts: Record<string, number> = {};
     notifications.forEach(n => {
-      const channels = n.metadata?.channels || ['websocket'];
+      const metadata = n.metadata as { channels?: string[] } | null;
+      const channels = metadata?.channels || ['websocket'];
       channels.forEach(channel => {
         channelCounts[channel] = (channelCounts[channel] || 0) + 1;
       });
@@ -54,9 +65,6 @@ router.get('/stats', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async 
     }));
 
     // Ultimi 7 giorni
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
     const last7Days = [];
     for (let i = 6; i >= 0; i--) {
       const date = new Date();
@@ -112,32 +120,50 @@ router.get('/logs', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (
       search,
       dateFrom,
       dateTo,
-      page = 1,
-      limit = 50
+      page = '1',
+      limit = '50'
     } = req.query;
 
-    const where = {};
+    const where: Prisma.NotificationWhereInput = {};
 
-    if (type) where.type = type;
-    if (priority) where.priority = priority;
-    if (status) {
-      if (status === 'read') where.isRead = true;
-      else if (status === 'unread') where.isRead = false;
-      else where.metadata = { path: ['status'], equals: status };
+    if (typeof type === 'string') {
+      where.type = type;
     }
-    if (search) {
+    
+    if (typeof priority === 'string') {
+      where.priority = priority as any;
+    }
+    
+    if (typeof status === 'string') {
+      if (status === 'read') {
+        where.isRead = true;
+      } else if (status === 'unread') {
+        where.isRead = false;
+      } else {
+        where.metadata = { path: ['status'], equals: status };
+      }
+    }
+    
+    if (typeof search === 'string') {
       where.OR = [
         { title: { contains: search, mode: 'insensitive' } },
         { content: { contains: search, mode: 'insensitive' } }
       ];
     }
-    if (dateFrom || dateTo) {
+    
+    if (typeof dateFrom === 'string' || typeof dateTo === 'string') {
       where.createdAt = {};
-      if (dateFrom) where.createdAt.gte = new Date(dateFrom);
-      if (dateTo) where.createdAt.lte = new Date(dateTo);
+      if (typeof dateFrom === 'string') {
+        where.createdAt.gte = new Date(dateFrom);
+      }
+      if (typeof dateTo === 'string') {
+        where.createdAt.lte = new Date(dateTo);
+      }
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const pageNum = parseInt(typeof page === 'string' ? page : '1', 10) || 1;
+    const limitNum = parseInt(typeof limit === 'string' ? limit : '50', 10) || 50;
+    const skip = (pageNum - 1) * limitNum;
 
     const [notifications, total] = await Promise.all([
       prisma.notification.findMany({
@@ -155,26 +181,29 @@ router.get('/logs', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (
         },
         orderBy: { createdAt: 'desc' },
         skip,
-        take: parseInt(limit)
+        take: limitNum
       }),
       prisma.notification.count({ where })
     ]);
 
     // Formatta le notifiche aggiungendo info sui canali
-    const formattedNotifications = notifications.map(n => ({
-      ...n,
-      channels: n.metadata?.channels || ['websocket'],
-      status: n.isRead ? 'read' : (n.metadata?.status || 'sent')
-    }));
+    const formattedNotifications = notifications.map(n => {
+      const metadata = n.metadata as { channels?: string[]; status?: string } | null;
+      return {
+        ...n,
+        channels: metadata?.channels || ['websocket'],
+        status: n.isRead ? 'read' : (metadata?.status || 'sent')
+      };
+    });
 
     res.json(ResponseFormatter.success(
       formattedNotifications,
       'Logs retrieved',
       {
         total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(total / parseInt(limit))
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum)
       }
     ));
   } catch (error) {
@@ -201,8 +230,12 @@ router.get('/templates', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), as
 });
 
 // POST /api/notifications/templates - Crea/aggiorna template (ADMIN)
-router.post('/templates', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
+router.post('/templates', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: AuthenticatedRequest, res) => {
   try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
     const { id, ...data } = req.body;
 
     let template;
@@ -261,33 +294,69 @@ router.delete('/templates/:id', authenticate, requireRole(['SUPER_ADMIN']), asyn
 });
 
 // POST /api/notifications/test - Invia notifica di test (ADMIN)
-router.post('/test', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
+router.post('/test', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: AuthenticatedRequest, res) => {
   try {
-    const { userId, type, title, message, priority, channels } = req.body;
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
 
-    await notificationService.sendToUser({
-      userId: userId || req.user.id,
-      type: type || 'TEST',
-      title: title || 'Notifica di Test',
-      message: message || 'Questa è una notifica di test inviata dall\'amministratore',
-      priority: priority || 'normal',
-      data: {
-        testId: Date.now(),
-        sentBy: req.user.email
-      },
-      channels: channels || ['websocket']
+    const testSchema = z.object({
+      userId: z.string().optional(),
+      email: z.string().email().optional(),
+      type: z.string(),
+      title: z.string(),
+      message: z.string(),
+      priority: z.enum(['low', 'normal', 'high', 'urgent']).default('normal'),
+      channels: z.array(z.enum(['websocket', 'email', 'sms', 'push'])).default(['websocket'])
     });
 
-    res.json(ResponseFormatter.success(null, 'Test notification sent'));
+    const data = testSchema.parse(req.body);
+
+    // Se non c'è userId, cerca l'utente per email o usa l'utente corrente
+    let targetUserId = data.userId;
+    if (!targetUserId && data.email) {
+      const user = await prisma.user.findUnique({ 
+        where: { email: data.email } 
+      });
+      targetUserId = user?.id;
+    }
+    if (!targetUserId) {
+      targetUserId = req.user.id;
+    }
+
+    // Invia notifica di test
+    await notificationService.sendToUser({
+      userId: targetUserId,
+      type: data.type,
+      title: data.title,
+      message: data.message,
+      priority: data.priority,
+      channels: data.channels,
+      data: {
+        isTest: true,
+        sentBy: req.user.id,
+        sentAt: new Date().toISOString()
+      }
+    });
+
+    res.json(ResponseFormatter.success({
+      sentTo: targetUserId,
+      channels: data.channels
+    }, 'Test notification sent'));
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     logger.error('Error sending test notification:', error);
-    res.status(500).json(ResponseFormatter.error('Failed to send test', 'TEST_ERROR'));
+    res.status(500).json(ResponseFormatter.error('Failed to send test', 'TEST_ERROR', errorMessage));
   }
 });
 
 // POST /api/notifications/:id/resend - Reinvia notifica fallita (ADMIN)
-router.post('/:id/resend', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
+router.post('/:id/resend', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: AuthenticatedRequest, res) => {
   try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
     const notification = await prisma.notification.findUnique({
       where: { id: req.params.id }
     });
@@ -296,15 +365,18 @@ router.post('/:id/resend', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), 
       return res.status(404).json(ResponseFormatter.error('Notification not found', 'NOT_FOUND'));
     }
 
+    const metadata = notification.metadata as { channels?: string[] } | null;
+    const priority = notification.priority.toLowerCase() as 'low' | 'normal' | 'high' | 'urgent';
+
     // Reinvia la notifica
     await notificationService.sendToUser({
       userId: notification.recipientId,
       type: notification.type,
       title: notification.title,
       message: notification.content,
-      priority: notification.priority.toLowerCase(),
-      data: notification.metadata,
-      channels: notification.metadata?.channels || ['websocket', 'email']
+      priority: priority,
+      data: metadata || {},
+      channels: metadata?.channels || ['websocket', 'email']
     });
 
     // Aggiorna metadata per indicare reinvio
@@ -312,9 +384,9 @@ router.post('/:id/resend', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), 
       where: { id: req.params.id },
       data: {
         metadata: {
-          ...notification.metadata,
+          ...(metadata || {}),
           resent: true,
-          resentAt: new Date(),
+          resentAt: new Date().toISOString(),
           resentBy: req.user.id
         }
       }
@@ -371,259 +443,11 @@ router.post('/events', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), asyn
   }
 });
 
-// ===== USER ENDPOINTS (già esistenti) =====
-
-// GET /unread - Ottieni notifiche non lette
-router.get('/unread', authenticate, async (req, res) => {
-  try {
-    const limit = parseInt(req.query.limit as string) || 50;
-    const notifications = await notificationService.getUnread(req.user!.id, limit);
-    
-    res.json(ResponseFormatter.success(
-      notifications,
-      'Unread notifications retrieved successfully',
-      { count: notifications.length }
-    ));
-  } catch (error) {
-    res.json(ResponseFormatter.error(
-      'Error fetching notifications',
-      'NOTIFICATIONS_FETCH_ERROR',
-      error.message
-    ));
-  }
-});
-
-// POST /:id/read - Marca una notifica come letta
-router.post('/:id/read', authenticate, async (req, res) => {
-  try {
-    await notificationService.markAsRead(req.params.id, req.user!.id);
-    
-    res.json(ResponseFormatter.success(
-      null,
-      'Notification marked as read'
-    ));
-  } catch (error) {
-    res.json(ResponseFormatter.error(
-      'Error marking notification as read',
-      'NOTIFICATION_MARK_READ_ERROR',
-      error.message
-    ));
-  }
-});
-
-// POST /read-all - Marca tutte le notifiche come lette
-router.post('/read-all', authenticate, async (req, res) => {
-  try {
-    await notificationService.markAllAsRead(req.user!.id);
-    
-    res.json(ResponseFormatter.success(
-      null,
-      'All notifications marked as read'
-    ));
-  } catch (error) {
-    res.json(ResponseFormatter.error(
-      'Error marking all notifications as read',
-      'NOTIFICATIONS_MARK_ALL_READ_ERROR',
-      error.message
-    ));
-  }
-});
-
-// GET /count - Conta notifiche non lette
-router.get('/count', authenticate, async (req, res) => {
-  try {
-    const count = await notificationService.countUnread(req.user!.id);
-    
-    res.json(ResponseFormatter.success(
-      { count },
-      'Unread notifications count retrieved successfully'
-    ));
-  } catch (error) {
-    res.json(ResponseFormatter.error(
-      'Error counting notifications',
-      'NOTIFICATIONS_COUNT_ERROR',
-      error.message
-    ));
-  }
-});
-
-// ===== NUOVI ENDPOINT ADMIN =====
-
-// GET /api/notifications/logs - Log completo notifiche (ADMIN)
-router.get('/logs', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
-  try {
-    const { 
-      type, 
-      priority, 
-      status, 
-      search, 
-      dateFrom, 
-      dateTo, 
-      limit = 100, 
-      offset = 0 
-    } = req.query;
-
-    const where: any = {};
-
-    // Filtri
-    if (type) where.type = type;
-    if (priority) where.priority = priority.toString().toUpperCase();
-    if (status) {
-      where.metadata = {
-        path: ['status'],
-        equals: status
-      };
-    }
-    if (search) {
-      where.OR = [
-        { title: { contains: search as string, mode: 'insensitive' } },
-        { content: { contains: search as string, mode: 'insensitive' } }
-      ];
-    }
-    if (dateFrom || dateTo) {
-      where.createdAt = {};
-      if (dateFrom) where.createdAt.gte = new Date(dateFrom as string);
-      if (dateTo) where.createdAt.lte = new Date(dateTo as string);
-    }
-
-    // Query con relazioni
-    const [logs, total] = await Promise.all([
-      prisma.notification.findMany({
-        where,
-        include: {
-          recipient: {
-            select: {
-              id: true,
-              fullName: true,
-              email: true
-            }
-          }
-        },
-        orderBy: { createdAt: 'desc' },
-        take: Number(limit),
-        skip: Number(offset)
-      }),
-      prisma.notification.count({ where })
-    ]);
-
-    // Formatta i log con informazioni aggiuntive
-    const formattedLogs = logs.map(log => ({
-      ...log,
-      channels: log.metadata?.channels || ['websocket'],
-      status: log.metadata?.status || (log.isRead ? 'read' : 'delivered'),
-      failureReason: log.metadata?.error
-    }));
-
-    res.json(ResponseFormatter.success({
-      logs: formattedLogs,
-      total,
-      limit: Number(limit),
-      offset: Number(offset)
-    }, 'Logs retrieved'));
-  } catch (error) {
-    logger.error('Error fetching notification logs:', error);
-    res.status(500).json(ResponseFormatter.error('Failed to fetch logs', 'LOGS_ERROR'));
-  }
-});
-
-// POST /api/notifications/test - Invia notifica di test (ADMIN)
-router.post('/test', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
-  try {
-    const testSchema = z.object({
-      userId: z.string().optional(),
-      email: z.string().email().optional(),
-      type: z.string(),
-      title: z.string(),
-      message: z.string(),
-      priority: z.enum(['low', 'normal', 'high', 'urgent']).default('normal'),
-      channels: z.array(z.enum(['websocket', 'email', 'sms', 'push'])).default(['websocket'])
-    });
-
-    const data = testSchema.parse(req.body);
-
-    // Se non c'è userId, cerca l'utente per email o usa l'utente corrente
-    let targetUserId = data.userId;
-    if (!targetUserId && data.email) {
-      const user = await prisma.user.findUnique({ 
-        where: { email: data.email } 
-      });
-      targetUserId = user?.id;
-    }
-    if (!targetUserId) {
-      targetUserId = req.user!.id; // Usa l'utente corrente come fallback
-    }
-
-    // Invia notifica di test
-    await notificationService.sendToUser({
-      userId: targetUserId,
-      type: data.type,
-      title: data.title,
-      message: data.message,
-      priority: data.priority,
-      channels: data.channels,
-      data: {
-        isTest: true,
-        sentBy: req.user!.id,
-        sentAt: new Date()
-      }
-    });
-
-    res.json(ResponseFormatter.success({
-      sentTo: targetUserId,
-      channels: data.channels
-    }, 'Test notification sent'));
-  } catch (error) {
-    logger.error('Error sending test notification:', error);
-    res.status(500).json(ResponseFormatter.error('Failed to send test', 'TEST_ERROR'));
-  }
-});
-
-// POST /api/notifications/:id/resend - Reinvia notifica fallita (ADMIN)
-router.post('/:id/resend', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Recupera notifica originale
-    const notification = await prisma.notification.findUnique({
-      where: { id },
-      include: { recipient: true }
-    });
-
-    if (!notification) {
-      return res.status(404).json(ResponseFormatter.error('Notification not found', 'NOT_FOUND'));
-    }
-
-    // Reinvia notifica
-    await notificationService.sendToUser({
-      userId: notification.recipientId,
-      type: notification.type,
-      title: notification.title,
-      message: notification.content,
-      priority: notification.priority.toLowerCase() as any,
-      channels: notification.metadata?.channels || ['websocket', 'email'],
-      data: {
-        ...notification.metadata,
-        isResend: true,
-        originalId: notification.id,
-        resentBy: req.user!.id,
-        resentAt: new Date()
-      }
-    });
-
-    res.json(ResponseFormatter.success(null, 'Notification resent'));
-  } catch (error) {
-    logger.error('Error resending notification:', error);
-    res.status(500).json(ResponseFormatter.error('Failed to resend', 'RESEND_ERROR'));
-  }
-});
-
 // DELETE /api/notifications/:id - Elimina notifica (ADMIN)
 router.delete('/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
   try {
-    const { id } = req.params;
-
     await prisma.notification.delete({
-      where: { id }
+      where: { id: req.params.id }
     });
 
     res.json(ResponseFormatter.success(null, 'Notification deleted'));
@@ -634,8 +458,12 @@ router.delete('/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async
 });
 
 // POST /api/notifications/broadcast - Invia notifica broadcast (SUPER_ADMIN)
-router.post('/broadcast', authenticate, requireRole(['SUPER_ADMIN']), async (req, res) => {
+router.post('/broadcast', authenticate, requireRole(['SUPER_ADMIN']), async (req: AuthenticatedRequest, res) => {
   try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
     const broadcastSchema = z.object({
       role: z.enum(['ALL', 'CLIENT', 'PROFESSIONAL', 'ADMIN']).optional(),
       type: z.string(),
@@ -648,7 +476,7 @@ router.post('/broadcast', authenticate, requireRole(['SUPER_ADMIN']), async (req
     const data = broadcastSchema.parse(req.body);
 
     // Trova utenti target
-    const where: any = { emailVerified: true };
+    const where: Prisma.UserWhereInput = { emailVerified: true };
     if (data.role && data.role !== 'ALL') {
       where.role = data.role;
     }
@@ -687,6 +515,103 @@ router.post('/broadcast', authenticate, requireRole(['SUPER_ADMIN']), async (req
   } catch (error) {
     logger.error('Error broadcasting:', error);
     res.status(500).json(ResponseFormatter.error('Failed to broadcast', 'BROADCAST_ERROR'));
+  }
+});
+
+// ===== USER ENDPOINTS =====
+
+// GET /unread - Ottieni notifiche non lette
+router.get('/unread', authenticate, async (req: AuthenticatedRequest, res) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
+    const limitQuery = req.query.limit;
+    const limit = typeof limitQuery === 'string' ? parseInt(limitQuery, 10) : 50;
+    const notifications = await notificationService.getUnread(req.user.id, limit);
+    
+    res.json(ResponseFormatter.success(
+      notifications,
+      'Unread notifications retrieved successfully',
+      { count: notifications.length }
+    ));
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json(ResponseFormatter.error(
+      'Error fetching notifications',
+      'NOTIFICATIONS_FETCH_ERROR',
+      errorMessage
+    ));
+  }
+});
+
+// POST /:id/read - Marca una notifica come letta
+router.post('/:id/read', authenticate, async (req: AuthenticatedRequest, res) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
+    await notificationService.markAsRead(req.params.id, req.user.id);
+    
+    res.json(ResponseFormatter.success(
+      null,
+      'Notification marked as read'
+    ));
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json(ResponseFormatter.error(
+      'Error marking notification as read',
+      'NOTIFICATION_MARK_READ_ERROR',
+      errorMessage
+    ));
+  }
+});
+
+// POST /read-all - Marca tutte le notifiche come lette
+router.post('/read-all', authenticate, async (req: AuthenticatedRequest, res) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
+    await notificationService.markAllAsRead(req.user.id);
+    
+    res.json(ResponseFormatter.success(
+      null,
+      'All notifications marked as read'
+    ));
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json(ResponseFormatter.error(
+      'Error marking all notifications as read',
+      'NOTIFICATIONS_MARK_ALL_READ_ERROR',
+      errorMessage
+    ));
+  }
+});
+
+// GET /count - Conta notifiche non lette
+router.get('/count', authenticate, async (req: AuthenticatedRequest, res) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json(ResponseFormatter.error('Unauthorized', 'UNAUTHORIZED'));
+    }
+
+    const count = await notificationService.countUnread(req.user.id);
+    
+    res.json(ResponseFormatter.success(
+      { count },
+      'Unread notifications count retrieved successfully'
+    ));
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json(ResponseFormatter.error(
+      'Error counting notifications',
+      'NOTIFICATIONS_COUNT_ERROR',
+      errorMessage
+    ));
   }
 });
 

@@ -1,11 +1,122 @@
 import { prisma } from '../config/database';
-import logger from '../utils/logger';
+import { logger } from '../utils/logger';
+import { 
+  CleanupConfig, 
+  CleanupPattern, 
+  CleanupExcludeFile, 
+  CleanupExcludeDirectory,
+  CleanupSchedule,
+  CleanupLog,
+  CleanupStats,
+  Prisma
+} from '@prisma/client';
+
+// ==========================================
+// TYPES & INTERFACES
+// ==========================================
+
+interface UpdateConfigData {
+  targetDirectory?: string;
+  directoryFormat?: string;
+  maxDepth?: number;
+  bufferSize?: number;
+  timeout?: number;
+  retentionDays?: number;
+  autoCleanup?: boolean;
+  autoCleanupDays?: number;
+  createReadme?: boolean;
+  preserveStructure?: boolean;
+  notifyOnCleanup?: boolean;
+  notifyEmails?: string[];
+  isActive?: boolean;
+}
+
+interface CreatePatternData {
+  pattern: string;
+  description?: string;
+  priority?: number;
+  isActive?: boolean;
+}
+
+interface UpdatePatternData {
+  pattern?: string;
+  description?: string;
+  priority?: number;
+  isActive?: boolean;
+}
+
+interface CreateExcludedFileData {
+  fileName: string;
+  description?: string;
+  criticality?: string;
+  reason?: string;
+  isActive?: boolean;
+}
+
+interface UpdateExcludedFileData {
+  fileName?: string;
+  description?: string;
+  criticality?: string;
+  reason?: string;
+  isActive?: boolean;
+}
+
+interface CreateExcludedDirectoryData {
+  directory: string;
+  description?: string;
+  reason?: string;
+  isActive?: boolean;
+}
+
+interface UpdateExcludedDirectoryData {
+  directory?: string;
+  description?: string;
+  reason?: string;
+  isActive?: boolean;
+}
+
+interface CreateScheduleData {
+  name: string;
+  description?: string;
+  cronExpression: string;
+  isActive?: boolean;
+}
+
+interface UpdateScheduleData {
+  name?: string;
+  description?: string;
+  cronExpression?: string;
+  isActive?: boolean;
+}
+
+interface LogExecutionData {
+  executionId: string;
+  operation: string;
+  status: string;
+  targetPath?: string;
+  filesProcessed?: number;
+  totalSize?: bigint;
+  executedBy?: string;
+  startedAt?: Date;
+  completedAt?: Date;
+  errorMessage?: string;
+}
+
+interface CleanupLogFilters {
+  executionId?: string;
+  operation?: string;
+  status?: string;
+  executedBy?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+}
 
 // ==========================================
 // CONFIGURAZIONE PRINCIPALE
 // ==========================================
 
-export async function getCleanupConfig() {
+export async function getCleanupConfig(): Promise<CleanupConfig> {
   try {
     let config = await prisma.cleanupConfig.findFirst({
       where: { name: 'default', isActive: true }
@@ -39,7 +150,7 @@ export async function getCleanupConfig() {
   }
 }
 
-export async function updateCleanupConfig(data: any) {
+export async function updateCleanupConfig(data: UpdateConfigData): Promise<CleanupConfig> {
   try {
     const config = await prisma.cleanupConfig.upsert({
       where: { name: 'default' },
@@ -49,6 +160,18 @@ export async function updateCleanupConfig(data: any) {
       },
       create: {
         name: 'default',
+        isActive: true,
+        targetDirectory: 'CLEANUP',
+        directoryFormat: 'CLEANUP-{YYYY}-{MM}-{DD}-{HH}-{mm}-{ss}',
+        maxDepth: 2,
+        bufferSize: 104857600,
+        timeout: 60000,
+        retentionDays: 30,
+        autoCleanup: false,
+        autoCleanupDays: 30,
+        createReadme: true,
+        preserveStructure: true,
+        notifyOnCleanup: true,
         ...data
       }
     });
@@ -65,9 +188,9 @@ export async function updateCleanupConfig(data: any) {
 // PATTERN
 // ==========================================
 
-export async function getCleanupPatterns(includeInactive = false) {
+export async function getCleanupPatterns(includeInactive = false): Promise<CleanupPattern[]> {
   try {
-    const where = includeInactive ? {} : { isActive: true };
+    const where: Prisma.CleanupPatternWhereInput = includeInactive ? {} : { isActive: true };
     
     const patterns = await prisma.cleanupPattern.findMany({
       where,
@@ -84,11 +207,13 @@ export async function getCleanupPatterns(includeInactive = false) {
   }
 }
 
-export async function createCleanupPattern(data: any) {
+export async function createCleanupPattern(data: CreatePatternData): Promise<CleanupPattern> {
   try {
     const pattern = await prisma.cleanupPattern.create({
       data: {
         ...data,
+        priority: data.priority ?? 0,
+        isActive: data.isActive ?? true,
         createdAt: new Date(),
         updatedAt: new Date()
       }
@@ -102,7 +227,7 @@ export async function createCleanupPattern(data: any) {
   }
 }
 
-export async function updateCleanupPattern(id: string, data: any) {
+export async function updateCleanupPattern(id: string, data: UpdatePatternData): Promise<CleanupPattern> {
   try {
     const pattern = await prisma.cleanupPattern.update({
       where: { id },
@@ -120,7 +245,7 @@ export async function updateCleanupPattern(id: string, data: any) {
   }
 }
 
-export async function deleteCleanupPattern(id: string) {
+export async function deleteCleanupPattern(id: string): Promise<{ success: boolean }> {
   try {
     await prisma.cleanupPattern.delete({
       where: { id }
@@ -138,9 +263,9 @@ export async function deleteCleanupPattern(id: string) {
 // FILE ESCLUSI
 // ==========================================
 
-export async function getExcludedFiles(includeInactive = false) {
+export async function getExcludedFiles(includeInactive = false): Promise<CleanupExcludeFile[]> {
   try {
-    const where = includeInactive ? {} : { isActive: true };
+    const where: Prisma.CleanupExcludeFileWhereInput = includeInactive ? {} : { isActive: true };
     
     const files = await prisma.cleanupExcludeFile.findMany({
       where,
@@ -157,11 +282,12 @@ export async function getExcludedFiles(includeInactive = false) {
   }
 }
 
-export async function createExcludedFile(data: any) {
+export async function createExcludedFile(data: CreateExcludedFileData): Promise<CleanupExcludeFile> {
   try {
     const file = await prisma.cleanupExcludeFile.create({
       data: {
         ...data,
+        isActive: data.isActive ?? true,
         createdAt: new Date(),
         updatedAt: new Date()
       }
@@ -175,7 +301,7 @@ export async function createExcludedFile(data: any) {
   }
 }
 
-export async function updateExcludedFile(id: string, data: any) {
+export async function updateExcludedFile(id: string, data: UpdateExcludedFileData): Promise<CleanupExcludeFile> {
   try {
     const file = await prisma.cleanupExcludeFile.update({
       where: { id },
@@ -193,7 +319,7 @@ export async function updateExcludedFile(id: string, data: any) {
   }
 }
 
-export async function deleteExcludedFile(id: string) {
+export async function deleteExcludedFile(id: string): Promise<{ success: boolean }> {
   try {
     await prisma.cleanupExcludeFile.delete({
       where: { id }
@@ -211,9 +337,9 @@ export async function deleteExcludedFile(id: string) {
 // DIRECTORY ESCLUSE
 // ==========================================
 
-export async function getExcludedDirectories(includeInactive = false) {
+export async function getExcludedDirectories(includeInactive = false): Promise<CleanupExcludeDirectory[]> {
   try {
-    const where = includeInactive ? {} : { isActive: true };
+    const where: Prisma.CleanupExcludeDirectoryWhereInput = includeInactive ? {} : { isActive: true };
     
     const dirs = await prisma.cleanupExcludeDirectory.findMany({
       where,
@@ -227,11 +353,12 @@ export async function getExcludedDirectories(includeInactive = false) {
   }
 }
 
-export async function createExcludedDirectory(data: any) {
+export async function createExcludedDirectory(data: CreateExcludedDirectoryData): Promise<CleanupExcludeDirectory> {
   try {
     const dir = await prisma.cleanupExcludeDirectory.create({
       data: {
         ...data,
+        isActive: data.isActive ?? true,
         createdAt: new Date(),
         updatedAt: new Date()
       }
@@ -245,16 +372,34 @@ export async function createExcludedDirectory(data: any) {
   }
 }
 
-export async function deleteExcludedDirectory(id: string) {
+export async function updateExcludedDirectory(id: string, data: UpdateExcludedDirectoryData): Promise<CleanupExcludeDirectory> {
+  try {
+    const dir = await prisma.cleanupExcludeDirectory.update({
+      where: { id },
+      data: {
+        ...data,
+        updatedAt: new Date()
+      }
+    });
+
+    logger.info('Directory esclusa aggiornata:', dir.directory);
+    return dir;
+  } catch (error) {
+    logger.error('Errore nell\'aggiornamento directory esclusa:', error);
+    throw error;
+  }
+}
+
+export async function deleteExcludedDirectory(id: string): Promise<{ success: boolean }> {
   try {
     await prisma.cleanupExcludeDirectory.delete({
       where: { id }
     });
 
-    logger.info('Directory esclusa rimossa:', id);
+    logger.info('Directory esclusa eliminata:', id);
     return { success: true };
   } catch (error) {
-    logger.error('Errore nella rimozione directory esclusa:', error);
+    logger.error('Errore nell\'eliminazione directory esclusa:', error);
     throw error;
   }
 }
@@ -263,9 +408,9 @@ export async function deleteExcludedDirectory(id: string) {
 // PROGRAMMAZIONE
 // ==========================================
 
-export async function getCleanupSchedules(includeInactive = false) {
+export async function getCleanupSchedules(includeInactive = false): Promise<CleanupSchedule[]> {
   try {
-    const where = includeInactive ? {} : { isActive: true };
+    const where: Prisma.CleanupScheduleWhereInput = includeInactive ? {} : { isActive: true };
     
     const schedules = await prisma.cleanupSchedule.findMany({
       where,
@@ -275,15 +420,17 @@ export async function getCleanupSchedules(includeInactive = false) {
     return schedules;
   } catch (error) {
     logger.error('Errore nel recupero programmazioni:', error);
-    throw error;
+    // Ritorna array vuoto se la tabella non esiste ancora
+    return [];
   }
 }
 
-export async function createCleanupSchedule(data: any) {
+export async function createCleanupSchedule(data: CreateScheduleData): Promise<CleanupSchedule> {
   try {
     const schedule = await prisma.cleanupSchedule.create({
       data: {
         ...data,
+        isActive: data.isActive ?? true,
         createdAt: new Date(),
         updatedAt: new Date()
       }
@@ -297,7 +444,7 @@ export async function createCleanupSchedule(data: any) {
   }
 }
 
-export async function updateCleanupSchedule(id: string, data: any) {
+export async function updateCleanupSchedule(id: string, data: UpdateScheduleData): Promise<CleanupSchedule> {
   try {
     const schedule = await prisma.cleanupSchedule.update({
       where: { id },
@@ -315,7 +462,7 @@ export async function updateCleanupSchedule(id: string, data: any) {
   }
 }
 
-export async function deleteCleanupSchedule(id: string) {
+export async function deleteCleanupSchedule(id: string): Promise<{ success: boolean }> {
   try {
     await prisma.cleanupSchedule.delete({
       where: { id }
@@ -333,7 +480,7 @@ export async function deleteCleanupSchedule(id: string) {
 // LOG E STATISTICHE
 // ==========================================
 
-export async function logCleanupExecution(data: any) {
+export async function logCleanupExecution(data: LogExecutionData): Promise<CleanupLog> {
   try {
     const log = await prisma.cleanupLog.create({
       data: {
@@ -352,7 +499,7 @@ export async function logCleanupExecution(data: any) {
   }
 }
 
-async function updateCleanupStats(executionData: any) {
+async function updateCleanupStats(executionData: LogExecutionData): Promise<CleanupStats | undefined> {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -364,7 +511,7 @@ async function updateCleanupStats(executionData: any) {
         successfulRuns: executionData.status === 'completed' ? { increment: 1 } : undefined,
         failedRuns: executionData.status === 'failed' ? { increment: 1 } : undefined,
         totalFilesCleanup: { increment: executionData.filesProcessed || 0 },
-        totalSizeCleanup: { increment: executionData.totalSize || 0 },
+        totalSizeCleanup: { increment: executionData.totalSize || BigInt(0) },
         lastExecutionId: executionData.executionId,
         updatedAt: new Date()
       },
@@ -374,7 +521,7 @@ async function updateCleanupStats(executionData: any) {
         successfulRuns: executionData.status === 'completed' ? 1 : 0,
         failedRuns: executionData.status === 'failed' ? 1 : 0,
         totalFilesCleanup: executionData.filesProcessed || 0,
-        totalSizeCleanup: executionData.totalSize || 0,
+        totalSizeCleanup: executionData.totalSize || BigInt(0),
         lastExecutionId: executionData.executionId
       }
     });
@@ -383,10 +530,11 @@ async function updateCleanupStats(executionData: any) {
   } catch (error) {
     logger.error('Errore nell\'aggiornamento statistiche:', error);
     // Non rilancio l'errore per non bloccare il log principale
+    return undefined;
   }
 }
 
-export async function getCleanupStats(days = 30) {
+export async function getCleanupStats(days = 30): Promise<CleanupStats[]> {
   try {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
@@ -405,9 +553,9 @@ export async function getCleanupStats(days = 30) {
   }
 }
 
-export async function getCleanupLogs(filters: any = {}) {
+export async function getCleanupLogs(filters: CleanupLogFilters = {}): Promise<CleanupLog[]> {
   try {
-    const where: any = {};
+    const where: Prisma.CleanupLogWhereInput = {};
     
     if (filters.executionId) {
       where.executionId = filters.executionId;
@@ -452,7 +600,7 @@ export async function getCleanupLogs(filters: any = {}) {
 // FUNZIONI DI UTILITÀ PER IL CLEANUP
 // ==========================================
 
-export async function getActivePatterns() {
+export async function getActivePatterns(): Promise<string[]> {
   try {
     const patterns = await prisma.cleanupPattern.findMany({
       where: { isActive: true },
@@ -490,7 +638,7 @@ export async function getActivePatterns() {
   }
 }
 
-export async function getActiveExcludedFiles() {
+export async function getActiveExcludedFiles(): Promise<string[]> {
   try {
     const files = await prisma.cleanupExcludeFile.findMany({
       where: { isActive: true }
@@ -524,152 +672,7 @@ export async function getActiveExcludedFiles() {
   }
 }
 
-// ==========================================
-// DIRECTORY ESCLUSE
-// ==========================================
-
-export async function getExcludedDirectories(includeInactive = false) {
-  try {
-    const where = includeInactive ? {} : { isActive: true };
-    
-    const dirs = await prisma.cleanupExcludeDirectory.findMany({
-      where,
-      orderBy: [
-        { directory: 'asc' }
-      ]
-    });
-
-    return dirs;
-  } catch (error) {
-    logger.error('Errore nel recupero directory escluse:', error);
-    throw error;
-  }
-}
-
-export async function createExcludedDirectory(data: any) {
-  try {
-    const dir = await prisma.cleanupExcludeDirectory.create({
-      data: {
-        ...data,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    });
-
-    logger.info('Directory esclusa aggiunta:', dir.directory);
-    return dir;
-  } catch (error) {
-    logger.error('Errore nell\'aggiunta directory esclusa:', error);
-    throw error;
-  }
-}
-
-export async function updateExcludedDirectory(id: string, data: any) {
-  try {
-    const dir = await prisma.cleanupExcludeDirectory.update({
-      where: { id },
-      data: {
-        ...data,
-        updatedAt: new Date()
-      }
-    });
-
-    logger.info('Directory esclusa aggiornata:', dir.directory);
-    return dir;
-  } catch (error) {
-    logger.error('Errore nell\'aggiornamento directory esclusa:', error);
-    throw error;
-  }
-}
-
-export async function deleteExcludedDirectory(id: string) {
-  try {
-    await prisma.cleanupExcludeDirectory.delete({
-      where: { id }
-    });
-
-    logger.info('Directory esclusa eliminata:', id);
-    return { success: true };
-  } catch (error) {
-    logger.error('Errore nell\'eliminazione directory esclusa:', error);
-    throw error;
-  }
-}
-
-// ==========================================
-// PROGRAMMAZIONI / SCHEDULES
-// ==========================================
-
-export async function getCleanupSchedules(includeInactive = false) {
-  try {
-    const where = includeInactive ? {} : { isActive: true };
-    
-    const schedules = await prisma.cleanupSchedule.findMany({
-      where,
-      orderBy: [
-        { name: 'asc' }
-      ]
-    });
-
-    return schedules;
-  } catch (error) {
-    logger.error('Errore nel recupero programmazioni:', error);
-    // Ritorna array vuoto se la tabella non esiste ancora
-    return [];
-  }
-}
-
-export async function createCleanupSchedule(data: any) {
-  try {
-    const schedule = await prisma.cleanupSchedule.create({
-      data: {
-        ...data,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    });
-
-    logger.info('Programmazione cleanup creata:', schedule.name);
-    return schedule;
-  } catch (error) {
-    logger.error('Errore nella creazione programmazione:', error);
-    throw error;
-  }
-}
-
-export async function updateCleanupSchedule(id: string, data: any) {
-  try {
-    const schedule = await prisma.cleanupSchedule.update({
-      where: { id },
-      data: {
-        ...data,
-        updatedAt: new Date()
-      }
-    });
-
-    logger.info('Programmazione cleanup aggiornata:', schedule.name);
-    return schedule;
-  } catch (error) {
-    logger.error('Errore nell\'aggiornamento programmazione:', error);
-    throw error;
-  }
-}
-
-export async function deleteCleanupSchedule(id: string) {
-  try {
-    await prisma.cleanupSchedule.delete({
-      where: { id }
-    });
-
-    logger.info('Programmazione cleanup eliminata:', id);
-    return { success: true };
-  } catch (error) {
-    logger.error('Errore nell\'eliminazione programmazione:', error);
-    throw error;
-  }
-}
-
-export async function getActiveExcludedDirectories() {
+export async function getActiveExcludedDirectories(): Promise<string[]> {
   try {
     const dirs = await prisma.cleanupExcludeDirectory.findMany({
       where: { isActive: true }

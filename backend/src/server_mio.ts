@@ -167,7 +167,8 @@ import testRoutes from './routes/test.routes';
 import whatsappRoutes from './routes/whatsapp.routes'; // NUOVO - versione semplice senza crittografia
 import whatsappContactsRoutes from './routes/whatsapp-contacts.routes'; // NUOVO - gestione contatti WhatsApp
 import whatsappConfigRoutes from './routes/admin/whatsapp-config.routes';
-import knowledgebaseRoutes from './routes/knowledgebase.routes';
+// DISABILITATO - File .disabled - Sistema articoli KB mai completato
+// import knowledgebaseRoutes from './routes/knowledgebase.routes';
 import knowledgeBaseRoutes from './routes/knowledge-base.routes'; // NUOVO IMPORT
 
 // Dashboard routes - IMPORTANTE!
@@ -431,7 +432,8 @@ app.use('/api/whatsapp/webhook', whatsappWebhookRoutes); // Webhook senza auth
 app.use('/api/whatsapp', whatsappRoutes); // Usa la versione senza crittografia
 app.use('/api/whatsapp', authenticate, whatsappContactsRoutes); // NUOVO - Gestione contatti WhatsApp
 app.use('/api/admin/whatsapp', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), whatsappConfigRoutes);
-app.use('/api/kb', knowledgebaseRoutes);
+// DISABILITATO - Sistema articoli KB mai completato (usa /api/knowledge-base invece)
+// app.use('/api/kb', knowledgebaseRoutes);
 app.use('/api/knowledge-base', authenticate, knowledgeBaseRoutes); // NUOVA ROUTE AGGIUNTA
 logger.info('📱 WhatsApp routes registered at /api/whatsapp');
 logger.info('👥 WhatsApp Contacts routes registered at /api/whatsapp/contacts');

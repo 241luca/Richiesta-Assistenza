@@ -2,11 +2,42 @@
 /**
  * Integrazione Audit Log per WhatsApp
  * Traccia tutte le operazioni WhatsApp per compliance e sicurezza
+ * 
+ * VERSIONE CORRETTA: TypeScript Strict Mode
+ * Data: 08/10/2025
  */
 
 import { prisma } from '../config/database';
 import { logger } from '../utils/logger';
 import * as auditService from './auditLog.service';
+import * as cron from 'node-cron';
+import { Prisma } from '@prisma/client';
+
+// ==================== TIPI ====================
+
+type AuditCategory =
+  | 'AUTH'
+  | 'DATA'
+  | 'ADMIN'
+  | 'SYSTEM'
+  | 'SECURITY'
+  | 'BUSINESS'
+  | 'LEGAL'
+  | 'COMMUNICATION';
+
+type AuditSeverity = 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL';
+
+type AnomalySeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+interface WhatsAppMetadata {
+  messageLength?: number;
+  hasMedia?: boolean;
+  mediaUrl?: string;
+  command?: string;
+  result?: string;
+  company?: string;
+  [key: string]: unknown;
+}
 
 export interface WhatsAppAuditEvent {
   action: string;
@@ -23,26 +54,75 @@ export interface WhatsAppAuditEvent {
   aiTokens?: number;
   kbDocuments?: number;
   errorMessage?: string;
-  metadata?: any;
+  metadata?: WhatsAppMetadata;
 }
+
+interface AuditReportSummary {
+  totalMessages: number;
+  uniqueUsers: number;
+  errors: number;
+  errorRate: string;
+  pecComplaints: number;
+  requestsCreated: number;
+}
+
+interface AuditReportPerformance {
+  avgResponseTime: number;
+  avgTokensUsed: number;
+}
+
+interface ActionBreakdownItem {
+  action: string;
+  count: number;
+}
+
+interface AuditReportCompliance {
+  allEventsLogged: boolean;
+  gdprCompliant: boolean;
+  dataRetentionPolicy: string;
+  encryptionEnabled: boolean;
+}
+
+interface AuditReport {
+  period: {
+    start: Date;
+    end: Date;
+  };
+  summary: AuditReportSummary;
+  performance: AuditReportPerformance;
+  actionBreakdown: ActionBreakdownItem[];
+  compliance: AuditReportCompliance;
+}
+
+interface Anomaly {
+  type: string;
+  severity: AnomalySeverity;
+  message: string;
+  action: string;
+}
+
+// ==================== LOGGING FUNCTIONS ====================
 
 /**
  * Log evento WhatsApp nell'audit trail
  */
-export async function logWhatsAppEvent(event: WhatsAppAuditEvent): Promise<void> {
+export async function logWhatsAppEvent(
+  event: WhatsAppAuditEvent
+): Promise<void> {
   try {
-    // Determina severity
-    let severity: 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL' = 'INFO';
-    
+    let severity: AuditSeverity = 'INFO';
+
     if (!event.success) {
       severity = 'ERROR';
     } else if (event.responseTime && event.responseTime > 5000) {
       severity = 'WARNING';
-    } else if (event.action.includes('COMPLAINT') || event.action.includes('PEC')) {
-      severity = 'WARNING'; // Azioni legali sono importanti
+    } else if (
+      event.action.includes('COMPLAINT') ||
+      event.action.includes('PEC')
+    ) {
+      severity = 'WARNING';
     }
-    
-    // Crea entry audit log
+
     await auditService.log({
       action: `WHATSAPP_${event.action}`,
       entityType: 'WhatsAppMessage',
@@ -58,15 +138,14 @@ export async function logWhatsAppEvent(event: WhatsAppAuditEvent): Promise<void>
         aiModel: event.aiModel,
         aiTokens: event.aiTokens,
         kbDocuments: event.kbDocuments,
-        ...event.metadata
+        ...event.metadata,
       },
       success: event.success,
       errorMessage: event.errorMessage,
       severity,
-      category: determineCategory(event.action)
+      category: determineCategory(event.action),
     });
-    
-    // Log anche in tabella specifica WhatsApp per analytics
+
     await prisma.whatsAppAudit.create({
       data: {
         action: event.action,
@@ -82,14 +161,12 @@ export async function logWhatsAppEvent(event: WhatsAppAuditEvent): Promise<void>
         aiModel: event.aiModel,
         aiTokensUsed: event.aiTokens,
         kbHit: (event.kbDocuments || 0) > 0,
-        metadata: event.metadata || {},
-        timestamp: new Date()
-      }
+        metadata: (event.metadata || {}) as Prisma.InputJsonValue,
+        timestamp: new Date(),
+      },
     });
-    
   } catch (error) {
     logger.error('Errore logging WhatsApp audit:', error);
-    // Non lanciare errore per non bloccare il flusso principale
   }
 }
 
@@ -100,7 +177,7 @@ export async function logIncomingMessage(
   phoneNumber: string,
   message: string,
   userId?: string,
-  metadata?: any
+  metadata?: WhatsAppMetadata
 ): Promise<void> {
   await logWhatsAppEvent({
     action: 'MESSAGE_RECEIVED',
@@ -110,8 +187,8 @@ export async function logIncomingMessage(
     metadata: {
       messageLength: message.length,
       hasMedia: metadata?.mediaUrl ? true : false,
-      ...metadata
-    }
+      ...metadata,
+    },
   });
 }
 
@@ -123,7 +200,7 @@ export async function logOutgoingMessage(
   message: string,
   userId?: string,
   success: boolean = true,
-  metadata?: any
+  metadata?: WhatsAppMetadata
 ): Promise<void> {
   await logWhatsAppEvent({
     action: 'MESSAGE_SENT',
@@ -132,8 +209,8 @@ export async function logOutgoingMessage(
     success,
     metadata: {
       messageLength: message.length,
-      ...metadata
-    }
+      ...metadata,
+    },
   });
 }
 
@@ -145,7 +222,7 @@ export async function logCommand(
   command: string,
   userId: string,
   success: boolean,
-  result?: any
+  result?: string
 ): Promise<void> {
   await logWhatsAppEvent({
     action: `COMMAND_${command.toUpperCase()}`,
@@ -154,8 +231,8 @@ export async function logCommand(
     success,
     metadata: {
       command,
-      result: result ? 'Executed' : 'Failed'
-    }
+      result: result || (success ? 'Executed' : 'Failed'),
+    },
   });
 }
 
@@ -167,7 +244,7 @@ export async function logRequestCreation(
   userId: string,
   requestId: string,
   category: string,
-  metadata?: any
+  metadata?: WhatsAppMetadata
 ): Promise<void> {
   await logWhatsAppEvent({
     action: 'REQUEST_CREATED',
@@ -176,10 +253,9 @@ export async function logRequestCreation(
     requestId,
     category,
     success: true,
-    metadata
+    metadata,
   });
-  
-  // Notifica importante per audit
+
   await auditService.log({
     action: 'WHATSAPP_REQUEST_CREATED',
     entityType: 'AssistanceRequest',
@@ -188,10 +264,10 @@ export async function logRequestCreation(
     details: {
       source: 'WHATSAPP',
       phoneNumber: maskPhoneNumber(phoneNumber),
-      category
+      category,
     },
     severity: 'INFO',
-    category: 'BUSINESS'
+    category: 'BUSINESS',
   });
 }
 
@@ -204,7 +280,7 @@ export async function logComplaintSent(
   complaintId: string,
   company: string,
   success: boolean,
-  metadata?: any
+  metadata?: WhatsAppMetadata
 ): Promise<void> {
   await logWhatsAppEvent({
     action: 'COMPLAINT_PEC_SENT',
@@ -214,11 +290,10 @@ export async function logComplaintSent(
     success,
     metadata: {
       company,
-      ...metadata
-    }
+      ...metadata,
+    },
   });
-  
-  // Log critico per azioni legali
+
   await auditService.log({
     action: 'PEC_COMPLAINT_SENT',
     entityType: 'Complaint',
@@ -227,10 +302,10 @@ export async function logComplaintSent(
     details: {
       initiatedVia: 'WHATSAPP',
       company,
-      phoneNumber: maskPhoneNumber(phoneNumber)
+      phoneNumber: maskPhoneNumber(phoneNumber),
     },
     severity: 'WARNING',
-    category: 'LEGAL'
+    category: 'LEGAL',
   });
 }
 
@@ -241,7 +316,7 @@ export async function logAIError(
   phoneNumber: string,
   error: string,
   model: string,
-  metadata?: any
+  metadata?: WhatsAppMetadata
 ): Promise<void> {
   await logWhatsAppEvent({
     action: 'AI_ERROR',
@@ -249,7 +324,7 @@ export async function logAIError(
     success: false,
     aiModel: model,
     errorMessage: error,
-    metadata
+    metadata,
   });
 }
 
@@ -262,7 +337,7 @@ export async function logAIPerformance(
   model: string,
   tokens: number,
   responseTime: number,
-  metadata?: any
+  metadata?: WhatsAppMetadata
 ): Promise<void> {
   await logWhatsAppEvent({
     action: 'AI_RESPONSE',
@@ -272,9 +347,11 @@ export async function logAIPerformance(
     aiModel: model,
     aiTokens: tokens,
     responseTime,
-    metadata
+    metadata,
   });
 }
+
+// ==================== REPORTING FUNCTIONS ====================
 
 /**
  * Genera report audit WhatsApp
@@ -282,227 +359,226 @@ export async function logAIPerformance(
 export async function generateAuditReport(
   startDate: Date,
   endDate: Date
-): Promise<any> {
-  // Messaggi totali
+): Promise<AuditReport> {
   const totalMessages = await prisma.whatsAppAudit.count({
     where: {
       timestamp: {
         gte: startDate,
-        lte: endDate
-      }
-    }
+        lte: endDate,
+      },
+    },
   });
-  
-  // Breakdown per action
+
   const actionBreakdown = await prisma.whatsAppAudit.groupBy({
     by: ['action'],
     where: {
       timestamp: {
         gte: startDate,
-        lte: endDate
-      }
+        lte: endDate,
+      },
     },
-    _count: true
+    _count: true,
   });
-  
-  // Errori
+
   const errors = await prisma.whatsAppAudit.count({
     where: {
       success: false,
       timestamp: {
         gte: startDate,
-        lte: endDate
-      }
-    }
+        lte: endDate,
+      },
+    },
   });
-  
-  // Reclami PEC
+
   const pecComplaints = await prisma.whatsAppAudit.count({
     where: {
       action: 'COMPLAINT_PEC_SENT',
       timestamp: {
         gte: startDate,
-        lte: endDate
-      }
-    }
+        lte: endDate,
+      },
+    },
   });
-  
-  // Richieste create
+
   const requestsCreated = await prisma.whatsAppAudit.count({
     where: {
       action: 'REQUEST_CREATED',
       timestamp: {
         gte: startDate,
-        lte: endDate
-      }
-    }
+        lte: endDate,
+      },
+    },
   });
-  
-  // Performance media
+
   const avgPerformance = await prisma.whatsAppAudit.aggregate({
     where: {
       responseTime: { not: null },
       timestamp: {
         gte: startDate,
-        lte: endDate
-      }
+        lte: endDate,
+      },
     },
     _avg: {
       responseTime: true,
-      aiTokensUsed: true
-    }
+      aiTokensUsed: true,
+    },
   });
-  
-  // Utenti unici
+
   const uniqueUsers = await prisma.whatsAppAudit.findMany({
     where: {
       timestamp: {
         gte: startDate,
-        lte: endDate
-      }
+        lte: endDate,
+      },
     },
     distinct: ['phoneNumber'],
-    select: { phoneNumber: true }
+    select: { phoneNumber: true },
   });
-  
+
   return {
     period: {
       start: startDate,
-      end: endDate
+      end: endDate,
     },
     summary: {
       totalMessages,
       uniqueUsers: uniqueUsers.length,
       errors,
-      errorRate: (errors / totalMessages * 100).toFixed(2) + '%',
+      errorRate: ((errors / totalMessages) * 100).toFixed(2) + '%',
       pecComplaints,
-      requestsCreated
+      requestsCreated,
     },
     performance: {
       avgResponseTime: avgPerformance._avg.responseTime || 0,
-      avgTokensUsed: avgPerformance._avg.aiTokensUsed || 0
+      avgTokensUsed: avgPerformance._avg.aiTokensUsed || 0,
     },
-    actionBreakdown: actionBreakdown.map(a => ({
+    actionBreakdown: actionBreakdown.map((a) => ({
       action: a.action,
-      count: a._count
+      count: a._count,
     })),
     compliance: {
       allEventsLogged: true,
       gdprCompliant: true,
       dataRetentionPolicy: '90 days',
-      encryptionEnabled: true
-    }
+      encryptionEnabled: true,
+    },
   };
 }
 
 /**
  * Verifica anomalie nei log
  */
-export async function detectAnomalies(): Promise<any[]> {
-  const anomalies = [];
-  
+export async function detectAnomalies(): Promise<Anomaly[]> {
+  const anomalies: Anomaly[] = [];
+
   // 1. Troppi errori consecutivi
   const recentErrors = await prisma.whatsAppAudit.findMany({
     where: {
       success: false,
       timestamp: {
-        gte: new Date(Date.now() - 60 * 60 * 1000) // Ultima ora
-      }
+        gte: new Date(Date.now() - 60 * 60 * 1000),
+      },
     },
-    orderBy: { timestamp: 'desc' }
+    orderBy: { timestamp: 'desc' },
   });
-  
+
   if (recentErrors.length > 10) {
     anomalies.push({
       type: 'HIGH_ERROR_RATE',
       severity: 'HIGH',
       message: `${recentErrors.length} errori nell'ultima ora`,
-      action: 'Verificare sistema WhatsApp'
+      action: 'Verificare sistema WhatsApp',
     });
   }
-  
+
   // 2. Stesso numero troppe richieste
   const frequentUsers = await prisma.whatsAppAudit.groupBy({
     by: ['phoneNumber'],
     where: {
       timestamp: {
-        gte: new Date(Date.now() - 60 * 60 * 1000)
-      }
+        gte: new Date(Date.now() - 60 * 60 * 1000),
+      },
     },
     _count: true,
     having: {
       phoneNumber: {
         _count: {
-          gt: 50 // Più di 50 messaggi in un'ora
-        }
-      }
-    }
+          gt: 50,
+        },
+      },
+    },
   });
-  
-  frequentUsers.forEach(user => {
+
+  frequentUsers.forEach((user) => {
     anomalies.push({
       type: 'SUSPICIOUS_ACTIVITY',
       severity: 'MEDIUM',
-      message: `Numero ${maskPhoneNumber(user.phoneNumber)} ha inviato ${user._count} messaggi`,
-      action: 'Possibile spam o abuso'
+      message: `Numero ${maskPhoneNumber(user.phoneNumber)} ha inviato ${
+        user._count
+      } messaggi`,
+      action: 'Possibile spam o abuso',
     });
   });
-  
+
   // 3. Response time degradato
   const slowResponses = await prisma.whatsAppAudit.findMany({
     where: {
-      responseTime: { gt: 10000 }, // Più di 10 secondi
+      responseTime: { gt: 10000 },
       timestamp: {
-        gte: new Date(Date.now() - 60 * 60 * 1000)
-      }
-    }
+        gte: new Date(Date.now() - 60 * 60 * 1000),
+      },
+    },
   });
-  
+
   if (slowResponses.length > 5) {
     anomalies.push({
       type: 'PERFORMANCE_DEGRADATION',
       severity: 'MEDIUM',
       message: `${slowResponses.length} risposte lente nell'ultima ora`,
-      action: 'Verificare performance AI/DB'
+      action: 'Verificare performance AI/DB',
     });
   }
-  
+
   // 4. PEC complaints spike
   const recentPEC = await prisma.whatsAppAudit.count({
     where: {
       action: 'COMPLAINT_PEC_SENT',
       timestamp: {
-        gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Ultimo giorno
-      }
-    }
+        gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      },
+    },
   });
-  
+
   if (recentPEC > 10) {
     anomalies.push({
       type: 'PEC_SPIKE',
       severity: 'HIGH',
       message: `${recentPEC} reclami PEC nelle ultime 24h`,
-      action: 'Verificare problemi di servizio'
+      action: 'Verificare problemi di servizio',
     });
   }
-  
+
   return anomalies;
 }
 
 /**
  * Pulizia log vecchi (GDPR compliance)
  */
-export async function cleanupOldLogs(retentionDays: number = 90): Promise<number> {
-  const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
-  
+export async function cleanupOldLogs(
+  retentionDays: number = 90
+): Promise<number> {
+  const cutoffDate = new Date(
+    Date.now() - retentionDays * 24 * 60 * 60 * 1000
+  );
+
   const result = await prisma.whatsAppAudit.deleteMany({
     where: {
       timestamp: {
-        lt: cutoffDate
-      }
-    }
+        lt: cutoffDate,
+      },
+    },
   });
-  
+
   await auditService.log({
     action: 'WHATSAPP_LOGS_CLEANUP',
     entityType: 'WhatsAppAudit',
@@ -510,28 +586,27 @@ export async function cleanupOldLogs(retentionDays: number = 90): Promise<number
     details: {
       deletedRecords: result.count,
       retentionDays,
-      cutoffDate
+      cutoffDate,
     },
     severity: 'INFO',
-    category: 'MAINTENANCE'
+    category: 'MAINTENANCE',
   });
-  
-  logger.info(`Eliminati ${result.count} log WhatsApp più vecchi di ${retentionDays} giorni`);
-  
+
+  logger.info(
+    `Eliminati ${result.count} log WhatsApp più vecchi di ${retentionDays} giorni`
+  );
+
   return result.count;
 }
 
-/**
- * Utility functions
- */
+// ==================== UTILITY FUNCTIONS ====================
 
 function maskPhoneNumber(phone: string): string {
   if (!phone) return 'N/A';
-  // Mostra solo ultimi 4 numeri
   return phone.slice(0, -4).replace(/\d/g, '*') + phone.slice(-4);
 }
 
-function determineCategory(action: string): 'AUTH' | 'DATA' | 'ADMIN' | 'SYSTEM' | 'SECURITY' | 'BUSINESS' | 'LEGAL' | 'COMMUNICATION' {
+function determineCategory(action: string): AuditCategory {
   if (action.includes('PEC') || action.includes('COMPLAINT')) return 'LEGAL';
   if (action.includes('MESSAGE')) return 'COMMUNICATION';
   if (action.includes('REQUEST')) return 'BUSINESS';
@@ -540,9 +615,9 @@ function determineCategory(action: string): 'AUTH' | 'DATA' | 'ADMIN' | 'SYSTEM'
   return 'DATA';
 }
 
-// Scheduler per pulizia automatica (ogni giorno alle 3 AM)
-import * as cron from 'node-cron';
+// ==================== SCHEDULERS ====================
 
+// Scheduler per pulizia automatica (ogni giorno alle 3 AM)
 cron.schedule('0 3 * * *', async () => {
   logger.info('Avvio pulizia log WhatsApp...');
   await cleanupOldLogs();
@@ -551,14 +626,12 @@ cron.schedule('0 3 * * *', async () => {
 // Scheduler per detection anomalie (ogni 30 minuti)
 cron.schedule('*/30 * * * *', async () => {
   const anomalies = await detectAnomalies();
-  
+
   if (anomalies.length > 0) {
     logger.warn('Anomalie rilevate:', anomalies);
-    
-    // Invia notifica agli admin
+
     for (const anomaly of anomalies) {
       if (anomaly.severity === 'HIGH' || anomaly.severity === 'CRITICAL') {
-        // Qui andrebbe integrata la notifica
         logger.error(`ANOMALIA CRITICA: ${anomaly.message}`);
       }
     }

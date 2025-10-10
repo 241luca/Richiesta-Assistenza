@@ -126,7 +126,7 @@ export class RequestService {
               slug: true,
             },
           },
-          attachments: true,
+          RequestAttachment: true,
           quotes: true,
         },
         orderBy: {
@@ -297,7 +297,7 @@ export class RequestService {
               items: true,
             },
           },
-          attachments: true,
+          RequestAttachment: true,
         },
       });
 

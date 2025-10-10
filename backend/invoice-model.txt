@@ -1,0 +1,81 @@
+model Invoice {
+  id String @id @default(cuid())
+
+  // Numerazione
+  invoiceNumber String       @unique // ANNO/NUMERO progressivo
+  documentType  DocumentType @default(INVOICE)
+
+  // Collegamenti
+  paymentId      String? @unique
+  requestId      String?
+  quoteId        String?
+  professionalId String?
+  customerId     String
+
+  // Dati cliente (snapshot)
+  customerData Json // Nome, indirizzo, CF/P.IVA
+
+  // Dettagli economici
+  lineItems   Json // Array di righe fattura
+  subtotal    Float
+  taxRate     Float @default(22) // IVA %
+  taxAmount   Float
+  totalAmount Float
+
+  // Stato pagamento
+  status     InvoiceStatus @default(DRAFT)
+  paidAmount Float         @default(0)
+  dueDate    DateTime?
+  paidDate   DateTime?
+
+  // Gestione
+  createdManually Boolean @default(false)
+  createdBy       String?
+
+  // Fattura elettronica
+  isElectronic    Boolean   @default(false)
+  sdiId           String? // ID Sistema di Interscambio
+  xmlFile         String?   @db.Text
+  sdiStatus       String? // SENT, ACCEPTED, REJECTED
+  sdiSentAt       DateTime?
+  sdiResponseFile String?   @db.Text
+
+  // Files
+  pdfUrl      String?
+  attachments Json? // Array di allegati
+
+  // Metadata
+  notes         String? @db.Text
+  internalNotes String? @db.Text // Non visibili al cliente
+  paymentTerms  String? // Termini di pagamento
+
+  // Date
+  sentAt         DateTime?
+  viewedAt       DateTime?
+  reminderSentAt DateTime?
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  payment         Payment?           @relation(fields: [paymentId], references: [id])
+  request         AssistanceRequest? @relation(fields: [requestId], references: [id])
+  quote           Quote?             @relation(fields: [quoteId], references: [id])
+  professional    User?              @relation("ProfessionalInvoices", fields: [professionalId], references: [id])
+  customer        User               @relation("CustomerInvoices", fields: [customerId], references: [id])
+  createdByUser   User?              @relation("InvoiceCreatedBy", fields: [createdBy], references: [id])
+  invoicePayments InvoicePayment[]
+  creditNotes     CreditNote[]
+
+  @@index([invoiceNumber])
+  @@index([status])
+  @@index([professionalId])
+  @@index([customerId])
+}
+
+// Pagamenti parziali fatture
+model InvoicePayment {
+  id        String  @id @default(cuid())
+  invoiceId String
+  paymentId String? // NULL se pagamento manuale

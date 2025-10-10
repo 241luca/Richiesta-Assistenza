@@ -56,7 +56,7 @@ notificationService.setIO(io);
 
 // CORS configuration
 app.use(cors({
-  origin: function (origin, callback) {
+  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
     const allowedOrigins = [
       'http://localhost:5193',
       'http://127.0.0.1:5193',
@@ -115,7 +115,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../../public/uploads'))
 app.use(express.static(path.join(__dirname, '../../public')));
 
 // Health check endpoint
-app.get('/health', (_, res) => {
+app.get('/health', (_req, res) => {
   res.json({ 
     status: 'ok', 
     port: process.env.PORT || 3200,
@@ -125,7 +125,7 @@ app.get('/health', (_, res) => {
 });
 
 // WebSocket test endpoint
-app.get('/ws-test', (_, res) => {
+app.get('/ws-test', (_req, res) => {
   res.send(`
     <!DOCTYPE html>
     <html>
@@ -155,8 +155,7 @@ app.get('/ws-test', (_, res) => {
 import authRoutes from './routes/auth.routes';
 // TEMPORANEAMENTE DISABILITATO - File con errori database schema
 // import professionalRegistrationRoutes from './routes/professional-registration.routes';
-// TEMPORANEAMENTE DISABILITATO - File con errori database schema
-// import securityRoutes from './routes/security.routes'; // AGGIUNTO - Security routes
+import securityRoutes from './routes/security.routes'; // RIATTIVATO - Security routes
 import userRoutes from './routes/user.routes';
 import professionalDetailsRoutes from './routes/professional-details.routes';
 // DISABILITATO TEMPORANEAMENTE - File ha estensione .disabled
@@ -170,7 +169,8 @@ import testRoutes from './routes/test.routes';
 import whatsappRoutes from './routes/whatsapp.routes'; // NUOVO - versione semplice senza crittografia
 import whatsappContactsRoutes from './routes/whatsapp-contacts.routes'; // NUOVO - gestione contatti WhatsApp
 import whatsappConfigRoutes from './routes/admin/whatsapp-config.routes';
-import knowledgebaseRoutes from './routes/knowledgebase.routes';
+// DISABILITATO - File .disabled - Sistema articoli KB mai completato
+// import knowledgebaseRoutes from './routes/knowledgebase.routes';
 import knowledgeBaseRoutes from './routes/knowledge-base.routes'; // NUOVO IMPORT
 
 // Dashboard routes - IMPORTANTE!
@@ -353,9 +353,9 @@ logger.info('📍 Location tracking routes registered at /api/location');
 app.use('/api/apikeys', authenticate, apiKeysRoutes);
 logger.info('🔑 API Keys routes registered at /api/apikeys');
 
-// Security routes - TEMPORANEAMENTE DISABILITATO
-// app.use('/api/security', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), securityRoutes);
-// logger.info('🔒 Security routes registered at /api/security');
+// Security routes - RIATTIVATO
+app.use('/api/security', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), securityRoutes);
+logger.info('🔒 Security routes registered at /api/security');
 
 // Admin routes
 app.use('/api/admin/users', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), adminUsersRoutes);
@@ -429,7 +429,8 @@ app.use('/api/whatsapp/webhook', whatsappWebhookRoutes); // Webhook senza auth
 app.use('/api/whatsapp', whatsappRoutes); // Usa la versione senza crittografia
 app.use('/api/whatsapp', authenticate, whatsappContactsRoutes); // NUOVO - Gestione contatti WhatsApp
 app.use('/api/admin/whatsapp', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), whatsappConfigRoutes);
-app.use('/api/kb', knowledgebaseRoutes);
+// DISABILITATO - Sistema articoli KB mai completato (usa /api/knowledge-base invece)
+// app.use('/api/kb', knowledgebaseRoutes);
 app.use('/api/knowledge-base', authenticate, knowledgeBaseRoutes); // NUOVA ROUTE AGGIUNTA
 logger.info('📱 WhatsApp routes registered at /api/whatsapp');
 logger.info('👥 WhatsApp Contacts routes registered at /api/whatsapp/contacts');
@@ -449,7 +450,7 @@ if (process.env.NODE_ENV !== 'production') {
 app.use(errorHandler);
 
 // 404 handler
-app.use((req, res) => {
+app.use((req: express.Request, res: express.Response) => {
   res.status(404).json(
     ResponseFormatter.error(
       `Cannot ${req.method} ${req.path}`,
@@ -499,7 +500,7 @@ httpServer.listen(PORT, () => {
       const GoogleMapsService = require('./services/googleMaps.service').default;
       await GoogleMapsService.initialize();
       logger.info('🗺️ Google Maps Service inizializzato con cache Redis');
-    } catch (error) {
+    } catch (error: any) {
       logger.warn('⚠️ Google Maps Service avviato senza Redis cache:', error);
     }
   })();
@@ -510,7 +511,7 @@ httpServer.listen(PORT, () => {
       const { wppConnectService } = require('./services/wppconnect.service');
       await wppConnectService.initialize();
       logger.info('📱 WPPConnect pronto - vai su /admin/whatsapp per il QR Code');
-    } catch (error) {
+    } catch (error: any) {
       logger.warn('⚠️ WPPConnect non connesso - scansiona il QR dalla dashboard');
       // Non blocchiamo il server se WhatsApp fallisce
     }
@@ -525,7 +526,7 @@ process.on('SIGTERM', async () => {
   try {
     const GoogleMapsService = require('./services/googleMaps.service').default;
     await GoogleMapsService.shutdown();
-  } catch (error) {
+  } catch (error: any) {
     logger.debug('Google Maps shutdown error:', error);
   }
   
@@ -553,7 +554,7 @@ process.on('SIGINT', async () => {
 });
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
   logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 

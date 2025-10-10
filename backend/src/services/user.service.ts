@@ -196,8 +196,8 @@ class UserService {
       const user = await prisma.user.findUnique({
         where: { id: userId },
         include: {
-          professionData: true,
-          professionalUserSubcategories: {
+          Profession: true,
+          ProfessionalUserSubcategory: {
             include: {
               subcategory: {
                 include: {
@@ -210,8 +210,7 @@ class UserService {
             select: {
               clientRequests: true,
               professionalRequests: true,
-              quotes: true,
-              payments: true
+              quotes: true
             }
           }
         }

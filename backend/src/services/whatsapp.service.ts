@@ -23,14 +23,19 @@ export async function initializeWhatsApp(): Promise<boolean> {
     await prisma.systemSetting.upsert({
       where: { key: 'whatsapp_provider' },
       create: {
+        id: 'whatsapp_provider',
         key: 'whatsapp_provider',
         value: 'wppconnect',
         type: 'string',
         label: 'WhatsApp Provider',
         description: 'Provider WhatsApp attivo',
-        category: 'whatsapp'
+        category: 'whatsapp',
+        updatedAt: new Date()
       },
-      update: { value: 'wppconnect' }
+      update: { 
+        value: 'wppconnect',
+        updatedAt: new Date()
+      }
     });
     
     logger.info('✅ WhatsApp inizializzato con WPPConnect');
@@ -252,7 +257,7 @@ export async function getAllMessages(limit: number = 50, offset: number = 0): Pr
       skip: offset,
       orderBy: { timestamp: 'desc' },
       include: {
-        conversation: true
+        // conversation: true // Field doesn't exist
       }
     });
     

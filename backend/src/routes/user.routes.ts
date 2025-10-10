@@ -521,7 +521,7 @@ router.get('/professionals', authenticate, requireAdmin, async (req: any, res) =
         phone: true,
         profession: true,
         professionId: true,
-        professionData: true,  // Relazione con tabella Profession
+        Profession: true,  // Relazione con tabella Profession
         city: true,
         province: true,
         canSelfAssign: true,  // AGGIUNTO!
@@ -571,7 +571,7 @@ router.get('/:id', authenticate, async (req: any, res) => {
     const user = await prisma.user.findUnique({
       where: { id: requestedUserId },
       include: {
-        professionData: true  // Include la professione tabellata
+        Profession: true  // Include la professione tabellata
       }
     });
     

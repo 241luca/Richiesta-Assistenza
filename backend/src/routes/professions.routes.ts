@@ -336,13 +336,13 @@ router.put('/user/:userId', authenticate, async (req: any, res: Response) => {
         updatedAt: new Date()
       },
       include: {
-        professionData: true
+        Profession: true
       }
     });
     
     logger.info(`✅ User updated successfully:`);
     logger.info(`   ProfessionId: ${updatedUser.professionId}`);
-    logger.info(`   Profession: ${updatedUser.professionData?.name || 'none'}`);
+    logger.info(`   Profession: ${updatedUser.Profession?.name || 'none'}`);
 
     // NOTA: Le categorie associate alla professione sono già definite nella tabella ProfessionCategory
     // Non associamo automaticamente le sottocategorie - saranno selezionate manualmente

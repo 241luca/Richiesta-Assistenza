@@ -82,7 +82,7 @@ class ProfessionalStatsService {
         where: {
           professionalId,
           status: 'COMPLETED',
-          completedAt: {
+          completedDate: {
             gte: startOfMonth
           }
         }

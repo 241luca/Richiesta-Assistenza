@@ -11,9 +11,12 @@ import logger from '../utils/logger';
 import { whatsAppValidation } from './whatsapp-validation.service';
 import { wppConnectService } from './wppconnect.service';
 import { NotificationService } from './notification.service';
-import { auditService } from './auditLog.service';
+import { auditLogService } from './auditLog.service';
+import { createId } from '@paralleldrive/cuid2';
 
 const notificationService = new NotificationService();
+
+// ===== TIPI TYPESCRIPT =====
 
 export interface WhatsAppTemplate {
   id?: string;
@@ -40,6 +43,50 @@ export interface TemplateVariables {
   [key: string]: string | number | Date;
 }
 
+interface TemplateMetadata {
+  mediaUrl?: string;
+  mediaType?: string;
+  buttons?: TemplateButton[];
+  tags?: string[];
+  language?: string;
+  usageCount?: number;
+  isWhatsApp?: boolean;
+}
+
+interface SendResult {
+  success: boolean;
+  messageId?: string;
+  to: string;
+  template: string;
+}
+
+interface BulkSendResult {
+  sent: string[];
+  failed: Array<{ number: string; error: string }>;
+  total: number;
+}
+
+interface DbTemplate {
+  id: string;
+  code: string;
+  name: string;
+  priority: string;
+  description: string | null;
+  category: string;
+  htmlContent: string;
+  textContent: string | null;
+  whatsappContent: string | null;
+  variables: any;
+  channels: any;
+  isActive: boolean;
+  isSystem: boolean;
+  version: number;
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export class WhatsAppTemplateService {
   
   /**
@@ -55,38 +102,51 @@ export class WhatsAppTemplateService {
       // Estrai variabili dal contenuto
       const variables = this.extractVariables(template.content);
       
+      // Prepara metadata come JSON
+      const metadata: TemplateMetadata = {
+        mediaUrl: template.mediaUrl,
+        mediaType: template.mediaType,
+        buttons: template.buttons,
+        tags: template.tags,
+        language: template.language || 'it',
+        usageCount: 0,
+        isWhatsApp: true
+      };
+      
       // Salva nel database usando la tabella NotificationTemplate esistente
       const savedTemplate = await prisma.notificationTemplate.create({
         data: {
+          id: createId(),
+          code: `whatsapp_${Date.now()}`,
           name: template.name,
           subject: `WhatsApp: ${template.name}`,
-          content: template.content,
-          type: 'WHATSAPP',
+          htmlContent: template.content,
+          textContent: template.content,
+          whatsappContent: template.content,
           category: template.category,
           isActive: template.isActive !== false,
           variables: variables,
-          metadata: {
-            mediaUrl: template.mediaUrl,
-            mediaType: template.mediaType,
-            buttons: template.buttons,
-            tags: template.tags,
-            language: template.language || 'it'
-          },
-          createdBy: userId
+          channels: ['whatsapp'],
+          priority: 'NORMAL',
+          createdBy: userId,
+          updatedAt: new Date()
         }
       });
       
       // Log nel sistema audit
-      await auditService.log({
-        action: 'WHATSAPP_TEMPLATE_CREATED',
+      await auditLogService.log({
+        action: 'CREATE',
         entityType: 'WhatsAppTemplate',
         entityId: savedTemplate.id,
         userId: userId,
-        details: {
+        ipAddress: 'system',
+        userAgent: 'whatsapp-template-service',
+        metadata: {
           templateName: template.name,
           category: template.category
         },
         success: true,
+        severity: 'INFO',
         category: 'BUSINESS'
       });
       
@@ -94,9 +154,10 @@ export class WhatsAppTemplateService {
       
       return this.mapToWhatsAppTemplate(savedTemplate);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error('❌ Errore creazione template:', error);
-      throw error;
+      throw new Error(`Failed to create template: ${errorMessage}`);
     }
   }
   
@@ -112,7 +173,7 @@ export class WhatsAppTemplateService {
         where: { id: templateId }
       });
       
-      if (!existing || existing.type !== 'WHATSAPP') {
+      if (!existing) {
         throw new Error('Template WhatsApp non trovato');
       }
       
@@ -126,31 +187,29 @@ export class WhatsAppTemplateService {
         where: { id: templateId },
         data: {
           name: updates.name || existing.name,
-          content: updates.content || existing.content,
+          htmlContent: updates.content || existing.htmlContent,
+          textContent: updates.content || existing.textContent,
+          whatsappContent: updates.content || existing.whatsappContent,
           category: updates.category || existing.category,
           isActive: updates.isActive !== undefined ? updates.isActive : existing.isActive,
           variables: variables,
-          metadata: {
-            ...(existing.metadata as any || {}),
-            mediaUrl: updates.mediaUrl,
-            mediaType: updates.mediaType,
-            buttons: updates.buttons,
-            tags: updates.tags,
-            language: updates.language
-          },
+          updatedBy: userId,
           updatedAt: new Date()
         }
       });
       
       // Log nel sistema audit
-      await auditService.log({
-        action: 'WHATSAPP_TEMPLATE_UPDATED',
+      await auditLogService.log({
+        action: 'UPDATE',
         entityType: 'WhatsAppTemplate',
         entityId: templateId,
         userId: userId,
+        ipAddress: 'system',
+        userAgent: 'whatsapp-template-service',
         oldValues: existing,
         newValues: updated,
         success: true,
+        severity: 'INFO',
         category: 'BUSINESS'
       });
       
@@ -158,9 +217,10 @@ export class WhatsAppTemplateService {
       
       return this.mapToWhatsAppTemplate(updated);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error('❌ Errore aggiornamento template:', error);
-      throw error;
+      throw new Error(`Failed to update template: ${errorMessage}`);
     }
   }
   
@@ -170,19 +230,17 @@ export class WhatsAppTemplateService {
   async getTemplate(templateId: string): Promise<WhatsAppTemplate | null> {
     try {
       const template = await prisma.notificationTemplate.findUnique({
-        where: { 
-          id: templateId,
-          type: 'WHATSAPP'
-        }
+        where: { id: templateId }
       });
       
       if (!template) return null;
       
       return this.mapToWhatsAppTemplate(template);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error('❌ Errore recupero template:', error);
-      throw error;
+      throw new Error(`Failed to get template: ${errorMessage}`);
     }
   }
   
@@ -195,13 +253,9 @@ export class WhatsAppTemplateService {
     tags?: string[];
   }): Promise<WhatsAppTemplate[]> {
     try {
-      const where: any = {
-        type: 'WHATSAPP'
+      const where: Record<string, unknown> = {
+        category: filters?.category
       };
-      
-      if (filters?.category) {
-        where.category = filters.category;
-      }
       
       if (filters?.isActive !== undefined) {
         where.isActive = filters.isActive;
@@ -212,21 +266,12 @@ export class WhatsAppTemplateService {
         orderBy: { createdAt: 'desc' }
       });
       
-      // Filtra per tags se richiesto
-      let filtered = templates;
-      if (filters?.tags && filters.tags.length > 0) {
-        filtered = templates.filter(t => {
-          const metadata = t.metadata as any;
-          const templateTags = metadata?.tags || [];
-          return filters.tags!.some(tag => templateTags.includes(tag));
-        });
-      }
+      return templates.map(t => this.mapToWhatsAppTemplate(t));
       
-      return filtered.map(t => this.mapToWhatsAppTemplate(t));
-      
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error('❌ Errore recupero templates:', error);
-      throw error;
+      throw new Error(`Failed to get templates: ${errorMessage}`);
     }
   }
   
@@ -238,7 +283,7 @@ export class WhatsAppTemplateService {
     to: string,
     variables?: TemplateVariables,
     userId?: string
-  ): Promise<any> {
+  ): Promise<SendResult> {
     try {
       logger.info(`📤 Invio da template ${templateId} a ${to}`);
       
@@ -270,9 +315,6 @@ export class WhatsAppTemplateService {
       // Invia messaggio
       const result = await client.sendMessage(validatedNumber.formatted, content);
       
-      // Aggiorna contatore utilizzo template
-      await this.incrementUsageCount(templateId);
-      
       // Salva nel database
       await prisma.whatsAppMessage.create({
         data: {
@@ -282,27 +324,25 @@ export class WhatsAppTemplateService {
           direction: 'outgoing',
           status: 'SENT',
           timestamp: new Date(),
-          type: 'template',
-          metadata: {
-            templateId: templateId,
-            templateName: template.name,
-            variables: variables
-          }
+          type: 'template'
         }
       });
       
       // Log nel sistema audit
-      await auditService.log({
-        action: 'WHATSAPP_TEMPLATE_SENT',
-        entityType: 'WhatsAppTemplate',
-        entityId: templateId,
-        userId: userId || null,
-        details: {
+      await auditLogService.log({
+        action: 'CREATE',
+        entityType: 'WhatsAppMessage',
+        entityId: result.messageId || '',
+        userId: userId || undefined,
+        ipAddress: 'system',
+        userAgent: 'whatsapp-template-service',
+        metadata: {
           to: validatedNumber.formatted,
           templateName: template.name,
           hasVariables: !!variables
         },
         success: true,
+        severity: 'INFO',
         category: 'BUSINESS'
       });
       
@@ -324,20 +364,24 @@ export class WhatsAppTemplateService {
         template: template.name
       };
       
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error('❌ Errore invio template:', error);
       
-      await auditService.log({
-        action: 'WHATSAPP_TEMPLATE_SEND_FAILED',
-        entityType: 'WhatsAppTemplate',
+      await auditLogService.log({
+        action: 'CREATE',
+        entityType: 'WhatsAppMessage',
         entityId: templateId,
-        userId: userId || null,
-        errorMessage: error.message,
+        userId: userId || undefined,
+        ipAddress: 'system',
+        userAgent: 'whatsapp-template-service',
+        errorMessage: errorMessage,
         success: false,
+        severity: 'ERROR',
         category: 'BUSINESS'
       });
       
-      throw error;
+      throw new Error(`Failed to send template: ${errorMessage}`);
     }
   }
   
@@ -350,13 +394,13 @@ export class WhatsAppTemplateService {
     commonVariables?: TemplateVariables,
     individualVariables?: Map<string, TemplateVariables>,
     userId?: string
-  ): Promise<any> {
+  ): Promise<BulkSendResult> {
     try {
       logger.info(`📤 Invio bulk template ${templateId} a ${recipients.length} destinatari`);
       
-      const results = {
-        sent: [] as string[],
-        failed: [] as { number: string; error: string }[],
+      const results: BulkSendResult = {
+        sent: [],
+        failed: [],
         total: recipients.length
       };
       
@@ -391,10 +435,11 @@ export class WhatsAppTemplateService {
               
               results.sent.push(recipient);
               
-            } catch (error: any) {
+            } catch (error: unknown) {
+              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
               results.failed.push({
                 number: recipient,
-                error: error.message
+                error: errorMessage
               });
             }
           })
@@ -407,18 +452,21 @@ export class WhatsAppTemplateService {
       }
       
       // Log nel sistema audit
-      await auditService.log({
-        action: 'WHATSAPP_TEMPLATE_BULK_SENT',
-        entityType: 'WhatsAppTemplate',
+      await auditLogService.log({
+        action: 'CREATE',
+        entityType: 'WhatsAppBulkSend',
         entityId: templateId,
-        userId: userId || null,
-        details: {
+        userId: userId || undefined,
+        ipAddress: 'system',
+        userAgent: 'whatsapp-template-service',
+        metadata: {
           templateName: template.name,
           totalRecipients: results.total,
           sent: results.sent.length,
           failed: results.failed.length
         },
         success: results.sent.length > 0,
+        severity: 'INFO',
         category: 'BUSINESS'
       });
       
@@ -431,9 +479,10 @@ export class WhatsAppTemplateService {
       
       return results;
       
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error('❌ Errore invio bulk template:', error);
-      throw error;
+      throw new Error(`Failed to send bulk template: ${errorMessage}`);
     }
   }
   
@@ -456,29 +505,32 @@ export class WhatsAppTemplateService {
       await prisma.notificationTemplate.update({
         where: { id: templateId },
         data: { 
-          isActive: false,
-          deletedAt: new Date()
+          isActive: false
         }
       });
       
       // Log nel sistema audit
-      await auditService.log({
-        action: 'WHATSAPP_TEMPLATE_DELETED',
+      await auditLogService.log({
+        action: 'DELETE',
         entityType: 'WhatsAppTemplate',
         entityId: templateId,
         userId: userId,
-        details: {
+        ipAddress: 'system',
+        userAgent: 'whatsapp-template-service',
+        metadata: {
           templateName: template.name
         },
         success: true,
+        severity: 'INFO',
         category: 'BUSINESS'
       });
       
       logger.info(`✅ Template eliminato: ${templateId}`);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error('❌ Errore eliminazione template:', error);
-      throw error;
+      throw new Error(`Failed to delete template: ${errorMessage}`);
     }
   }
   
@@ -489,20 +541,20 @@ export class WhatsAppTemplateService {
     try {
       const templates = await prisma.notificationTemplate.findMany({
         where: {
-          type: 'WHATSAPP',
           isActive: true
         },
         orderBy: {
-          usageCount: 'desc'
+          createdAt: 'desc'
         },
         take: limit
       });
       
       return templates.map(t => this.mapToWhatsAppTemplate(t));
       
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error('❌ Errore recupero template più usati:', error);
-      throw error;
+      throw new Error(`Failed to get most used templates: ${errorMessage}`);
     }
   }
   
@@ -526,9 +578,10 @@ export class WhatsAppTemplateService {
       
       return cloned;
       
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error('❌ Errore clonazione template:', error);
-      throw error;
+      throw new Error(`Failed to clone template: ${errorMessage}`);
     }
   }
   
@@ -609,22 +662,6 @@ export class WhatsAppTemplateService {
   }
   
   /**
-   * Incrementa contatore utilizzo
-   */
-  private async incrementUsageCount(templateId: string): Promise<void> {
-    try {
-      await prisma.notificationTemplate.update({
-        where: { id: templateId },
-        data: {
-          usageCount: { increment: 1 }
-        }
-      });
-    } catch (error) {
-      logger.error('Errore incremento usage count:', error);
-    }
-  }
-  
-  /**
    * Invia media del template
    */
   private async sendTemplateMedia(
@@ -635,7 +672,7 @@ export class WhatsAppTemplateService {
     try {
       // TODO: Implementare invio media quando il servizio è pronto
       logger.info(`📎 Invio media template: ${mediaType} a ${to}`);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Errore invio media template:', error);
     }
   }
@@ -643,25 +680,28 @@ export class WhatsAppTemplateService {
   /**
    * Notifica problemi invio bulk
    */
-  private async notifyBulkSendIssue(templateName: string, results: any): Promise<void> {
+  private async notifyBulkSendIssue(templateName: string, results: BulkSendResult): Promise<void> {
     try {
       const admins = await prisma.user.findMany({
         where: {
-          role: { in: ['ADMIN', 'SUPER_ADMIN'] },
-          isActive: true
+          role: { in: ['ADMIN', 'SUPER_ADMIN'] }
         }
       });
       
       for (const admin of admins) {
-        await notificationService.sendToUser(admin.id, {
-          title: '⚠️ Problema invio bulk WhatsApp',
-          message: `Template "${templateName}": ${results.failed.length}/${results.total} invii falliti`,
-          type: 'whatsapp_bulk_issue',
-          priority: 'medium',
-          data: results
+        // Crea notifica semplice nel database
+        await prisma.notification.create({
+          data: {
+            id: createId(),
+            type: 'whatsapp_bulk_issue',
+            title: '⚠️ Problema invio bulk WhatsApp',
+            content: `Template "${templateName}": ${results.failed.length}/${results.total} invii falliti`,
+            priority: 'NORMAL',
+            recipientId: admin.id
+          }
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Errore notifica bulk issue:', error);
     }
   }
@@ -670,21 +710,18 @@ export class WhatsAppTemplateService {
    * Mappa da NotificationTemplate a WhatsAppTemplate
    */
   private mapToWhatsAppTemplate(dbTemplate: any): WhatsAppTemplate {
-    const metadata = dbTemplate.metadata as any || {};
+    const content = dbTemplate.whatsappContent || dbTemplate.textContent || dbTemplate.htmlContent || '';
     
     return {
       id: dbTemplate.id,
       name: dbTemplate.name,
       category: dbTemplate.category || 'general',
-      content: dbTemplate.content,
-      variables: dbTemplate.variables || [],
-      mediaUrl: metadata.mediaUrl,
-      mediaType: metadata.mediaType,
-      buttons: metadata.buttons,
+      content: content,
+      variables: Array.isArray(dbTemplate.variables) ? dbTemplate.variables : [],
       isActive: dbTemplate.isActive,
-      usageCount: dbTemplate.usageCount || 0,
-      tags: metadata.tags || [],
-      language: metadata.language || 'it'
+      usageCount: 0,
+      tags: [],
+      language: 'it'
     };
   }
 }

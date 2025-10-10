@@ -277,15 +277,13 @@ export class WhatsAppValidationService {
       await prisma.whatsAppContact.upsert({
         where: { phoneNumber: validatedNumber.formatted },
         update: {
-          lastValidation: new Date(),
-          hasWhatsApp: validatedNumber.hasWhatsApp,
+          syncedAt: new Date()
         },
         create: {
           phoneNumber: validatedNumber.formatted,
           name: validatedNumber.formatted,
-          hasWhatsApp: validatedNumber.hasWhatsApp,
-          lastValidation: new Date(),
-          isUser: validatedNumber.hasWhatsApp || false,
+          isUser: true,
+          syncedAt: new Date()
         }
       });
       

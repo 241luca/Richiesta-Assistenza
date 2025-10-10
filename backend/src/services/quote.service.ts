@@ -13,13 +13,14 @@
  * - Notifiche eventi preventivo
  * 
  * @module services/quote
- * @version 5.2.1
- * @updated 2025-10-01
+ * @version 5.2.2
+ * @updated 2025-10-09
  * @author Sistema Richiesta Assistenza
+ * @fixed TypeScript errors - aligned with Prisma schema
  */
 
 import { prisma } from '../config/database';
-import { Prisma } from '@prisma/client';
+import { Prisma, Quote, QuoteRevision, QuoteTemplate, DepositRule } from '@prisma/client';
 import { AppError } from '../utils/errors';
 import { notificationService } from './notification.service';
 import { v4 as uuidv4 } from 'uuid';
@@ -71,6 +72,47 @@ interface UpdateQuoteInput {
 }
 
 /**
+ * Interface per i totali del preventivo
+ */
+interface QuoteTotals {
+  subtotal: number;
+  taxAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+}
+
+/**
+ * Interface per custom fields quote
+ */
+interface QuoteCustomFields {
+  subtotal: number;
+  taxAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  depositAmount: number | null;
+  calculationDetails: QuoteTotals;
+  lastUpdatedBy?: string;
+  lastUpdatedAt?: Date;
+}
+
+/**
+ * Interface per template data
+ */
+interface QuoteTemplateData {
+  title?: string;
+  notes?: string | null;
+  terms?: string | null;
+  items?: Array<{
+    description: string;
+    quantity?: number;
+    unitPrice?: number;
+    taxRate?: number;
+    discount?: number;
+    notes?: string;
+  }>;
+}
+
+/**
  * Quote Service Class
  * 
  * Gestisce il ciclo di vita completo dei preventivi:
@@ -82,18 +124,10 @@ class QuoteService {
    * Crea un nuovo preventivo con items e calcoli automatici
    * 
    * @param {CreateQuoteInput} input - Dati preventivo
-   * @returns {Promise<Object>} Preventivo creato con items
+   * @returns {Promise<Quote & { items: any[] }>} Preventivo creato con items
    * @throws {AppError} Se richiesta non trovata (404)
-   * 
-   * @example
-   * const quote = await quoteService.createQuote({
-   *   title: 'Preventivo Riparazione',
-   *   requestId: 'req-123',
-   *   professionalId: 'prof-456',
-   *   items: [{ description: 'Servizio', quantity: 1, unitPrice: 100 }]
-   * });
    */
-  async createQuote(input: CreateQuoteInput) {
+  async createQuote(input: CreateQuoteInput): Promise<Quote & { items: any[] }> {
     try {
       logger.info('[QuoteService] Creating new quote', { 
         title: input.title,
@@ -116,12 +150,11 @@ class QuoteService {
       logger.info('[QuoteService] Quote totals calculated', calculations);
 
       // Calcola deposito se richiesto
-      let depositAmount = null;
+      let depositAmount: number | null = null;
       if (input.requiresDeposit) {
         depositAmount = await this.calculateDeposit(
           calculations.totalAmount,
-          request.categoryId,
-          request.subcategoryId
+          request.categoryId
         );
         logger.info(`[QuoteService] Deposit calculated: ${depositAmount}`);
       }
@@ -129,6 +162,15 @@ class QuoteService {
       // Transazione: crea preventivo + items + revisione
       const quote = await prisma.$transaction(async (tx) => {
         const quoteId = uuidv4();
+        
+        const customFields: QuoteCustomFields = {
+          subtotal: calculations.subtotal,
+          taxAmount: calculations.taxAmount,
+          discountAmount: calculations.discountAmount,
+          totalAmount: calculations.totalAmount,
+          depositAmount: depositAmount,
+          calculationDetails: calculations
+        };
         
         // Crea preventivo
         const newQuote = await tx.quote.create({
@@ -148,14 +190,7 @@ class QuoteService {
             version: 1,
             updatedAt: new Date(),
             status: 'PENDING',
-            customFields: {
-              subtotal: calculations.subtotal,
-              taxAmount: calculations.taxAmount,
-              discountAmount: calculations.discountAmount,
-              totalAmount: calculations.totalAmount,
-              depositAmount: depositAmount,
-              calculationDetails: calculations
-            }
+            customFields: customFields as any
           }
         });
 
@@ -190,14 +225,18 @@ class QuoteService {
           data: {
             id: uuidv4(),
             quoteId: quoteId,
-            recipientId: input.professionalId,
+            userId: input.professionalId, // ✅ CORRETTO: userId invece di recipientId
             version: 1,
             changes: {
               action: 'created',
-              quote: newQuote,
-              items: items,
-              calculations: calculations
-            },
+              quote: {
+                id: newQuote.id,
+                title: newQuote.title,
+                amount: Number(newQuote.amount)
+              },
+              itemsCount: items.length,
+              totalAmount: calculations.totalAmount
+            } as any,
             reason: 'Creazione preventivo iniziale'
           }
         });
@@ -214,7 +253,6 @@ class QuoteService {
         logger.error('[QuoteService] Error sending quote notification:', notificationError);
       }
 
-      // Return PURE DATA (NO ResponseFormatter!)
       return quote;
       
     } catch (error) {
@@ -232,17 +270,11 @@ class QuoteService {
    * 
    * @param {string} quoteId - ID preventivo
    * @param {UpdateQuoteInput} input - Dati da aggiornare
-   * @param {string} recipientId - ID destinatario (per audit)
-   * @returns {Promise<Object>} Preventivo aggiornato
+   * @param {string} userId - ID utente (per audit)
+   * @returns {Promise<Quote>} Preventivo aggiornato
    * @throws {AppError} Se preventivo non trovato o non modificabile
-   * 
-   * @example
-   * const updated = await quoteService.updateQuote('quote-123', {
-   *   title: 'Preventivo Aggiornato',
-   *   items: [...]
-   * }, 'prof-456');
    */
-  async updateQuote(quoteId: string, input: UpdateQuoteInput, recipientId: string) {
+  async updateQuote(quoteId: string, input: UpdateQuoteInput, userId: string): Promise<Quote> {
     try {
       logger.info(`[QuoteService] Updating quote: ${quoteId}`);
 
@@ -278,6 +310,17 @@ class QuoteService {
       const updatedQuote = await prisma.$transaction(async (tx) => {
         const newVersion = existingQuote.version + 1;
 
+        const customFields: QuoteCustomFields = {
+          subtotal: calculations.subtotal,
+          taxAmount: calculations.taxAmount,
+          discountAmount: calculations.discountAmount,
+          totalAmount: calculations.totalAmount,
+          depositAmount: existingQuote.depositAmount ? Number(existingQuote.depositAmount) : null,
+          calculationDetails: calculations,
+          lastUpdatedBy: userId,
+          lastUpdatedAt: new Date()
+        };
+
         // Aggiorna preventivo
         const quote = await tx.quote.update({
           where: { id: quoteId },
@@ -291,16 +334,7 @@ class QuoteService {
             internalNotes: input.internalNotes !== undefined ? input.internalNotes : existingQuote.internalNotes,
             version: newVersion,
             updatedAt: new Date(),
-            customFields: {
-              subtotal: calculations.subtotal,
-              taxAmount: calculations.taxAmount,
-              discountAmount: calculations.discountAmount,
-              totalAmount: calculations.totalAmount,
-              depositAmount: existingQuote.depositAmount,
-              calculationDetails: calculations,
-              lastUpdatedBy: existingQuote.professionalId,
-              lastUpdatedAt: new Date()
-            }
+            customFields: customFields as any
           }
         });
 
@@ -341,15 +375,15 @@ class QuoteService {
           data: {
             id: uuidv4(),
             quoteId: quoteId,
-            recipientId: existingQuote.professionalId,
+            userId: userId, // ✅ CORRETTO: userId invece di recipientId
             version: newVersion,
             changes: {
               action: 'updated',
-              before: existingQuote,
-              after: quote,
-              items: input.items ? items : undefined,
-              calculations: calculations
-            },
+              oldAmount: Number(existingQuote.amount),
+              newAmount: Number(quote.amount),
+              itemsUpdated: !!input.items,
+              totalAmount: calculations.totalAmount
+            } as any,
             reason: input.updateReason || 'Aggiornamento preventivo'
           }
         });
@@ -359,7 +393,6 @@ class QuoteService {
 
       logger.info(`[QuoteService] Quote updated successfully: ${quoteId} v${updatedQuote.version}`);
 
-      // Return PURE DATA
       return updatedQuote;
       
     } catch (error) {
@@ -377,22 +410,19 @@ class QuoteService {
    * 
    * @param {string} quoteId - ID preventivo
    * @param {string} clientId - ID cliente (per autorizzazione)
-   * @returns {Promise<Object>} Preventivo accettato
+   * @returns {Promise<Quote>} Preventivo accettato
    * @throws {AppError} Se preventivo non trovato, non autorizzato o non in stato PENDING
-   * 
-   * @example
-   * const accepted = await quoteService.acceptQuote('quote-123', 'client-456');
    */
-  async acceptQuote(quoteId: string, clientId: string) {
+  async acceptQuote(quoteId: string, clientId: string): Promise<Quote> {
     try {
       logger.info(`[QuoteService] Accepting quote: ${quoteId} by client: ${clientId}`);
 
-      // Verifica quote e autorizzazione
+      // Verifica quote e autorizzazione - ✅ CORRETTO: usa 'request' invece di 'assistanceRequest'
       const quote = await prisma.quote.findUnique({
         where: { id: quoteId },
         include: { 
-          assistanceRequest: { include: { client: true } },
-          user: true
+          request: { include: { client: true } }, // ✅ CORRETTO
+          professional: true // ✅ CORRETTO
         }
       });
 
@@ -400,7 +430,7 @@ class QuoteService {
         throw new AppError('Quote not found', 404);
       }
 
-      if (quote.assistanceRequest.clientId !== clientId) {
+      if (quote.request.clientId !== clientId) {
         throw new AppError('Unauthorized', 403);
       }
 
@@ -410,12 +440,11 @@ class QuoteService {
 
       // Transazione accettazione
       const updatedQuote = await prisma.$transaction(async (tx) => {
-        // Accetta questo preventivo
+        // Accetta questo preventivo - ✅ RIMOSSO isSelected che non esiste
         const accepted = await tx.quote.update({
           where: { id: quoteId },
           data: {
             status: 'ACCEPTED',
-            isSelected: true,
             acceptedAt: new Date()
           }
         });
@@ -450,17 +479,19 @@ class QuoteService {
 
       // Notifica professionista
       try {
+        const clientName = quote.request.client?.fullName || 'Cliente';
+        
         await notificationService.sendToUser({
           userId: quote.professionalId,
           type: 'QUOTE_ACCEPTED',
           title: 'Preventivo Accettato',
-          message: `Il tuo preventivo per "${quote.assistanceRequest.title}" è stato accettato!`,
+          message: `Il tuo preventivo per "${quote.request.title}" è stato accettato!`,
           priority: 'high',
           data: {
             quoteId: quote.id,
             requestId: quote.requestId,
-            amount: quote.amount,
-            clientName: quote.assistanceRequest.client?.fullName || 'Cliente'
+            amount: Number(quote.amount),
+            clientName: clientName
           },
           channels: ['websocket', 'email']
         });
@@ -492,25 +523,18 @@ class QuoteService {
    * @param {string} quoteId - ID preventivo
    * @param {string} clientId - ID cliente (per autorizzazione)
    * @param {string} reason - Motivo rifiuto (opzionale)
-   * @returns {Promise<Object>} Preventivo rifiutato
+   * @returns {Promise<Quote>} Preventivo rifiutato
    * @throws {AppError} Se preventivo non trovato o non autorizzato
-   * 
-   * @example
-   * const rejected = await quoteService.rejectQuote(
-   *   'quote-123', 
-   *   'client-456', 
-   *   'Prezzo troppo alto'
-   * );
    */
-  async rejectQuote(quoteId: string, clientId: string, reason?: string) {
+  async rejectQuote(quoteId: string, clientId: string, reason?: string): Promise<Quote> {
     try {
       logger.info(`[QuoteService] Rejecting quote: ${quoteId} by client: ${clientId}`, { reason });
 
-      // Verifica e autorizzazione
+      // Verifica e autorizzazione - ✅ CORRETTO: usa 'request' invece di 'assistanceRequest'
       const quote = await prisma.quote.findUnique({
         where: { id: quoteId },
         include: { 
-          assistanceRequest: { include: { client: true } }
+          request: { include: { client: true } } // ✅ CORRETTO
         }
       });
 
@@ -518,7 +542,7 @@ class QuoteService {
         throw new AppError('Quote not found', 404);
       }
 
-      if (quote.assistanceRequest.clientId !== clientId) {
+      if (quote.request.clientId !== clientId) {
         throw new AppError('Unauthorized', 403);
       }
 
@@ -526,16 +550,13 @@ class QuoteService {
         throw new AppError('Quote is not in pending status', 400);
       }
 
-      // Rifiuta preventivo
+      // Rifiuta preventivo - ✅ CORRETTO: usa rejectionReason invece di metadata
       const updatedQuote = await prisma.quote.update({
         where: { id: quoteId },
         data: {
           status: 'REJECTED',
           rejectedAt: new Date(),
-          metadata: {
-            ...((quote.metadata as any) || {}),
-            rejectionReason: reason
-          }
+          rejectionReason: reason || null // ✅ CORRETTO
         }
       });
 
@@ -543,11 +564,13 @@ class QuoteService {
 
       // Notifica professionista
       try {
+        const reasonText = reason ? `. Motivo: ${reason}` : '';
+        
         await notificationService.sendToUser({
           userId: quote.professionalId,
           type: 'QUOTE_REJECTED',
           title: 'Preventivo Rifiutato',
-          message: `Il tuo preventivo per "${quote.assistanceRequest.title}" è stato rifiutato${reason ? `. Motivo: ${reason}` : ''}`,
+          message: `Il tuo preventivo per "${quote.request.title}" è stato rifiutato${reasonText}`,
           priority: 'normal',
           data: {
             quoteId: quote.id,
@@ -577,10 +600,10 @@ class QuoteService {
    * Ottieni le versioni (revisioni) di un preventivo
    * 
    * @param {string} quoteId - ID preventivo
-   * @returns {Promise<Array>} Lista revisioni ordinate per versione
+   * @returns {Promise<QuoteRevision[]>} Lista revisioni ordinate per versione
    * @throws {Error} Se query fallisce
    */
-  async getQuoteVersions(quoteId: string) {
+  async getQuoteVersions(quoteId: string): Promise<QuoteRevision[]> {
     try {
       logger.info(`[QuoteService] Fetching versions for quote: ${quoteId}`);
 
@@ -608,17 +631,14 @@ class QuoteService {
    * @param {string} templateId - ID template
    * @param {string} requestId - ID richiesta
    * @param {string} professionalId - ID professionista
-   * @returns {Promise<Object>} Preventivo creato
+   * @returns {Promise<Quote & { items: any[] }>} Preventivo creato
    * @throws {AppError} Se template o richiesta non trovati
-   * 
-   * @example
-   * const quote = await quoteService.createFromTemplate(
-   *   'template-123',
-   *   'request-456',
-   *   'prof-789'
-   * );
    */
-  async createFromTemplate(templateId: string, requestId: string, professionalId: string) {
+  async createFromTemplate(
+    templateId: string, 
+    requestId: string, 
+    professionalId: string
+  ): Promise<Quote & { items: any[] }> {
     try {
       logger.info('[QuoteService] Creating quote from template', { templateId, requestId, professionalId });
 
@@ -641,17 +661,17 @@ class QuoteService {
       }
 
       // Prepara dati da template
-      const templateData = template.template as any;
+      const templateData = template.template as QuoteTemplateData;
       const items = templateData.items || [];
       
       const quote = await this.createQuote({
         title: templateData.title || template.name,
         description: template.description || undefined,
-        notes: templateData.notes,
-        termsConditions: templateData.terms,
+        notes: templateData.notes || undefined,
+        termsConditions: templateData.terms || undefined,
         requestId,
         professionalId,
-        items: items.map((item: any) => ({
+        items: items.map((item) => ({
           description: item.description,
           quantity: item.quantity || 1,
           unitPrice: item.unitPrice || 0,
@@ -681,25 +701,19 @@ class QuoteService {
    * @param {string} quoteId - ID preventivo
    * @param {string} name - Nome template
    * @param {string} description - Descrizione template (opzionale)
-   * @returns {Promise<Object>} Template creato
+   * @returns {Promise<QuoteTemplate>} Template creato
    * @throws {AppError} Se preventivo non trovato
-   * 
-   * @example
-   * const template = await quoteService.saveAsTemplate(
-   *   'quote-123',
-   *   'Template Riparazione Standard',
-   *   'Template per riparazioni standard impianto'
-   * );
    */
-  async saveAsTemplate(quoteId: string, name: string, description?: string) {
+  async saveAsTemplate(quoteId: string, name: string, description?: string): Promise<QuoteTemplate> {
     try {
       logger.info(`[QuoteService] Saving quote as template: ${quoteId}`, { name });
 
+      // ✅ CORRETTO: include items e usa 'request'
       const quote = await prisma.quote.findUnique({
         where: { id: quoteId },
         include: { 
           items: { orderBy: { order: 'asc' } },
-          assistanceRequest: { include: { category: true, subcategory: true } }
+          request: { include: { category: true, subcategory: true } }
         }
       });
 
@@ -707,25 +721,27 @@ class QuoteService {
         throw new AppError('Quote not found', 404);
       }
 
+      const templateData: QuoteTemplateData = {
+        title: quote.title,
+        notes: quote.notes,
+        terms: quote.terms,
+        items: quote.items.map(item => ({
+          description: item.description,
+          quantity: Number(item.quantity),
+          unitPrice: Number(item.unitPrice),
+          taxRate: Number(item.taxRate || 0.22),
+          discount: Number(item.discount || 0),
+          notes: item.notes || undefined
+        }))
+      };
+
       const template = await prisma.quoteTemplate.create({
         data: {
           id: uuidv4(),
           name,
           description,
-          template: {
-            title: quote.title,
-            notes: quote.notes,
-            terms: quote.terms,
-            items: quote.items.map(item => ({
-              description: item.description,
-              quantity: Number(item.quantity),
-              unitPrice: Number(item.unitPrice),
-              taxRate: Number(item.taxRate || 0.22),
-              discount: Number(item.discount || 0),
-              notes: item.notes
-            }))
-          },
-          recipientId: quote.professionalId,
+          template: templateData as any,
+          user: { connect: { id: quote.professionalId } }, // ✅ CORRETTO: usa connect per la relazione
           isPublic: false
         }
       });
@@ -750,17 +766,21 @@ class QuoteService {
    * @param {string} professionalId - ID professionista
    * @param {string} categoryId - ID categoria (opzionale, per filtro)
    * @param {string} subcategoryId - ID sottocategoria (opzionale, per filtro)
-   * @returns {Promise<Array>} Lista templates
+   * @returns {Promise<QuoteTemplate[]>} Lista templates
    * @throws {Error} Se query fallisce
    */
-  async getTemplates(professionalId: string, categoryId?: string, subcategoryId?: string) {
+  async getTemplates(
+    professionalId: string, 
+    categoryId?: string, 
+    subcategoryId?: string
+  ): Promise<QuoteTemplate[]> {
     try {
       logger.info('[QuoteService] Fetching templates', { professionalId, categoryId, subcategoryId });
 
       const where: Prisma.QuoteTemplateWhereInput = {
         OR: [
           { isPublic: true },
-          { recipientId: professionalId }
+          { userId: professionalId } // ✅ CORRETTO
         ]
       };
 
@@ -789,14 +809,10 @@ class QuoteService {
    * 
    * @param {string} requestId - ID richiesta
    * @param {string} clientId - ID cliente (per autorizzazione)
-   * @returns {Promise<Object>} { quotes: Array, stats: Object }
+   * @returns {Promise<{ quotes: any[]; stats: any }>} Confronto e statistiche
    * @throws {AppError} Se non autorizzato
-   * 
-   * @example
-   * const comparison = await quoteService.compareQuotes('req-123', 'client-456');
-   * // { quotes: [...], stats: { count: 3, avgAmount: 1500, ... } }
    */
-  async compareQuotes(requestId: string, clientId: string) {
+  async compareQuotes(requestId: string, clientId: string): Promise<{ quotes: any[]; stats: any }> {
     try {
       logger.info('[QuoteService] Comparing quotes', { requestId, clientId });
 
@@ -809,7 +825,7 @@ class QuoteService {
         throw new AppError('Unauthorized', 403);
       }
 
-      // Ottieni preventivi
+      // Ottieni preventivi - ✅ CORRETTO: usa 'professional' invece di 'user'
       const quotes = await prisma.quote.findMany({
         where: { 
           requestId,
@@ -817,7 +833,7 @@ class QuoteService {
         },
         include: {
           items: { orderBy: { order: 'asc' } },
-          user: {
+          professional: {
             select: {
               id: true,
               fullName: true,
@@ -830,16 +846,20 @@ class QuoteService {
       });
 
       // Prepara dati comparazione
-      const comparison = quotes.map((quote) => ({
-        ...quote,
-        itemCount: quote.items ? quote.items.length : 0,
-        _comparison: {
-          hasDeposit: !!quote.depositAmount,
-          isExpiring: quote.validUntil 
-            ? new Date(quote.validUntil) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) 
-            : false
-        }
-      }));
+      const comparison = quotes.map((quote) => {
+        const isExpiring = quote.validUntil 
+          ? new Date(quote.validUntil) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) 
+          : false;
+          
+        return {
+          ...quote,
+          itemCount: quote.items ? quote.items.length : 0,
+          _comparison: {
+            hasDeposit: !!quote.depositAmount,
+            isExpiring
+          }
+        };
+      });
 
       // Calcola statistiche
       const totalAmounts = comparison.map(q => Number(q.amount));
@@ -860,7 +880,6 @@ class QuoteService {
         avgAmount: stats.avgAmount 
       });
 
-      // Return PURE DATA
       return {
         quotes: comparison,
         stats
@@ -881,10 +900,10 @@ class QuoteService {
    * Helper: Calcola totali del preventivo
    * 
    * @private
-   * @param {Array} items - Lista items preventivo
-   * @returns {Object} { subtotal, taxAmount, discountAmount, totalAmount }
+   * @param {CreateQuoteItemInput[]} items - Lista items preventivo
+   * @returns {QuoteTotals} Totali calcolati
    */
-  private calculateQuoteTotals(items: CreateQuoteItemInput[]) {
+  private calculateQuoteTotals(items: CreateQuoteItemInput[]): QuoteTotals {
     let subtotal = 0;
     let taxAmount = 0;
     let discountAmount = 0;
@@ -910,74 +929,42 @@ class QuoteService {
   }
 
   /**
-   * Helper: Calcola deposito basato su regole configurate
+   * Helper: Calcola deposito basato su percentuale default
+   * 
+   * ⚠️ NOTA: Sistema semplificato perché i campi necessari di DepositRule non esistono nello schema
    * 
    * @private
    * @param {number} totalAmount - Importo totale preventivo
    * @param {string} categoryId - ID categoria
-   * @param {string|null} subcategoryId - ID sottocategoria (opzionale)
-   * @returns {Promise<number>} Importo deposito
+   * @returns {Promise<number>} Importo deposito (default 30%)
    */
   private async calculateDeposit(
     totalAmount: number, 
-    categoryId: string, 
-    subcategoryId?: string | null
+    categoryId: string
   ): Promise<number> {
     try {
-      // 1. Cerca regola per sottocategoria
-      if (subcategoryId) {
-        const subcategoryRule = await prisma.depositRule.findFirst({
-          where: {
-            subcategoryId,
-            isActive: true,
-            OR: [
-              { minQuoteAmount: { lte: totalAmount }, maxQuoteAmount: { gte: totalAmount } },
-              { minQuoteAmount: { lte: totalAmount }, maxQuoteAmount: null },
-              { minQuoteAmount: null, maxQuoteAmount: { gte: totalAmount } },
-              { minQuoteAmount: null, maxQuoteAmount: null }
-            ]
-          },
-          orderBy: { priority: 'desc' }
-        });
-
-        if (subcategoryRule) {
-          return this._applyDepositRule(subcategoryRule, totalAmount);
-        }
-      }
-
-      // 2. Cerca regola per categoria
-      const categoryRule = await prisma.depositRule.findFirst({
+      // ✅ SISTEMA SEMPLIFICATO: Il modello DepositRule nello schema non ha i campi
+      // necessari (minQuoteAmount, maxQuoteAmount, priority, etc.)
+      // Per ora usiamo una logica semplice con regole base
+      
+      const rule = await prisma.depositRule.findFirst({
         where: {
-          categoryId,
-          subcategoryId: null,
-          isActive: true,
-          OR: [
-            { minQuoteAmount: { lte: totalAmount }, maxQuoteAmount: { gte: totalAmount } },
-            { minQuoteAmount: { lte: totalAmount }, maxQuoteAmount: null },
-            { minQuoteAmount: null, maxQuoteAmount: { gte: totalAmount } },
-            { minQuoteAmount: null, maxQuoteAmount: null }
-          ]
-        },
-        orderBy: { priority: 'desc' }
-      });
-
-      if (categoryRule) {
-        return this._applyDepositRule(categoryRule, totalAmount);
-      }
-
-      // 3. Usa regola default
-      const defaultRule = await prisma.depositRule.findFirst({
-        where: {
-          isDefault: true,
+          categoryId: categoryId,
           isActive: true
         }
       });
 
-      if (defaultRule) {
-        return this._applyDepositRule(defaultRule, totalAmount);
+      if (rule) {
+        // Usa la regola trovata
+        if (rule.depositType === 'FIXED' && rule.fixedAmount) {
+          return Number(rule.fixedAmount);
+        } else if (rule.depositType === 'PERCENTAGE' && rule.percentageAmount) {
+          return totalAmount * (rule.percentageAmount / 100);
+        }
       }
 
-      // 4. Default fallback: 30%
+      // Default: 30% come deposito standard
+      logger.info('[QuoteService] Using default deposit calculation (30%)');
       return totalAmount * 0.3;
       
     } catch (error) {
@@ -987,46 +974,13 @@ class QuoteService {
   }
 
   /**
-   * Helper: Applica una regola di deposito
-   * 
-   * @private
-   * @param {Object} rule - Regola deposito
-   * @param {number} totalAmount - Importo totale
-   * @returns {number} Importo deposito calcolato
-   */
-  private _applyDepositRule(rule: any, totalAmount: number): number {
-    switch (rule.depositType) {
-      case 'FIXED':
-        return Number(rule.fixedAmount) || 0;
-
-      case 'PERCENTAGE':
-        return totalAmount * (Number(rule.percentageAmount) / 100);
-
-      case 'RANGES':
-        const ranges = (rule.ranges as any[]) || [];
-        for (const range of ranges) {
-          if (totalAmount >= range.min && totalAmount <= range.max) {
-            if (range.amount) {
-              return range.amount;
-            } else if (range.percentage) {
-              return totalAmount * (range.percentage / 100);
-            }
-          }
-        }
-        break;
-    }
-
-    return 0;
-  }
-
-  /**
    * Helper: Invia notifica per nuovo preventivo
    * 
    * @private
-   * @param {Object} quote - Preventivo creato
-   * @param {Object} request - Richiesta associata
+   * @param {any} quote - Preventivo creato
+   * @param {any} request - Richiesta associata
    */
-  private async _sendQuoteNotification(quote: any, request: any) {
+  private async _sendQuoteNotification(quote: any, request: any): Promise<void> {
     try {
       await notificationService.sendToUser({
         userId: request.clientId,
@@ -1037,8 +991,7 @@ class QuoteService {
         data: {
           quoteId: quote.id,
           requestId: request.id,
-          amount: quote.amount,
-          professionalName: quote.user?.fullName || 'Professionista'
+          amount: Number(quote.amount)
         },
         channels: ['websocket', 'email']
       });

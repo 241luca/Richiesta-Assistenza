@@ -137,7 +137,7 @@ export class EmailService {
 
       logger.info('[EmailService] Initializing email transporter');
 
-      this.transporter = nodemailer.createTransporter({
+      this.transporter = nodemailer.createTransport({
         host: config.host,
         port: config.port,
         secure: config.secure,
@@ -229,7 +229,9 @@ export class EmailService {
       await prisma.emailLog.create({
         data: {
           to: mailOptions.to,
+          from: mailOptions.from,
           subject: mailOptions.subject,
+          body: options.html || options.text || '',
           status: 'sent',
           messageId: info.messageId,
           sentAt: new Date()
@@ -245,10 +247,13 @@ export class EmailService {
     } catch (error) {
       // Log errore nel database
       try {
+        const config = await this.getEmailConfiguration();
         await prisma.emailLog.create({
           data: {
             to: Array.isArray(options.to) ? options.to.join(', ') : options.to,
+            from: options.from || config?.from || 'noreply@richiesta-assistenza.it',
             subject: options.subject,
+            body: options.html || options.text || '',
             status: 'failed',
             error: error instanceof Error ? error.message : 'Unknown error',
             sentAt: new Date()
@@ -292,6 +297,7 @@ export class EmailService {
     try {
       logger.info('[EmailService] Updating email configuration');
 
+      // ✅ FIX: Aggiunti campi obbligatori per SystemSetting
       await prisma.systemSetting.upsert({
         where: { key: 'email_configuration' },
         update: { 
@@ -299,9 +305,17 @@ export class EmailService {
           updatedAt: new Date()
         },
         create: {
+          id: `email_config_${Date.now()}`,
           key: 'email_configuration',
           value: JSON.stringify(config),
-          description: 'Email service configuration (Brevo/SMTP)'
+          type: 'json',
+          label: 'Configurazione Email',
+          description: 'Email service configuration (Brevo/SMTP)',
+          category: 'email',
+          isEditable: true,
+          isPublic: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
         }
       });
 

@@ -1,0 +1,111 @@
+// ==========================================
+// AGGIUNTE SCHEMA PRISMA - FIX ERRORI TYPESCRIPT
+// Data: 09/10/2025
+// ==========================================
+
+// 1. AGGIORNAMENTO ENUM ComplaintStatus
+// Cerca enum ComplaintStatus e SOSTITUISCI con:
+enum ComplaintStatus {
+  DRAFT       // Bozza
+  SUBMITTED   // Inviato
+  SENDING     // ✅ NUOVO - In invio (per PEC)
+  SENT        // ✅ NUOVO - Inviato con successo (per PEC)
+  IN_REVIEW   // In revisione
+  RESOLVED    // Risolto
+  REJECTED    // Respinto
+  CLOSED      // Chiuso
+}
+
+// 2. AGGIORNAMENTO MODEL Notification
+// Aggiungi questi campi al model Notification esistente:
+  userId      String?      // ✅ NUOVO - Alias per compatibilità (usa recipientId)
+  status      String?      // ✅ NUOVO - PENDING, SENT, FAILED, PARTIAL
+  sentAt      DateTime?    // ✅ NUOVO - Quando inviata
+  deliveryStatus Json?     // ✅ NUOVO - Stato consegna per canale
+
+// 3. NUOVA TABELLA: NotificationDelivery
+model NotificationDelivery {
+  id             String   @id @default(cuid())
+  notificationId String
+  channel        String   // EMAIL, SMS, WHATSAPP, PUSH, etc
+  status         String   // PENDING, SENT, DELIVERED, FAILED
+  messageId      String?  // ID messaggio esterno
+  deliveredAt    DateTime?
+  failedAt       DateTime?
+  error          String?  @db.Text
+  attempts       Int      @default(0)
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@index([notificationId])
+  @@index([channel])
+  @@index([status])
+}
+
+// 4. NUOVA TABELLA: PushSubscription
+model PushSubscription {
+  id             String   @id @default(cuid())
+  userId         String
+  endpoint       String   @db.Text
+  keys           Json     // p256dh e auth keys
+  deviceType     String?  // mobile, desktop, tablet
+  deviceName     String?
+  browser        String?
+  isActive       Boolean  @default(true)
+  lastUsedAt     DateTime?
+  unsubscribedAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([isActive])
+  @@index([endpoint(length: 255)])
+}
+
+// 5. NUOVA TABELLA: ScheduledNotification
+model ScheduledNotification {
+  id           String   @id @default(cuid())
+  userId       String
+  type         String
+  priority     String   @default("NORMAL")
+  title        String
+  message      String   @db.Text
+  data         Json?
+  channels     String[] @default([])
+  scheduledAt  DateTime
+  processedAt  DateTime?
+  status       String   @default("SCHEDULED") // SCHEDULED, PROCESSING, SENT, FAILED, CANCELLED
+  attempts     Int      @default(0)
+  error        String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+// 6. NUOVA TABELLA: UserNotificationPreferences (se non esiste già NotificationPreference)
+// Questa potrebbe essere un duplicato - verificare prima se NotificationPreference è sufficiente
+
+// 7. NUOVA TABELLA: ModuleHistory (per tracking moduli)
+model ModuleHistory {
+  id         String       @id @default(cuid())
+  moduleCode String
+  action     ModuleAction
+  userId     String
+  referralId String?      // Collegamento a referral se pertinente
+  metadata   Json?
+  createdAt  DateTime     @default(now())
+  
+  user     User      @relation(fields: [userId], references: [id])
+  referral Referral? @relation(fields: [referralId], references: [id])
+  
+  @@index([moduleCode])
+  @@index([action])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// FINE AGGIUNTE

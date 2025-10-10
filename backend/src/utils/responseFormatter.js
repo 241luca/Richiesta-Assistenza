@@ -145,7 +145,7 @@ function formatUser(user) {
         country: user.country,
         profession: user.profession,
         professionId: user.professionId, // AGGIUNTO per supportare professioni tabellate
-        professionData: user.Profession, // AGGIUNTO per includere i dati della professione
+        Profession: user.Profession, // AGGIUNTO per includere i dati della professione
         specializations: user.specializations,
         hourlyRate: user.hourlyRate ? Number(user.hourlyRate) : null,
         currency: user.currency,

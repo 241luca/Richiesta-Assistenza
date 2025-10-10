@@ -16,7 +16,7 @@ async function getPendingLegalDocuments(userId: string) {
         isActive: true
       },
       include: {
-        versions: {
+        LegalDocumentVersion: {
           where: {
             status: 'PUBLISHED',  // IMPORTANTE: Solo versioni PUBBLICATE
             effectiveDate: {
@@ -47,13 +47,13 @@ async function getPendingLegalDocuments(userId: string) {
 
     // IMPORTANTE: Filtra SOLO i documenti che hanno ALMENO UNA versione PUBBLICATA
     // Se un documento non ha versioni pubblicate, NON deve essere visibile ai clienti
-    const documentsWithVersion = documents.filter(doc => doc.versions.length > 0);
+    const documentsWithVersion = documents.filter(doc => doc.LegalDocumentVersion.length > 0);
     
     logger.info(`Dashboard: Found ${documents.length} active documents, ${documentsWithVersion.length} with published versions`);
     
     // Log dettagliato per debug
     documentsWithVersion.forEach(doc => {
-      const version = doc.versions[0];
+      const version = doc.LegalDocumentVersion[0];
       if (version) {
         logger.info(`Document ${doc.displayName}: Version ${version.version}, Status: ${version.status}, PublishedAt: ${version.publishedAt}, EffectiveDate: ${version.effectiveDate}`);
       }
@@ -63,7 +63,7 @@ async function getPendingLegalDocuments(userId: string) {
     const pendingDocuments = [];
     
     for (const doc of documentsWithVersion) {
-      const currentVersion = doc.versions[0];
+      const currentVersion = doc.LegalDocumentVersion[0];
       
       // Verifica se l'utente ha già accettato questa specifica versione
       const acceptance = await prisma.userLegalAcceptance.findFirst({

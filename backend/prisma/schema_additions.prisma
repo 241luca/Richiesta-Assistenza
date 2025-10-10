@@ -1,0 +1,86 @@
+
+// ==========================================
+// ENUM PER SISTEMA TRACKING MODULI
+// ==========================================
+enum ModuleName {
+  AUTHENTICATION
+  NOTIFICATIONS
+  PAYMENTS
+  INVOICING
+  REFERRALS
+  PORTFOLIO
+  COMPLAINTS
+  CALENDAR
+  REPORTS
+  MESSAGING
+  SYSTEM
+}
+
+enum ModuleAction {
+  CREATED
+  UPDATED
+  DELETED
+  VIEWED
+  EXPORTED
+  IMPORTED
+  ACTIVATED
+  DEACTIVATED
+  CONFIGURED
+}
+
+// ==========================================
+// ENUM PER SISTEMA PAGAMENTI - AGGIUNTI
+// ==========================================
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum RefundReason {
+  DUPLICATE
+  FRAUDULENT
+  REQUESTED_BY_CUSTOMER
+  SERVICE_NOT_PROVIDED
+  OTHER
+}
+
+// ==========================================
+// TABELLE PER FOOTER LINKS
+// ==========================================
+model FooterLink {
+  id          String   @id @default(cuid())
+  section     String   // Es: 'company', 'support', 'legal', 'social'
+  label       String   // Testo da mostrare
+  url         String   // URL di destinazione
+  icon        String?  // Nome icona opzionale (per social)
+  order       Int      @default(0) // Ordine di visualizzazione
+  isExternal  Boolean  @default(false) // Se apre in nuova scheda
+  isActive    Boolean  @default(true) // Se il link è attivo
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([section, order])
+  @@index([isActive])
+}
+
+model FooterSection {
+  id          String   @id @default(cuid())
+  key         String   @unique // Es: 'company', 'support', 'legal', 'contact'
+  title       String   // Titolo della sezione
+  order       Int      @default(0) // Ordine delle sezioni
+  isVisible   Boolean  @default(true) // Se la sezione è visibile
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([order])
+  @@index([isVisible])
+}
+
+// ==========================================
+// SISTEMA PEC (RECLAMI) - TABELLE GIÀ DEFINITE IN USER
+// ==========================================
+// Note: Le tabelle Complaint e ComplaintDraft sono già definite sopra
+// con le relazioni corrette nel modello User

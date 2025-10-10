@@ -1,0 +1,4 @@
+src/services/invoice.service.ts(290,25): error TS2352: Conversion of type 'CustomerDataSnapshot' to type 'InputJsonValue' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/services/invoice.service.ts(1192,14): error TS2352: Conversion of type 'JsonArray' to type 'LineItem[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/services/invoice.service.ts(1203,12): error TS2352: Conversion of type 'string | number | boolean | JsonObject | JsonArray' to type 'CustomerDataSnapshot' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+DONE

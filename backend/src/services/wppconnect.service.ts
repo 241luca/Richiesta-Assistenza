@@ -2,7 +2,16 @@
 // import { create, Whatsapp, Message, SocketState } from '@wppconnect-team/wppconnect';
 type Whatsapp = any;
 type Message = any;
-const SocketState = { CONNECTED: 'CONNECTED' };
+const SocketState = { 
+  CONNECTED: 'CONNECTED',
+  CONFLICT: 'CONFLICT',
+  UNPAIRED: 'UNPAIRED',
+  DISCONNECTED: 'DISCONNECTED'
+};
+// Mock function when disabled
+const create = async (options: any): Promise<any> => {
+  throw new Error('WPPConnect is temporarily disabled due to macOS permissions issues');
+};
 import { prisma } from '../config/database';
 import logger from '../utils/logger';
 import { sessionManager } from './whatsapp-session-manager';
@@ -481,7 +490,7 @@ export class WPPConnectService {
     });
     
     // Handler cambio stato
-    this.client.onStateChange((state: SocketState) => {
+    this.client.onStateChange((state: string) => { // SocketState type
       logger.info(`🔄 Stato cambiato: ${state}`);
       
       // Gestisci solo i conflitti reali

@@ -1,11 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 import { prisma } from '../config/database';
 import { logger } from '../utils/logger';
 import { ResponseFormatter } from '../utils/responseFormatter';
 
 export interface AuthRequest extends Request {
   user?: any;
+  requestId?: string;
 }
 
 export async function authenticate(

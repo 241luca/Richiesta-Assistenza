@@ -145,11 +145,11 @@ class AiService {
         })
       );
 
-      const aiResponse = completion.choices[0].message.content || '';
+      const aiResponse = (completion as any).choices[0].message.content || '';
 
       logger.info('[AiService] AI response generated successfully', {
         recipientId: chatRequest.recipientId,
-        tokensUsed: completion.usage?.total_tokens || 0,
+        tokensUsed: (completion as any).usage?.total_tokens || 0,
         model: 'gpt-3.5-turbo'
       });
 
@@ -246,7 +246,7 @@ export async function generateAIResponse(
       })
     );
 
-    const response = completion.choices[0].message.content || '';
+    const response = (completion as any).choices[0].message.content || '';
 
     logger.info('[AiService] AI response generated', {
       promptLength: prompt.length,
@@ -303,7 +303,7 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
       })
     );
 
-    const embedding = response.data[0].embedding;
+    const embedding = (response as any).data[0].embedding;
 
     logger.info('[AiService] Embedding generated successfully', {
       textLength: text.length,
