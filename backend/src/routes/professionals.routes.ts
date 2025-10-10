@@ -162,7 +162,7 @@ router.get(
         pricing = await prisma.professionalPricing.create({
           data: {
             id: `pp_${professionalId}_${Date.now()}`,
-            user: { connect: { id: professionalId } },
+            User: { connect: { id: professionalId } },
             hourlyRate: 50.0,
             minimumRate: 30.0,
             costPerKm: 0.5,
@@ -203,7 +203,7 @@ router.put(
         update: validatedData,
         create: {
           id: `pp_${professionalId}_${Date.now()}`,
-          user: { connect: { id: professionalId } },
+          User: { connect: { id: professionalId } },
           ...validatedData,
           updatedAt: new Date(),
         },
@@ -278,7 +278,7 @@ router.get(
         aiSettings = await prisma.professionalAiSettings.create({
           data: {
             id: `pai_${professionalId}_${subcategoryId}`,
-            professional: { connect: { id: professionalId } },
+            professionalId: professionalId,
             subcategory: { connect: { id: subcategoryId } },
             modelName: 'gpt-3.5-turbo',
             temperature: 0.7,
@@ -329,7 +329,7 @@ router.put(
         update: validatedData,
         create: {
           id: `pai_${professionalId}_${subcategoryId}`,
-          professional: { connect: { id: professionalId } },
+          professionalId: professionalId,
           subcategory: { connect: { id: subcategoryId } },
           ...validatedData,
           updatedAt: new Date(),
@@ -413,7 +413,7 @@ router.post(
       const skill = await prisma.professionalSkill.create({
         data: {
           id: `ps_${professionalId}_${Date.now()}`,
-          user: { connect: { id: professionalId } },
+          User: { connect: { id: professionalId } },
           ...validatedData,
           updatedAt: new Date(),
         },
@@ -505,7 +505,7 @@ router.post(
       const certification = await prisma.professionalCertification.create({
         data: {
           id: `pc_${professionalId}_${Date.now()}`,
-          user: { connect: { id: professionalId } },
+          User: { connect: { id: professionalId } },
           ...validatedData,
           validUntil: validatedData.validUntil
             ? new Date(validatedData.validUntil)
@@ -634,7 +634,7 @@ router.get(
             province: true,
             isVerified: true,
             verifiedAt: true,
-            professionalPricing: {
+            ProfessionalPricing: {
               select: {
                 hourlyRate: true,
               },
@@ -653,7 +653,7 @@ router.get(
           province: prof.province ?? null,
           isVerified: prof.isVerified,
           verifiedAt: prof.verifiedAt,
-          hourlyRate: prof.professionalPricing?.hourlyRate ?? null,
+          hourlyRate: prof.ProfessionalPricing?.hourlyRate ?? null,
           experienceYears: 0,
           skillDescription:
             'Professionista generico (nessuna skill specifica registrata)',
@@ -693,10 +693,10 @@ router.get(
           province: true,
           isVerified: true,
           verifiedAt: true,
-          professionalPricing: {
-          select: {
-          hourlyRate: true,
-          },
+          ProfessionalPricing: {
+            select: {
+              hourlyRate: true,
+            },
           },
           ProfessionalUserSubcategory: {
             where: {
@@ -720,7 +720,7 @@ router.get(
         province: prof.province ?? null,
         isVerified: prof.isVerified,
         verifiedAt: prof.verifiedAt,
-        hourlyRate: prof.professionalPricing?.hourlyRate ?? null,
+        hourlyRate: prof.ProfessionalPricing?.hourlyRate ?? null,
         experienceYears: prof.ProfessionalUserSubcategory?.[0]?.experienceYears ?? 0,
         skillDescription: prof.ProfessionalUserSubcategory?.[0]?.certifications
           ? 'Professionista certificato'
@@ -842,7 +842,7 @@ router.get(
             documentsVerified: true,
             backgroundCheck: true,
             certificatesVerified: true,
-            professionalPricing: {
+            ProfessionalPricing: {
               select: {
                 hourlyRate: true,
               },
@@ -882,7 +882,7 @@ router.get(
           backgroundCheck: prof.backgroundCheck,
           certificatesVerified: prof.certificatesVerified,
         },
-        hourlyRate: prof.professionalPricing?.hourlyRate ?? null,
+        hourlyRate: prof.ProfessionalPricing?.hourlyRate ?? null,
         subcategories: prof.ProfessionalUserSubcategory.map((sub) => ({
           id: sub.subcategoryId,
           name: sub.subcategory.name,

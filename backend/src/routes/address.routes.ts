@@ -62,7 +62,7 @@ router.get('/main', authenticate, async (req: AuthRequest, res: Response) => {
     if (!userId) {
       return res
         .status(401)
-        .json(ResponseFormatter.error('Non autenticato', { code: 'UNAUTHORIZED' }));
+        .json(ResponseFormatter.error({ message: 'Non autenticato', code: 'UNAUTHORIZED' }));
     }
 
     const user = await prisma.user.findUnique({
@@ -80,7 +80,7 @@ router.get('/main', authenticate, async (req: AuthRequest, res: Response) => {
     if (!user) {
       return res
         .status(404)
-        .json(ResponseFormatter.error('Utente non trovato', { code: 'USER_NOT_FOUND' }));
+        .json(ResponseFormatter.error({ message: 'Utente non trovato', code: 'USER_NOT_FOUND' }));
     }
 
     return res.json(
@@ -92,7 +92,7 @@ router.get('/main', authenticate, async (req: AuthRequest, res: Response) => {
     return res
       .status(500)
       .json(
-        ResponseFormatter.error('Errore nel recupero indirizzo', { error: errorMessage })
+        ResponseFormatter.error({ message: 'Errore nel recupero indirizzo', error: errorMessage })
       );
   }
 });
@@ -109,7 +109,7 @@ router.put('/main', authenticate, async (req: AuthRequest, res: Response) => {
     if (!userId) {
       return res
         .status(401)
-        .json(ResponseFormatter.error('Non autenticato', { code: 'UNAUTHORIZED' }));
+        .json(ResponseFormatter.error({ message: 'Non autenticato', code: 'UNAUTHORIZED' }));
     }
 
     const validatedData = mainAddressSchema.parse(req.body);
@@ -180,9 +180,7 @@ router.put('/main', authenticate, async (req: AuthRequest, res: Response) => {
     return res
       .status(500)
       .json(
-        ResponseFormatter.error('Errore nell\'aggiornamento indirizzo', {
-          error: errorMessage,
-        })
+        ResponseFormatter.error({ message: 'Errore nell\'aggiornamento indirizzo', error: errorMessage })
       );
   }
 });
@@ -199,16 +197,14 @@ router.get('/work', authenticate, async (req: AuthRequest, res: Response) => {
     if (!userId) {
       return res
         .status(401)
-        .json(ResponseFormatter.error('Non autenticato', { code: 'UNAUTHORIZED' }));
+        .json(ResponseFormatter.error({ message: 'Non autenticato', code: 'UNAUTHORIZED' }));
     }
 
     if (userRole !== 'PROFESSIONAL') {
       return res
         .status(403)
         .json(
-          ResponseFormatter.error('Solo i professionisti hanno un indirizzo di lavoro', {
-            code: 'NOT_PROFESSIONAL',
-          })
+          ResponseFormatter.error({ message: 'Solo i professionisti hanno un indirizzo di lavoro', code: 'NOT_PROFESSIONAL' })
         );
     }
 
@@ -232,7 +228,7 @@ router.get('/work', authenticate, async (req: AuthRequest, res: Response) => {
     if (!user) {
       return res
         .status(404)
-        .json(ResponseFormatter.error('Utente non trovato', { code: 'USER_NOT_FOUND' }));
+        .json(ResponseFormatter.error({ message: 'Utente non trovato', code: 'USER_NOT_FOUND' }));
     }
 
     const workData = user.useResidenceAsWorkAddress
@@ -260,9 +256,7 @@ router.get('/work', authenticate, async (req: AuthRequest, res: Response) => {
     return res
       .status(500)
       .json(
-        ResponseFormatter.error('Errore nel recupero indirizzo lavoro', {
-          error: errorMessage,
-        })
+        ResponseFormatter.error({ message: 'Errore nel recupero indirizzo lavoro', error: errorMessage })
       );
   }
 });
@@ -279,17 +273,14 @@ router.put('/work', authenticate, async (req: AuthRequest, res: Response) => {
     if (!userId) {
       return res
         .status(401)
-        .json(ResponseFormatter.error('Non autenticato', { code: 'UNAUTHORIZED' }));
+        .json(ResponseFormatter.error({ message: 'Non autenticato', code: 'UNAUTHORIZED' }));
     }
 
     if (userRole !== 'PROFESSIONAL') {
       return res
         .status(403)
         .json(
-          ResponseFormatter.error(
-            'Solo i professionisti possono aggiornare l\'indirizzo di lavoro',
-            { code: 'NOT_PROFESSIONAL' }
-          )
+          ResponseFormatter.error({ message: 'Solo i professionisti possono aggiornare l\'indirizzo di lavoro', code: 'NOT_PROFESSIONAL' })
         );
     }
 
@@ -427,9 +418,7 @@ router.put('/work', authenticate, async (req: AuthRequest, res: Response) => {
     return res
       .status(500)
       .json(
-        ResponseFormatter.error('Errore nell\'aggiornamento indirizzo lavoro', {
-          error: errorMessage,
-        })
+        ResponseFormatter.error({ message: 'Errore nell\'aggiornamento indirizzo lavoro', error: errorMessage })
       );
   }
 });
@@ -449,17 +438,14 @@ router.post(
       if (!userId) {
         return res
           .status(401)
-          .json(ResponseFormatter.error('Non autenticato', { code: 'UNAUTHORIZED' }));
+          .json(ResponseFormatter.error({ message: 'Non autenticato', code: 'UNAUTHORIZED' }));
       }
 
       if (userRole !== 'PROFESSIONAL') {
         return res
           .status(403)
           .json(
-            ResponseFormatter.error(
-              'Solo i professionisti possono ricalcolare le distanze',
-              { code: 'NOT_PROFESSIONAL' }
-            )
+            ResponseFormatter.error({ message: 'Solo i professionisti possono ricalcolare le distanze', code: 'NOT_PROFESSIONAL' })
           );
       }
 
@@ -481,9 +467,7 @@ router.post(
       return res
         .status(500)
         .json(
-          ResponseFormatter.error('Errore nel ricalcolo distanze', {
-            error: errorMessage,
-          })
+          ResponseFormatter.error({ message: 'Errore nel ricalcolo distanze', error: errorMessage })
         );
     }
   }

@@ -13,7 +13,7 @@ import { Server as SocketServer, Socket } from 'socket.io';
 import { prisma } from '../config/database';
 import { logger } from '../utils/logger';
 import { NotificationService } from './notification.service';
-import { auditService } from './auditLog.service';
+import { auditLogService } from './auditLog.service';
 import { Message } from '@wppconnect-team/wppconnect';
 import { Prisma } from '@prisma/client';
 
@@ -54,7 +54,6 @@ interface TypingData {
 interface UserRecord {
   id: string;
   role: string;
-  isActive: boolean;
   fullName?: string;
   fiscalCode?: string;
   address?: string;
@@ -214,7 +213,7 @@ export class WhatsAppRealtimeService {
         await this.handleClientMessage(client, saved);
       }
 
-      await auditService.log({
+      await auditLogService.log({
         action: 'WHATSAPP_MESSAGE_RECEIVED',
         entityType: 'WhatsAppMessage',
         entityId: saved.id,
@@ -252,6 +251,7 @@ export class WhatsAppRealtimeService {
           totalMessages: { increment: 1 },
         },
         create: {
+          id: `wac_${Date.now()}_${Math.random().toString(36).substring(7)}`,
           phoneNumber,
           name: message.notifyName || message.sender?.pushname || phoneNumber,
           pushname: message.sender?.pushname,
@@ -260,6 +260,7 @@ export class WhatsAppRealtimeService {
           firstMessageAt: timestamp,
           lastMessageAt: timestamp,
           totalMessages: 1,
+          updatedAt: timestamp,
         },
       });
 
@@ -280,7 +281,7 @@ export class WhatsAppRealtimeService {
           type: message.type || 'chat',
           mimetype: message.mimetype,
           isGroupMsg: message.isGroupMsg || false,
-          chatId: message.chatId || message.from,
+          chatId: (message.chatId || message.from) as string,
           quotedMsgId: message.quotedMsgId,
           mentionedIds: message.mentionedJidList
             ? ({ list: message.mentionedJidList } as Prisma.InputJsonValue)
@@ -288,24 +289,24 @@ export class WhatsAppRealtimeService {
           isMedia: message.isMedia || false,
           isNotification: message.isNotification || false,
           isPSA: message.isPSA || false,
-          isStarred: message.isStarred || false,
+          isStarred: (message as any).isStarred || false,
           isForwarded: message.isForwarded || false,
           fromMe: message.fromMe || false,
           hasReaction: false,
 
           mediaUrl: message.deprecatedMms3Url,
           caption: message.caption,
-          filename: message.filename,
+          filename: (message as any).filename,
 
-          latitude: message.lat,
-          longitude: message.lng,
-          locationName: message.loc,
+          latitude: (message as any).lat,
+          longitude: (message as any).lng,
+          locationName: (message as any).loc,
 
           ack: message.ack || 0,
           invis: message.invis || false,
           star: message.star || false,
           broadcast: message.broadcast || false,
-          multicast: message.multicast || false,
+          multicast: (message as any).multicast || false,
 
           rawData: message as Prisma.InputJsonValue,
 
@@ -334,7 +335,6 @@ export class WhatsAppRealtimeService {
       const admins = await prisma.user.findMany({
         where: {
           role: { in: ['ADMIN', 'SUPER_ADMIN'] },
-          isActive: true,
         },
       });
 
@@ -376,12 +376,12 @@ export class WhatsAppRealtimeService {
       const admins = await prisma.user.findMany({
         where: {
           role: { in: ['ADMIN', 'SUPER_ADMIN'] },
-          isActive: true,
         },
       });
 
       for (const admin of admins) {
-        const notificationData: NotificationData = {
+        await notificationService.sendToUser({
+          userId: admin.id,
           title: '📱 Nuovo messaggio WhatsApp',
           message: `${message.senderName}: ${message.message.substring(
             0,
@@ -397,9 +397,7 @@ export class WhatsAppRealtimeService {
             timestamp: message.timestamp,
             isGroup: message.isGroup,
           },
-        };
-
-        await notificationService.sendToUser(admin.id, notificationData);
+        });
       }
 
       logger.info(`📨 Notifiche in-app create per ${admins.length} admin`);
@@ -456,7 +454,7 @@ export class WhatsAppRealtimeService {
         await prisma.requestChatMessage.create({
           data: {
             requestId: openRequest.id,
-            senderId: client.id,
+            userId: client.id,
             message: message.message,
             metadata: {
               whatsappMessageId: message.id,
@@ -466,7 +464,8 @@ export class WhatsAppRealtimeService {
         });
 
         if (openRequest.professionalId) {
-          await notificationService.sendToUser(openRequest.professionalId, {
+          await notificationService.sendToUser({
+            userId: openRequest.professionalId,
             title: '💬 Nuovo messaggio dal cliente',
             message: `${client.fullName}: ${message.message.substring(
               0,
@@ -491,7 +490,7 @@ export class WhatsAppRealtimeService {
               title: `WhatsApp: ${message.message.substring(0, 50)}...`,
               description: message.message,
               status: 'PENDING',
-              priority: this.detectPriority(message.message),
+              priority: this.detectPriority(message.message) as any,
               channel: 'WHATSAPP',
               metadata: {
                 whatsappMessageId: message.id,
@@ -576,12 +575,12 @@ export class WhatsAppRealtimeService {
       const admins = await prisma.user.findMany({
         where: {
           role: { in: ['ADMIN', 'SUPER_ADMIN'] },
-          isActive: true,
         },
       });
 
       for (const admin of admins) {
-        await notificationService.sendToUser(admin.id, {
+        await notificationService.sendToUser({
+          userId: admin.id,
           title: '🎫 Nuova richiesta da WhatsApp',
           message: `${client.fullName} ha inviato una richiesta via WhatsApp`,
           type: 'new_request',
@@ -653,7 +652,6 @@ export class WhatsAppRealtimeService {
         where: { id: messageId },
         data: {
           status: 'READ',
-          readAt: new Date(),
           readBy: userId,
         },
       });

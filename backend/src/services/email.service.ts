@@ -228,6 +228,7 @@ export class EmailService {
       // Salva nel log delle email inviate
       await prisma.emailLog.create({
         data: {
+          id: `email_${Date.now()}_${Math.random().toString(36).substring(7)}`,
           to: mailOptions.to,
           from: mailOptions.from,
           subject: mailOptions.subject,
@@ -250,6 +251,7 @@ export class EmailService {
         const config = await this.getEmailConfiguration();
         await prisma.emailLog.create({
           data: {
+            id: `email_${Date.now()}_${Math.random().toString(36).substring(7)}`,
             to: Array.isArray(options.to) ? options.to.join(', ') : options.to,
             from: options.from || config?.from || 'noreply@richiesta-assistenza.it',
             subject: options.subject,
