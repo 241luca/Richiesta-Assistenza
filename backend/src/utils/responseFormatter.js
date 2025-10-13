@@ -138,6 +138,12 @@ function formatUser(user) {
         avatar: user.avatar,
         bio: user.bio,
         status: user.status,
+        // Campi di approvazione/verifica professionista
+        approvalStatus: user.approvalStatus,
+        approvedAt: safeToISOString(user.approvedAt),
+        approvedBy: user.approvedBy,
+        rejectionReason: user.rejectionReason,
+        isVerified: user.isVerified,
         address: user.address,
         city: user.city,
         province: user.province,

@@ -146,10 +146,12 @@ export function handleRequestEvents(socket: AuthenticatedSocket, io: Server) {
       // Salva l'aggiornamento nel database
       const update = await prisma.requestUpdate.create({
         data: {
+          id: require('crypto').randomUUID(),
           requestId: data.requestId,
           userId: socket.userId!,
           message: data.message,
-          attachments: data.attachments || []
+          attachments: data.attachments || [],
+          updatedAt: new Date()
         }
       });
 

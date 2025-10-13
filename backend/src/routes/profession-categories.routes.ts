@@ -7,6 +7,7 @@ import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
 import { checkRole } from '../middleware/checkRole';
 import { auditLogger } from '../middleware/auditLogger';
+import { AuditAction, LogCategory } from '@prisma/client';
 import { prisma } from '../config/database';
 import { ResponseFormatter } from '../utils/responseFormatter';
 import logger from '../utils/logger';
@@ -20,30 +21,49 @@ const router = Router();
 router.get('/', 
   authenticate,
   checkRole(['SUPER_ADMIN', 'ADMIN']),
-  auditLogger('LIST_PROFESSION_CATEGORIES'),
+  auditLogger({ action: AuditAction.READ, category: LogCategory.BUSINESS, entityType: 'ProfessionCategory' }),
   async (req, res) => {
     try {
       // Ottieni tutte le professioni con le loro categorie
       const professions = await prisma.profession.findMany({
         orderBy: { displayOrder: 'asc' },
         include: {
-          categories: {
+          ProfessionCategory: {
             include: {
-              category: true
+              Category: true
             },
             orderBy: {
-              category: {
+              Category: {
                 displayOrder: 'asc'
               }
             }
           },
           _count: {
             select: {
-              users: true
+              User: true
             }
           }
-        }
+        } as any
       });
+
+      // Trasforma nel formato atteso dal frontend
+      const transformed = professions.map((p: any) => ({
+        ...p,
+        categories: Array.isArray(p.ProfessionCategory)
+          ? p.ProfessionCategory.map((pc: any) => ({
+              id: pc.id,
+              professionId: pc.professionId,
+              categoryId: pc.categoryId,
+              isDefault: pc.isDefault,
+              isActive: pc.isActive,
+              // Normalizza chiave categoria a camelCase
+              category: pc.Category || pc.category || null
+            }))
+          : [],
+        _count: {
+          users: (p._count && (p._count.User ?? p._count.users)) || 0
+        }
+      }));
 
       // Ottieni anche tutte le categorie per il frontend
       const allCategories = await prisma.category.findMany({
@@ -52,7 +72,7 @@ router.get('/',
       });
 
       return res.json(ResponseFormatter.success(
-        { professions, allCategories },
+        { professions: transformed, allCategories },
         'Associazioni professioni-categorie recuperate'
       ));
     } catch (error) {
@@ -71,24 +91,40 @@ router.get('/',
  */
 router.get('/profession/:professionId',
   authenticate,
-  auditLogger('GET_PROFESSION_CATEGORIES'),
+  auditLogger({ action: AuditAction.READ, category: LogCategory.BUSINESS, entityType: 'ProfessionCategory' }),
   async (req, res) => {
     try {
       const { professionId } = req.params;
 
-      const profession = await prisma.profession.findUnique({
+      const professionRaw = await prisma.profession.findUnique({
         where: { id: professionId },
         include: {
-          categories: {
+          ProfessionCategory: {
             include: {
-              category: true
+              Category: true
             },
             orderBy: {
               isDefault: 'desc'
             }
           }
-        }
+        } as any
       });
+
+      const profession = professionRaw
+        ? {
+            ...professionRaw,
+            categories: Array.isArray((professionRaw as any).ProfessionCategory)
+              ? (professionRaw as any).ProfessionCategory.map((pc: any) => ({
+                  id: pc.id,
+                  professionId: pc.professionId,
+                  categoryId: pc.categoryId,
+                  isDefault: pc.isDefault,
+                  isActive: pc.isActive,
+                  category: pc.Category || pc.category || null
+                }))
+              : []
+          }
+        : null;
 
       if (!profession) {
         return res.status(404).json(ResponseFormatter.error(
@@ -118,10 +154,10 @@ router.get('/profession/:professionId',
 router.post('/',
   authenticate,
   checkRole(['SUPER_ADMIN']),
-  auditLogger('CREATE_PROFESSION_CATEGORY'),
+  auditLogger({ action: AuditAction.CREATE, category: LogCategory.BUSINESS, entityType: 'ProfessionCategory' }),
   async (req, res) => {
     try {
-      const { professionId, categoryId, description, isDefault } = req.body;
+      const { professionId, categoryId, isDefault } = req.body;
 
       // Verifica che professione e categoria esistano
       const [profession, category] = await Promise.all([
@@ -171,9 +207,10 @@ router.post('/',
       // Crea l'associazione
       const association = await prisma.professionCategory.create({
         data: {
-          professionId,
-          categoryId,
-          description,
+          // Genera id deterministico per rispettare lo schema che richiede id
+          id: `pc_${professionId}_${categoryId}`,
+          profession: { connect: { id: professionId } },
+          category: { connect: { id: categoryId } },
           isDefault: isDefault || false,
           isActive: true
         },
@@ -206,11 +243,11 @@ router.post('/',
 router.put('/:id',
   authenticate,
   checkRole(['SUPER_ADMIN']),
-  auditLogger('UPDATE_PROFESSION_CATEGORY'),
+  auditLogger({ action: AuditAction.UPDATE, category: LogCategory.BUSINESS, entityType: 'ProfessionCategory' }),
   async (req, res) => {
     try {
       const { id } = req.params;
-      const { description, isDefault, isActive } = req.body;
+      const { isDefault, isActive } = req.body;
 
       const existing = await prisma.professionCategory.findUnique({
         where: { id }
@@ -237,7 +274,6 @@ router.put('/:id',
       const updated = await prisma.professionCategory.update({
         where: { id },
         data: {
-          description,
           isDefault,
           isActive
         },
@@ -268,7 +304,7 @@ router.put('/:id',
 router.delete('/:id',
   authenticate,
   checkRole(['SUPER_ADMIN']),
-  auditLogger('DELETE_PROFESSION_CATEGORY'),
+  auditLogger({ action: AuditAction.DELETE, category: LogCategory.BUSINESS, entityType: 'ProfessionCategory' }),
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -315,7 +351,7 @@ router.delete('/:id',
 router.post('/bulk',
   authenticate,
   checkRole(['SUPER_ADMIN']),
-  auditLogger('BULK_UPDATE_PROFESSION_CATEGORIES'),
+  auditLogger({ action: AuditAction.UPDATE, category: LogCategory.BUSINESS, entityType: 'ProfessionCategory' }),
   async (req, res) => {
     try {
       const { professionId, categoryIds } = req.body;
@@ -363,28 +399,52 @@ router.post('/bulk',
           });
         }
 
-        // 4. Aggiungi nuove associazioni
-        if (toAdd.length > 0) {
-          await tx.professionCategory.createMany({
-            data: toAdd.map(categoryId => ({
-              professionId,
-              categoryId,
+        // 4. Aggiungi nuove associazioni (upsert per garantire ID richiesto)
+        for (const categoryId of toAdd) {
+          const genId = `pc_${professionId}_${categoryId}`;
+          await tx.professionCategory.upsert({
+            where: { id: genId },
+            create: {
+              id: genId,
+              // Usa le chiavi di relazione esatte generate da Prisma (PascalCase)
+              Profession: { connect: { id: professionId } },
+              Category: { connect: { id: categoryId } },
               isActive: true
-            }))
+            },
+            update: {
+              isActive: true
+            }
           });
         }
 
         // 5. Ritorna il risultato aggiornato
-        return await tx.profession.findUnique({
+        const prof = await tx.profession.findUnique({
           where: { id: professionId },
           include: {
-            categories: {
+            ProfessionCategory: {
               include: {
-                category: true
+                Category: true
               }
             }
-          }
+          } as any
         });
+
+        // Normalizza formato
+        return prof
+          ? {
+              ...prof,
+              categories: Array.isArray((prof as any).ProfessionCategory)
+                ? (prof as any).ProfessionCategory.map((pc: any) => ({
+                    id: pc.id,
+                    professionId: pc.professionId,
+                    categoryId: pc.categoryId,
+                    isDefault: pc.isDefault,
+                    isActive: pc.isActive,
+                    category: pc.Category || pc.category || null
+                  }))
+                : []
+            }
+          : null;
       });
 
       logger.info(`Associazioni aggiornate per professione: ${profession.name}`);

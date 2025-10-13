@@ -24,12 +24,33 @@ beforeAll(async () => {
   console.log('🧹 Cleaning test database...');
   
   // Delete in correct order due to foreign key constraints
-  await prisma.assistanceRequest.deleteMany({});
+  await prisma.quoteItem.deleteMany({});
   await prisma.quote.deleteMany({});
+  await prisma.scheduledIntervention.deleteMany({});
+  await prisma.requestAttachment.deleteMany({});
+  await prisma.assistanceRequest.deleteMany({});
+  await prisma.professionalUserSubcategory.deleteMany({});
+  await prisma.subcategoryAiSettings.deleteMany({});
+  await prisma.knowledgeBaseDocument.deleteMany({});
+  await prisma.knowledgeBase.deleteMany({});
   await prisma.subcategory.deleteMany({});
+  await prisma.professionCategory.deleteMany({});
   await prisma.category.deleteMany({});
   await prisma.loginHistory.deleteMany({});
   await prisma.notification.deleteMany({});
+  await prisma.notificationLog.deleteMany({});
+  await prisma.paymentSplit.deleteMany({});
+  await prisma.payment.deleteMany({});
+  await prisma.invoice.deleteMany({});
+  await prisma.professionalPaymentSettings.deleteMany({});
+  await prisma.payout.deleteMany({});
+  await prisma.calendarSettings.deleteMany({});
+  await prisma.userLegalAcceptance.deleteMany({});
+  await prisma.userPoints.deleteMany({});
+  await prisma.pointTransaction.deleteMany({});
+  await prisma.referral.deleteMany({});
+  await prisma.systemBackup.deleteMany({});
+  await prisma.legalDocument.deleteMany({});
   await prisma.user.deleteMany({});
   
   console.log('✅ Database cleaned');
@@ -44,13 +65,34 @@ afterEach(async () => {
 afterAll(async () => {
   console.log('🧹 Final cleanup...');
   
-  // Clean all data
-  await prisma.assistanceRequest.deleteMany({});
+  // Clean all data (respect foreign keys)
+  await prisma.quoteItem.deleteMany({});
   await prisma.quote.deleteMany({});
+  await prisma.scheduledIntervention.deleteMany({});
+  await prisma.requestAttachment.deleteMany({});
+  await prisma.assistanceRequest.deleteMany({});
+  await prisma.professionalUserSubcategory.deleteMany({});
+  await prisma.subcategoryAiSettings.deleteMany({});
+  await prisma.knowledgeBaseDocument.deleteMany({});
+  await prisma.knowledgeBase.deleteMany({});
   await prisma.subcategory.deleteMany({});
+  await prisma.professionCategory.deleteMany({});
   await prisma.category.deleteMany({});
   await prisma.loginHistory.deleteMany({});
   await prisma.notification.deleteMany({});
+  await prisma.notificationLog.deleteMany({});
+  await prisma.paymentSplit.deleteMany({});
+  await prisma.payment.deleteMany({});
+  await prisma.invoice.deleteMany({});
+  await prisma.professionalPaymentSettings.deleteMany({});
+  await prisma.payout.deleteMany({});
+  await prisma.calendarSettings.deleteMany({});
+  await prisma.userLegalAcceptance.deleteMany({});
+  await prisma.userPoints.deleteMany({});
+  await prisma.pointTransaction.deleteMany({});
+  await prisma.referral.deleteMany({});
+  await prisma.systemBackup.deleteMany({});
+  await prisma.legalDocument.deleteMany({});
   await prisma.user.deleteMany({});
   
   // Disconnect from database

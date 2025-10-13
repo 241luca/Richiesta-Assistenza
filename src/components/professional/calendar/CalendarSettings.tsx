@@ -8,6 +8,30 @@ interface CalendarSettingsProps {
   onClose: () => void;
 }
 
+interface ColorScheme {
+  pending: string;
+  confirmed: string;
+  completed: string;
+  cancelled: string;
+}
+
+interface CalendarSettingsForm {
+  defaultView: string;
+  weekStartsOn: number;
+  timeSlotDuration: number;
+  minTime: string;
+  maxTime: string;
+  showWeekends: boolean;
+  defaultInterventionDuration: number;
+  defaultBufferTime: number;
+  maxConcurrentInterventions: number;
+  autoConfirmInterventions: boolean;
+  sendReminders: boolean;
+  reminderTiming: number[];
+  timeZone: string;
+  colorScheme: ColorScheme;
+}
+
 export default function CalendarSettings({ onClose }: CalendarSettingsProps) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'general' | 'notifications' | 'appearance'>('general');
@@ -21,7 +45,7 @@ export default function CalendarSettings({ onClose }: CalendarSettingsProps) {
     }
   });
 
-  const [formData, setFormData] = useState({
+  const defaultFormData: CalendarSettingsForm = {
     defaultView: 'week',
     weekStartsOn: 1,
     timeSlotDuration: 30,
@@ -41,7 +65,9 @@ export default function CalendarSettings({ onClose }: CalendarSettingsProps) {
       completed: '#808080',
       cancelled: '#FF0000'
     }
-  });
+  };
+
+  const [formData, setFormData] = useState<CalendarSettingsForm>(defaultFormData);
 
   React.useEffect(() => {
     if (settings?.data) {
@@ -49,23 +75,27 @@ export default function CalendarSettings({ onClose }: CalendarSettingsProps) {
       setFormData(prev => ({
         ...prev,
         ...settings.data,
-        // Assicurati che colorScheme esista sempre
-        colorScheme: settings.data.colorScheme || prev.colorScheme,
-        // Assicurati che reminderTiming sia sempre un array
+        colorScheme: {
+          ...prev.colorScheme,
+          ...(settings.data.colorScheme || {})
+        },
         reminderTiming: Array.isArray(settings.data.reminderTiming) 
           ? settings.data.reminderTiming 
           : prev.reminderTiming
-      }));
+      } as CalendarSettingsForm));
     } else if (settings && typeof settings === 'object') {
       // Se settings non è wrappato in data
       setFormData(prev => ({
         ...prev,
         ...settings,
-        colorScheme: settings.colorScheme || prev.colorScheme,
-        reminderTiming: Array.isArray(settings.reminderTiming) 
-          ? settings.reminderTiming 
+        colorScheme: {
+          ...prev.colorScheme,
+          ...(settings as any).colorScheme || {}
+        },
+        reminderTiming: Array.isArray((settings as any).reminderTiming) 
+          ? (settings as any).reminderTiming 
           : prev.reminderTiming
-      }));
+      } as CalendarSettingsForm));
     }
   }, [settings]);
 
@@ -75,7 +105,7 @@ export default function CalendarSettings({ onClose }: CalendarSettingsProps) {
       return await api.put('/calendar/settings', data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['calendar-settings']);
+  queryClient.invalidateQueries({ queryKey: ['calendar-settings'] });
       toast.success('Impostazioni salvate con successo');
       onClose();
     },

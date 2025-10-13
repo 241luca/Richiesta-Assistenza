@@ -17,7 +17,7 @@ router.get('/',
   async (req: any, res) => {
     try {
       // Per ora ritorna array vuoto - tabelle non esistono
-      const permissions = [];
+      const permissions: any[] = [];
       
       return res.json(ResponseFormatter.success(
         permissions,
@@ -44,8 +44,8 @@ router.get('/stats',
       const stats = {
         permissions: {
           total: 0,
-          byRole: [],
-          byDocumentType: []
+          byRole: [] as any[],
+          byDocumentType: [] as any[]
         },
         restrictions: {
           active: 0

@@ -454,7 +454,7 @@ export class TestRunnerService {
       // Test struttura preventivi
       if (quoteCount > 0) {
         const sampleQuote = await prisma.quote.findFirst({
-          include: { items: true }
+          include: { QuoteItem: true }
         });
 
         if (sampleQuote && sampleQuote.items.length > 0) {

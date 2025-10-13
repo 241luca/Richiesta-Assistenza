@@ -87,7 +87,7 @@ class PaymentListService {
                   select: {
                     id: true,
                     title: true,
-                    subcategory: {
+                    Subcategory: {
                       select: {
                         name: true
                       }

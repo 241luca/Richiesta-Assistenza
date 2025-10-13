@@ -138,7 +138,7 @@ class QuoteService {
       // Verifica esistenza richiesta
       const request = await prisma.assistanceRequest.findUnique({
         where: { id: input.requestId },
-        include: { category: true, subcategory: true }
+        include: { Category: true, Subcategory: true }
       });
 
       if (!request) {
@@ -281,7 +281,7 @@ class QuoteService {
       // Verifica esistenza e stato
       const existingQuote = await prisma.quote.findUnique({
         where: { id: quoteId },
-        include: { items: true }
+        include: { QuoteItem: true }
       });
 
       if (!existingQuote) {
@@ -293,7 +293,7 @@ class QuoteService {
       }
 
       // Prepara items (nuovi o esistenti)
-      const newItems = input.items || existingQuote.items.map(item => ({
+      const newItems = input.items || existingQuote.QuoteItem.map((item: any) => ({
         description: item.description,
         quantity: Number(item.quantity),
         unitPrice: Number(item.unitPrice),
@@ -339,7 +339,7 @@ class QuoteService {
         });
 
         // Aggiorna items se forniti
-        let items = existingQuote.items;
+        let items = existingQuote.QuoteItem;
         if (input.items) {
           await tx.quoteItem.deleteMany({
             where: { quoteId: quoteId }
@@ -421,8 +421,14 @@ class QuoteService {
       const quote = await prisma.quote.findUnique({
         where: { id: quoteId },
         include: { 
-          request: { include: { client: true } }, // ✅ CORRETTO
-          professional: true // ✅ CORRETTO
+          AssistanceRequest: { 
+            include: { 
+              User_AssistanceRequest_clientIdToUser: true,
+              Category: true,
+              Subcategory: true
+            }
+          },
+          User: true
         }
       });
 
@@ -430,7 +436,7 @@ class QuoteService {
         throw new AppError('Quote not found', 404);
       }
 
-      if (quote.request.clientId !== clientId) {
+      if (quote.AssistanceRequest.clientId !== clientId) {
         throw new AppError('Unauthorized', 403);
       }
 
@@ -479,13 +485,13 @@ class QuoteService {
 
       // Notifica professionista
       try {
-        const clientName = quote.request.client?.fullName || 'Cliente';
+        const clientName = quote.AssistanceRequest.User_AssistanceRequest_clientIdToUser?.fullName || 'Cliente';
         
         await notificationService.sendToUser({
           userId: quote.professionalId,
           type: 'QUOTE_ACCEPTED',
           title: 'Preventivo Accettato',
-          message: `Il tuo preventivo per "${quote.request.title}" è stato accettato!`,
+          message: `Il tuo preventivo per "${quote.AssistanceRequest.title}" è stato accettato!`,
           priority: 'high',
           data: {
             quoteId: quote.id,
@@ -534,7 +540,7 @@ class QuoteService {
       const quote = await prisma.quote.findUnique({
         where: { id: quoteId },
         include: { 
-          request: { include: { client: true } } // ✅ CORRETTO
+          AssistanceRequest: { include: { User_AssistanceRequest_clientIdToUser: true } }
         }
       });
 
@@ -542,7 +548,7 @@ class QuoteService {
         throw new AppError('Quote not found', 404);
       }
 
-      if (quote.request.clientId !== clientId) {
+      if (quote.AssistanceRequest.clientId !== clientId) {
         throw new AppError('Unauthorized', 403);
       }
 
@@ -570,7 +576,7 @@ class QuoteService {
           userId: quote.professionalId,
           type: 'QUOTE_REJECTED',
           title: 'Preventivo Rifiutato',
-          message: `Il tuo preventivo per "${quote.request.title}" è stato rifiutato${reasonText}`,
+          message: `Il tuo preventivo per "${quote.AssistanceRequest.title}" è stato rifiutato${reasonText}`,
           priority: 'normal',
           data: {
             quoteId: quote.id,
@@ -712,8 +718,8 @@ class QuoteService {
       const quote = await prisma.quote.findUnique({
         where: { id: quoteId },
         include: { 
-          items: { orderBy: { order: 'asc' } },
-          request: { include: { category: true, subcategory: true } }
+          QuoteItem: { orderBy: { order: 'asc' } },
+          AssistanceRequest: { include: { Category: true, Subcategory: true } }
         }
       });
 
@@ -725,7 +731,7 @@ class QuoteService {
         title: quote.title,
         notes: quote.notes,
         terms: quote.terms,
-        items: quote.items.map(item => ({
+        items: quote.QuoteItem.map((item: any) => ({
           description: item.description,
           quantity: Number(item.quantity),
           unitPrice: Number(item.unitPrice),
@@ -832,8 +838,8 @@ class QuoteService {
           status: { in: ['PENDING', 'ACCEPTED'] }
         },
         include: {
-          items: { orderBy: { order: 'asc' } },
-          professional: {
+          QuoteItem: { orderBy: { order: 'asc' } },
+          User: {
             select: {
               id: true,
               fullName: true,
@@ -853,7 +859,7 @@ class QuoteService {
           
         return {
           ...quote,
-          itemCount: quote.items ? quote.items.length : 0,
+          itemCount: quote.QuoteItem ? quote.QuoteItem.length : 0,
           _comparison: {
             hasDeposit: !!quote.depositAmount,
             isExpiring

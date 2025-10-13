@@ -1,4 +1,5 @@
 import express from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '../config/database';
 import { ResponseFormatter } from '../utils/responseFormatter';
 import { authenticate } from '../middleware/auth';
@@ -127,12 +128,14 @@ router.post('/', authenticate, requireRole(['SUPER_ADMIN']), async (req, res) =>
       } else {
         await prisma.apiKey.create({
           data: {
+            id: uuidv4(),
             key: 'stripe_keys',
             name: 'Stripe API Keys',
             service: 'STRIPE',
             permissions,
             rateLimit: 100,
-            isActive: true
+            isActive: true,
+            updatedAt: new Date()
           }
         });
       }
@@ -146,11 +149,13 @@ router.post('/', authenticate, requireRole(['SUPER_ADMIN']), async (req, res) =>
     // Per altre chiavi, salva normalmente
     const apiKey = await prisma.apiKey.create({
       data: {
+        id: uuidv4(),
         key: keyValue,
         name,
         service,
         rateLimit: 100,
-        isActive: true
+        isActive: true,
+        updatedAt: new Date()
       }
     });
 

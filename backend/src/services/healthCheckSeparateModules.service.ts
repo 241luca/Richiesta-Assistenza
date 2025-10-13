@@ -21,11 +21,11 @@ const prisma = new PrismaClient();
  */
 export async function checkRedisSystem(): Promise<HealthCheckResult> {
   const startTime = Date.now();
-  const checks = [];
-  const metrics: any = {};
-  const warnings = [];
-  const errors = [];
-  const recommendations = [];
+  const checks: any[] = [];
+  const metrics: Record<string, any> = {};
+  const warnings: string[] = [];
+  const errors: string[] = [];
+  const recommendations: string[] = [];
   let score = 100;
 
   try {
@@ -276,45 +276,83 @@ export async function checkRedisSystem(): Promise<HealthCheckResult> {
  */
 export async function checkWebSocketSystem(): Promise<HealthCheckResult> {
   const startTime = Date.now();
-  const checks = [];
-  const metrics: any = {};
-  const warnings = [];
-  const errors = [];
-  const recommendations = [];
+  const checks: any[] = [];
+  const metrics: Record<string, any> = {};
+  const warnings: string[] = [];
+  const errors: string[] = [];
+  const recommendations: string[] = [];
   let score = 100;
 
   try {
-    // NOTA: Non possiamo verificare direttamente Socket.io da qui
-    // perché è centralizzato in notificationService
-    // Possiamo solo verificare che il servizio risponda
-    
-    checks.push({
-      description: 'Socket.io Server',
-      status: 'info',
-      message: 'WebSocket managed by NotificationService'
-    });
-    
-    // Verifica che notificationService sia disponibile
-    if (notificationService) {
-      checks.push({
-        description: 'NotificationService',
-        status: 'pass',
-        message: 'NotificationService is available'
-      });
-      
-      // Il resto dei check WebSocket andrebbero implementati
-      // dentro notificationService con un metodo getHealthMetrics()
-      metrics.note = 'WebSocket metrics should be retrieved from NotificationService';
-      
-    } else {
+    // Verifica stato e metriche dal NotificationService
+    if (!notificationService) {
       checks.push({
         description: 'NotificationService',
         status: 'fail',
-        message: 'NotificationService not available',
+        message: 'NotificationService non disponibile',
         severity: 'critical'
       });
-      errors.push('NotificationService is not running');
-      score -= 50;
+      errors.push('NotificationService non è in esecuzione');
+      score = 0;
+    } else {
+      const ws = notificationService.getWebSocketMetrics();
+
+      metrics.websocket_clients = ws.clientsCount;
+      metrics.websocket_rooms = ws.roomsCount;
+      metrics.websocket_namespaces = ws.namespaces;
+
+      if (!ws.isConnected) {
+        checks.push({
+          description: 'Socket.io Server',
+          status: 'fail',
+          message: 'Socket.io non inizializzato',
+          severity: 'critical'
+        });
+        errors.push('Socket.io non è inizializzato');
+        score = 0;
+      } else {
+        checks.push({
+          description: 'Socket.io Server',
+          status: 'pass',
+          message: `${ws.clientsCount} connessioni attive`
+        });
+
+        // Avvisi su condizioni tipiche
+        if (ws.clientsCount === 0) {
+          checks.push({
+            description: 'Connessioni WebSocket',
+            status: 'warn',
+            message: 'Nessuna connessione WebSocket attiva',
+            severity: 'low'
+          });
+          warnings.push('Nessun client WebSocket connesso');
+          score -= 5;
+        }
+
+        if (ws.roomsCount > 1000) {
+          checks.push({
+            description: 'Numero stanze',
+            status: 'warn',
+            message: `Molte stanze attive (${ws.roomsCount})`,
+            severity: 'medium'
+          });
+          warnings.push('Elevato numero di stanze WebSocket');
+          recommendations.push('Valutare cleanup/ottimizzazione delle room');
+          score -= 10;
+        } else {
+          checks.push({
+            description: 'Numero stanze',
+            status: 'pass',
+            message: `${ws.roomsCount} stanze attive`
+          });
+        }
+
+        checks.push({
+          description: 'Namespaces',
+          status: 'info',
+          message: `Namespaces: ${ws.namespaces.join(', ') || '/'}`
+        });
+      }
     }
 
   } catch (error: any) {
@@ -343,11 +381,11 @@ export async function checkWebSocketSystem(): Promise<HealthCheckResult> {
  */
 export async function checkEmailService(): Promise<HealthCheckResult> {
   const startTime = Date.now();
-  const checks = [];
-  const metrics: any = {};
-  const warnings = [];
-  const errors = [];
-  const recommendations = [];
+  const checks: any[] = [];
+  const metrics: Record<string, any> = {};
+  const warnings: string[] = [];
+  const errors: string[] = [];
+  const recommendations: string[] = [];
   let score = 100;
 
   try {
@@ -634,11 +672,11 @@ export async function checkEmailService(): Promise<HealthCheckResult> {
  */
 export async function checkAISystem(): Promise<HealthCheckResult> {
   const startTime = Date.now();
-  const checks = [];
-  const metrics: any = {};
-  const warnings = [];
-  const errors = [];
-  const recommendations = [];
+  const checks: any[] = [];
+  const metrics: Record<string, any> = {};
+  const warnings: string[] = [];
+  const errors: string[] = [];
+  const recommendations: string[] = [];
   let score = 100;
 
   try {
@@ -724,22 +762,21 @@ export async function checkAISystem(): Promise<HealthCheckResult> {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       
-      // Conta utilizzi AI nelle ultime 24h
-      const aiUsage = await prisma.aIUsageLog.findMany({
+      // Conta conversazioni AI nelle ultime 24h (usiamo AiConversation)
+      const aiUsage = await prisma.aiConversation.findMany({
         where: {
           createdAt: { gte: yesterday }
+        },
+        select: {
+          totalTokens: true,
+          startedAt: true,
+          endedAt: true
         }
       });
       
-      const totalTokens = aiUsage.reduce((sum, log) => sum + (log.tokensUsed || 0), 0);
-      const totalCost = aiUsage.reduce((sum, log) => sum + Number(log.cost || 0), 0);
-      
+      const totalTokens = aiUsage.reduce((sum, log) => sum + (log.totalTokens || 0), 0);
       metrics.tokens_used_24h = totalTokens;
-      metrics.cost_24h = totalCost.toFixed(2);
       metrics.requests_24h = aiUsage.length;
-      
-      // Stima costo mensile
-      metrics.estimated_monthly_cost = (totalCost * 30).toFixed(2);
       
       if (totalTokens > 100000) {
         checks.push({
@@ -758,23 +795,6 @@ export async function checkAISystem(): Promise<HealthCheckResult> {
           message: `${totalTokens} tokens used`
         });
       }
-      
-      if (totalCost > 50) {
-        checks.push({
-          description: 'AI Costs (24h)',
-          status: 'warn',
-          message: `High cost: €${totalCost.toFixed(2)}`,
-          severity: 'high'
-        });
-        warnings.push('High AI costs');
-        score -= 15;
-      } else {
-        checks.push({
-          description: 'AI Costs (24h)',
-          status: 'pass',
-          message: `Cost: €${totalCost.toFixed(2)}`
-        });
-      }
     } catch (error) {
       checks.push({
         description: 'Token Usage (24h)',
@@ -786,18 +806,24 @@ export async function checkAISystem(): Promise<HealthCheckResult> {
 
     // 4. Tempo di risposta medio
     try {
-      const recentLogs = await prisma.aIUsageLog.findMany({
+      const recentLogs = await prisma.aiConversation.findMany({
         where: {
           createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
         },
         select: {
-          responseTime: true
+          startedAt: true,
+          endedAt: true
         }
       });
       
       if (recentLogs.length > 0) {
-        const avgResponseTime = recentLogs.reduce((sum, log) => 
-          sum + (log.responseTime || 0), 0) / recentLogs.length;
+        const responseTimes = recentLogs
+          .map(log => (log.endedAt && log.startedAt) ? (log.endedAt.getTime() - log.startedAt.getTime()) : 0)
+          .filter(rt => rt > 0);
+        
+        const avgResponseTime = responseTimes.length > 0
+          ? responseTimes.reduce((sum, rt) => sum + rt, 0) / responseTimes.length
+          : 0;
         
         metrics.avg_response_time_ms = Math.round(avgResponseTime);
         

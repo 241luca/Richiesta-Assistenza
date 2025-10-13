@@ -7,6 +7,7 @@ import { OnboardingTour } from './components/onboarding';
 import { CelebrationProvider } from './components/celebrations';
 import { useAuth } from './hooks/useAuth';
 import Router from './routes';
+import { SocketProvider } from './contexts/SocketContext';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,11 +40,13 @@ function App() {
   return (
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
-        <GoogleMapsProvider>
-          <Router />
-          <OnboardingWrapper />
-          <CelebrationProvider />
-        </GoogleMapsProvider>
+        <SocketProvider>
+          <GoogleMapsProvider>
+            <Router />
+            <OnboardingWrapper />
+            <CelebrationProvider />
+          </GoogleMapsProvider>
+        </SocketProvider>
         <Toaster 
           position="top-right"
           toastOptions={{

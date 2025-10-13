@@ -11,9 +11,9 @@ export { default as AddressFormWithGeolocation, SimpleAddressWithGeo } from './A
 // Componenti esistenti
 export { default as AddressGeocoding } from './AddressGeocoding';
 export { default as PlaceAutocomplete } from './PlaceAutocomplete';
-export { default as WorkAddressForm } from './WorkAddressForm';
+export { WorkAddressForm } from './WorkAddressForm';
 
-// Hook di geolocalizzazione
+// Hook di geolocalizzazione - TEMPORANEAMENTE DISABILITATO (file spostato in intrusi)
 export { useGeolocation, useGeolocationCoordinates } from '../../hooks/useGeolocation';
 
 // Types per TypeScript

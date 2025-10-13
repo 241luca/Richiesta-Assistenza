@@ -1,4 +1,5 @@
 import { PrismaClient, ModuleCategory, SettingType, ModuleAction } from '@prisma/client';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Seed completo 66 moduli sistema
@@ -886,7 +887,24 @@ export async function seedModules(prisma?: PrismaClient) {
 
     await prisma.systemModule.upsert({
       where: { code: moduleData.code },
-      create: moduleData,
+      create: {
+        id: uuidv4(),
+        code: moduleData.code,
+        name: moduleData.name,
+        description: moduleData.description,
+        category: moduleData.category,
+        icon: moduleData.icon,
+        color: moduleData.color,
+        isCore: moduleData.isCore ?? false,
+        isEnabled: moduleData.isEnabled ?? true,
+        isActive: moduleData.isActive ?? true,
+        config: moduleData.config,
+        dependsOn: moduleData.dependsOn || [],
+        order: moduleData.order ?? 0,
+        version: moduleData.version,
+        author: moduleData.author,
+        updatedAt: new Date()
+      },
       update: {
         name: moduleData.name,
         description: moduleData.description,
@@ -895,7 +913,13 @@ export async function seedModules(prisma?: PrismaClient) {
         color: moduleData.color,
         order: moduleData.order,
         dependsOn: moduleData.dependsOn || [],
-        config: moduleData.config
+        config: moduleData.config,
+        isCore: moduleData.isCore ?? false,
+        isEnabled: moduleData.isEnabled ?? true,
+        isActive: moduleData.isActive ?? true,
+        version: moduleData.version,
+        author: moduleData.author,
+        updatedAt: new Date()
       }
     });
 
@@ -1126,13 +1150,34 @@ export async function seedModuleSettings(prisma?: PrismaClient) {
           key: setting.key
         }
       },
-      create: setting,
+      create: {
+        id: uuidv4(),
+        moduleCode: setting.moduleCode,
+        key: setting.key,
+        value: setting.value,
+        type: setting.type,
+        label: setting.label,
+        description: setting.description,
+        placeholder: setting.placeholder,
+        validation: setting.validation,
+        isRequired: setting.isRequired ?? false,
+        isSecret: setting.isSecret ?? false,
+        order: setting.order ?? 0,
+        group: setting.group,
+        updatedAt: new Date()
+      },
       update: {
         label: setting.label,
         description: setting.description,
         type: setting.type,
         validation: setting.validation,
-        order: setting.order
+        order: setting.order,
+        placeholder: setting.placeholder,
+        isRequired: setting.isRequired ?? false,
+        isSecret: setting.isSecret ?? false,
+        group: setting.group,
+        value: setting.value,
+        updatedAt: new Date()
       }
     });
 

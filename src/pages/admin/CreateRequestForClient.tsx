@@ -120,6 +120,29 @@ export default function CreateRequestForClient() {
 
   const professionals = Array.isArray(professionalsResponse) ? professionalsResponse : [];
 
+  // Estrae campi utili dai dettagli di Google Places
+  const parseAddressDetails = (details: any) => {
+    try {
+      const comps: any[] = details?.address_components || [];
+      const findType = (t: string) => comps.find((c) => c.types?.includes(t));
+      const city =
+        findType('locality')?.long_name ||
+        findType('administrative_area_level_3')?.long_name ||
+        findType('sublocality')?.long_name ||
+        '';
+      const province =
+        findType('administrative_area_level_2')?.short_name ||
+        findType('administrative_area_level_1')?.short_name ||
+        '';
+      const postalCode = findType('postal_code')?.long_name || '';
+      const latitude = details?.geometry?.location?.lat?.();
+      const longitude = details?.geometry?.location?.lng?.();
+      return { city, province, postalCode, latitude, longitude };
+    } catch (e) {
+      return { city: '', province: '', postalCode: '', latitude: undefined, longitude: undefined };
+    }
+  };
+
   // Mutation per creare la richiesta
   const createRequestMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -244,14 +267,23 @@ export default function CreateRequestForClient() {
     }
   };
 
-  const handleAddressChange = (data: any) => {
+  const handleAddressChange = (value: string, details?: any) => {
+    const parsed = parseAddressDetails(details);
+    const data = {
+      address: value,
+      city: parsed.city || addressData.city,
+      province: parsed.province || addressData.province,
+      postalCode: parsed.postalCode || addressData.postalCode,
+      latitude: parsed.latitude,
+      longitude: parsed.longitude,
+    };
     setAddressData(data);
     setValue('address', data.address);
     setValue('city', data.city);
     setValue('province', data.province);
     setValue('postalCode', data.postalCode);
-    if (data.latitude) setValue('latitude', data.latitude);
-    if (data.longitude) setValue('longitude', data.longitude);
+    if (data.latitude !== undefined) setValue('latitude', data.latitude as number);
+    if (data.longitude !== undefined) setValue('longitude', data.longitude as number);
   };
 
   const handleCategoryChange = (selection: { category?: string; subcategory?: string }) => {
@@ -704,9 +736,10 @@ export default function CreateRequestForClient() {
             
             <div className="p-6">
               <AddressAutocomplete
-                value={addressData}
+                value={addressData.address}
                 onChange={handleAddressChange}
-                errors={errors}
+                label="Indirizzo completo"
+                error={errors.address?.message}
               />
             </div>
           </div>

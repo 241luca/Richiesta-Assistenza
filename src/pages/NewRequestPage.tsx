@@ -22,7 +22,7 @@ import {
 import { api } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import CategorySelector from '../components/categories/CategorySelector';
-import AddressAutocomplete from '../components/address/AddressAutocomplete';
+import { PlaceAutocomplete } from '../components/address/PlaceAutocomplete';
 import { AiChatComplete } from '../components/ai/AiChatComplete';
 import { GuaranteeBanner } from '../components/guarantees';
 import { QuickRequestForm } from '../components/requests/QuickRequestForm';
@@ -85,18 +85,6 @@ export default function NewRequestPage() {
     console.log('Number of files:', selectedFiles.length);
   }, [selectedFiles]);
 
-  // Controlla se esistono bozze salvate all'avvio della pagina
-  useEffect(() => {
-    if (mode === 'standard' && hasDraft()) {
-      const draft = loadDraft();
-      if (draft && draft.data) {
-        setSavedDraft(draft);
-        setShowDraftBanner(true);
-        console.log('✓ Bozza trovata e pronta per il ripristino:', draft);
-      }
-    }
-  }, [mode, hasDraft, loadDraft]);
-
   // Funzioni per gestire le bozze
   const handleRestoreDraft = () => {
     if (savedDraft && savedDraft.data) {
@@ -127,7 +115,7 @@ export default function NewRequestPage() {
         
         // Nota: Non possiamo ripristinare i file, ma possiamo mostrare i nomi
         if (draftData.selectedFiles && draftData.selectedFiles.length > 0) {
-          toast.info(`La bozza conteneva ${draftData.selectedFiles.length} file. Dovrai ricaricarli.`, {
+  toast(`La bozza conteneva ${draftData.selectedFiles.length} file. Dovrai ricaricarli.`, {
             duration: 5000
           });
         }
@@ -191,16 +179,60 @@ export default function NewRequestPage() {
     }
   );
 
-  // Handle address change from autocomplete
-  const handleAddressChange = (newAddressData: typeof addressData) => {
+  // Controlla se esistono bozze salvate all'avvio della pagina (dipende dalle funzioni del hook sopra)
+  useEffect(() => {
+    if (mode === 'standard' && hasDraft()) {
+      const draft = loadDraft();
+      if (draft && draft.data) {
+        setSavedDraft(draft);
+        setShowDraftBanner(true);
+        console.log('✓ Bozza trovata e pronta per il ripristino:', draft);
+      }
+    }
+  }, [mode, hasDraft, loadDraft]);
+
+  // Estrae i campi utili dai dettagli di Google Places
+  const parseAddressDetails = (details: any) => {
+    try {
+      const comps: any[] = details?.address_components || [];
+      const findType = (t: string) => comps.find((c) => c.types?.includes(t));
+      const city =
+        findType('locality')?.long_name ||
+        findType('administrative_area_level_3')?.long_name ||
+        findType('sublocality')?.long_name ||
+        '';
+      const province =
+        findType('administrative_area_level_2')?.short_name ||
+        findType('administrative_area_level_1')?.short_name ||
+        '';
+      const postalCode = findType('postal_code')?.long_name || '';
+      const latitude = details?.geometry?.location?.lat?.();
+      const longitude = details?.geometry?.location?.lng?.();
+      return { city, province, postalCode, latitude, longitude };
+    } catch (e) {
+      return { city: '', province: '', postalCode: '', latitude: undefined, longitude: undefined };
+    }
+  };
+
+  // Handle address change dall'autocomplete (value string + dettagli opzionali)
+  const handleAddressChange = (value: string, details?: any) => {
+    const parsed = parseAddressDetails(details);
+    const newAddressData = {
+      address: value,
+      city: parsed.city || addressData.city,
+      province: parsed.province || addressData.province,
+      postalCode: parsed.postalCode || addressData.postalCode,
+      latitude: parsed.latitude,
+      longitude: parsed.longitude,
+    };
     setAddressData(newAddressData);
     // Update form values
     setValue('address', newAddressData.address);
     setValue('city', newAddressData.city);
     setValue('province', newAddressData.province);
     setValue('postalCode', newAddressData.postalCode);
-    if (newAddressData.latitude) setValue('latitude', newAddressData.latitude);
-    if (newAddressData.longitude) setValue('longitude', newAddressData.longitude);
+    if (newAddressData.latitude !== undefined) setValue('latitude', newAddressData.latitude as number);
+    if (newAddressData.longitude !== undefined) setValue('longitude', newAddressData.longitude as number);
   };
 
   // CORRETTO: Upload attachments con API service
@@ -406,12 +438,12 @@ export default function NewRequestPage() {
   };
 
   // Handle drag and drop
-  const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -722,10 +754,11 @@ export default function NewRequestPage() {
               4. Indirizzo dell'intervento
             </h3>
             
-            <AddressAutocomplete 
-              value={addressData}
+            <PlaceAutocomplete 
+              value={addressData.address}
               onChange={handleAddressChange}
-              errors={errors}
+              label="Indirizzo completo"
+              error={errors.address?.message}
             />
             
             {/* Visualizza Mappa Button */}

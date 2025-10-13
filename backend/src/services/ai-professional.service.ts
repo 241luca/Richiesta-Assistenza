@@ -20,6 +20,7 @@ interface AiChatRequest {
   conversationId?: string;
   userId?: string;
   mode?: 'professional' | 'client';
+  professionalId?: string;
 }
 
 class AiProfessionalService {

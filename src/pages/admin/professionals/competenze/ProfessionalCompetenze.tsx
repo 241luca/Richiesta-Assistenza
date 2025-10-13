@@ -411,12 +411,6 @@ export default function ProfessionalCompetenze() {
           <div className="text-center py-12">
             <AcademicCapIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">Nessuna sottocategoria associata</p>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Aggiungi la prima sottocategoria
-            </button>
           </div>
         ) : (
           <div className="grid gap-4">

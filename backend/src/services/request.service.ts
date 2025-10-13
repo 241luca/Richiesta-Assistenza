@@ -21,6 +21,7 @@ import { Prisma } from '@prisma/client';
 import { logger } from '../utils/logger';
 import { notificationService } from './notification.service';
 import { GoogleMapsService } from './googleMaps.service';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Request Service Class
@@ -369,6 +370,7 @@ export class RequestService {
       
       // Prepara dati per creazione
       const createData: any = {
+        id: uuidv4(),
         title: data.title,
         description: data.description,
         categoryId: data.categoryId,
@@ -382,6 +384,7 @@ export class RequestService {
         priority: data.priority as any,
         requestedDate: data.requestedDate ? new Date(data.requestedDate) : undefined,
         publicNotes: data.notes,
+        updatedAt: new Date()
       };
 
       // Rimuovi campi undefined
@@ -802,7 +805,7 @@ export class RequestService {
       const quotes = await prisma.quote.findMany({
         where: { requestId },
         include: {
-          professional: {
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -812,7 +815,7 @@ export class RequestService {
               profession: true,
             },
           },
-          items: true,
+          QuoteItem: true,
         },
         orderBy: {
           createdAt: 'desc',

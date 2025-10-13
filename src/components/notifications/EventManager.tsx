@@ -11,7 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
-import { toast } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 interface NotificationEvent {
   id: string;

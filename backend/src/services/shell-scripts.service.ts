@@ -1,6 +1,6 @@
 /**
  * Shell Scripts Service
- * Servizio per eseguire gli script shell dalla cartella /scripts
+ * Servizio per eseguire gli script shell dalla cartella backend/src/scripts
  */
 
 import { spawn } from 'child_process';
@@ -33,9 +33,9 @@ class ShellScriptsService {
   private availableScripts: Map<string, ShellScript> = new Map();
 
   constructor() {
-    // Gli script sono nella cartella principale /scripts
-    // Da backend/src/services a scripts (3 livelli sopra)
-    this.scriptsPath = path.join(__dirname, '..', '..', '..', 'scripts');
+    // Gli script sono nella cartella backend/src/scripts
+    // Da backend/src/services a backend/src/scripts (1 livello sopra)
+    this.scriptsPath = path.join(__dirname, '..', 'scripts');
     logger.info(`Scripts path configured: ${this.scriptsPath}`);
     this.initializeScripts();
   }

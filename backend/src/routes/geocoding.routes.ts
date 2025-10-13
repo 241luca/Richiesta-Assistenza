@@ -194,16 +194,16 @@ router.post(
           address: { not: null },
           city: { not: null },
           ...(categoryId && {
-            professionalSubcategories: {
+            ProfessionalUserSubcategory: {
               some: {
-                subcategory: {
+                Subcategory: {
                   categoryId,
                 },
               },
             },
           }),
           ...(subcategoryId && {
-            professionalSubcategories: {
+            ProfessionalUserSubcategory: {
               some: {
                 subcategoryId,
               },

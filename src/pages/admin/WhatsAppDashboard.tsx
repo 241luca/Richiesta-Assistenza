@@ -65,7 +65,7 @@ export default function WhatsAppDashboard() {
     },
     onSuccess: (data) => {
       if (data?.data?.connected) {
-        toast.info('WhatsApp già connesso');
+  toast('WhatsApp già connesso');
       } else if (data?.data?.qrCode) {
         toast.success('QR Code generato!');
       }

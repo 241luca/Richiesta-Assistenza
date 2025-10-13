@@ -1,8 +1,6 @@
 // TIPI PER FUNZIONALITÀ VIAGGI E DISTANZE
 // Creato seguendo ISTRUZIONI-PROGETTO.md - Schema-First Development
 
-import { User, AssistanceRequest } from '@prisma/client';
-
 export interface TravelInfo {
   distance: number; // Distanza in km
   duration: number; // Durata in minuti
@@ -23,7 +21,21 @@ export interface WorkAddress {
   longitude?: number;
 }
 
-export interface UserWithWorkAddress extends User {
+// Interfacce base senza dipendenze da Prisma
+export interface BaseUser {
+  id: string;
+  email: string;
+  name?: string;
+  // Altri campi base necessari
+}
+
+export interface BaseAssistanceRequest {
+  id: string;
+  userId: string;
+  // Altri campi base necessari
+}
+
+export interface UserWithWorkAddress extends BaseUser {
   workAddress?: string;
   workCity?: string;
   workProvince?: string;
@@ -34,12 +46,11 @@ export interface UserWithWorkAddress extends User {
   travelRatePerKm?: number; // In EUR centesimi
 }
 
-export interface RequestWithTravelInfo extends AssistanceRequest {
+export interface RequestWithTravelInfo extends BaseAssistanceRequest {
   travelInfo?: TravelInfo;
   itineraryUrl?: string; // URL per Google Maps
 }
 
-// DTO per aggiornamento indirizzo di lavoro
 export interface UpdateWorkAddressDto {
   workAddress?: string;
   workCity?: string;
@@ -49,11 +60,15 @@ export interface UpdateWorkAddressDto {
   travelRatePerKm?: number;
 }
 
-// DTO per risposta con info viaggi
 export interface RequestTravelResponse {
   requestId: string;
   distance: number;
   duration: number;
   cost: number;
   itineraryUrl: string;
+}
+
+export interface TravelInfoCardProps {
+  requestId: string;
+  className?: string;
 }

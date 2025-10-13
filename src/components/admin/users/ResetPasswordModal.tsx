@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 import { api } from '../../../services/api';
-import { toast } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { z } from 'zod';
 
 interface ResetPasswordModalProps {
@@ -50,12 +50,13 @@ export default function ResetPasswordModal({ user, onClose, onSuccess }: ResetPa
       }
       
       onSuccess();
-    } catch (error: any) {
-      if (error instanceof z.ZodError) {
-        const fieldErrors: any = {};
-        error.errors.forEach((err) => {
-          if (err.path[0]) {
-            fieldErrors[err.path[0]] = err.message;
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+        const fieldErrors: Record<string, string> = {};
+        error.issues.forEach((issue) => {
+          const field = issue.path?.[0] as string | undefined;
+          if (field) {
+            fieldErrors[field] = issue.message;
           }
         });
         setErrors(fieldErrors);

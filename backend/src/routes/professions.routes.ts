@@ -1,5 +1,6 @@
 // backend/src/routes/professions.routes.ts
 import { Router, Request, Response } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '../config/database';
 import { authenticate } from '../middleware/auth';
 import { ResponseFormatter } from '../utils/responseFormatter';
@@ -29,13 +30,22 @@ router.get('/', async (req: Request, res: Response) => {
       orderBy: { displayOrder: 'asc' },
       include: {
         _count: {
-          select: { users: true }
+          select: { User: true }
         }
-      }
+      } as any
     });
 
+    // Normalizza: aggiungi `_count.users` per compatibilità camelCase
+    const professionsNormalized = professions.map((p: any) => ({
+      ...p,
+      _count: {
+        ...(p._count || {}),
+        users: (p._count?.User ?? 0)
+      }
+    }));
+
     return res.json(ResponseFormatter.success(
-      professions,
+      professionsNormalized,
       'Professions retrieved successfully'
     ));
   } catch (error: any) {
@@ -59,7 +69,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     const profession = await prisma.profession.findUnique({
       where: { id },
       include: {
-        users: {
+        User: {
           select: {
             id: true,
             firstName: true,
@@ -68,7 +78,7 @@ router.get('/:id', async (req: Request, res: Response) => {
             city: true
           }
         }
-      }
+      } as any
     });
 
     if (!profession) {
@@ -78,8 +88,14 @@ router.get('/:id', async (req: Request, res: Response) => {
       ));
     }
 
+    // Normalizza: alias `users` in camelCase dalla relazione `User`
+    const professionNormalized = {
+      ...profession,
+      users: (profession as any).User ?? []
+    };
+
     return res.json(ResponseFormatter.success(
-      profession,
+      professionNormalized,
       'Profession retrieved successfully'
     ));
   } catch (error: any) {
@@ -135,11 +151,13 @@ router.post('/', authenticate, async (req: any, res: Response) => {
 
     const profession = await prisma.profession.create({
       data: {
+        id: uuidv4(),
         name,
         slug,
         description,
         isActive: isActive ?? true,
-        displayOrder: displayOrder ?? 0
+        displayOrder: displayOrder ?? 0,
+        updatedAt: new Date()
       }
     });
 
@@ -359,13 +377,14 @@ router.put('/user/:userId', authenticate, async (req: any, res: Response) => {
           isActive: true
         },
         include: {
-          category: true
-        }
+          Category: true
+        } as any
       });
       
       logger.info(`   This profession has ${professionCategories.length} associated categories:`);
       professionCategories.forEach(pc => {
-        logger.info(`     - ${pc.category.name}`);
+        const cat = (pc as any).Category || (pc as any).category;
+        logger.info(`     - ${cat?.name || 'unknown'}`);
       });
     }
 

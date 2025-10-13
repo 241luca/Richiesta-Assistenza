@@ -26,9 +26,9 @@ router.get('/:id', authenticate, async (req: any, res) => {
         // Competenze/sottocategorie assegnate
         ProfessionalUserSubcategory: {
           include: {
-            subcategory: {
+            Subcategory: {
               include: {
-                category: true
+                Category: true
               }
             }
           },
@@ -67,11 +67,11 @@ router.get('/:id', authenticate, async (req: any, res) => {
           isActive: true
         },
         include: {
-          category: true
+          Category: true
         }
       });
-      
-      professionCategories = profCats.map(pc => pc.category);
+
+      professionCategories = profCats.map(pc => pc.Category);
       logger.info(`   - Categorie professione: ${professionCategories.map(c => c.name).join(', ')}`);
     }
     
@@ -146,9 +146,9 @@ router.put('/:id/profession', authenticate, async (req: any, res) => {
         Profession: true,
         ProfessionalUserSubcategory: {
           include: {
-            subcategory: {
+            Subcategory: {
               include: {
-                category: true
+                Category: true
               }
             }
           }
@@ -168,10 +168,10 @@ router.put('/:id/profession', authenticate, async (req: any, res) => {
           isActive: true
         },
         include: {
-          category: true
+          Category: true
         }
       });
-      professionCategories = profCats.map(pc => pc.category);
+      professionCategories = profCats.map(pc => pc.Category);
     }
     
     const response = {

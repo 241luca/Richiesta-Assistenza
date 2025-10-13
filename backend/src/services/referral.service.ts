@@ -2,7 +2,9 @@ import { prisma } from '../config/database';
 import { customAlphabet } from 'nanoid';
 import { emailService } from './email.service';
 import { notificationService } from './notification.service';
+import { crmService } from './crm.service';
 import logger from '../utils/logger';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * 📈 SERVIZIO REFERRAL SYSTEM
@@ -39,7 +41,7 @@ class ReferralService {
   /**
    * 📨 Crea nuovo referral con invio email
    */
-  async createReferral(referrerId: string, email: string) {
+  async createReferral(referrerId: string, email: string, message?: string) {
     try {
       // Verifica che referrer esista
       const referrer = await prisma.user.findUnique({
@@ -81,19 +83,39 @@ class ReferralService {
       // Crea referral
       const referral = await prisma.referral.create({
         data: {
-          referrerId,
+          id: uuidv4(),
           code,
-          email: email.toLowerCase()
+          email: email.toLowerCase(),
+          User_Referral_referrerIdToUser: { connect: { id: referrerId } },
+          updatedAt: new Date()
         }
       });
 
-      // Invia email invito
+      // CRM: inserisci/aggiorna lead per avere un posto unico di gestione
       try {
-        await emailService.sendReferralInvite(email, {
-          referrerName: `${referrer.firstName} ${referrer.lastName}`,
-          code,
-          link: `${process.env.FRONTEND_URL}/signup?ref=${code}`,
-          message: `${referrer.firstName} ti ha invitato a provare il nostro servizio!`
+        await crmService.upsertLeadFromReferral({
+          email,
+          referrerId,
+          referralId: referral.id,
+          message
+        });
+      } catch (crmError) {
+        logger.warn('[CRM] Impossibile upsert lead da referral', crmError);
+      }
+
+      // Invia email invito (invitee non è ancora utente, quindi via email service)
+      try {
+        await emailService.sendEmail({
+          to: email,
+          subject: 'Invito al sistema Richiesta Assistenza',
+          html: `
+            <h2>Invito da ${referrer.firstName} ${referrer.lastName}</h2>
+            <p>${referrer.firstName} ti ha invitato a provare il nostro servizio!</p>
+            ${message ? `<p style="margin-top:8px"><em>Messaggio personale:</em><br/>${message}</p>` : ''}
+            <p><strong>Codice invito:</strong> ${code}</p>
+            <p><a href="${(process.env.FRONTEND_URL || 'http://localhost:5196')}/signup?ref=${code}">Registrati con l'invito</a></p>
+          `,
+          text: `${referrer.firstName} ti ha invitato!${message ? `\n\nMessaggio: ${message}\n` : '\n'}Codice: ${code}. Link: ${(process.env.FRONTEND_URL || 'http://localhost:5196')}/signup?ref=${code}`
         });
 
         logger.info(`Referral invite sent`, { 
@@ -105,6 +127,26 @@ class ReferralService {
       } catch (emailError) {
         logger.error('Failed to send referral email', emailError);
         // Non blocchiamo il processo se l'email fallisce
+      }
+
+      // Notifica al referrer tramite sistema notifiche (audit incluso nel servizio)
+      try {
+        await notificationService.sendToUser({
+          userId: referrerId,
+          type: 'REFERRAL_INVITE_SENT',
+          title: '📧 Invito referral inviato',
+          message: `Invito inviato a ${email}${message ? ` con messaggio: "${message}"` : ''}. Codice: ${code}.`,
+          priority: 'normal',
+          data: {
+            referralId: referral.id,
+            email,
+            code,
+            message: message || null
+          },
+          channels: ['websocket', 'email']
+        });
+      } catch (notifyError) {
+        logger.warn('Failed to send referrer notification for invite', notifyError);
       }
 
       return referral;
@@ -151,8 +193,7 @@ class ReferralService {
   async trackSignup(code: string, newUserId: string) {
     try {
       const referral = await prisma.referral.findUnique({
-        where: { code },
-        include: { referrer: true }
+        where: { code }
       });
 
       if (!referral) {
@@ -169,7 +210,7 @@ class ReferralService {
       const updatedReferral = await prisma.referral.update({
         where: { code },
         data: {
-          refereeId: newUserId,
+          User_Referral_refereeIdToUser: { connect: { id: newUserId } },
           registeredAt: new Date(),
           status: 'REGISTERED'
         }
@@ -193,12 +234,21 @@ class ReferralService {
         { referralId: referral.id, referrerId: referral.referrerId }
       );
 
+      // CRM: collega utente e aggiorna stato a REGISTERED
+      try {
+        await crmService.linkUser({ referralId: referral.id, userId: newUserId });
+        await crmService.updateStatus({ referralId: referral.id, status: 'REGISTERED' });
+      } catch (crmError) {
+        logger.warn('[CRM] Impossibile aggiornare CRM per signup', crmError);
+      }
+
       // 📧 Notifica al referrer
-      await notificationService.sendToUser(referral.referrerId, {
+      await notificationService.sendToUser({
+        userId: referral.referrerId,
         title: '🎉 Amico registrato!',
         message: `Il tuo amico si è registrato! Hai guadagnato ${this.REWARDS.REFERRER_SIGNUP} punti.`,
         type: 'referral_signup',
-        priority: 'NORMAL',
+        priority: 'normal',
         data: { 
           referralId: referral.id,
           points: this.REWARDS.REFERRER_SIGNUP,
@@ -229,8 +279,7 @@ class ReferralService {
         where: { 
           refereeId: userId,
           status: 'REGISTERED' // Solo se registrato ma non ancora convertito
-        },
-        include: { referrer: true }
+        }
       });
 
       if (!referral) {
@@ -257,17 +306,25 @@ class ReferralService {
       );
 
       // 🎉 Notifica super entusiasta al referrer
-      await notificationService.sendToUser(referral.referrerId, {
+      await notificationService.sendToUser({
+        userId: referral.referrerId,
         title: '🚀 Conversione completata!',
         message: `Il tuo amico ha completato la prima richiesta! Hai guadagnato ${this.REWARDS.REFERRER_CONVERSION} punti bonus! 🎉`,
         type: 'referral_conversion',
-        priority: 'HIGH',
+        priority: 'high',
         data: { 
           referralId: referral.id,
           points: this.REWARDS.REFERRER_CONVERSION,
           totalPointsEarned: this.REWARDS.REFERRER_SIGNUP + this.REWARDS.REFERRER_CONVERSION
         }
       });
+
+      // CRM: aggiorna stato a CONVERTED
+      try {
+        await crmService.updateStatus({ referralId: referral.id, status: 'CONVERTED' });
+      } catch (crmError) {
+        logger.warn('[CRM] Impossibile aggiornare CRM per conversione', crmError);
+      }
 
       logger.info('Referral conversion tracked and bonus assigned', {
         referralId: referral.id,
@@ -288,11 +345,11 @@ class ReferralService {
    */
   async getReferralStats(userId: string) {
     try {
-      const [referrals, userPoints] = await Promise.all([
+      const [referralsRaw, userPoints] = await Promise.all([
         prisma.referral.findMany({
           where: { referrerId: userId },
           include: {
-            referee: {
+            User_Referral_refereeIdToUser: {
               select: { firstName: true, lastName: true, email: true, createdAt: true }
             }
           },
@@ -302,6 +359,12 @@ class ReferralService {
           where: { userId }
         })
       ]);
+
+      // Mappa la relazione al nome atteso dal frontend: referee
+      const referrals = referralsRaw.map((r: any) => ({
+        ...r,
+        referee: r.User_Referral_refereeIdToUser
+      }));
 
       // Calcola statistiche
       const stats = {
@@ -389,10 +452,12 @@ Che ne dici di provarlo? 😊`
       const userPoints = await prisma.userPoints.upsert({
         where: { userId },
         create: {
-          userId,
+          id: uuidv4(),
+          User: { connect: { id: userId } },
           points,
           totalEarned: points,
-          totalSpent: 0
+          totalSpent: 0,
+          updatedAt: new Date()
         },
         update: {
           points: { increment: points },
@@ -403,12 +468,13 @@ Che ne dici di provarlo? 😊`
       // Crea transazione
       await prisma.pointTransaction.create({
         data: {
-          userId,
+          id: uuidv4(),
+          User: { connect: { id: userId } },
           points,
           type,
           description,
           metadata,
-          referralId: metadata?.referralId
+          Referral: metadata?.referralId ? { connect: { id: metadata.referralId } } : undefined
         }
       });
 
@@ -466,8 +532,8 @@ Che ne dici di provarlo? 😊`
             }
           },
           include: {
-            referrer: { select: { firstName: true, lastName: true } },
-            referee: { select: { firstName: true, lastName: true } }
+            User_Referral_referrerIdToUser: { select: { firstName: true, lastName: true } },
+            User_Referral_refereeIdToUser: { select: { firstName: true, lastName: true } }
           },
           orderBy: { registeredAt: 'desc' },
           take: 20
@@ -487,7 +553,11 @@ Che ne dici di provarlo? 😊`
           : '0%',
         totalUsers,
         recentSignups: recentSignups.length,
-        recentActivity: recentSignups
+        recentActivity: recentSignups.map((r: any) => ({
+          ...r,
+          referrer: r.User_Referral_referrerIdToUser,
+          referee: r.User_Referral_refereeIdToUser
+        }))
       };
     } catch (error) {
       logger.error('Error getting global referral analytics', error);

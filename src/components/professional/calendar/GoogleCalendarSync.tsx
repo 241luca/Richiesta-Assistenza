@@ -92,7 +92,7 @@ export default function GoogleCalendarSync({ onClose }: GoogleCalendarSyncProps)
       return await api.post('/calendar/google/disconnect');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['google-calendar-status']);
+      queryClient.invalidateQueries({ queryKey: ['google-calendar-status'] });
       toast.success('Google Calendar disconnesso');
     },
     onError: () => {
@@ -111,7 +111,7 @@ export default function GoogleCalendarSync({ onClose }: GoogleCalendarSyncProps)
     },
     onSuccess: (response) => {
       const data = response.data?.data || response.data;
-      queryClient.invalidateQueries(['professional-interventions']);
+      queryClient.invalidateQueries({ queryKey: ['professional-interventions'] });
       toast.success(`Sincronizzazione completata! ${data?.synced || 0} eventi sincronizzati`);
     },
     onError: (error: any) => {

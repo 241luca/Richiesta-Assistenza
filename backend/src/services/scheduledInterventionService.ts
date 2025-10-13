@@ -141,29 +141,38 @@ export class ScheduledInterventionService {
           requestId 
         });
         
-        const interventions = await prisma.scheduledIntervention.findMany({
+        const interventionsRaw = await prisma.scheduledIntervention.findMany({
           where: { requestId },
-          include: {
-            professional: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                fullName: true,
-                email: true
-              }
-            },
-            createdByUser: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                fullName: true
-              }
-            }
-          },
           orderBy: { proposedDate: 'asc' }
         });
+
+        // Risolve professional e createdByUser con query esplicite
+        const professionalIds = Array.from(new Set(interventionsRaw.map((i: any) => i.professionalId).filter(Boolean)));
+        const createdByIds = Array.from(new Set(interventionsRaw.map((i: any) => i.createdBy).filter(Boolean)));
+
+        const [professionals, creators] = await Promise.all([
+          professionalIds.length
+            ? prisma.user.findMany({
+                where: { id: { in: professionalIds } },
+                select: { id: true, firstName: true, lastName: true, fullName: true, email: true }
+              })
+            : Promise.resolve([]),
+          createdByIds.length
+            ? prisma.user.findMany({
+                where: { id: { in: createdByIds } },
+                select: { id: true, firstName: true, lastName: true, fullName: true }
+              })
+            : Promise.resolve([])
+        ]);
+
+        const proMap = new Map(professionals.map((u) => [u.id, u]));
+        const creatorMap = new Map(creators.map((u) => [u.id, u]));
+
+        const interventions = interventionsRaw.map((i: any) => ({
+          ...i,
+          professional: proMap.get(i.professionalId) || null,
+          createdByUser: i.createdBy ? (creatorMap.get(i.createdBy) || null) : null
+        }));
 
         logger.info('[ScheduledInterventionService] Interventions retrieved for admin:', { 
           count: interventions.length,
@@ -206,29 +215,37 @@ export class ScheduledInterventionService {
         isProfessional: request.professionalId === userId
       });
 
-      const interventions = await prisma.scheduledIntervention.findMany({
+      const interventionsRaw = await prisma.scheduledIntervention.findMany({
         where: { requestId },
-        include: {
-          professional: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              fullName: true,
-              email: true
-            }
-          },
-          createdByUser: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              fullName: true
-            }
-          }
-        },
         orderBy: { proposedDate: 'asc' }
       });
+
+      const professionalIds = Array.from(new Set(interventionsRaw.map((i: any) => i.professionalId).filter(Boolean)));
+      const createdByIds = Array.from(new Set(interventionsRaw.map((i: any) => i.createdBy).filter(Boolean)));
+
+      const [professionals, creators] = await Promise.all([
+        professionalIds.length
+          ? prisma.user.findMany({
+              where: { id: { in: professionalIds } },
+              select: { id: true, firstName: true, lastName: true, fullName: true, email: true }
+            })
+          : Promise.resolve([]),
+        createdByIds.length
+          ? prisma.user.findMany({
+              where: { id: { in: createdByIds } },
+              select: { id: true, firstName: true, lastName: true, fullName: true }
+            })
+          : Promise.resolve([])
+      ]);
+
+      const proMap = new Map(professionals.map((u) => [u.id, u]));
+      const creatorMap = new Map(creators.map((u) => [u.id, u]));
+
+      const interventions = interventionsRaw.map((i: any) => ({
+        ...i,
+        professional: proMap.get(i.professionalId) || null,
+        createdByUser: i.createdBy ? (creatorMap.get(i.createdBy) || null) : null
+      }));
 
       logger.info('[ScheduledInterventionService] Interventions retrieved successfully:', { 
         count: interventions.length,
@@ -302,24 +319,11 @@ export class ScheduledInterventionService {
           professionalId: professionalId,
           status: { in: ['ASSIGNED', 'IN_PROGRESS'] }
         },
-        include: {
-          client: {
-            select: {
-              id: true,
-              email: true,
-              fullName: true,
-              firstName: true,
-              lastName: true
-            }
-          },
-          professional: {
-            select: {
-              id: true,
-              fullName: true,
-              firstName: true,
-              lastName: true
-            }
-          }
+        select: {
+          id: true,
+          clientId: true,
+          professionalId: true,
+          title: true
         }
       });
 
@@ -348,33 +352,39 @@ export class ScheduledInterventionService {
               createdAt: now,
               updatedAt: now
             },
-            include: {
-              professional: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  fullName: true,
-                  email: true
-                }
-              }
-            }
+            // Nessun include: risolviamo professional più sotto
           });
         })
       );
+
+      const [client, professionalUser] = await Promise.all([
+        prisma.user.findUnique({
+          where: { id: request.clientId },
+          select: { id: true, email: true, fullName: true, firstName: true, lastName: true }
+        }),
+        prisma.user.findUnique({
+          where: { id: request.professionalId },
+          select: { id: true, fullName: true, firstName: true, lastName: true, email: true }
+        })
+      ]);
 
       logger.info('[ScheduledInterventionService] Interventions created:', { 
         count: createdInterventions.length,
         requestId: validatedData.requestId 
       });
 
+      const createdInterventionsNormalized = (createdInterventions as any[]).map((i) => ({
+        ...i,
+        professional: professionalUser || null
+      }));
+
       // Invia notifica al cliente
-      if (request.client) {
+      if (client) {
         await sendInterventionNotification({
-          recipientId: request.client.id,
+          recipientId: client.id,
           type: 'interventions_proposed',
           title: 'Nuovi Interventi Proposti',
-          message: `Il professionista ${request.professional?.fullName} ha proposto ${createdInterventions.length} interventi per la tua richiesta "${request.title}"`,
+          message: `Il professionista ${professionalUser?.fullName} ha proposto ${createdInterventions.length} interventi per la tua richiesta "${request.title}"`,
           requestId: request.id,
           priority: 'high',
           actionUrl: `${process.env.FRONTEND_URL}/requests/${request.id}/interventions`
@@ -383,10 +393,10 @@ export class ScheduledInterventionService {
         // Emit socket event real-time (con gestione errori robusta)
         try {
           if (typeof notificationService?.emitToUser === 'function') {
-            notificationService.emitToUser(request.client.id, 'interventions:proposed', {
+            notificationService.emitToUser(client.id, 'interventions:proposed', {
               requestId: request.id,
-              interventions: createdInterventions,
-              professionalName: request.professional?.fullName
+              interventions: createdInterventionsNormalized,
+              professionalName: professionalUser?.fullName
             });
           } else {
             logger.warn('[ScheduledInterventionService] emitToUser not available on notificationService');
@@ -400,7 +410,7 @@ export class ScheduledInterventionService {
       }
 
       logger.info('[ScheduledInterventionService] Interventions proposed successfully');
-      return createdInterventions;
+      return createdInterventionsNormalized;
       
     } catch (error: any) {
       logger.error('[ScheduledInterventionService] Error proposing interventions:', {
@@ -444,14 +454,11 @@ export class ScheduledInterventionService {
       // Verifica che l'intervento esista e il cliente abbia accesso
       const intervention = await prisma.scheduledIntervention.findFirst({
         where: { id: interventionId },
-        include: {
-          request: {
-            include: {
-              client: true,
-              professional: true
-            }
-          },
-          professional: true
+        select: {
+          id: true,
+          requestId: true,
+          professionalId: true,
+          proposedDate: true
         }
       });
 
@@ -459,11 +466,16 @@ export class ScheduledInterventionService {
         throw new Error('Intervento non trovato');
       }
 
-      if (intervention.request.clientId !== clientId) {
+      const requestForIntervention = await prisma.assistanceRequest.findUnique({
+        where: { id: intervention.requestId },
+        select: { clientId: true }
+      });
+
+      if (!requestForIntervention || requestForIntervention.clientId !== clientId) {
         logger.warn('[ScheduledInterventionService] Client not authorized to accept:', {
           interventionId,
           clientId,
-          actualClientId: intervention.request.clientId
+          actualClientId: requestForIntervention?.clientId
         });
         throw new AuthorizationError('Non autorizzato ad accettare questo intervento');
       }
@@ -477,18 +489,35 @@ export class ScheduledInterventionService {
           confirmedDate: new Date(),
           updatedAt: new Date()
         },
-        include: {
-          professional: true,
-          request: true
+        select: {
+          id: true,
+          requestId: true,
+          professionalId: true,
+          proposedDate: true,
+          status: true,
+          clientConfirmed: true,
+          confirmedDate: true,
+          updatedAt: true
         }
       });
+
+      const [clientUserForMsg, professionalUserForMsg] = await Promise.all([
+        prisma.user.findUnique({
+          where: { id: requestForIntervention.clientId },
+          select: { fullName: true, id: true }
+        }),
+        prisma.user.findUnique({
+          where: { id: intervention.professionalId },
+          select: { id: true, firstName: true, lastName: true, fullName: true, email: true }
+        })
+      ]);
 
       // Invia notifica al professionista
       await sendInterventionNotification({
         recipientId: intervention.professionalId,
         type: 'intervention_accepted',
         title: 'Intervento Accettato',
-        message: `Il cliente ${intervention.request.client?.fullName} ha accettato l'intervento proposto per il ${new Date(intervention.proposedDate).toLocaleDateString('it-IT')}`,
+        message: `Il cliente ${clientUserForMsg?.fullName} ha accettato l'intervento proposto per il ${new Date(intervention.proposedDate).toLocaleDateString('it-IT')}`,
         requestId: intervention.requestId,
         interventionId,
         priority: 'high',
@@ -501,7 +530,7 @@ export class ScheduledInterventionService {
           notificationService.emitToUser(intervention.professionalId, 'intervention:accepted', {
             interventionId,
             requestId: intervention.requestId,
-            clientName: intervention.request.client?.fullName
+            clientName: clientUserForMsg?.fullName
           });
         } else {
           logger.warn('[ScheduledInterventionService] emitToUser not available on notificationService');
@@ -516,7 +545,7 @@ export class ScheduledInterventionService {
         interventionId 
       });
       
-      return updatedIntervention;
+      return { ...updatedIntervention, professional: professionalUserForMsg } as any;
       
     } catch (error: any) {
       logger.error('[ScheduledInterventionService] Error accepting intervention:', {
@@ -564,14 +593,11 @@ export class ScheduledInterventionService {
       // Verifica che l'intervento esista e il cliente abbia accesso
       const intervention = await prisma.scheduledIntervention.findFirst({
         where: { id: interventionId },
-        include: {
-          request: {
-            include: {
-              client: true,
-              professional: true
-            }
-          },
-          professional: true
+        select: {
+          id: true,
+          requestId: true,
+          professionalId: true,
+          proposedDate: true
         }
       });
 
@@ -579,11 +605,16 @@ export class ScheduledInterventionService {
         throw new Error('Intervento non trovato');
       }
 
-      if (intervention.request.clientId !== clientId) {
+      const requestForIntervention = await prisma.assistanceRequest.findUnique({
+        where: { id: intervention.requestId },
+        select: { clientId: true }
+      });
+
+      if (!requestForIntervention || requestForIntervention.clientId !== clientId) {
         logger.warn('[ScheduledInterventionService] Client not authorized to reject:', {
           interventionId,
           clientId,
-          actualClientId: intervention.request.clientId
+          actualClientId: requestForIntervention?.clientId
         });
         throw new AuthorizationError('Non autorizzato a rifiutare questo intervento');
       }
@@ -597,18 +628,35 @@ export class ScheduledInterventionService {
           clientDeclineReason: reason,
           updatedAt: new Date()
         },
-        include: {
-          professional: true,
-          request: true
+        select: {
+          id: true,
+          requestId: true,
+          professionalId: true,
+          proposedDate: true,
+          status: true,
+          clientConfirmed: true,
+          clientDeclineReason: true,
+          updatedAt: true
         }
       });
+
+      const [clientUserForMsg, professionalUserForMsg] = await Promise.all([
+        prisma.user.findUnique({
+          where: { id: requestForIntervention.clientId },
+          select: { fullName: true, id: true }
+        }),
+        prisma.user.findUnique({
+          where: { id: intervention.professionalId },
+          select: { id: true, firstName: true, lastName: true, fullName: true, email: true }
+        })
+      ]);
 
       // Invia notifica al professionista
       await sendInterventionNotification({
         recipientId: intervention.professionalId,
         type: 'intervention_rejected',
         title: 'Intervento Rifiutato',
-        message: `Il cliente ${intervention.request.client?.fullName} ha rifiutato l'intervento proposto per il ${new Date(intervention.proposedDate).toLocaleDateString('it-IT')}${reason ? `. Motivo: ${reason}` : ''}`,
+        message: `Il cliente ${clientUserForMsg?.fullName} ha rifiutato l'intervento proposto per il ${new Date(intervention.proposedDate).toLocaleDateString('it-IT')}${reason ? `. Motivo: ${reason}` : ''}`,
         requestId: intervention.requestId,
         interventionId,
         priority: 'normal',
@@ -621,7 +669,7 @@ export class ScheduledInterventionService {
           notificationService.emitToUser(intervention.professionalId, 'intervention:rejected', {
             interventionId,
             requestId: intervention.requestId,
-            clientName: intervention.request.client?.fullName,
+            clientName: clientUserForMsg?.fullName,
             reason
           });
         } else {
@@ -637,7 +685,7 @@ export class ScheduledInterventionService {
         interventionId 
       });
       
-      return updatedIntervention;
+      return { ...updatedIntervention, professional: professionalUserForMsg } as any;
       
     } catch (error: any) {
       logger.error('[ScheduledInterventionService] Error rejecting intervention:', {

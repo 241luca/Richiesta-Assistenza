@@ -5,7 +5,7 @@ import { ResponseFormatter } from '../utils/responseFormatter';
 import { notificationService } from '../services/notification.service';
 import { logger } from '../utils/logger';
 import { z } from 'zod';
-import { Prisma } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 
 const router = Router();
 
@@ -14,7 +14,9 @@ interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
     email: string;
-    role: string;
+    fullName: string;
+    role: Role;
+    professionalId?: string;
   };
 }
 
@@ -168,8 +170,17 @@ router.get('/logs', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (
     const [notifications, total] = await Promise.all([
       prisma.notification.findMany({
         where,
-        include: {
-          recipient: {
+        include: ({
+          User_Notification_recipientIdToUser: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              fullName: true
+            }
+          },
+          User_Notification_senderIdToUser: {
             select: {
               id: true,
               email: true,
@@ -178,7 +189,7 @@ router.get('/logs', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (
               fullName: true
             }
           }
-        },
+        } as any),
         orderBy: { createdAt: 'desc' },
         skip,
         take: limitNum
@@ -188,12 +199,20 @@ router.get('/logs', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (
 
     // Formatta le notifiche aggiungendo info sui canali
     const formattedNotifications = notifications.map(n => {
-      const metadata = n.metadata as { channels?: string[]; status?: string } | null;
-      return {
-        ...n,
+      const anyN: any = n;
+      const metadata = anyN.metadata as { channels?: string[]; status?: string } | null;
+      const recipient = anyN.User_Notification_recipientIdToUser || null;
+      const sender = anyN.User_Notification_senderIdToUser || null;
+      const out = {
+        ...anyN,
+        recipient,
+        sender,
         channels: metadata?.channels || ['websocket'],
-        status: n.isRead ? 'read' : (metadata?.status || 'sent')
-      };
+        status: anyN.isRead ? 'read' : (metadata?.status || 'sent')
+      } as any;
+      delete out.User_Notification_recipientIdToUser;
+      delete out.User_Notification_senderIdToUser;
+      return out;
     });
 
     res.json(ResponseFormatter.success(
@@ -369,6 +388,11 @@ router.post('/:id/resend', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), 
     const priority = notification.priority.toLowerCase() as 'low' | 'normal' | 'high' | 'urgent';
 
     // Reinvia la notifica
+    const allowedChannels = ['websocket', 'email', 'sms', 'push'] as const;
+    type Channel = typeof allowedChannels[number];
+    const channels: Channel[] = (metadata?.channels || ['websocket', 'email'])
+      .filter((c): c is Channel => (allowedChannels as readonly string[]).includes(c));
+
     await notificationService.sendToUser({
       userId: notification.recipientId,
       type: notification.type,
@@ -376,7 +400,7 @@ router.post('/:id/resend', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), 
       message: notification.content,
       priority: priority,
       data: metadata || {},
-      channels: metadata?.channels || ['websocket', 'email']
+      channels
     });
 
     // Aggiorna metadata per indicare reinvio

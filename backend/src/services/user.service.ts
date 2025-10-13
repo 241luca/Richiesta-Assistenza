@@ -199,20 +199,14 @@ class UserService {
           Profession: true,
           ProfessionalUserSubcategory: {
             include: {
-              subcategory: {
+              Subcategory: {
                 include: {
-                  category: true
+                  Category: true
                 }
               }
             }
-          },
-          _count: {
-            select: {
-              clientRequests: true,
-              professionalRequests: true,
-              quotes: true
-            }
-          }
+          } as any,
+          _count: true
         }
       });
 
@@ -299,13 +293,7 @@ class UserService {
       const users = await prisma.user.findMany({
         where,
         include: {
-          _count: {
-            select: {
-              clientRequests: true,
-              professionalRequests: true,
-              quotes: true
-            }
-          }
+          _count: true
         },
         orderBy: filters.sortBy 
           ? { [filters.sortBy]: filters.sortOrder || 'desc' } 

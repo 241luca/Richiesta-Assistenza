@@ -883,17 +883,23 @@ export default function RequestDetailPage() {
                 <UserIcon className="h-5 w-5 text-gray-400 mr-3" />
                 <div>
                   <p className="text-gray-900">
-                    {request.client.firstName} {request.client.lastName}
+                    {request.client
+                      ? `${request.client.firstName} ${request.client.lastName}`
+                      : 'Cliente non disponibile'}
                   </p>
                 </div>
               </div>
               <div className="flex items-center">
                 <EnvelopeIcon className="h-5 w-5 text-gray-400 mr-3" />
-                <a href={`mailto:${request.client.email}`} className="text-blue-600 hover:underline">
-                  {request.client.email}
-                </a>
+                {request.client?.email ? (
+                  <a href={`mailto:${request.client.email}`} className="text-blue-600 hover:underline">
+                    {request.client.email}
+                  </a>
+                ) : (
+                  <span className="text-gray-500">Email non disponibile</span>
+                )}
               </div>
-              {request.client.phone && (
+              {request.client?.phone && (
                 <div className="flex items-center">
                   <PhoneIcon className="h-5 w-5 text-gray-400 mr-3" />
                   <a href={`tel:${request.client.phone}`} className="text-blue-600 hover:underline">
@@ -1196,12 +1202,12 @@ export default function RequestDetailPage() {
                 requestStatus={request.status}
                 suggestedMessage={suggestedMessage}
                 participants={[
-                  {
+                  ...(request.client ? [{
                     id: request.client.id,
-                    fullName: `${request.client.firstName} ${request.client.lastName}`,
+                    fullName: `${request.client.firstName} ${request.client.lastName}`.trim() || request.client.email || 'Cliente',
                     role: 'CLIENT',
                     avatar: undefined
-                  },
+                  }] : []),
                   ...(request.professional ? [{
                     id: request.professional.id,
                     fullName: `${request.professional.firstName} ${request.professional.lastName}`,

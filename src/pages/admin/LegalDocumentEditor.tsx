@@ -206,7 +206,7 @@ export default function LegalDocumentEditor() {
           // Se non ha versioni, pulisci e prepara per nuova versione
           setSelectedVersion(null);
           setEditorContent('');
-          toast.info('Documento senza versioni - Crea la prima versione');
+          toast('Documento senza versioni - Crea la prima versione');
           // Inizia automaticamente una nuova versione
           startNewVersion(fullDocument);
         }
@@ -695,7 +695,15 @@ export default function LegalDocumentEditor() {
       toast.error('Inserisci il nome del documento');
       return;
     }
-    createDocumentMutation.mutate(newDocument);
+    const slugFromName = newDocument.displayName
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '');
+    const payload = {
+      ...newDocument,
+      internalName: newDocument.internalName || slugFromName
+    };
+    createDocumentMutation.mutate(payload);
   };
 
   // CSS PROFESSIONALE per l'editor
@@ -1215,7 +1223,18 @@ export default function LegalDocumentEditor() {
                   <input
                     type="text"
                     value={newDocument.displayName}
-                    onChange={(e) => setNewDocument({ ...newDocument, displayName: e.target.value })}
+                    onChange={(e) =>
+                      setNewDocument(prev => ({
+                        ...prev,
+                        displayName: e.target.value,
+                        internalName:
+                          prev.internalName ||
+                          e.target.value
+                            .toLowerCase()
+                            .replace(/\s+/g, '-')
+                            .replace(/[^a-z0-9-]/g, '')
+                      }))
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Es: Privacy Policy 2025"
                   />

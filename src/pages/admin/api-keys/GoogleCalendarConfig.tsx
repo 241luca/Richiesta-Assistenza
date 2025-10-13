@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { 
   CalendarIcon,
   KeyIcon,
@@ -72,9 +72,9 @@ export default function GoogleCalendarConfig() {
       return await api.post('/calendar/google/configure', data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['google-calendar-config']);
-      queryClient.invalidateQueries(['api-keys']);
-      queryClient.invalidateQueries(['system-health']); // Refresh health status
+      queryClient.invalidateQueries({ queryKey: ['google-calendar-config'] });
+      queryClient.invalidateQueries({ queryKey: ['api-keys'] });
+      queryClient.invalidateQueries({ queryKey: ['system-health'] }); // Refresh health status
       toast.success('Credenziali Google Calendar salvate con successo!');
       setFormData({ clientId: '', clientSecret: '', apiKey: '' });
     },
@@ -89,9 +89,9 @@ export default function GoogleCalendarConfig() {
       return await api.delete('/calendar/google/configure');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['google-calendar-config']);
-      queryClient.invalidateQueries(['api-keys']);
-      queryClient.invalidateQueries(['system-health']); // Refresh health status
+      queryClient.invalidateQueries({ queryKey: ['google-calendar-config'] });
+      queryClient.invalidateQueries({ queryKey: ['api-keys'] });
+      queryClient.invalidateQueries({ queryKey: ['system-health'] }); // Refresh health status
       toast.success('Configurazione Google Calendar eliminata con successo!');
       setFormData({ clientId: '', clientSecret: '', apiKey: '' });
     },

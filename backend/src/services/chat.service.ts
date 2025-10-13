@@ -232,8 +232,8 @@ class ChatService {
           readBy: JSON.stringify([{ userId: data.userId, readAt: new Date() }]),
           updatedAt: new Date()
         },
-        include: {
-          user: {
+        include: ({
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -243,13 +243,13 @@ class ChatService {
               role: true
             }
           }
-        }
+        } as any)
       });
 
       // Trasforma per compatibilità frontend (User con maiuscola)
       const formattedMessage = {
         ...message,
-        User: message.user
+        User: (message as any).User || (message as any).user
       };
       delete (formattedMessage as any).user;
 
@@ -312,8 +312,8 @@ class ChatService {
           requestId,
           isDeleted: false
         },
-        include: {
-          user: {
+        include: ({
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -323,7 +323,7 @@ class ChatService {
               role: true
             }
           }
-        },
+        } as any),
         orderBy: {
           createdAt: 'desc'
         },
@@ -338,7 +338,7 @@ class ChatService {
       const formattedMessages = messages.map(msg => {
         const formatted = {
           ...msg,
-          User: msg.user
+          User: (msg as any).User || (msg as any).user
         };
         delete (formatted as any).user;
         return formatted;
@@ -420,8 +420,8 @@ class ChatService {
           deletedAt: update.isDeleted ? new Date() : undefined,
           updatedAt: new Date()
         },
-        include: {
-          user: {
+        include: ({
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -431,13 +431,13 @@ class ChatService {
               role: true
             }
           }
-        }
+        } as any)
       });
 
       // Trasforma per compatibilità frontend
       const formattedMessage = {
         ...updatedMessage,
-        User: updatedMessage.user
+        User: (updatedMessage as any).User || (updatedMessage as any).user
       };
       delete (formattedMessage as any).user;
 

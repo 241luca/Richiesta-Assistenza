@@ -1,12 +1,15 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { authenticate } from '../middleware/auth';
-import { validateRequest } from '../middleware/validation';
+import { validateRequest, validateBody } from '../middleware/validation';
 import { auditLogger } from '../middleware/auditLogger';
+import { AuditAction } from '@prisma/client';
 import { referralService } from '../services/referral.service';
 import { ResponseFormatter } from '../utils/responseFormatter';
 import logger from '../utils/logger';
 import { requireModule } from '../middleware/module.middleware';
+import { prisma } from '../config/database';
+import { Parser as Json2CsvParser } from 'json2csv';
 
 const router = Router();
 
@@ -16,7 +19,8 @@ router.use(requireModule('referral'));
 
 // 📋 Validation Schemas
 const inviteSchema = z.object({
-  email: z.string().email('Email non valida').min(1, 'Email richiesta')
+  email: z.string().email('Email non valida').min(1, 'Email richiesta'),
+  message: z.string().max(500, 'Messaggio troppo lungo').optional()
 });
 
 /**
@@ -25,7 +29,7 @@ const inviteSchema = z.object({
  */
 router.get('/my-code', 
   authenticate, 
-  auditLogger('REFERRAL_GET_CODE'),
+  auditLogger({ action: AuditAction.READ }),
   async (req: any, res) => {
     try {
       const result = await referralService.getMyReferralCode(req.user.id);
@@ -50,11 +54,11 @@ router.get('/my-code',
  */
 router.post('/invite', 
   authenticate, 
-  validateRequest(inviteSchema),
-  auditLogger('REFERRAL_SEND_INVITE'),
+  validateBody(inviteSchema),
+  auditLogger({ action: AuditAction.CREATE, entityType: 'ReferralInvite', captureBody: true }),
   async (req: any, res) => {
     try {
-      const { email } = req.body;
+      const { email, message } = req.body;
       
       // Verifica che non stia invitando se stesso
       if (email.toLowerCase() === req.user.email.toLowerCase()) {
@@ -65,7 +69,7 @@ router.post('/invite',
       }
 
       // Verifica che l'email non sia già registrata
-      const existingUser = await require('../lib/prisma').prisma.user.findUnique({
+      const existingUser = await prisma.user.findUnique({
         where: { email: email.toLowerCase() }
       });
 
@@ -76,7 +80,7 @@ router.post('/invite',
         ));
       }
 
-      const referral = await referralService.createReferral(req.user.id, email);
+      const referral = await referralService.createReferral(req.user.id, email, message);
       
       return res.status(201).json(ResponseFormatter.success(
         {
@@ -112,7 +116,7 @@ router.post('/invite',
  */
 router.get('/stats', 
   authenticate, 
-  auditLogger('REFERRAL_GET_STATS'),
+  auditLogger({ action: AuditAction.READ }),
   async (req: any, res) => {
     try {
       const stats = await referralService.getReferralStats(req.user.id);
@@ -166,10 +170,10 @@ router.get('/track/:code', async (req, res) => {
  */
 router.post('/track-signup',
   authenticate,
-  validateRequest(z.object({
+  validateBody(z.object({
     referralCode: z.string().min(6, 'Codice referral non valido')
   })),
-  auditLogger('REFERRAL_TRACK_SIGNUP'),
+  auditLogger({ action: AuditAction.UPDATE }),
   async (req: any, res) => {
     try {
       const { referralCode } = req.body;
@@ -196,7 +200,7 @@ router.post('/track-signup',
  */
 router.post('/track-conversion',
   authenticate,
-  auditLogger('REFERRAL_TRACK_CONVERSION'),
+  auditLogger({ action: AuditAction.UPDATE }),
   async (req: any, res) => {
     try {
       await referralService.trackFirstRequest(req.user.id);
@@ -210,6 +214,78 @@ router.post('/track-conversion',
       return res.status(500).json(ResponseFormatter.error(
         'Errore nel tracking della conversione',
         'CONVERSION_TRACK_ERROR'
+      ));
+    }
+  }
+);
+
+/**
+ * 📄 GET /api/referrals/export
+ * Esporta report referral personale (CSV o JSON)
+ * Query: format=csv|json (default: csv)
+ */
+router.get('/export',
+  authenticate,
+  auditLogger({ action: AuditAction.READ }),
+  async (req: any, res) => {
+    try {
+      const format = (req.query.format || 'csv').toString().toLowerCase();
+      const stats = await referralService.getReferralStats(req.user.id);
+
+      // Flatten referrals for CSV
+      const rows = (stats.recentReferrals || []).map((r: any) => ({
+        id: r.id,
+        code: r.code,
+        email: r.email,
+        status: r.status,
+        clickedAt: r.clickedAt || null,
+        registeredAt: r.registeredAt || null,
+        firstRequestAt: r.firstRequestAt || null,
+        referrerId: r.referrerId,
+        refereeId: r.refereeId || null,
+        refereeFirstName: r.referee?.firstName || r.User_Referral_refereeIdToUser?.firstName || null,
+        refereeLastName: r.referee?.lastName || r.User_Referral_refereeIdToUser?.lastName || null,
+        refereeEmail: r.referee?.email || r.User_Referral_refereeIdToUser?.email || null,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt
+      }));
+
+      if (format === 'json') {
+        return res.json(ResponseFormatter.success(
+          {
+            summary: {
+              total: stats.total,
+              pending: stats.pending,
+              registered: stats.registered,
+              converted: stats.converted,
+              expired: stats.expired,
+              totalPointsEarned: stats.totalPointsEarned,
+              currentPoints: stats.currentPoints
+            },
+            referrals: rows
+          },
+          'Report referral generato (JSON)'
+        ));
+      }
+
+      const parser = new Json2CsvParser({
+        fields: [
+          'id','code','email','status','clickedAt','registeredAt','firstRequestAt',
+          'referrerId','refereeId','refereeFirstName','refereeLastName','refereeEmail',
+          'createdAt','updatedAt'
+        ]
+      });
+      const csv = parser.parse(rows);
+
+      const filename = `referrals_report_${new Date().toISOString().slice(0,10)}.csv`;
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      return res.status(200).send(csv);
+    } catch (error) {
+      logger.error('Error exporting referral report:', error);
+      return res.status(500).json(ResponseFormatter.error(
+        'Errore nell\'esportazione del report',
+        'EXPORT_ERROR'
       ));
     }
   }
@@ -253,7 +329,7 @@ router.get('/analytics',
  */
 router.post('/cleanup-expired',
   authenticate,
-  auditLogger('REFERRAL_CLEANUP'),
+  auditLogger({ action: AuditAction.DELETE }),
   async (req: any, res) => {
     try {
       // Verifica ruolo admin

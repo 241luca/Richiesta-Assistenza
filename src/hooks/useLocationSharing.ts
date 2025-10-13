@@ -19,7 +19,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '../services/api';
-import { logger } from '../utils/logger';
 
 // ============================================
 // INTERFACES & TYPES
@@ -48,6 +47,7 @@ interface LocationData {
   accuracy?: number;
   heading?: number;
   speed?: number;
+  timestamp: number;
 }
 
 // ============================================
@@ -68,6 +68,24 @@ const GEOLOCATION_OPTIONS_LOW_POWER: PositionOptions = {
   enableHighAccuracy: false,
   timeout: 30000,        // 30 secondi timeout
   maximumAge: 60000      // Cache location per 1 minuto
+};
+
+// ============================================
+// FRONTEND LOGGER (sostituisce il logger backend)
+// ============================================
+
+const logger = {
+  debug: (message: string, data?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[LocationSharing] ${message}`, data);
+    }
+  },
+  error: (message: string, data?: any) => {
+    console.error(`[LocationSharing] ${message}`, data);
+  },
+  info: (message: string, data?: any) => {
+    console.info(`[LocationSharing] ${message}`, data);
+  }
 };
 
 // ============================================
@@ -119,7 +137,7 @@ export function useLocationSharing({
       api.post('/location/update', locationData),
     
     onSuccess: (response, variables) => {
-      logger.debug('[LocationSharing] Position sent successfully', variables);
+      logger.debug('Position sent successfully', variables);
       lastSentLocationRef.current = variables;
       retryCountRef.current = 0; // Reset retry count
       
@@ -132,7 +150,7 @@ export function useLocationSharing({
     },
     
     onError: (error, variables) => {
-      logger.error('[LocationSharing] Failed to send position:', {
+      logger.error('Failed to send position:', {
         error: error instanceof Error ? error.message : 'Unknown',
         position: variables
       });
@@ -149,119 +167,52 @@ export function useLocationSharing({
       if (retryCountRef.current <= 3) {
         setTimeout(() => {
           updateLocationMutation.mutate(variables);
-        }, retryCountRef.current * 2000); // 2s, 4s, 6s
+        }, retryCountRef.current * 2000); // Backoff esponenziale
       }
     }
   });
 
   // ============================================
-  // EFFECTS
+  // CALLBACKS
   // ============================================
 
   /**
-   * Verifica supporto geolocalizzazione e permessi
-   */
-  useEffect(() => {
-    const checkSupport = async () => {
-      // Verifica supporto API
-      const supported = 'geolocation' in navigator;
-      setIsSupported(supported);
-
-      if (!supported) {
-        logger.warn('[LocationSharing] Geolocation not supported');
-        return;
-      }
-
-      // Verifica permessi se disponibile
-      if ('permissions' in navigator) {
-        try {
-          const permission = await navigator.permissions.query({ name: 'geolocation' });
-          setPermissionStatus(permission.state);
-          
-          // Ascolta cambiamenti permessi
-          permission.addEventListener('change', () => {
-            setPermissionStatus(permission.state);
-          });
-        } catch (error) {
-          logger.warn('[LocationSharing] Permission API not supported:', error);
-        }
-      }
-    };
-
-    checkSupport();
-  }, []);
-
-  /**
-   * Gestisce attivazione/disattivazione tracking
-   */
-  useEffect(() => {
-    if (!enabled || !isSupported) {
-      stopTracking();
-      return;
-    }
-
-    startTracking();
-
-    return () => {
-      stopTracking();
-    };
-  }, [enabled, isSupported, highAccuracy]);
-
-  /**
-   * Notifica cambiamenti status
-   */
-  useEffect(() => {
-    onStatusChange?.(status);
-  }, [status, onStatusChange]);
-
-  // ============================================
-  // LOCATION HANDLING
-  // ============================================
-
-  /**
-   * Callback successo posizione
+   * Gestisce il successo della geolocalizzazione
    */
   const handleLocationSuccess = useCallback((position: GeolocationPosition) => {
-    const { coords } = position;
-    
-    logger.debug('[LocationSharing] Got position:', {
-      lat: coords.latitude.toFixed(6),
-      lng: coords.longitude.toFixed(6),
-      accuracy: coords.accuracy
-    });
+    const locationData: LocationData = {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      accuracy: position.coords.accuracy,
+      heading: position.coords.heading || undefined,
+      speed: position.coords.speed || undefined,
+      timestamp: position.timestamp
+    };
+
+    logger.debug('Location obtained', locationData);
 
     // Aggiorna status
     setStatus(prev => ({
       ...prev,
-      isActive: true,
-      accuracy: coords.accuracy,
+      accuracy: position.coords.accuracy,
       error: null
     }));
 
-    // Callback esterno
+    // Callback personalizzato
     onLocationUpdate?.(position);
 
-    // Prepara dati per invio
-    const locationData: LocationData = {
-      latitude: coords.latitude,
-      longitude: coords.longitude,
-      accuracy: coords.accuracy,
-      heading: coords.heading || undefined,
-      speed: coords.speed || undefined
-    };
-
-    // Controlla se la posizione è sufficientemente diversa dalla precedente
-    if (shouldSendUpdate(locationData)) {
+    // Invia al backend solo se la posizione è cambiata significativamente
+    const lastLocation = lastSentLocationRef.current;
+    if (!lastLocation || hasLocationChanged(lastLocation, locationData)) {
       updateLocationMutation.mutate(locationData);
     }
-
   }, [onLocationUpdate, updateLocationMutation]);
 
   /**
-   * Callback errore posizione
+   * Gestisce gli errori di geolocalizzazione
    */
   const handleLocationError = useCallback((error: GeolocationPositionError) => {
-    let errorMessage = 'Errore sconosciuto';
+    let errorMessage = 'Errore geolocalizzazione';
     
     switch (error.code) {
       case error.PERMISSION_DENIED:
@@ -271,58 +222,36 @@ export function useLocationSharing({
         errorMessage = 'Posizione non disponibile';
         break;
       case error.TIMEOUT:
-        errorMessage = 'Timeout richiesta posizione';
+        errorMessage = 'Timeout geolocalizzazione';
         break;
     }
 
-    logger.error('[LocationSharing] Geolocation error:', {
-      code: error.code,
-      message: errorMessage
-    });
+    logger.error('Geolocation error:', { code: error.code, message: error.message });
 
     // Aggiorna status
     setStatus(prev => ({
       ...prev,
-      isActive: false,
       error: errorMessage
     }));
 
-    // Callback esterno
+    // Callback personalizzato
     onError?.(error);
-
-    // Retry automatico per errori temporanei
-    if (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE) {
-      setTimeout(() => {
-        if (enabled && watchIdRef.current) {
-          startTracking();
-        }
-      }, 5000);
-    }
-
-  }, [enabled, onError]);
-
-  // ============================================
-  // TRACKING CONTROL
-  // ============================================
+  }, [onError]);
 
   /**
-   * Avvia il tracking GPS
+   * Avvia il tracking della posizione
    */
   const startTracking = useCallback(() => {
-    if (!isSupported || !enabled) return;
+    if (!isSupported || !enabled) {
+      logger.debug('Tracking not started - not supported or not enabled');
+      return;
+    }
 
-    // Pulisci tracking precedente
-    stopTracking();
+    logger.info('Starting location tracking');
 
-    logger.info('[LocationSharing] Starting location tracking', {
-      highAccuracy,
-      updateInterval: updateInterval || (highAccuracy ? HIGH_ACCURACY_INTERVAL : LOW_ACCURACY_INTERVAL)
-    });
-
-    // Opzioni geolocalizzazione
     const options = highAccuracy ? GEOLOCATION_OPTIONS : GEOLOCATION_OPTIONS_LOW_POWER;
-
-    // Avvia watch position
+    
+    // Avvia il watch
     const watchId = navigator.geolocation.watchPosition(
       handleLocationSuccess,
       handleLocationError,
@@ -339,109 +268,140 @@ export function useLocationSharing({
       error: null
     }));
 
-    // Interval di backup per invio periodico
-    const interval = updateInterval || (highAccuracy ? HIGH_ACCURACY_INTERVAL : LOW_ACCURACY_INTERVAL);
-    
-    intervalRef.current = setInterval(() => {
-      // Richiesta posizione singola come backup
-      navigator.geolocation.getCurrentPosition(
-        handleLocationSuccess,
-        handleLocationError,
-        options
-      );
-    }, interval);
-
-  }, [
-    isSupported, 
-    enabled, 
-    highAccuracy, 
-    updateInterval, 
-    handleLocationSuccess, 
-    handleLocationError
-  ]);
+    logger.debug('Location tracking started', { watchId, options });
+  }, [isSupported, enabled, highAccuracy, handleLocationSuccess, handleLocationError]);
 
   /**
-   * Ferma il tracking GPS
+   * Ferma il tracking della posizione
    */
   const stopTracking = useCallback(() => {
-    logger.info('[LocationSharing] Stopping location tracking');
+    logger.info('Stopping location tracking');
 
-    // Ferma watch position
+    // Ferma il watch
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
 
-    // Ferma interval
+    // Ferma l'interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
 
-    // Reset refs
-    lastSentLocationRef.current = null;
-    retryCountRef.current = 0;
-
     // Aggiorna status
     setStatus(prev => ({
       ...prev,
       isActive: false,
-      watchId: null,
-      error: null
+      watchId: null
     }));
 
+    logger.debug('Location tracking stopped');
   }, []);
 
   // ============================================
-  // HELPERS
+  // UTILITY FUNCTIONS
   // ============================================
 
   /**
-   * Determina se inviare aggiornamento posizione
+   * Verifica se la posizione è cambiata significativamente
    */
-  const shouldSendUpdate = useCallback((newLocation: LocationData): boolean => {
-    const lastLocation = lastSentLocationRef.current;
-    
-    if (!lastLocation) return true;
-
-    // Calcola distanza approssimativa in metri
-    const latDiff = Math.abs(newLocation.latitude - lastLocation.latitude);
-    const lngDiff = Math.abs(newLocation.longitude - lastLocation.longitude);
-    
-    // Approssimazione: 1 grado ≈ 111km
-    const distance = Math.sqrt(
-      Math.pow(latDiff * 111000, 2) + 
-      Math.pow(lngDiff * 111000 * Math.cos(newLocation.latitude * Math.PI / 180), 2)
+  function hasLocationChanged(oldLocation: LocationData, newLocation: LocationData): boolean {
+    const distance = calculateDistance(
+      oldLocation.latitude,
+      oldLocation.longitude,
+      newLocation.latitude,
+      newLocation.longitude
     );
 
-    // Invia se movimento > 10 metri o più di 15 secondi dall'ultimo invio
-    const timeDiff = Date.now() - (status.lastUpdate?.getTime() || 0);
-    
-    return distance > 10 || timeDiff > 15000;
-  }, [status.lastUpdate]);
+    // Considera cambiata se distanza > 10 metri
+    return distance > 0.01; // ~10 metri
+  }
 
   /**
-   * Richiede permesso manualmente
+   * Calcola la distanza tra due punti (formula di Haversine)
    */
-  const requestPermission = useCallback(async (): Promise<boolean> => {
-    if (!isSupported) return false;
+  function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371; // Raggio della Terra in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
 
-    return new Promise((resolve) => {
-      navigator.geolocation.getCurrentPosition(
-        () => {
-          setPermissionStatus('granted');
-          resolve(true);
-        },
-        (error) => {
-          if (error.code === error.PERMISSION_DENIED) {
-            setPermissionStatus('denied');
-          }
-          resolve(false);
-        },
-        { enableHighAccuracy: false, timeout: 10000 }
-      );
-    });
+  // ============================================
+  // EFFECTS
+  // ============================================
+
+  /**
+   * Verifica supporto geolocalizzazione
+   */
+  useEffect(() => {
+    const supported = 'geolocation' in navigator;
+    setIsSupported(supported);
+
+    if (!supported) {
+      logger.error('Geolocation not supported');
+      setStatus(prev => ({
+        ...prev,
+        error: 'Geolocalizzazione non supportata'
+      }));
+    }
+  }, []);
+
+  /**
+   * Verifica permessi geolocalizzazione
+   */
+  useEffect(() => {
+    if (!isSupported) return;
+
+    // Verifica permessi se supportati
+    if ('permissions' in navigator) {
+      navigator.permissions.query({ name: 'geolocation' })
+        .then(result => {
+          setPermissionStatus(result.state);
+          logger.debug('Geolocation permission status:', result.state);
+        })
+        .catch(error => {
+          logger.error('Failed to check geolocation permission:', error);
+        });
+    }
   }, [isSupported]);
+
+  /**
+   * Gestisce l'avvio/stop del tracking
+   */
+  useEffect(() => {
+    if (enabled && isSupported && permissionStatus !== 'denied') {
+      startTracking();
+    } else {
+      stopTracking();
+    }
+
+    return () => {
+      stopTracking();
+    };
+  }, [enabled, isSupported, permissionStatus, startTracking, stopTracking]);
+
+  /**
+   * Notifica cambiamenti di status
+   */
+  useEffect(() => {
+    onStatusChange?.(status);
+  }, [status, onStatusChange]);
+
+  /**
+   * Cleanup al dismount
+   */
+  useEffect(() => {
+    return () => {
+      stopTracking();
+    };
+  }, [stopTracking]);
 
   // ============================================
   // RETURN
@@ -449,24 +409,23 @@ export function useLocationSharing({
 
   return {
     // Status
-    isSupported,
     isActive: status.isActive,
+    isSupported,
     permissionStatus,
     lastUpdate: status.lastUpdate,
-    accuracy: status.accuracy,
     error: status.error,
+    accuracy: status.accuracy,
     
-    // Loading states
-    isSending: updateLocationMutation.isPending,
-    
-    // Controls
+    // Actions
     startTracking,
     stopTracking,
-    requestPermission,
     
-    // Info
-    retryCount: retryCountRef.current,
-    watchId: status.watchId
+    // Mutation status
+    isSending: updateLocationMutation.isPending,
+    sendError: updateLocationMutation.error,
+    
+    // Full status object
+    status
   };
 }
 

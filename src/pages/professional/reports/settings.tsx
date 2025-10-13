@@ -1053,13 +1053,13 @@ export default function ProfessionalSettingsPage() {
                   </p>
                   <div className="flex gap-3">
                     <button
-                      onClick={() => toast.info('Configurazione firma digitale in arrivo!')}
+            onClick={() => toast('Configurazione firma digitale in arrivo!')}
                       className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
                     >
                       Configura Firma
                     </button>
                     <button
-                      onClick={() => toast.info('Test firma in arrivo!')}
+            onClick={() => toast('Test firma in arrivo!')}
                       className="bg-gray-600 text-white px-4 py-2 rounded text-sm hover:bg-gray-700"
                     >
                       Test Firma

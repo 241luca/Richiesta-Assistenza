@@ -18,7 +18,7 @@ import {
   CpuChipIcon
 } from '@heroicons/react/24/outline';
 import { api } from '../../../services/api';
-import { useAuth } from '../../../hooks/use-auth';
+import { useAuth } from '../../../hooks/useAuth';
 import toast from 'react-hot-toast';
 
 interface ApiKey {

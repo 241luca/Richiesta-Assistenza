@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ShareIcon, UserPlusIcon, ChartBarIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline';
 import { GiftIcon, SparklesIcon, TrophyIcon } from '@heroicons/react/24/solid';
 import toast from 'react-hot-toast';
-import referralApi from '../services/referralApi';
+import { referralService } from '../services/referral.service';
 
 /**
  * 🎁 PAGINA SISTEMA REFERRAL
@@ -16,26 +16,28 @@ import referralApi from '../services/referralApi';
  */
 export const ReferralPage = () => {
   const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
   const queryClient = useQueryClient();
 
   // 📊 Carica dati referral
   const { data: referralData, isLoading: loadingCode } = useQuery({
     queryKey: ['my-referral-code'],
-    queryFn: referralApi.getMyReferralCode,
+    queryFn: referralService.getMyReferralCode,
     staleTime: 5 * 60 * 1000 // Cache per 5 minuti
   });
 
   const { data: stats, isLoading: loadingStats } = useQuery({
     queryKey: ['referral-stats'],
-    queryFn: referralApi.getReferralStats,
+    queryFn: referralService.getStats,
     staleTime: 2 * 60 * 1000 // Cache per 2 minuti
   });
 
   // 📨 Invita via email
   const inviteMutation = useMutation({
-    mutationFn: referralApi.sendReferralInvite,
+    mutationFn: ({ email, message }: { email: string; message?: string }) => referralService.sendInvite(email, message),
     onSuccess: () => {
       setEmail('');
+      setMessage('');
       toast.success('🎉 Invito inviato con successo!');
       // Ricarica le statistiche
       queryClient.invalidateQueries({ queryKey: ['referral-stats'] });
@@ -57,27 +59,24 @@ export const ReferralPage = () => {
 
   // 📱 Condividi su WhatsApp
   const shareViaWhatsApp = () => {
-    if (!referralData?.data?.whatsappText) return;
-    
-    const text = encodeURIComponent(referralData.data.whatsappText);
+    if (!referralData?.whatsappText) return;
+    const text = encodeURIComponent(referralData.whatsappText);
     window.open(`https://wa.me/?text=${text}`, '_blank');
   };
 
   // 🐦 Condividi su Twitter
   const shareViaTwitter = () => {
-    if (!referralData?.data) return;
-    
-    const text = encodeURIComponent(`🎯 Scopri questo fantastico servizio di assistenza! Usa il mio codice ${referralData.data.code} per ricevere punti bonus! 🎁`);
-    const url = encodeURIComponent(referralData.data.link);
+    if (!referralData) return;
+    const text = encodeURIComponent(`🎯 Scopri questo fantastico servizio di assistenza! Usa il mio codice ${referralData.code} per ricevere punti bonus! 🎁`);
+    const url = encodeURIComponent(referralData.link);
     window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank');
   };
 
   // 📧 Condividi via Email
   const shareViaEmail = () => {
-    if (!referralData?.data) return;
-    
+    if (!referralData) return;
     const subject = encodeURIComponent('Ti consiglio questo servizio!');
-    const body = encodeURIComponent(`Ciao!\n\nTi consiglio questo fantastico servizio di assistenza!\n\nUsa il mio codice invito: ${referralData.data.code}\n\nLink diretto: ${referralData.data.link}\n\nRiceverai punti bonus alla registrazione!\n\nA presto! 😊`);
+    const body = encodeURIComponent(`Ciao!\n\nTi consiglio questo fantastico servizio di assistenza!\n\nUsa il mio codice invito: ${referralData.code}\n\nLink diretto: ${referralData.link}\n\nRiceverai punti bonus alla registrazione!\n\nA presto! 😊`);
     window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
   };
 
@@ -113,7 +112,7 @@ export const ReferralPage = () => {
           <div className="hidden md:flex items-center gap-2">
             <SparklesIcon className="h-12 w-12 text-yellow-300" />
             <div>
-              <p className="text-2xl font-bold">{stats?.data?.currentPoints || 0}</p>
+              <p className="text-2xl font-bold">{stats?.currentPoints || 0}</p>
               <p className="text-sm opacity-80">Punti attuali</p>
             </div>
           </div>
@@ -125,7 +124,7 @@ export const ReferralPage = () => {
         <div className="flex items-center gap-3">
           <SparklesIcon className="h-8 w-8 text-yellow-500" />
           <div>
-            <p className="text-xl font-bold text-gray-900">{stats?.data?.currentPoints || 0}</p>
+            <p className="text-xl font-bold text-gray-900">{stats?.currentPoints || 0}</p>
             <p className="text-sm text-gray-600">Punti attuali</p>
           </div>
         </div>
@@ -143,10 +142,10 @@ export const ReferralPage = () => {
           <p className="text-sm text-gray-600 mb-1">Codice</p>
           <div className="flex items-center justify-between">
             <p className="text-2xl font-bold text-blue-600 font-mono">
-              {referralData?.data?.code || 'Loading...'}
+              {referralData?.code || 'Loading...'}
             </p>
             <button
-              onClick={() => copyToClipboard(referralData?.data?.code || '')}
+              onClick={() => copyToClipboard(referralData?.code || '')}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
             >
               <ClipboardDocumentIcon className="h-4 w-4" />
@@ -159,10 +158,10 @@ export const ReferralPage = () => {
           <p className="text-sm text-gray-600 mb-1">Link Diretto</p>
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-700 truncate mr-4 font-mono">
-              {referralData?.data?.link || 'Loading...'}
+              {referralData?.link || 'Loading...'}
             </p>
             <button
-              onClick={() => copyToClipboard(referralData?.data?.link || '')}
+              onClick={() => copyToClipboard(referralData?.link || '')}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 flex-shrink-0"
             >
               <ClipboardDocumentIcon className="h-4 w-4" />
@@ -195,7 +194,7 @@ export const ReferralPage = () => {
             Email
           </button>
           <button
-            onClick={() => copyToClipboard(referralData?.data?.shareText || '')}
+            onClick={() => copyToClipboard(referralData?.shareText || '')}
             className="bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
           >
             <ClipboardDocumentIcon className="h-4 w-4" />
@@ -210,7 +209,7 @@ export const ReferralPage = () => {
           <UserPlusIcon className="h-6 w-6 text-green-500" />
           Invita via Email
         </h2>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2">
           <input
             type="email"
             value={email}
@@ -219,8 +218,16 @@ export const ReferralPage = () => {
             className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             disabled={inviteMutation.isPending}
           />
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Messaggio personale (opzionale)"
+            className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[80px]"
+            maxLength={500}
+            disabled={inviteMutation.isPending}
+          />
           <button
-            onClick={() => inviteMutation.mutate(email)}
+            onClick={() => inviteMutation.mutate({ email, message: message?.trim() || undefined })}
             disabled={!email || inviteMutation.isPending}
             className="px-6 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
           >
@@ -242,37 +249,37 @@ export const ReferralPage = () => {
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center">
-            <p className="text-3xl font-bold text-blue-600">{stats?.data?.total || 0}</p>
+            <p className="text-3xl font-bold text-blue-600">{stats?.total || 0}</p>
             <p className="text-sm text-gray-600">Inviti Totali</p>
           </div>
           <div className="text-center">
-            <p className="text-3xl font-bold text-yellow-600">{stats?.data?.pending || 0}</p>
+            <p className="text-3xl font-bold text-yellow-600">{stats?.pending || 0}</p>
             <p className="text-sm text-gray-600">In Attesa</p>
           </div>
           <div className="text-center">
-            <p className="text-3xl font-bold text-green-600">{stats?.data?.converted || 0}</p>
+            <p className="text-3xl font-bold text-green-600">{stats?.converted || 0}</p>
             <p className="text-sm text-gray-600">Convertiti</p>
           </div>
           <div className="text-center">
-            <p className="text-3xl font-bold text-purple-600">{stats?.data?.totalPointsEarned || 0}</p>
+            <p className="text-3xl font-bold text-purple-600">{stats?.totalPointsEarned || 0}</p>
             <p className="text-sm text-gray-600">Punti Guadagnati</p>
           </div>
         </div>
 
         {/* 📈 Grafico semplice percentuali */}
-        {stats?.data?.total > 0 && (
+        {stats?.total > 0 && (
           <div className="mt-6">
             <h3 className="font-semibold mb-3">Tasso di Conversione</h3>
             <div className="w-full bg-gray-200 rounded-full h-4">
               <div 
                 className="bg-gradient-to-r from-green-400 to-green-600 h-4 rounded-full transition-all duration-500"
                 style={{ 
-                  width: `${((stats.data.converted / stats.data.total) * 100)}%` 
+                  width: `${(((stats?.converted || 0) / (stats?.total || 1)) * 100)}%` 
                 }}
               ></div>
             </div>
             <p className="text-sm text-gray-600 mt-2">
-              {((stats.data.converted / stats.data.total) * 100).toFixed(1)}% dei tuoi inviti si è convertito
+              {((((stats?.converted || 0) / (stats?.total || 1)) * 100).toFixed(1))}% dei tuoi inviti si è convertito
             </p>
           </div>
         )}
@@ -316,11 +323,11 @@ export const ReferralPage = () => {
       </div>
 
       {/* 🎯 Recent Activity (se ci sono inviti recenti) */}
-      {stats?.data?.recentReferrals && stats.data.recentReferrals.length > 0 && (
+      {stats?.recentReferrals && stats.recentReferrals.length > 0 && (
         <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
           <h3 className="font-bold text-lg mb-4">🕒 Attività Recente</h3>
           <div className="space-y-3">
-            {stats.data.recentReferrals.slice(0, 3).map((referral: any, index: number) => (
+            {stats.recentReferrals.slice(0, 3).map((referral: any, index: number) => (
               <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div>
                   <p className="font-semibold">

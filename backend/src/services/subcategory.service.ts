@@ -77,7 +77,7 @@ class SubcategoryService {
     const subcategories = await prisma.subcategory.findMany({
       where,
       include: {
-        category: {
+        Category: {
           select: {
             id: true,
             name: true,
@@ -88,23 +88,18 @@ class SubcategoryService {
         SubcategoryAiSettings: includeAiSettings,
         _count: {
           select: {
-            ProfessionalUserSubcategory: {
-              where: {
-                isActive: true,
-                user: {  // Maiuscolo!
-                  role: 'PROFESSIONAL'
-                }
-              }
-            },
-            requests: true,
+            ProfessionalUserSubcategory: true,
+            AssistanceRequest: true,
           },
         },
         // Aggiungiamo anche la lista dei professionisti attivi per debug
         ProfessionalUserSubcategory: {
           where: {
             isActive: true,
-            user: {  // Maiuscolo!
-              role: 'PROFESSIONAL'
+            User: {
+              is: {
+                role: 'PROFESSIONAL'
+              }
             }
           },
           select: {
@@ -112,7 +107,7 @@ class SubcategoryService {
             isActive: true
           }
         },
-      },
+      } as any,
       orderBy: [
         { name: 'asc' },
       ],
@@ -128,15 +123,15 @@ class SubcategoryService {
         id: subcategoryId,
       },
       include: {
-      category: true,
+        Category: true,
         SubcategoryAiSettings: true,
         _count: {
           select: {
             ProfessionalUserSubcategory: true,
-            requests: true,
+            AssistanceRequest: true,
           },
         },
-      },
+      } as any,
     });
 
     if (!subcategory) {
@@ -180,8 +175,8 @@ class SubcategoryService {
         slug,
       } as any, // TypeScript: id e updatedAt sono auto-generati
       include: {
-      category: true,
-      },
+        Category: true,
+      } as any,
     });
 
     // USA IL RESPONSE FORMATTER!
@@ -222,9 +217,9 @@ class SubcategoryService {
       where: { id: subcategoryId },
       data,
       include: {
-      category: true,
+        Category: true,
         SubcategoryAiSettings: true,
-      },
+      } as any,
     });
 
     // USA IL RESPONSE FORMATTER!
@@ -282,7 +277,7 @@ class SubcategoryService {
         isActive: true,
       },
       include: {
-        user: {  // Maiuscolo!
+        User: {
           select: {
             id: true,
             firstName: true,
@@ -297,7 +292,7 @@ class SubcategoryService {
             province: true,
           },
         },
-      },
+      } as any,
       orderBy: [
         { experienceYears: 'desc' },
       ],
@@ -392,13 +387,13 @@ class SubcategoryService {
           isActive: true,
         },
         include: {
-          user: true,
-          subcategory: {
+          User: true,
+          Subcategory: {
             include: {
-      category: true,
+              Category: true,
             },
           },
-        },
+        } as any,
       });
     } else {
       // Create new assignment
@@ -410,13 +405,13 @@ class SubcategoryService {
           isActive: true,
         } as any, // TypeScript: id e updatedAt sono auto-generati
         include: {
-          user: true,
-          subcategory: {
+          User: true,
+          Subcategory: {
             include: {
-      category: true,
+              Category: true,
             },
           },
-        },
+        } as any,
       });
     }
 
@@ -436,9 +431,9 @@ class SubcategoryService {
         isActive: false,
       },
       include: {
-        user: true,
-        subcategory: true,
-      },
+        User: true,
+        Subcategory: true,
+      } as any,
     });
 
     // USA IL RESPONSE FORMATTER!
@@ -452,12 +447,12 @@ class SubcategoryService {
         isActive: true,
       },
       include: {
-      subcategory: {
+        Subcategory: {
           include: {
-      category: true,
+            Category: true,
           },
         },
-      },
+      } as any,
     });
 
     // USA IL RESPONSE FORMATTER!

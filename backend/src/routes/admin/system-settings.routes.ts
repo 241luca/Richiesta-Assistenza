@@ -1,10 +1,12 @@
 import { Router } from 'express';
+import { createId } from '@paralleldrive/cuid2';
 import { prisma } from '../../config/database';
 import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
 import { ResponseFormatter } from '../../utils/responseFormatter';
 import { logger } from '../../utils/logger';
 import { z } from 'zod';
+import { AuditAction, LogCategory, LogSeverity } from '@prisma/client';
 
 const router = Router();
 
@@ -82,7 +84,7 @@ router.get('/:key', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (
 router.post('/', authenticate, requireRole(['SUPER_ADMIN']), async (req, res) => {
   try {
     // Valida i dati
-    const validatedData = systemSettingSchema.parse(req.body);
+    const validatedData: z.infer<typeof systemSettingSchema> = systemSettingSchema.parse(req.body);
     
     // Verifica che la chiave non esista già
     const existingSetting = await prisma.systemSettings.findUnique({
@@ -96,24 +98,36 @@ router.post('/', authenticate, requireRole(['SUPER_ADMIN']), async (req, res) =>
       ));
     }
 
-    // Crea la nuova impostazione
+    // Crea la nuova impostazione (fornisci esplicitamente i campi richiesti)
+    const { key, value, type, category, description, isActive, isEditable } = validatedData;
     const setting = await prisma.systemSettings.create({
-      data: validatedData
+      data: {
+        id: createId(),
+        updatedAt: new Date(),
+        key,
+        value,
+        type,
+        category,
+        description: description ?? null,
+        isActive,
+        isEditable
+      }
     });
 
     // Log audit
     await prisma.auditLog.create({
       data: {
-        action: 'SYSTEM_SETTING_CREATED',
+        id: createId(),
+        action: AuditAction.CREATE,
         entityType: 'SystemSettings',
         entityId: setting.id,
-        userId: (req as any).user?.id || 'system',
+        user: (req as any).user?.id ? { connect: { id: (req as any).user.id } } : undefined,
         ipAddress: req.ip,
         userAgent: req.get('user-agent') || '',
         newValues: setting,
         success: true,
-        severity: 'INFO',
-        category: 'ADMIN'
+        severity: LogSeverity.INFO,
+        category: LogCategory.SYSTEM
       }
     });
 
@@ -176,18 +190,19 @@ router.put('/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (r
     try {
       await prisma.auditLog.create({
         data: {
-          action: 'SYSTEM_SETTING_UPDATED',
+          id: createId(),
+          action: AuditAction.UPDATE,
           entityType: 'SystemSettings',
           entityId: id,
-          userId: (req as any).user?.id || 'system',
+          user: (req as any).user?.id ? { connect: { id: (req as any).user.id } } : undefined,
           ipAddress: req.ip || 'unknown',
           userAgent: req.get('user-agent') || '',
           oldValues: existingSetting,
           newValues: updatedSetting,
           changes: validatedData,
           success: true,
-          severity: 'INFO',
-          category: 'ADMIN'
+          severity: LogSeverity.INFO,
+          category: LogCategory.SYSTEM
         }
       });
     } catch (auditError) {
@@ -248,16 +263,17 @@ router.delete('/:id', authenticate, requireRole(['SUPER_ADMIN']), async (req, re
     // Log audit
     await prisma.auditLog.create({
       data: {
-        action: 'SYSTEM_SETTING_DELETED',
+        id: createId(),
+        action: AuditAction.DELETE,
         entityType: 'SystemSettings',
         entityId: id,
-        userId: (req as any).user?.id || 'system',
+        user: (req as any).user?.id ? { connect: { id: (req as any).user.id } } : undefined,
         ipAddress: req.ip || 'unknown',
         userAgent: req.get('user-agent') || '',
         oldValues: existingSetting,
         success: true,
-        severity: 'WARNING',
-        category: 'ADMIN'
+        severity: LogSeverity.WARNING,
+        category: LogCategory.SYSTEM
       }
     });
 
@@ -326,15 +342,16 @@ router.post('/bulk-update', authenticate, requireRole(['SUPER_ADMIN']), async (r
     // Log audit
     await prisma.auditLog.create({
       data: {
-        action: 'SYSTEM_SETTINGS_BULK_UPDATE',
+        id: createId(),
+        action: AuditAction.BULK_UPDATE,
         entityType: 'SystemSettings',
-        userId: (req as any).user?.id || 'system',
+        user: (req as any).user?.id ? { connect: { id: (req as any).user.id } } : undefined,
         ipAddress: req.ip || 'unknown',
         userAgent: req.get('user-agent') || '',
         newValues: results,
         success: true,
-        severity: 'INFO',
-        category: 'ADMIN'
+        severity: LogSeverity.INFO,
+        category: LogCategory.SYSTEM
       }
     });
 

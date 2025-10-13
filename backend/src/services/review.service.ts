@@ -15,7 +15,7 @@ class ReviewService {
     // 1. Verifica che la richiesta esista e sia completata
     const request = await prisma.assistanceRequest.findUnique({
       where: { id: data.requestId },
-      include: { professional: true }
+      include: { User_AssistanceRequest_professionalIdToUser: true }
     });
 
     if (!request) {

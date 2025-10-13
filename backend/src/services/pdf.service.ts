@@ -30,13 +30,13 @@ class PDFService {
       const rawQuote = await prisma.quote.findUnique({
         where: { id: quoteId },
         include: {
-          items: { orderBy: { order: 'asc' } },
-          professional: true, // Professional con nome relazione corretto
-          request: {  // AssistanceRequest con A maiuscola!
+          QuoteItem: { orderBy: { order: 'asc' } },
+          User: true,
+          AssistanceRequest: {
             include: {
-              client: true, // Cliente della richiesta (minuscolo!)
-              category: true, // categoria (minuscolo!)
-              subcategory: true // sottocategoria (minuscolo!)
+              User_AssistanceRequest_clientIdToUser: true,
+              Category: true,
+              Subcategory: true
             }
           }
         }
@@ -296,7 +296,7 @@ class PDFService {
       doc.end();
 
       // Aspetta che lo stream finisca di scrivere
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         stream.on('finish', resolve);
         stream.on('error', reject);
       });
@@ -321,11 +321,11 @@ class PDFService {
       const rawRequest = await prisma.assistanceRequest.findUnique({
         where: { id: requestId },
         include: {
-          client: true, // Cliente della richiesta (minuscolo!)
-          professional: true, // Professionista assegnato (minuscolo!)
-          category: true, // categoria (minuscolo!)
-          subcategory: true, // sottocategoria (minuscolo!)
-          attachments: true // Allegati con nome corretto Prisma
+          User_AssistanceRequest_clientIdToUser: true,
+          User_AssistanceRequest_professionalIdToUser: true,
+          Category: true,
+          Subcategory: true,
+          RequestAttachment: true
         }
       });
 
@@ -441,7 +441,7 @@ class PDFService {
 
       doc.end();
 
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         stream.on('finish', resolve);
         stream.on('error', reject);
       });
@@ -465,10 +465,10 @@ class PDFService {
           status: { in: ['PENDING', 'ACCEPTED'] }
         },
         include: {
-          items: { orderBy: { order: 'asc' } },
-          professional: true  // professional con nome relazione corretto
+          QuoteItem: { orderBy: { order: 'asc' } },
+          User: true
         },
-        orderBy: { totalAmount: 'asc' }
+        orderBy: { amount: 'asc' }
       });
 
       if (rawQuotes.length === 0) {
@@ -507,7 +507,7 @@ class PDFService {
 
       doc.end();
 
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         stream.on('finish', resolve);
         stream.on('error', reject);
       });

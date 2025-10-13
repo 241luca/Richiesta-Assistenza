@@ -18,7 +18,7 @@ import {
   ExclamationTriangleIcon,
   BookOpenIcon
 } from '@heroicons/react/24/outline';
-import { toast } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { apiClient } from '../../services/api';

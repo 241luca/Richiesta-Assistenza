@@ -1,15 +1,16 @@
 import { Router } from 'express';
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
-import { authenticate } from '../middleware/auth';
+import { PrismaClient, AuditAction, LogCategory, LogSeverity } from '@prisma/client';
+import { authenticate, AuthRequest } from '../middleware/auth';
 import { requireRole } from '../middleware/rbac';
 import { checkRole } from '../middleware/checkRole';
 import { ResponseFormatter } from '../utils/responseFormatter';
 import { formatAssistanceRequestList } from '../utils/responseFormatter';
 import { logger } from '../utils/logger';
 import GoogleMapsService from '../services/googleMaps.service';
-import * as notificationService from '../services/notification.service';
-import * as emailService from '../services/email.service';
+import { notificationService } from '../services/notification.service';
+import { emailService } from '../services/email.service';
+import { auditLogService } from '../services/auditLog.service';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -22,9 +23,9 @@ router.get(
   '/available-requests',
   authenticate,
   requireRole(['PROFESSIONAL']),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       
       // Verifica se il professionista può auto-assegnarsi
       const professional = await prisma.user.findUnique({
@@ -79,7 +80,7 @@ router.get(
       const availableRequests = await prisma.assistanceRequest.findMany({
         where: {
           status: 'PENDING',
-          professional: null, // Usa la relazione invece di professionalId
+          professionalId: null,
           subcategoryId: {
             in: subcategoryIds
           }
@@ -103,13 +104,13 @@ router.get(
       });
 
       // Calcola distanze se richiesto
-      let requestsWithDistance = availableRequests;
-      if (req.query.calculateDistance === 'true') {
+      let requestsWithDistance: any[] = availableRequests as any[];
+      if (req.query.calculateDistance?.toString() === 'true') {
         // Determina l'indirizzo del professionista
         let professionalAddress = '';
-        if (professional.useResidenceAsWorkAddress) {
+        if (professional?.useResidenceAsWorkAddress) {
           professionalAddress = `${professional.address}, ${professional.city} ${professional.province} ${professional.postalCode}`;
-        } else if (professional.workAddress) {
+        } else if (professional?.workAddress) {
           professionalAddress = `${professional.workAddress}, ${professional.workCity} ${professional.workProvince} ${professional.workPostalCode}`;
         }
 
@@ -172,9 +173,9 @@ router.get(
   '/my-requests',
   authenticate,
   requireRole(['PROFESSIONAL']),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       const { withoutReport, status, priority } = req.query;
       
       // Build where clause
@@ -225,7 +226,7 @@ router.get(
       let filteredRequests = myRequests;
       
       // Se richiesto, filtra solo le richieste senza rapporto
-      if (withoutReport === 'true') {
+      if (withoutReport?.toString() === 'true') {
         // TODO: quando avremo la tabella dei rapporti, filtreremo qui
         // Per ora simuliamo che le richieste completate abbiano un rapporto
         filteredRequests = myRequests.filter(r => 
@@ -238,7 +239,7 @@ router.get(
       return res.json(
         ResponseFormatter.success(
           formatted,
-          withoutReport === 'true' 
+          withoutReport?.toString() === 'true' 
             ? 'Richieste senza rapporto recuperate con successo'
             : 'Le tue richieste recuperate con successo'
         )
@@ -259,9 +260,9 @@ router.post(
   '/self-assign/:requestId',
   authenticate,
   requireRole(['PROFESSIONAL']),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       const { requestId } = req.params;
 
       // Verifica se il professionista può auto-assegnarsi
@@ -346,7 +347,7 @@ router.post(
           assignedAt: new Date()
         },
         include: {
-          Client: {
+          client: {
             select: {
               id: true,
               fullName: true,
@@ -402,17 +403,17 @@ router.put('/:id/approve', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), as
       data: {
         approvalStatus: 'APPROVED',
         approvedAt: new Date(),
-        approvedBy: req.user.id,
-        approvalNotes: notes
+        approvedBy: req.user.id
       }
     });
 
     // Invia notifica al professionista
-    await notificationService.sendToUser(id, {
+    await notificationService.sendToUser({
+      userId: id,
       title: 'Account Approvato',
       message: 'Il tuo account professionista è stato approvato! Ora puoi iniziare a ricevere richieste.',
       type: 'APPROVAL',
-      priority: 'HIGH'
+      priority: 'high'
     });
 
     return res.json(ResponseFormatter.success(user, 'Professionista approvato'));
@@ -435,18 +436,17 @@ router.put('/:id/reject', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), asy
       where: { id },
       data: {
         approvalStatus: 'REJECTED',
-        rejectedAt: new Date(),
-        rejectedBy: req.user.id,
         rejectionReason: reason
       }
     });
 
     // Invia notifica al professionista
-    await notificationService.sendToUser(id, {
+    await notificationService.sendToUser({
+      userId: id,
       title: 'Registrazione Non Approvata',
       message: `La tua registrazione come professionista non è stata approvata. Motivo: ${reason}`,
       type: 'REJECTION',
-      priority: 'HIGH'
+      priority: 'high'
     });
 
     return res.json(ResponseFormatter.success(user, 'Professionista rifiutato'));
@@ -505,29 +505,30 @@ router.post('/:id/request-documents', authenticate, checkRole(['ADMIN', 'SUPER_A
       html: emailBody.replace(/\n/g, '<br>')
     });
 
-    // Registra l'azione
-    await prisma.auditLog.create({
-      data: {
-        action: 'REQUEST_DOCUMENTS',
-        entityType: 'User',
-        entityId: id,
-        userId: req.user.id,
-        details: {
-          missingDocuments,
-          customMessage
-        },
-        success: true,
-        severity: 'INFO',
-        category: 'ADMIN'
+    // Registra l'azione (Audit)
+    await auditLogService.log({
+      action: AuditAction.UPDATE,
+      entityType: 'User',
+      entityId: id,
+      userId: req.user.id,
+      success: true,
+      severity: LogSeverity.INFO,
+      category: LogCategory.BUSINESS,
+      ipAddress: (req as Request).ip || 'unknown',
+      userAgent: (req as Request).get('user-agent') || 'unknown',
+      metadata: {
+        missingDocuments,
+        customMessage
       }
     });
 
     // Invia notifica in-app
-    await notificationService.sendToUser(id, {
+    await notificationService.sendToUser({
+      userId: id,
       title: 'Documenti Richiesti',
       message: 'Ti abbiamo inviato un\'email con la lista dei documenti necessari per completare la registrazione.',
       type: 'DOCUMENT_REQUEST',
-      priority: 'HIGH'
+      priority: 'high'
     });
 
     return res.json(ResponseFormatter.success(null, 'Email inviata con successo'));

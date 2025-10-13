@@ -17,6 +17,7 @@ dotenv.config();
 import { ResponseFormatter } from './utils/responseFormatter';
 import { logger } from './utils/logger';
 import { notificationService } from './services/notification.service';
+import { initializeWebSocket } from './services/websocket.service';
 import { setIO } from './utils/socket';
 import { authenticate } from './middleware/auth';
 import { requireRole } from './middleware/rbac';
@@ -53,6 +54,10 @@ const io = new Server(httpServer, {
 app.set('io', io);
 setIO(io);
 notificationService.setIO(io);
+
+// Initialize WebSocket server with handlers
+initializeWebSocket(io);
+logger.info('🔌 WebSocket server initialized with authentication and handlers');
 
 // CORS configuration
 app.use(cors({
@@ -102,12 +107,30 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // Rate limiting
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 50,
-  message: 'Too many authentication attempts, please try again later.',
-  skipSuccessfulRequests: true,
-});
+const isAuthRateLimitDisabled = (process.env.DISABLE_AUTH_RATE_LIMIT === 'true') || (process.env.NODE_ENV === 'development');
+
+if (isAuthRateLimitDisabled) {
+  logger.warn('Auth rate limiting disabled (development or explicitly via DISABLE_AUTH_RATE_LIMIT).');
+}
+
+const authLimiter = isAuthRateLimitDisabled
+  ? (_req: express.Request, _res: express.Response, next: express.NextFunction) => next()
+  : rateLimit({
+      windowMs: process.env.AUTH_RATE_LIMIT_WINDOW_MS
+        ? parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MS, 10)
+        : 15 * 60 * 1000,
+      max: process.env.AUTH_RATE_LIMIT_MAX
+        ? parseInt(process.env.AUTH_RATE_LIMIT_MAX, 10)
+        : 50,
+      standardHeaders: true,
+      legacyHeaders: false,
+      skipSuccessfulRequests: true,
+      handler: (_req, res) => {
+        return res.status(429).json(
+          ResponseFormatter.error('Troppi tentativi di login. Riprova più tardi.', 'RATE_LIMIT_EXCEEDED')
+        );
+      }
+    });
 
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -135,14 +158,56 @@ app.get('/ws-test', (_req, res) => {
     <body>
       <h1>WebSocket Connection Test</h1>
       <div id="status">Disconnected</div>
-      <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+      <div>
+        <label>Token: <input id="tokenInput" type="text" style="width: 400px" placeholder="Access token (auto from localStorage)" /></label>
+        <button id="connectBtn">Connect</button>
+      </div>
+      <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
       <script>
-        const socket = io('http://localhost:3200', {
-          transports: ['websocket', 'polling']
-        });
-        socket.on('connect', () => {
-          document.getElementById('status').innerHTML = 'Connected: ' + socket.id;
-        });
+        const statusEl = document.getElementById('status');
+        const tokenInput = document.getElementById('tokenInput');
+        const connectBtn = document.getElementById('connectBtn');
+
+        // Precarica token da localStorage se presente
+        try {
+          const lsToken = localStorage.getItem('accessToken') || localStorage.getItem('token');
+          if (lsToken) tokenInput.value = lsToken;
+        } catch (e) { /* ignore */ }
+
+        let socket;
+        function connect() {
+          const token = tokenInput.value || '';
+          if (socket) { socket.disconnect(); socket = null; }
+          statusEl.textContent = 'Connecting...';
+          socket = io('http://localhost:3200', {
+            transports: ['websocket', 'polling'],
+            auth: token ? { token } : undefined,
+            reconnection: true,
+          });
+
+          socket.on('connect', () => {
+            statusEl.textContent = 'Connected: ' + socket.id;
+            console.log('Connected', socket.id);
+          });
+          socket.on('connected', (data) => {
+            console.log('Authenticated payload:', data);
+          });
+          socket.on('disconnect', (reason) => {
+            statusEl.textContent = 'Disconnected: ' + reason;
+            console.log('Disconnected', reason);
+          });
+          socket.on('connect_error', (err) => {
+            statusEl.textContent = 'Connect error: ' + err.message;
+            console.error('Connect error', err);
+          });
+          socket.on('error', (err) => {
+            console.error('Socket error', err);
+          });
+        }
+
+        connectBtn.addEventListener('click', connect);
+        // Auto-connect on load
+        connect();
       </script>
     </body>
     </html>
@@ -231,6 +296,8 @@ import documentPermissionsRoutes from './routes/admin/document-permissions.route
 import documentNotificationsRoutes from './routes/admin/document-notifications.routes';
 import documentConfigRoutes from './routes/admin/document-config.routes';
 import documentUIConfigsRoutes from './routes/admin/document-ui-configs.routes';
+// Helpers routing
+import { aggregateRouter, mountAdmin } from './utils/router-helpers';
 import approvalWorkflowsRoutes from './routes/admin/approval-workflows.routes';
 
 // Legal Documents routes
@@ -311,10 +378,19 @@ app.use('/api/admin/notifications', authenticate, requireRole(['ADMIN', 'SUPER_A
 app.use('/api/notifications', authenticate, notificationRoutes); // User routes normali
 
 // Professional routes
-app.use('/api/professionals', authenticate, professionalRoutes);
-app.use('/api/professionals', authenticate, professionalsRoutes); // NUOVO - endpoint by-subcategory
-app.use('/api/professionals', authenticate, professionalPricingRoutes);
-app.use('/api/professionals', authenticate, professionalSkillsCertRoutes);
+/**
+ * Aggregatore '/api/professionals'
+ * Regole:
+ * - Aggiungi nuove sotto-sezioni come singoli Router e includile in aggregateRouter
+ * - Evita di montare prefissi diversi qui; questo blocco è esclusivo per '/api/professionals'
+ */
+const professionalsRouter = aggregateRouter(
+  professionalRoutes,
+  professionalsRoutes, // NUOVO - endpoint by-subcategory
+  professionalPricingRoutes,
+  professionalSkillsCertRoutes
+);
+app.use('/api/professionals', authenticate, professionalsRouter);
 // DISABILITATO TEMPORANEAMENTE - File ha estensione .disabled
 // app.use('/api/professionals', authenticate, professionalAISettingsRoutes);
 app.use('/api/professions', professionsRoutes);
@@ -329,11 +405,21 @@ app.use('/api/address', authenticate, addressRoutes);
 logger.info('📍 Address routes registered at /api/address (with auto-recalculation)');
 
 // Intervention Report routes
-app.use('/api/intervention-reports', authenticate, interventionReportConfigRoutes);
-app.use('/api/intervention-reports/templates', authenticate, interventionReportTemplateRoutes);
-app.use('/api/intervention-reports/materials', authenticate, interventionReportMaterialRoutes);
-app.use('/api/intervention-reports/professional', authenticate, interventionReportProfessionalRoutes);
-app.use('/api/intervention-reports', authenticate, interventionReportRoutes);
+/**
+ * Aggregatore '/api/intervention-reports'
+ * Note:
+ * - Le sotto-sezioni con percorsi dedicati (es. '/templates', '/materials') sono montate esplicitamente
+ * - I router principali (config, base) sono aggregati con aggregateRouter
+ */
+const interventionReportsRouter = aggregateRouter(
+  interventionReportConfigRoutes,
+  interventionReportRoutes
+);
+// Sotto‑sezioni
+interventionReportsRouter.use('/templates', interventionReportTemplateRoutes);
+interventionReportsRouter.use('/materials', interventionReportMaterialRoutes);
+interventionReportsRouter.use('/professional', interventionReportProfessionalRoutes);
+app.use('/api/intervention-reports', authenticate, interventionReportsRouter);
 
 // Chat routes
 app.use('/api/chat', authenticate, chatRoutes);
@@ -408,16 +494,24 @@ logger.info('📅 Google Calendar routes registered at /api/calendar/google');
 import legalDocumentRoutes from './routes/admin/legal-documents.routes';
 import documentTemplatesRoutes from './routes/admin/document-templates.routes';
 
-app.use('/api/admin/legal-documents', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), legalDocumentRoutes);
-app.use('/api/admin/document-templates', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentTemplatesRoutes);
-app.use('/api/admin/document-types', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentTypesRoutes);
-app.use('/api/admin/document-config', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentConfigRoutes);
-app.use('/api/admin/document-categories', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentCategoriesRoutes);
-app.use('/api/admin/document-fields', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentFieldsRoutes);
-app.use('/api/admin/approval-workflows', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), approvalWorkflowsRoutes);
-app.use('/api/admin/document-permissions', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentPermissionsRoutes);
-app.use('/api/admin/document-notifications', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentNotificationsRoutes);
-app.use('/api/admin/document-ui-configs', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentUIConfigsRoutes);
+// Admin Document routes (aggregatore sotto /api/admin)
+/**
+ * Aggregatore Admin Documenti sotto '/api/admin'
+ * Include sotto-percorsi dedicati per ciascun modulo documentale.
+ * Autenticazione e ruoli applicati a livello di prefisso tramite helper.
+ */
+const adminDocumentsRouter = express.Router();
+adminDocumentsRouter.use('/legal-documents', legalDocumentRoutes);
+adminDocumentsRouter.use('/document-templates', documentTemplatesRoutes);
+adminDocumentsRouter.use('/document-types', documentTypesRoutes);
+adminDocumentsRouter.use('/document-config', documentConfigRoutes);
+adminDocumentsRouter.use('/document-categories', documentCategoriesRoutes);
+adminDocumentsRouter.use('/document-fields', documentFieldsRoutes);
+adminDocumentsRouter.use('/approval-workflows', approvalWorkflowsRoutes);
+adminDocumentsRouter.use('/document-permissions', documentPermissionsRoutes);
+adminDocumentsRouter.use('/document-notifications', documentNotificationsRoutes);
+adminDocumentsRouter.use('/document-ui-configs', documentUIConfigsRoutes);
+mountAdmin(app, '/api/admin', authenticate, requireRole, [Role.ADMIN, Role.SUPER_ADMIN], adminDocumentsRouter);
 app.use('/api/legal', legalRoutes);
 logger.info('📜 Legal Documents routes registered');
 logger.info('⚙️ Document Management routes registered');
@@ -426,8 +520,15 @@ logger.info('⚙️ Document Management routes registered');
 
 // app.use('/api/professional/whatsapp', authenticate, professionalWhatsappRoutes); // RIMOSSO - Migration a solo WPPConnect
 app.use('/api/whatsapp/webhook', whatsappWebhookRoutes); // Webhook senza auth
-app.use('/api/whatsapp', whatsappRoutes); // Usa la versione senza crittografia
-app.use('/api/whatsapp', authenticate, whatsappContactsRoutes); // NUOVO - Gestione contatti WhatsApp
+/**
+ * Aggregatore WhatsApp sotto '/api/whatsapp'
+ * - Endpoints generali pubblicati su '/'
+ * - Contatti protetti con `authenticate`
+ */
+const whatsappRouterAggregate = express.Router();
+whatsappRouterAggregate.use('/', whatsappRoutes); // Endpoints generali
+whatsappRouterAggregate.use('/', authenticate, whatsappContactsRoutes); // Contatti protetti
+app.use('/api/whatsapp', whatsappRouterAggregate);
 app.use('/api/admin/whatsapp', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), whatsappConfigRoutes);
 // DISABILITATO - Sistema articoli KB mai completato (usa /api/knowledge-base invece)
 // app.use('/api/kb', knowledgebaseRoutes);
@@ -459,20 +560,21 @@ app.use((req: express.Request, res: express.Response) => {
   );
 });
 
-// Start server
+// Start server (skip listening in test environment)
 const PORT = process.env.PORT || 3200;
 
-httpServer.listen(PORT, () => {
-  console.log('\n===========================================');
-  console.log('🚀 RICHIESTA ASSISTENZA BACKEND STARTED');
-  console.log('===========================================');
-  console.log(`📡 Server: http://localhost:${PORT}`);
-  console.log(`🔗 Frontend: http://localhost:5193`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`🧪 WebSocket test: http://localhost:${PORT}/ws-test`);
-  console.log('');
-  console.log('📚 Main endpoints:');
+if (process.env.NODE_ENV !== 'test') {
+  httpServer.listen(PORT, () => {
+    console.log('\n===========================================');
+    console.log('🚀 RICHIESTA ASSISTENZA BACKEND STARTED');
+    console.log('===========================================');
+    console.log(`📡 Server: http://localhost:${PORT}`);
+    console.log(`🔗 Frontend: http://localhost:5193`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`📊 Health check: http://localhost:${PORT}/health`);
+    console.log(`🧪 WebSocket test: http://localhost:${PORT}/ws-test`);
+    console.log('');
+    console.log('📚 Main endpoints:');
   console.log(`   Auth: ${PORT}/api/auth`);
   console.log(`   Users: ${PORT}/api/users`);
   console.log(`   Dashboard: ${PORT}/api/dashboard`);
@@ -505,18 +607,21 @@ httpServer.listen(PORT, () => {
     }
   })();
   
-  // Inizializza WPPConnect direttamente (non blocca il server se fallisce)
-  (async () => {
-    try {
-      const { wppConnectService } = require('./services/wppconnect.service');
-      await wppConnectService.initialize();
-      logger.info('📱 WPPConnect pronto - vai su /admin/whatsapp per il QR Code');
-    } catch (error: any) {
-      logger.warn('⚠️ WPPConnect non connesso - scansiona il QR dalla dashboard');
-      // Non blocchiamo il server se WhatsApp fallisce
-    }
-  })();
-});
+    // Inizializza WPPConnect direttamente (non blocca il server se fallisce)
+    (async () => {
+      try {
+        const { wppConnectService } = require('./services/wppconnect.service');
+        await wppConnectService.initialize();
+        logger.info('📱 WPPConnect pronto - vai su /admin/whatsapp per il QR Code');
+      } catch (error: any) {
+        logger.warn('⚠️ WPPConnect non connesso - scansiona il QR dalla dashboard');
+        // Non blocchiamo il server se WhatsApp fallisce
+      }
+    })();
+  });
+} else {
+  logger.info('🧪 Test environment detected: server not listening on a port');
+}
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {

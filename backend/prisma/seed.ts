@@ -8,6 +8,7 @@ import { seedNotifications } from './seeds/notifications.seed'
 import { seedStripeConfig } from './seeds/stripe.seed'
 import { seedLegalConfig } from './seeds/legal.seed'
 import { seedCleanupConfig } from './seeds/cleanup.seed'
+// import { seedInterventionReports } from './seeds/intervention-report-seed'
 
 const prisma = new PrismaClient()
 
@@ -19,6 +20,117 @@ async function main() {
   console.log('👥 Verifica utenti esistenti...')
   const existingUsers = await prisma.user.count()
   console.log(`Utenti esistenti: ${existingUsers}`)
+
+  // Se non esistono utenti, creane di base (SUPER_ADMIN, PROFESSIONAL, CLIENT)
+  if (existingUsers === 0) {
+    console.log('\n👥 Nessun utente trovato. Creo utenti di base...')
+
+    const adminPassword = await bcrypt.hash('Admin123!', 10)
+    const proPassword = await bcrypt.hash('Pro123!', 10)
+    const clientPassword = await bcrypt.hash('Client123!', 10)
+
+    await prisma.user.create({
+      data: {
+        id: uuidv4(),
+        email: 'admin@richiesta-assistenza.it',
+        username: 'admin',
+        password: adminPassword,
+        firstName: 'Admin',
+        lastName: 'Sistema',
+        fullName: 'Admin Sistema',
+        role: 'SUPER_ADMIN',
+        emailVerified: true,
+        updatedAt: new Date()
+      }
+    })
+    console.log('✅ Creato SUPER_ADMIN: admin@richiesta-assistenza.it (Admin123!)')
+
+    await prisma.user.create({
+      data: {
+        id: uuidv4(),
+        email: 'mario.rossi@assistenza.it',
+        username: 'mario.rossi',
+        password: proPassword,
+        firstName: 'Mario',
+        lastName: 'Rossi',
+        fullName: 'Mario Rossi',
+        role: 'PROFESSIONAL',
+        canSelfAssign: true,
+        emailVerified: true,
+        updatedAt: new Date()
+      }
+    })
+    console.log('✅ Creato PROFESSIONAL: mario.rossi@assistenza.it (Pro123!)')
+
+    await prisma.user.create({
+      data: {
+        id: uuidv4(),
+        email: 'giulia.bianchi@assistenza.it',
+        username: 'giulia.bianchi',
+        password: clientPassword,
+        firstName: 'Giulia',
+        lastName: 'Bianchi',
+        fullName: 'Giulia Bianchi',
+        role: 'CLIENT',
+        emailVerified: true,
+        updatedAt: new Date()
+      }
+    })
+    console.log('✅ Creato CLIENT: giulia.bianchi@assistenza.it (Client123!)')
+  }
+
+  // 🔐 Allinea utenti di test con LoginPage (Accesso Rapido)
+  console.log('\n👥 Allineo utenti di test con LoginPage...')
+  const testUserList = [
+    { email: 'admin@assistenza.it', username: 'admin', firstName: 'Super', lastName: 'Admin', fullName: 'Super Admin', role: 'SUPER_ADMIN' as const },
+    { email: 'staff@assistenza.it', username: 'staff_assistenza', firstName: 'Staff', lastName: 'Assistenza', fullName: 'Staff Assistenza', role: 'ADMIN' as const },
+    { email: 'luigi.bianchi@gmail.com', username: 'luigi.bianchi', firstName: 'Luigi', lastName: 'Bianchi', fullName: 'Luigi Bianchi', role: 'CLIENT' as const },
+    { email: 'maria.rossi@hotmail.it', username: 'maria.rossi', firstName: 'Maria', lastName: 'Rossi', fullName: 'Maria Rossi', role: 'CLIENT' as const },
+    { email: 'mario.rossi@assistenza.it', username: 'mario.rossi', firstName: 'Mario', lastName: 'Rossi', fullName: 'Mario Rossi', role: 'PROFESSIONAL' as const },
+    { email: 'francesco.russo@assistenza.it', username: 'francesco.russo', firstName: 'Francesco', lastName: 'Russo', fullName: 'Francesco Russo', role: 'PROFESSIONAL' as const }
+  ]
+
+  const hashedDefault = await bcrypt.hash('password123', 10)
+  for (const u of testUserList) {
+    const existingByEmail = await prisma.user.findUnique({ where: { email: u.email } })
+    const usernameTaken = await prisma.user.findUnique({ where: { username: u.username } })
+
+    const safeUsername = (() => {
+      if (!usernameTaken) return u.username
+      if (existingByEmail && usernameTaken.id === existingByEmail.id) return u.username
+      return `${u.username}_test`
+    })()
+
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: {
+        // Evita collisioni: mantieni username esistente se il desiderato è occupato da altro
+        username: safeUsername,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        fullName: u.fullName,
+        role: u.role as any,
+        password: hashedDefault,
+        emailVerified: true,
+        canSelfAssign: u.role === 'PROFESSIONAL',
+        updatedAt: new Date()
+      },
+      create: {
+        id: uuidv4(),
+        email: u.email,
+        username: safeUsername,
+        password: hashedDefault,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        fullName: u.fullName,
+        role: u.role as any,
+        emailVerified: true,
+        canSelfAssign: u.role === 'PROFESSIONAL',
+        updatedAt: new Date()
+      }
+    })
+    console.log(`✅ Utente di test allineato: ${u.email}`)
+  }
 
   // 2. CATEGORIE E SOTTOCATEGORIE REALI
   console.log('\n📂 Creazione categorie e sottocategorie...')
@@ -522,25 +634,28 @@ Include:
     console.log(`\nRichieste create: ${createdRequests}`)
   }
 
-  // 5. API KEYS BASE
-  console.log('\n🔑 Configurazione API Keys di base...')
-  
+  // 5. API KEYS BASE (solo DB, nessuna lettura da .env)
+  console.log('\n🔑 Configurazione API Keys di base (policy: solo DB, no .env)...')
+
+  const isDev = process.env.NODE_ENV !== 'production'
+  // In sviluppo inseriamo placeholder non sensibili nel DB per evitare 404 sul frontend.
+  // In produzione restano inattive finché configurate da Admin/pannello.
   const apiKeys = [
     {
-      service: 'google-maps',
-      key: process.env.GOOGLE_MAPS_API_KEY || 'AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+      service: 'GOOGLE_MAPS',
+      key: isDev ? 'DEV_PLACEHOLDER_GOOGLE_MAPS' : '',
       name: 'Google Maps API Key',
-      isActive: false
+      isActive: isDev
     },
     {
-      service: 'openai',
-      key: process.env.OPENAI_API_KEY || 'sk-proj-INSERIRE-CHIAVE-VERA',
+      service: 'OPENAI',
+      key: 'OPENAI_PLACEHOLDER',
       name: 'OpenAI API Key',
       isActive: false
     },
     {
-      service: 'brevo',
-      key: process.env.BREVO_API_KEY || 'xkeysib-INSERIRE-CHIAVE-VERA',
+      service: 'BREVO',
+      key: 'BREVO_PLACEHOLDER',
       name: 'Brevo Email API Key',
       isActive: false
     }
@@ -549,14 +664,22 @@ Include:
   for (const apiKey of apiKeys) {
     await prisma.apiKey.upsert({
       where: { service: apiKey.service },
-      update: apiKey,
+      update: {
+        key: apiKey.key,
+        name: apiKey.name,
+        isActive: apiKey.isActive,
+        updatedAt: new Date()
+      },
       create: {
         id: uuidv4(),
-        ...apiKey,
+        service: apiKey.service,
+        key: apiKey.key,
+        name: apiKey.name,
+        isActive: apiKey.isActive,
         updatedAt: new Date()
       }
     })
-    console.log(`✅ ${apiKey.name} - ${apiKey.isActive ? 'ATTIVA' : 'DA CONFIGURARE'}`)
+    console.log(`✅ ${apiKey.name} [${apiKey.service}] - ${apiKey.isActive ? 'ATTIVA' : 'DA CONFIGURARE'}`)
   }
 
   // 🆕 6. SISTEMA NOTIFICHE COMPLETO
@@ -580,6 +703,10 @@ Include:
   await seedModules(prisma)
   await seedModuleSettings(prisma)
 
+  // 🆕 11. (Opzionale) SISTEMA RAPPORTI DI INTERVENTO - disabilitato per evitare errori di schema
+  // console.log('\n🛠️ Seeding sistema rapporti di intervento...')
+  // await seedInterventionReports()
+
   // 🎉 REPORT FINALE CONSOLIDATO
   console.log('\n' + '='.repeat(80))
   console.log('🎊 REPORT FINALE DATABASE CONSOLIDATO v5.1')
@@ -599,7 +726,7 @@ Include:
     
     // 🆕 SISTEMI CONSOLIDATI
     notificationChannels: await prisma.notificationChannel.count(),
-    notificationTypes: await prisma.notificationType.count(),
+    notificationEvents: await prisma.notificationEvent.count(),
     notificationTemplates: await prisma.notificationTemplate.count(),
     stripeConfigs: await prisma.systemSetting.count({ where: { category: 'payment' } }),
     documentTypes: await prisma.documentTypeConfig.count(),
@@ -623,7 +750,7 @@ Include:
 
 📧 SISTEMA NOTIFICHE:
   ✅ Canali: ${totals.notificationChannels}
-  ✅ Tipi notifica: ${totals.notificationTypes}
+  ✅ Tipi notifica: ${totals.notificationEvents}
   ✅ Template: ${totals.notificationTemplates}
 
 💳 SISTEMA PAGAMENTI:

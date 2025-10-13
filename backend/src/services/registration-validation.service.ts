@@ -1,5 +1,6 @@
-import { prisma } from '../lib/prisma';
-import { BadRequestError } from '../utils/errors';
+import { prisma } from '../config/database';
+import { randomUUID } from 'crypto';
+import { ValidationError } from '../utils/errors';
 
 export class RegistrationValidationService {
   
@@ -25,64 +26,49 @@ export class RegistrationValidationService {
       }
     }
 
-    // Verifica Codice Fiscale personale unico
+    // Verifica Codice Fiscale personale unico (mappato su `codiceFiscale`)
     if (data.personalFiscalCode) {
-      const existingCF = await prisma.user.findUnique({
-        where: { personalFiscalCode: data.personalFiscalCode }
+      const existingCF = await prisma.user.findFirst({
+        where: { codiceFiscale: data.personalFiscalCode }
       });
       if (existingCF) {
         errors.push('Codice Fiscale già registrato nel sistema');
       }
-
-      // Verifica che il CF personale non sia usato come CF aziendale
-      const companyWithCF = await prisma.company.findUnique({
-        where: { companyFiscalCode: data.personalFiscalCode }
-      });
-      if (companyWithCF) {
-        errors.push('Questo Codice Fiscale è già registrato come CF aziendale');
-      }
     }
 
-    // Verifica Partita IVA unica
+    // Verifica Partita IVA unica (mappata su `partitaIva`)
     if (data.vatNumber) {
-      const existingVAT = await prisma.company.findUnique({
-        where: { vatNumber: data.vatNumber }
+      const existingVAT = await prisma.user.findFirst({
+        where: { partitaIva: data.vatNumber }
       });
       if (existingVAT) {
         errors.push('Partita IVA già registrata nel sistema');
       }
     }
 
-    // Verifica Ragione Sociale unica
+    // Verifica Ragione Sociale unica (mappata su `ragioneSociale`)
     if (data.businessName) {
-      const existingBusiness = await prisma.company.findUnique({
-        where: { businessName: data.businessName }
+      const existingBusiness = await prisma.user.findFirst({
+        where: { ragioneSociale: data.businessName }
       });
       if (existingBusiness) {
         errors.push('Ragione Sociale già registrata nel sistema');
       }
     }
 
-    // Verifica CF aziendale unico
+    // Verifica CF aziendale unico (usa stesso campo `codiceFiscale` se fornito)
     if (data.companyFiscalCode) {
-      const existingCompanyCF = await prisma.company.findUnique({
-        where: { companyFiscalCode: data.companyFiscalCode }
+      const existingCompanyCF = await prisma.user.findFirst({
+        where: { codiceFiscale: data.companyFiscalCode }
       });
       if (existingCompanyCF) {
         errors.push('Codice Fiscale aziendale già registrato');
       }
-
-      // Verifica che il CF aziendale non sia usato come CF personale
-      const userWithCF = await prisma.user.findUnique({
-        where: { personalFiscalCode: data.companyFiscalCode }
-      });
-      if (userWithCF) {
-        errors.push('Questo Codice Fiscale aziendale è già registrato come CF personale');
-      }
     }
 
     if (errors.length > 0) {
-      throw new BadRequestError('Validazione fallita', errors);
+      // Usa ValidationError disponibile nel modulo errors
+      throw new ValidationError(`Validazione fallita: ${errors.join(' | ')}`);
     }
 
     return true;
@@ -103,104 +89,36 @@ export class RegistrationValidationService {
 
     // 2. Transazione per creare utente e azienda (se necessario)
     return await prisma.$transaction(async (tx) => {
-      let companyId = null;
-
-      // Se è ditta individuale o società, crea prima l'azienda
-      if (data.activityType === 'INDIVIDUAL' || data.activityType === 'COMPANY') {
-        const company = await tx.company.create({
-          data: {
-            businessName: data.businessName || `${data.firstName} ${data.lastName}`,
-            vatNumber: data.vatNumber,
-            companyFiscalCode: data.companyFiscalCode,
-            usePersonalCF: data.activityType === 'INDIVIDUAL' && !data.companyFiscalCode,
-            companyPhone: data.companyPhone,
-            companyEmail: data.companyEmail,
-            pec: data.pec,
-            sdiCode: data.sdiCode,
-            legalAddress: data.legalAddress,
-            legalCity: data.legalCity,
-            legalProvince: data.legalProvince,
-            legalPostalCode: data.legalPostalCode,
-            hasOperativeAddress: data.hasOperativeAddress,
-            operativeAddress: data.operativeAddress,
-            operativeCity: data.operativeCity,
-            operativeProvince: data.operativeProvince,
-            operativePostalCode: data.operativePostalCode,
-          }
-        });
-        companyId = company.id;
-      }
-
-      // Crea l'utente
+      // Crea l'utente usando i campi presenti nel model `User`
       const user = await tx.user.create({
         data: {
+          id: randomUUID(),
+          email: data.email,
+          username: data.email, // usa l'email come username univoco
+          password: data.hashedPassword, // già hashata
           firstName: data.firstName,
           lastName: data.lastName,
-          email: data.email,
-          personalFiscalCode: data.personalFiscalCode,
-          personalPhone: data.personalPhone,
-          personalAddress: data.personalAddress,
-          personalCity: data.personalCity,
-          personalProvince: data.personalProvince,
-          personalPostalCode: data.personalPostalCode,
-          password: data.hashedPassword, // Già hashata
-          professionId: data.professionId,
-          yearsExperience: data.yearsExperience,
-          activityType: data.activityType,
-          companyId: companyId,
-          companyRole: data.companyRole || (companyId ? 'OWNER' : null),
+          fullName: `${data.firstName} ${data.lastName}`,
+          phone: data.personalPhone,
+          // Dati personali
+          codiceFiscale: data.personalFiscalCode,
+          address: data.personalAddress,
+          city: data.personalCity,
+          province: data.personalProvince,
+          postalCode: data.personalPostalCode,
+          // Dati aziendali/fiscali (se presenti)
+          partitaIva: data.vatNumber,
+          ragioneSociale: data.businessName,
+          pec: data.pec,
+          sdi: data.sdiCode,
+          workAddress: data.legalAddress,
+          workCity: data.legalCity,
+          workProvince: data.legalProvince,
+          workPostalCode: data.legalPostalCode,
+          // Meta professionale (gestita successivamente)
           role: 'PROFESSIONAL',
-          approvalStatus: 'PENDING'
-        }
-      });
-
-      // Se ha creato un'azienda, aggiorna il proprietario
-      if (companyId && data.companyRole === 'OWNER') {
-        await tx.company.update({
-          where: { id: companyId },
-          data: { ownerId: user.id }
-        });
-      }
-
-      // Crea le impostazioni di visibilità di default
-      await tx.contactVisibility.create({
-        data: {
-          userId: user.id,
-          showPersonalPhone: false,
-          showCompanyPhone: true,
-          showPersonalEmail: false,
-          showCompanyEmail: true,
-          showPec: false,
-          showPersonalAddress: false,
-          showBusinessAddress: true
-        }
-      });
-
-      // Crea notifica per admin
-      await tx.notification.create({
-        data: {
-          userId: user.id,
-          title: 'Nuova registrazione professionista',
-          message: `${user.firstName} ${user.lastName} si è registrato come professionista`,
-          type: 'REGISTRATION',
-          severity: 'INFO'
-        }
-      });
-
-      // Audit log
-      await tx.auditLog.create({
-        data: {
-          action: 'PROFESSIONAL_REGISTRATION',
-          entityType: 'User',
-          entityId: user.id,
-          userId: user.id,
-          newValues: { 
-            activityType: data.activityType,
-            profession: data.professionId 
-          },
-          success: true,
-          severity: 'INFO',
-          category: 'AUTH'
+          approvalStatus: 'PENDING',
+          updatedAt: new Date()
         }
       });
 
@@ -220,23 +138,20 @@ export class RegistrationValidationService {
         return !emailExists;
 
       case 'personalFiscalCode':
-        const cfExists = await prisma.user.findUnique({
-          where: { personalFiscalCode: value }
+        const cfExists = await prisma.user.findFirst({
+          where: { codiceFiscale: value }
         });
-        const cfAsCompany = await prisma.company.findUnique({
-          where: { companyFiscalCode: value }
-        });
-        return !cfExists && !cfAsCompany;
+        return !cfExists;
 
       case 'vatNumber':
-        const vatExists = await prisma.company.findUnique({
-          where: { vatNumber: value }
+        const vatExists = await prisma.user.findFirst({
+          where: { partitaIva: value }
         });
         return !vatExists;
 
       case 'businessName':
-        const businessExists = await prisma.company.findUnique({
-          where: { businessName: value }
+        const businessExists = await prisma.user.findFirst({
+          where: { ragioneSociale: value }
         });
         return !businessExists;
 

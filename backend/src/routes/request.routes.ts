@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { param, body } from 'express-validator';
@@ -26,7 +26,7 @@ const router = Router();
 router.use(authenticate);
 
 // GET /api/requests - Get all requests (with filters and distances for professionals)
-router.get('/', async (req: AuthRequest, res, next) => {
+router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { status, priority, category, clientId, professionalId } = req.query;
     const user = req.user!;
@@ -72,17 +72,17 @@ router.get('/', async (req: AuthRequest, res, next) => {
     const requests = await prisma.assistanceRequest.findMany({
       where: whereClause,
       include: {
-        client: true,
-        professional: {
+        User_AssistanceRequest_clientIdToUser: true,
+        User_AssistanceRequest_professionalIdToUser: {
           include: {
             Profession: true
           }
         },
-        category: true,
-        subcategory: true,
-        quotes: {
+        Category: true,
+        Subcategory: true,
+        Quote: {
           include: {
-            professional: true
+            User: true
           }
         },
         RequestAttachment: true
@@ -223,7 +223,7 @@ router.get('/', async (req: AuthRequest, res, next) => {
 });
 
 // POST /api/requests - Create new request
-router.post('/', async (req: AuthRequest, res, next) => {
+router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = req.user!;
     
@@ -296,9 +296,9 @@ router.post('/', async (req: AuthRequest, res, next) => {
         updatedAt: new Date()
       },
       include: {
-        client: true,
-        category: true,
-        subcategory: true
+        User_AssistanceRequest_clientIdToUser: true,
+        Category: true,
+        Subcategory: true
       }
     });
     
@@ -322,7 +322,7 @@ router.post('/', async (req: AuthRequest, res, next) => {
 });
 
 // POST /api/requests/for-client - Create request for a client (STAFF/ADMIN only)
-router.post('/for-client', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: AuthRequest, res) => {
+router.post('/for-client', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: AuthRequest, res: Response) => {
   try {
     const staffUser = req.user!;
     
@@ -498,14 +498,14 @@ router.post('/for-client', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Au
         updatedAt: new Date()
       },
       include: {
-        client: true,
-        professional: {
+        User_AssistanceRequest_clientIdToUser: true,
+        User_AssistanceRequest_professionalIdToUser: {
           include: {
             Profession: true
           }
         },
-        category: true,
-        subcategory: true
+        Category: true,
+        Subcategory: true
       }
     });
     
@@ -537,7 +537,7 @@ router.post('/for-client', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Au
 });
 
 // GET /api/requests/:id - Get single request
-router.get('/:id', async (req: AuthRequest, res, next) => {
+router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = req.user!;
     
@@ -546,17 +546,17 @@ router.get('/:id', async (req: AuthRequest, res, next) => {
         id: req.params.id
       },
       include: {
-        client: true,
-        professional: {
+        User_AssistanceRequest_clientIdToUser: true,
+        User_AssistanceRequest_professionalIdToUser: {
           include: {
             Profession: true
           }
         },
-        category: true,
-        subcategory: true,
-        quotes: {
+        Category: true,
+        Subcategory: true,
+        Quote: {
           include: {
-            professional: true  // Quote->User relation (professional)
+            User: true
           }
         },
         RequestAttachment: true
@@ -613,7 +613,7 @@ router.post(
     param('id').isUUID().withMessage('ID richiesta non valido'),
     body('reason').optional().isString().withMessage('Il motivo deve essere una stringa')
   ],
-  async (req: AuthRequest, res) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
       const { reason } = req.body;
@@ -630,8 +630,8 @@ router.post(
       const request = await prisma.assistanceRequest.findUnique({
         where: { id },
         include: {
-          client: true,
-          professional: true
+          User_AssistanceRequest_clientIdToUser: true,
+          User_AssistanceRequest_professionalIdToUser: true
         }
       });
 
@@ -674,14 +674,14 @@ router.post(
           updatedAt: new Date()
         },
         include: {
-          client: true,
-          professional: {
+          User_AssistanceRequest_clientIdToUser: true,
+          User_AssistanceRequest_professionalIdToUser: {
             include: {
               Profession: true
             }
           },
-          category: true,
-          subcategory: true
+          Category: true,
+          Subcategory: true
         }
       });
 
@@ -722,7 +722,7 @@ router.post(
 );
 
 // PATCH /api/requests/:id/coordinates - Update request coordinates
-router.patch('/:id/coordinates', async (req: AuthRequest, res, next) => {
+router.patch('/:id/coordinates', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     const { latitude, longitude } = req.body;
@@ -781,7 +781,7 @@ router.patch('/:id/coordinates', async (req: AuthRequest, res, next) => {
 });
 
 // POST /api/requests/:id/assign - Assegna richiesta a professionista (STAFF only)
-router.post('/:id/assign', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: AuthRequest, res) => {
+router.post('/:id/assign', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { professionalId, notes } = req.body;
@@ -791,8 +791,8 @@ router.post('/:id/assign', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Au
     const request = await prisma.assistanceRequest.findUnique({
       where: { id },
       include: {
-        client: true,
-        subcategory: true
+        User_AssistanceRequest_clientIdToUser: true,
+        Subcategory: true
       }
     });
 
@@ -838,14 +838,14 @@ router.post('/:id/assign', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Au
         updatedAt: new Date()
       },
       include: {
-        client: true,
-        professional: {
+        User_AssistanceRequest_clientIdToUser: true,
+        User_AssistanceRequest_professionalIdToUser: {
           include: {
             Profession: true
           }
         },
-        category: true,
-        subcategory: true
+        Category: true,
+        Subcategory: true
       }
     });
 
@@ -874,7 +874,7 @@ router.post('/:id/assign', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Au
 });
 
 // PATCH /api/requests/:id/schedule - Imposta data intervento (PROFESSIONAL only)
-router.patch('/:id/schedule', requireRole(['PROFESSIONAL']), async (req: AuthRequest, res) => {
+router.patch('/:id/schedule', requireRole(['PROFESSIONAL']), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { scheduledDate, notes } = req.body;
@@ -888,7 +888,7 @@ router.patch('/:id/schedule', requireRole(['PROFESSIONAL']), async (req: AuthReq
         status: 'ASSIGNED'
       },
       include: {
-        client: true
+        User_AssistanceRequest_clientIdToUser: true
       }
     });
 
@@ -913,14 +913,14 @@ router.patch('/:id/schedule', requireRole(['PROFESSIONAL']), async (req: AuthReq
         updatedAt: new Date()
       },
       include: {
-        client: true,
-        professional: {
+        User_AssistanceRequest_clientIdToUser: true,
+        User_AssistanceRequest_professionalIdToUser: {
           include: {
             Profession: true
           }
         },
-        category: true,
-        subcategory: true
+        Category: true,
+        Subcategory: true
       }
     });
 
@@ -940,7 +940,7 @@ router.patch('/:id/schedule', requireRole(['PROFESSIONAL']), async (req: AuthReq
 });
 
 // GET /api/requests/:id/pdf - Download PDF of request
-router.get('/:id/pdf', async (req: AuthRequest, res, next) => {
+router.get('/:id/pdf', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     const user = req.user!;
@@ -949,8 +949,8 @@ router.get('/:id/pdf', async (req: AuthRequest, res, next) => {
     const request = await prisma.assistanceRequest.findUnique({
       where: { id },
       include: {
-        client: true,
-        professional: true
+        User_AssistanceRequest_clientIdToUser: true,
+        User_AssistanceRequest_professionalIdToUser: true
       }
     });
     
@@ -1007,7 +1007,7 @@ router.get('/:id/pdf', async (req: AuthRequest, res, next) => {
 });
 
 // PUT /api/requests/:id/status - Aggiorna stato richiesta (Admin only)
-router.put('/:id/status', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: AuthRequest, res) => {
+router.put('/:id/status', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { status, cancelReason } = req.body;
@@ -1046,8 +1046,8 @@ router.put('/:id/status', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Aut
       where: { id },
       data: updateData,
       include: {
-        client: true,
-        professional: true
+        User_AssistanceRequest_clientIdToUser: true,
+        User_AssistanceRequest_professionalIdToUser: true
       }
     });
     
@@ -1103,7 +1103,7 @@ router.put('/:id/status', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Aut
 });
 
 // PUT /api/requests/:id/priority - Aggiorna priorità richiesta (Admin only)
-router.put('/:id/priority', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: AuthRequest, res) => {
+router.put('/:id/priority', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { priority } = req.body;
@@ -1122,8 +1122,8 @@ router.put('/:id/priority', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: A
         updatedAt: new Date()
       },
       include: {
-        client: true,
-        professional: true
+        User_AssistanceRequest_clientIdToUser: true,
+        User_AssistanceRequest_professionalIdToUser: true
       }
     });
     
@@ -1157,7 +1157,7 @@ router.put('/:id/priority', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: A
 });
 
 // GET /api/requests/:id/chat - Ottieni messaggi chat della richiesta
-router.get('/:id/chat', async (req: AuthRequest, res) => {
+router.get('/:id/chat', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const user = req.user!;
@@ -1166,8 +1166,8 @@ router.get('/:id/chat', async (req: AuthRequest, res) => {
     const request = await prisma.assistanceRequest.findUnique({
       where: { id },
       include: {
-        client: true,
-        professional: true
+        User_AssistanceRequest_clientIdToUser: true,
+        User_AssistanceRequest_professionalIdToUser: true
       }
     });
     
@@ -1274,7 +1274,7 @@ router.get('/:id/chat', async (req: AuthRequest, res) => {
 });
 
 // POST /api/requests/:id/chat - Invia un messaggio nella chat
-router.post('/:id/chat', async (req: AuthRequest, res) => {
+router.post('/:id/chat', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { message, attachments } = req.body;
@@ -1308,8 +1308,8 @@ router.post('/:id/chat', async (req: AuthRequest, res) => {
     const request = await prisma.assistanceRequest.findUnique({
       where: { id },
       include: {
-        client: true,
-        professional: true
+        User_AssistanceRequest_clientIdToUser: true,
+        User_AssistanceRequest_professionalIdToUser: true
       }
     });
     
@@ -1391,7 +1391,7 @@ router.post('/:id/chat', async (req: AuthRequest, res) => {
 });
 
 // PATCH /api/requests/:id/coordinates - Update request coordinates
-router.patch('/:id/coordinates', async (req: AuthRequest, res, next) => {
+router.patch('/:id/coordinates', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     const { latitude, longitude } = req.body;
@@ -1408,9 +1408,9 @@ router.patch('/:id/coordinates', async (req: AuthRequest, res, next) => {
     // Find the request
     const request = await prisma.assistanceRequest.findUnique({
       where: { id },
-      include: {
-        client: true
-      }
+        include: {
+          User_AssistanceRequest_clientIdToUser: true
+        }
     });
 
     if (!request) {
@@ -1440,11 +1440,11 @@ router.patch('/:id/coordinates', async (req: AuthRequest, res, next) => {
         updatedAt: new Date()
       },
       include: {
-        client: true,
-        professional: true,
-        category: true,
-        subcategory: true,
-        quotes: true,
+        User_AssistanceRequest_clientIdToUser: true,
+        User_AssistanceRequest_professionalIdToUser: true,
+        Category: true,
+        Subcategory: true,
+        Quote: true,
         RequestAttachment: true
       }
     });

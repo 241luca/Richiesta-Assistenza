@@ -7,24 +7,12 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { authenticate } from '../middleware/auth';
+import { authenticate, AuthRequest } from '../middleware/auth';
 import { ResponseFormatter } from '../utils/responseFormatter';
 import { prisma } from '../config/database';
 import logger from '../utils/logger'; // ✅ Corretto: senza graffe
 import { z } from 'zod';
 import travelCalculationService from '../services/travelCalculation.service';
-
-// ==================== INTERFACCE ====================
-
-interface UserPayload {
-  id: string;
-  email: string;
-  role: string;
-}
-
-interface AuthRequest extends Request {
-  user?: UserPayload;
-}
 
 // ==================== VALIDATION SCHEMAS ====================
 

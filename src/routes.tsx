@@ -31,6 +31,7 @@ import EditQuotePage from './pages/EditQuotePage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import CategoriesPage from './pages/admin/CategoriesPage';
 import SubcategoriesPage from './pages/admin/SubcategoriesPage';
+import TaxonomyPage from './pages/admin/TaxonomyPage';
 import { AiConfigPage } from "./pages/admin/AiConfigPage";
 import { AiManagement } from "./pages/admin/AiManagement";
 import SettingsPage from './pages/admin/SettingsPage';
@@ -49,12 +50,14 @@ import GoogleMapsConfig from './pages/admin/api-keys/GoogleMapsConfig';
 import BrevoConfig from './pages/admin/api-keys/BrevoConfig';
 import OpenAIConfig from './pages/admin/api-keys/OpenAIConfig';
 import TinyMCEConfig from './pages/admin/api-keys/TinyMCEConfig';
+import GoogleCalendarConfig from './pages/admin/api-keys/GoogleCalendarConfig';
+import StripeConfig from './pages/admin/api-keys/StripeConfig';
 import ClientLegalDocuments from './pages/client/ClientLegalDocuments';
 import ProfessionalLegalDocuments from './pages/professional/ProfessionalLegalDocuments';
 import WhatsAppConfig from './pages/admin/api-keys/WhatsAppConfig';
 
 // WhatsApp and Knowledge Base imports
-import WhatsAppManager from './components/admin/whatsapp/WhatsAppManagerV2';
+import WhatsAppManager from './components/admin/whatsapp/WhatsAppManager';
 import WhatsAppWPPManager from './pages/admin/WhatsAppWPPManager';  // NUOVO - Manager WPPConnect principale
 import WhatsAppMessages from './pages/admin/WhatsAppMessages';  // NUOVO - Messaggi WPPConnect
 import WhatsAppContacts from './pages/admin/WhatsAppContacts';  // NUOVO - Contatti WhatsApp
@@ -129,6 +132,7 @@ import RequestChat from './pages/requests/RequestChat';
 
 // SISTEMA REFERRAL - Added 05/10/2025
 import ReferralPage from './pages/ReferralPage';
+import ReferralAdminPage from './pages/admin/ReferralAdminPage';
 
 // SISTEMA MODULI - Added 05/10/2025
 import { ModuleManager } from './pages/admin/ModuleManager';
@@ -233,6 +237,11 @@ export default function AppRoutes() {
           <Layout><AdminDashboard /></Layout>
         </AdminRoute>
       } />
+      <Route path="/admin/referrals" element={
+        <AdminRoute>
+          <Layout><ReferralAdminPage /></Layout>
+        </AdminRoute>
+      } />
       <Route path="/admin/test" element={
         <AdminRoute>
           <Layout><AdminTestsPage /></Layout>
@@ -251,6 +260,11 @@ export default function AppRoutes() {
       <Route path="/admin/subcategories" element={
         <AdminRoute>
           <Layout><SubcategoriesPage /></Layout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/taxonomy" element={
+        <AdminRoute>
+          <Layout><TaxonomyPage /></Layout>
         </AdminRoute>
       } />
       <Route path="/admin/ai" element={
@@ -434,9 +448,19 @@ export default function AppRoutes() {
           <Layout><ApiKeysOverview /></Layout>
         </AdminRoute>
       } />
+      <Route path="/admin/api-keys/google-calendar" element={
+        <AdminRoute>
+          <Layout><GoogleCalendarConfig /></Layout>
+        </AdminRoute>
+      } />
       <Route path="/admin/api-keys/google-maps" element={
         <AdminRoute>
           <Layout><GoogleMapsConfig /></Layout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/api-keys/stripe" element={
+        <AdminRoute>
+          <Layout><StripeConfig /></Layout>
         </AdminRoute>
       } />
       <Route path="/admin/api-keys/brevo" element={

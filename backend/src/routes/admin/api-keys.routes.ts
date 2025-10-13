@@ -23,12 +23,12 @@ router.get('/', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async
 router.get('/:key', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req, res) => {
   try {
     const { key } = req.params;
-    const apiKey = await apiKeyService.getApiKey(key);
-    
+    const apiKey = await apiKeyService.getApiKey(key as any);
+
     if (!apiKey) {
       return res.status(404).json(ResponseFormatter.error(`API key ${key} not found`));
     }
-    
+
     res.json(ResponseFormatter.success(apiKey, 'API key retrieved successfully'));
   } catch (error) {
     logger.error(`Error fetching API key ${req.params.key}:`, error);
@@ -36,18 +36,41 @@ router.get('/:key', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), a
   }
 });
 
-// Update API key
-router.put('/:key', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req, res) => {
+// Get raw (decrypted) API key for client-side usage (e.g., TinyMCE)
+router.get('/:key/raw', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req, res) => {
   try {
     const { key } = req.params;
-    const { value, description } = req.body;
-    
-    const updatedKey = await apiKeyService.updateApiKey(key, value, description);
-    
-    if (!updatedKey) {
+    const apiKey = await apiKeyService.getApiKey(key as any, true);
+
+    if (!apiKey) {
       return res.status(404).json(ResponseFormatter.error(`API key ${key} not found`));
     }
-    
+
+    // Return only the raw key string for safer client consumption
+    res.json(ResponseFormatter.success({ key: apiKey.key }, 'Raw API key retrieved successfully'));
+  } catch (error) {
+    logger.error(`Error fetching raw API key ${req.params.key}:`, error);
+    res.status(500).json(ResponseFormatter.error('Failed to fetch raw API key'));
+  }
+});
+
+// Update API key
+router.put('/:key', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req: any, res) => {
+  try {
+    const { key } = req.params;
+    const { value, configuration, isActive } = req.body;
+
+    if (!value) {
+      return res.status(400).json(ResponseFormatter.error('Value is required'));
+    }
+
+    const updatedKey = await apiKeyService.upsertApiKey({
+      service: key as any,
+      key: value,
+      configuration,
+      isActive
+    }, req.user?.id || 'system');
+
     res.json(ResponseFormatter.success(updatedKey, 'API key updated successfully'));
   } catch (error) {
     logger.error(`Error updating API key ${req.params.key}:`, error);
@@ -56,16 +79,28 @@ router.put('/:key', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), a
 });
 
 // Create new API key
-router.post('/', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req, res) => {
+router.post('/', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req: any, res) => {
   try {
-    const { key, value, description } = req.body;
-    
-    if (!key || !value) {
-      return res.status(400).json(ResponseFormatter.error('Key and value are required'));
+    // Supporta payload flessibile dal frontend
+    // Formato A: { key: 'TINYMCE', value: '<api key>', configuration }
+    // Formato B: { service: 'TINYMCE', key: '<api key>', configuration }
+    const { key, value, description, service, configuration, isActive } = req.body;
+
+    const serviceName = (service || key) as any;
+    const apiKeyValue = value ?? (service ? req.body.key : undefined);
+
+    if (!serviceName || !apiKeyValue) {
+      return res.status(400).json(ResponseFormatter.error('Service and key value are required'));
     }
-    
-    const newApiKey = await apiKeyService.createApiKey(key, value, description);
-    res.status(201).json(ResponseFormatter.success(newApiKey, 'API key created successfully'));
+
+    const savedApiKey = await apiKeyService.upsertApiKey({
+      service: serviceName,
+      key: apiKeyValue,
+      configuration,
+      isActive
+    }, req.user?.id || 'system');
+
+    res.status(201).json(ResponseFormatter.success(savedApiKey, 'API key created successfully'));
   } catch (error) {
     logger.error('Error creating API key:', error);
     res.status(500).json(ResponseFormatter.error('Failed to create API key'));
@@ -76,7 +111,7 @@ router.post('/', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), asyn
 router.delete('/:key', authenticate, requireRole([Role.SUPER_ADMIN]), async (req, res) => {
   try {
     const { key } = req.params;
-    const deleted = await apiKeyService.deleteApiKey(key);
+    const deleted = await apiKeyService.deleteApiKey(key as any);
     
     if (!deleted) {
       return res.status(404).json(ResponseFormatter.error(`API key ${key} not found`));
@@ -86,6 +121,18 @@ router.delete('/:key', authenticate, requireRole([Role.SUPER_ADMIN]), async (req
   } catch (error) {
     logger.error(`Error deleting API key ${req.params.key}:`, error);
     res.status(500).json(ResponseFormatter.error('Failed to delete API key'));
+  }
+});
+
+// Test API key (es. /api/admin/api-keys/TINYMCE/test)
+router.post('/:key/test', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req, res) => {
+  try {
+    const { key } = req.params;
+    const result = await apiKeyService.testApiKey(key as any);
+    res.json(ResponseFormatter.success(result, result.message));
+  } catch (error) {
+    logger.error(`Error testing API key ${req.params.key}:`, error);
+    res.status(500).json(ResponseFormatter.error('Failed to test API key'));
   }
 });
 

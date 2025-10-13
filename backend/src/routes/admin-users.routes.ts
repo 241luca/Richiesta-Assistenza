@@ -4,6 +4,7 @@ import { ResponseFormatter } from '../utils/responseFormatter';
 import { logger } from '../utils/logger';
 import { z } from 'zod';
 import { userService } from '../services/user.service';
+import type { UserCreateData } from '../services/user.service';
 import { prisma } from '../config/database';
 
 const router = Router();
@@ -174,9 +175,35 @@ router.get('/:id', authenticate, requireAdmin, async (req: any, res) => {
         orderBy: { createdAt: 'desc' },
         take: 10,
         include: {
-          request: {
+          AssistanceRequest: {
             select: { id: true, title: true }
           }
+        } as any
+      })
+    ]);
+
+    // Normalizza: alias camelCase "request" per compatibilità col frontend
+    const quotesNormalized = quotes.map((q: any) => ({
+      ...q,
+      request: q.AssistanceRequest ?? null
+    }));
+
+    // Calcola conteggi evitando chiavi non valide su user._count
+    const [totalQuotesCount, totalPaymentsCount] = await Promise.all([
+      prisma.quote.count({
+        where: {
+          OR: [
+            { professionalId: userId },
+            { AssistanceRequest: { clientId: userId } } as any
+          ]
+        }
+      }),
+      prisma.payment.count({
+        where: {
+          OR: [
+            { professionalId: userId } as any,
+            { clientId: userId } as any
+          ]
         }
       })
     ]);
@@ -184,8 +211,8 @@ router.get('/:id', authenticate, requireAdmin, async (req: any, res) => {
     // Calcola statistiche utente
     const stats = {
       totalRequests: requestsCount,
-      totalQuotes: user._count.quotes || 0,
-      totalPayments: user._count.payments || 0,
+      totalQuotes: totalQuotesCount,
+      totalPayments: totalPaymentsCount,
       lastActivity: loginHistory[0]?.createdAt || user.updatedAt,
       accountAge: Math.floor((Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24)), // giorni
       unreadNotifications: notifications.filter(n => !n.isRead).length
@@ -198,7 +225,7 @@ router.get('/:id', authenticate, requireAdmin, async (req: any, res) => {
       stats,
       loginHistory,
       recentNotifications: notifications,
-      recentQuotes: quotes
+      recentQuotes: quotesNormalized
     }, 'Dettagli utente recuperati con successo'));
 
   } catch (error) {
@@ -214,7 +241,7 @@ router.get('/:id', authenticate, requireAdmin, async (req: any, res) => {
 router.post('/', authenticate, requireAdmin, async (req: any, res) => {
   try {
     // Valida input
-    const validatedData = createUserSchema.parse(req.body);
+    const validatedData = createUserSchema.parse(req.body) as UserCreateData;
 
     // Crea utente
     const newUser = await userService.createUser(validatedData);

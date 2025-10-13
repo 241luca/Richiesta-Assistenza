@@ -295,18 +295,66 @@ router.get('/detailed', async (req: any, res: any) => {
     // 3. Socket.io/WebSocket
     try {
       const io = req.app.get('io');
-      const socketCount = io ? io.engine?.clientsCount || 0 : 0;
       
-      services.push({
-        name: 'WebSocket',
-        status: io ? 'online' : 'offline',
-        message: `${socketCount} client${socketCount !== 1 ? 's' : ''} connected`
-      });
+      if (io) {
+        let socketCount = 0;
+        
+        // Prova diversi metodi per contare i client
+        try {
+          if (io.engine?.clientsCount !== undefined) {
+            socketCount = io.engine.clientsCount;
+          } else if (io.sockets?.sockets) {
+            socketCount = io.sockets.sockets.size;
+          } else if (io.of('/')?.sockets) {
+            socketCount = io.of('/').sockets.size;
+          }
+        } catch (countError) {
+          logger.debug('Could not count socket clients:', countError);
+        }
+        
+        services.push({
+          name: 'WebSocket',
+          status: 'online',
+          message: `${socketCount} client${socketCount !== 1 ? 's' : ''} connected`
+        });
+      } else {
+        // Fallback: prova con notificationService
+        try {
+          const notificationService = req.app.get('notificationService');
+          if (notificationService?.getSocketIOStatus) {
+            const socketStatus = notificationService.getSocketIOStatus();
+            services.push({
+              name: 'WebSocket', 
+              status: socketStatus.isConnected ? 'online' : 'offline',
+              message: `${socketStatus.clientsCount || 0} client${(socketStatus.clientsCount || 0) !== 1 ? 's' : ''} connected`
+            });
+            
+            if (!socketStatus.isConnected && overallStatus === 'healthy') {
+              overallStatus = 'degraded';
+            }
+          } else {
+            services.push({
+              name: 'WebSocket',
+              status: 'warning',
+              message: 'WebSocket status check not available'
+            });
+            if (overallStatus === 'healthy') overallStatus = 'degraded';
+          }
+        } catch (innerError) {
+          services.push({
+            name: 'WebSocket',
+            status: 'warning',
+            message: 'WebSocket status check failed'
+          });
+          if (overallStatus === 'healthy') overallStatus = 'degraded';
+        }
+      }
     } catch (error) {
+      logger.error('Error checking WebSocket status:', error);
       services.push({
         name: 'WebSocket',
         status: 'warning',
-        message: 'WebSocket status unknown'
+        message: 'WebSocket check failed'
       });
     }
 

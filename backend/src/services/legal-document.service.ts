@@ -4,11 +4,16 @@ import { PrismaClient,
   UserLegalAcceptance,
   LegalDocumentType,
   VersionStatus,
-  AcceptanceMethod 
+  AcceptanceMethod,
+  AuditAction,
+  LogSeverity,
+  LogCategory,
+  NotificationPriority
 } from '@prisma/client';
 import { auditLogService as auditService } from './auditLog.service';
 import { notificationService } from './notification.service';
 import logger from '../utils/logger';
+import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -129,18 +134,24 @@ export class LegalDocumentService {
    */
   async createDocument(data: {
     type: LegalDocumentType;
+    typeConfigId?: string;
     internalName: string;
     displayName: string;
     description?: string;
+    icon?: string;
+    isActive?: boolean;
+    isRequired?: boolean;
+    sortOrder?: number;
     createdBy: string;
   }) {
     try {
       // Verifica che non esista già un documento attivo dello stesso tipo
+      const whereActive: any = { type: data.type, isActive: true };
+      if (data.type === 'CUSTOM' && data.typeConfigId) {
+        whereActive.typeConfigId = data.typeConfigId;
+      }
       const existingActive = await prisma.legalDocument.findFirst({
-        where: {
-          type: data.type,
-          isActive: true
-        }
+        where: whereActive
       });
 
       if (existingActive) {
@@ -153,30 +164,33 @@ export class LegalDocumentService {
 
       const document = await prisma.legalDocument.create({
         data: {
-          ...data,
-          isActive: false // Sarà attivato quando pubblichi una versione
-        },
-        include: {
-          creator: {
-            select: {
-              id: true,
-              fullName: true,
-              email: true
-            }
-          }
+          id: crypto.randomUUID(),
+          type: data.type,
+          typeConfigId: data.typeConfigId,
+          internalName: data.internalName,
+          displayName: data.displayName,
+          description: data.description,
+          icon: data.icon,
+          createdBy: data.createdBy,
+          isActive: data.isActive ?? false, // Sarà attivato quando pubblichi una versione
+          isRequired: data.isRequired ?? true,
+          sortOrder: data.sortOrder ?? 0,
+          updatedAt: new Date()
         }
       });
 
       // Audit log
       await auditService.log({
-        action: 'LEGAL_DOCUMENT_CREATED',
+        action: AuditAction.CREATE,
         entityType: 'LegalDocument',
         entityId: document.id,
         userId: data.createdBy,
         newValues: document,
         success: true,
-        severity: 'INFO',
-        category: 'LEGAL'
+        severity: LogSeverity.INFO,
+        category: LogCategory.BUSINESS,
+        ipAddress: 'system',
+        userAgent: 'legal-document-service'
       });
 
       logger.info(`Legal document created: ${document.id} - ${document.displayName}`);
@@ -230,26 +244,27 @@ export class LegalDocumentService {
       // Crea la nuova versione
       const version = await prisma.legalDocumentVersion.create({
         data: {
+          id: crypto.randomUUID(),
           documentId,
-          ...data,
-          status: 'DRAFT',
-          contentChecksum: this.generateChecksum(data.content)
-        },
-        include: {
-          document: true,
-          creator: {
-            select: {
-              id: true,
-              fullName: true,
-              email: true
-            }
-          }
+          version: data.version,
+          title: data.title,
+          content: data.content,
+          contentPlain: data.contentPlain,
+          summary: data.summary,
+          effectiveDate: data.effectiveDate,
+          expiryDate: data.expiryDate,
+          language: data.language,
+          createdBy: data.createdBy,
+          versionNotes: data.versionNotes,
+          status: VersionStatus.DRAFT,
+          contentChecksum: this.generateChecksum(data.content),
+          updatedAt: new Date()
         }
       });
 
       // Audit log
       await auditService.log({
-        action: 'LEGAL_VERSION_CREATED',
+        action: AuditAction.CREATE,
         entityType: 'LegalDocumentVersion',
         entityId: version.id,
         userId: data.createdBy,
@@ -259,8 +274,10 @@ export class LegalDocumentService {
           status: 'DRAFT'
         },
         success: true,
-        severity: 'INFO',
-        category: 'LEGAL'
+        severity: LogSeverity.INFO,
+        category: LogCategory.BUSINESS,
+        ipAddress: 'system',
+        userAgent: 'legal-document-service'
       });
 
       logger.info(`Legal document version created: ${version.id} - v${version.version}`);
@@ -329,15 +346,17 @@ export class LegalDocumentService {
 
       // Audit log
       await auditService.log({
-        action: 'LEGAL_VERSION_PUBLISHED',
+        action: AuditAction.UPDATE,
         entityType: 'LegalDocumentVersion',
         entityId: versionId,
         userId: publishedBy,
         oldValues: { status: version.status },
         newValues: { status: 'PUBLISHED' },
         success: true,
-        severity: 'INFO',
-        category: 'LEGAL'
+        severity: LogSeverity.INFO,
+        category: LogCategory.BUSINESS,
+        ipAddress: 'system',
+        userAgent: 'legal-document-service'
       });
 
       // Notifica gli utenti se richiesto (default: true)
@@ -394,16 +413,25 @@ export class LegalDocumentService {
       });
 
       // Crea nuova accettazione
+      const ipCountry = await this.getCountryFromIP(data.ipAddress);
       const acceptance = await prisma.userLegalAcceptance.create({
         data: {
-          ...data,
-          ipCountry: await this.getCountryFromIP(data.ipAddress)
+          id: crypto.randomUUID(),
+          userId: data.userId,
+          documentId: data.documentId,
+          versionId: data.versionId,
+          ipAddress: data.ipAddress,
+          ipCountry: ipCountry,
+          userAgent: data.userAgent,
+          method: data.method,
+          source: data.source,
+          metadata: data.metadata
         }
       });
 
       // Audit log
       await auditService.log({
-        action: 'LEGAL_DOCUMENT_ACCEPTED',
+        action: AuditAction.CREATE,
         entityType: 'UserLegalAcceptance',
         entityId: acceptance.id,
         userId: data.userId,
@@ -413,10 +441,10 @@ export class LegalDocumentService {
           method: data.method
         },
         success: true,
-        severity: 'INFO',
-        category: 'LEGAL',
+        severity: LogSeverity.INFO,
+        category: LogCategory.BUSINESS,
         ipAddress: data.ipAddress,
-        userAgent: data.userAgent
+        userAgent: data.userAgent || 'unknown'
       });
 
       // Notifica conferma all'utente usando il sistema centralizzato
@@ -442,63 +470,6 @@ export class LegalDocumentService {
       return acceptance;
     } catch (error) {
       logger.error('Error recording document acceptance:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Ottiene i documenti che un utente deve ancora accettare
-   */
-  async getPendingDocumentsForUser(userId: string) {
-    try {
-      // Ottieni tutti i documenti attivi e required
-      const activeDocuments = await prisma.legalDocument.findMany({
-        where: {
-          isActive: true,
-          isRequired: true
-        },
-        include: {
-          versions: {
-            where: {
-              status: 'PUBLISHED'
-            },
-            orderBy: {
-              publishedAt: 'desc'
-            },
-            take: 1
-          }
-        }
-      });
-
-      // Per ogni documento, verifica se l'utente ha accettato la versione corrente
-      const pendingDocuments = [];
-      
-      for (const doc of activeDocuments) {
-        if (doc.versions.length === 0) continue;
-        
-        const currentVersion = doc.versions[0];
-        
-        const acceptance = await prisma.userLegalAcceptance.findFirst({
-          where: {
-            userId,
-            documentId: doc.id,
-            versionId: currentVersion.id,
-            isActive: true
-          }
-        });
-
-        if (!acceptance) {
-          pendingDocuments.push({
-            document: doc,
-            version: currentVersion,
-            requiresAcceptance: true
-          });
-        }
-      }
-
-      return pendingDocuments;
-    } catch (error) {
-      logger.error('Error getting pending documents for user:', error);
       throw error;
     }
   }
@@ -584,7 +555,7 @@ export class LegalDocumentService {
                 actionText: 'Visualizza e Accetta'
               },
               channels: ['websocket', 'email'],
-              priority: 'HIGH' as NotificationPriority
+              priority: NotificationPriority.HIGH
             });
           } catch (error) {
             logger.warn(`Failed to send templated notification to user ${user.id}:`, error);
@@ -679,22 +650,9 @@ export class LegalDocumentService {
           method: acc.method,
           ipAddress: acc.ipAddress,
           ipCountry: acc.ipCountry,
-          isActive: acc.isActive,
-          revokedAt: acc.revokedAt,
-          revokedReason: acc.revokedReason
+          userAgent: acc.userAgent
         }))
       };
-
-      // Audit log
-      await auditService.log({
-        action: 'LEGAL_DATA_EXPORTED',
-        entityType: 'User',
-        entityId: userId,
-        userId: userId,
-        success: true,
-        severity: 'INFO',
-        category: 'LEGAL'
-      });
 
       return exportData;
     } catch (error) {
@@ -704,5 +662,4 @@ export class LegalDocumentService {
   }
 }
 
-// Export singleton instance
 export const legalDocumentService = new LegalDocumentService();

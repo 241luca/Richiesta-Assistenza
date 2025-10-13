@@ -14,7 +14,7 @@ import {
   BellIcon
 } from '@heroicons/react/24/outline';
 import { api } from '../../services/api';
-import { toast } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 interface NotificationTemplate {
   id?: string;

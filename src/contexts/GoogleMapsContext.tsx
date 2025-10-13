@@ -62,7 +62,7 @@ export function GoogleMapsProvider({ children }: GoogleMapsProviderProps) {
   const [loadError, setLoadError] = useState<Error | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Carica la chiave API dal backend
+  // Carica la chiave API esclusivamente dal backend (DB-only, nessun fallback ENV)
   useEffect(() => {
     const fetchApiKey = async () => {
       try {
@@ -70,10 +70,15 @@ export function GoogleMapsProvider({ children }: GoogleMapsProviderProps) {
         const response = await api.get('/maps/config');
         
         if (response.data?.data?.apiKey) {
-          setApiKey(response.data.data.apiKey);
-          console.log('✅ API Key caricata dal backend');
+          const rawKey: string = response.data.data.apiKey;
+          const normalizedKey = rawKey.trim();
+
+          const preview = normalizedKey.slice(0, 8);
+          console.log(`✅ API Key caricata (preview: ${preview}****)`);
+
+          setApiKey(normalizedKey);
         } else {
-          throw new Error('API key non trovata nella risposta del server');
+          throw new Error('API key non trovata');
         }
       } catch (error) {
         console.error('❌ Errore caricamento API key:', error);
@@ -91,39 +96,12 @@ export function GoogleMapsProvider({ children }: GoogleMapsProviderProps) {
     }
   };
 
-  // 🆕 Se non abbiamo ancora la chiave O c'è errore, NON rendere nulla
-  // Questo previene che APIProvider sia montato senza chiave
+  // Se non abbiamo la chiave, non blocchiamo l'app: rendiamo i children senza APIProvider
   if (!apiKey) {
-    if (loadError) {
-      return (
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-center max-w-md">
-            <div className="text-red-600 text-5xl mb-4">⚠️</div>
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">
-              Errore caricamento Google Maps
-            </h2>
-            <p className="text-gray-600 mb-4">
-              {loadError.message}
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Ricarica pagina
-            </button>
-          </div>
-        </div>
-      );
-    }
-    
-    // Loading
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Caricamento Google Maps...</p>
-        </div>
-      </div>
+      <GoogleMapsContext.Provider value={{ isLoaded: false, loadError, apiKey }}>
+        {children}
+      </GoogleMapsContext.Provider>
     );
   }
 
@@ -134,7 +112,15 @@ export function GoogleMapsProvider({ children }: GoogleMapsProviderProps) {
       <APIProvider 
         apiKey={apiKey!} 
         key={apiKey}
-        onLoad={() => console.log('✅ APIProvider mounted with key:', apiKey?.substring(0, 20) + '...')}
+        // Context7 docs recommend setting authReferrerPolicy to 'origin' when
+        // the API key uses HTTP referrer restrictions (subdomains/ports).
+        authReferrerPolicy="origin"
+        // Preload commonly used libraries to avoid late load errors
+        libraries={["places", "marker"]}
+        onLoad={() => {
+          const preview = apiKey?.slice(0, 8) || '';
+          console.log(`✅ APIProvider montato (key preview: ${preview}****)`);
+        }}
       >
         <LoadingStatusMonitor onStatusChange={handleStatusChange} />
         {children}

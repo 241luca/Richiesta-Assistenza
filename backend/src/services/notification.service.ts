@@ -863,6 +863,65 @@ export class NotificationService {
     }
   }
 
+  /**
+   * Metriche dettagliate del WebSocket per health check
+   * 
+   * @returns {object} Metriche principali del server Socket.io
+   */
+  public getWebSocketMetrics(): {
+    isConnected: boolean;
+    clientsCount: number;
+    roomsCount: number;
+    namespaces: string[];
+  } {
+    const io = this.io;
+    if (!io) {
+      return {
+        isConnected: false,
+        clientsCount: 0,
+        roomsCount: 0,
+        namespaces: []
+      };
+    }
+
+    try {
+      const clientsCount = io.engine?.clientsCount || io.sockets?.sockets?.size || 0;
+      let roomsCount = 0;
+      try {
+        roomsCount = io.sockets?.adapter?.rooms ? io.sockets.adapter.rooms.size : 0;
+      } catch {
+        roomsCount = 0;
+      }
+
+      let namespaces: string[] = ['/'];
+      try {
+        const nspMap = (io as any)._nsps;
+        if (nspMap && typeof nspMap.size === 'number') {
+          namespaces = Array.from(nspMap.keys());
+        }
+      } catch {
+        namespaces = ['/'];
+      }
+
+      return {
+        isConnected: true,
+        clientsCount,
+        roomsCount,
+        namespaces
+      };
+    } catch (error) {
+      logger.error('[NotificationService] Error getting WebSocket metrics:', {
+        error: error instanceof Error ? error.message : 'Unknown'
+      });
+      return {
+        isConnected: false,
+        clientsCount: 0,
+        roomsCount: 0,
+        namespaces: []
+      };
+    }
+  }
+
   // ============================================
   // METODI PRIVATI
   // ============================================

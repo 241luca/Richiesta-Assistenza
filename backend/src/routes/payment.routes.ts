@@ -134,7 +134,7 @@ router.get('/my-payments', authenticate, async (req: any, res) => {
               id: true,
               title: true,
               description: true,
-              subcategory: {
+              Subcategory: {
                 select: {
                   name: true
                 }

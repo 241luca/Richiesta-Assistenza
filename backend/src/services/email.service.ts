@@ -865,3 +865,8 @@ export default {
     footerNote?: string
   ) => emailService.getQuickActionsEmailTemplate(userName, title, message, itemDescription, actions, footerNote)
 };
+
+/**
+ * Named export per compatibilità con import esistenti
+ */
+export const sendEmail = (options: EmailOptions) => emailService.sendEmail(options);

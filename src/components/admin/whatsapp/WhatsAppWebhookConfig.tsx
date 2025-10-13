@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '@/services/api';
-import { toast } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { BellIcon, LinkIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 
 export function WhatsAppWebhookConfig() {
@@ -11,7 +11,10 @@ export function WhatsAppWebhookConfig() {
   // Recupera stato webhook
   const { data: webhookStatus, refetch } = useQuery({
     queryKey: ['whatsapp-webhook-status'],
-    queryFn: () => api.get('/whatsapp/webhook-status')
+    queryFn: async () => {
+      const response = await api.get('/whatsapp/webhook-status');
+      return response.data?.data ?? response.data;
+    }
   });
   
   // Configura webhook
@@ -29,7 +32,10 @@ export function WhatsAppWebhookConfig() {
   // Recupera messaggi ricevuti
   const { data: receivedMessages } = useQuery({
     queryKey: ['whatsapp-messages-received'],
-    queryFn: () => api.get('/whatsapp/messages/received?limit=10'),
+    queryFn: async () => {
+      const response = await api.get('/whatsapp/messages/received?limit=10');
+      return response.data?.data ?? response.data;
+    },
     refetchInterval: 5000 // Aggiorna ogni 5 secondi
   });
   

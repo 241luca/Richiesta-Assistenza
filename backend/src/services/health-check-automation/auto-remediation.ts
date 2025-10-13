@@ -9,6 +9,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { PrismaClient } from '@prisma/client';
 import { NotificationService } from '../../services/notification.service';
+import { auditLogService } from '../../services/auditLog.service'; // 🆕 INTEGRAZIONE 2: Audit Log
 import { logger } from '../../utils/logger';
 
 const execAsync = promisify(exec);
@@ -323,11 +324,13 @@ export class AutoRemediationSystem {
 
   /**
    * Esegue le azioni di remediation
+   * 🎯 INTEGRAZIONE 2: Aggiungo Audit Log per le riparazioni automatiche
    */
   private async executeRemediation(
     rule: RemediationRule,
     healthCheckResult: any
   ): Promise<RemediationResult> {
+    const startTime = Date.now();
     const result: RemediationResult = {
       ruleId: rule.id,
       module: rule.module,
@@ -336,6 +339,26 @@ export class AutoRemediationSystem {
       actionsExecuted: [],
       healthScoreBefore: healthCheckResult.score
     };
+
+    // 📝 AUDIT: Registra l'inizio della riparazione automatica
+    await auditLogService.log({
+      userId: 'SYSTEM_AUTO_REMEDIATION',
+      action: 'AUTO_REMEDIATION_START',
+      entityType: 'HealthCheck',
+      entityId: `${rule.module}-${rule.id}`,
+      details: {
+        ruleName: rule.id,
+        module: rule.module,
+        condition: rule.condition,
+        scoreBefore: healthCheckResult.score,
+        attempts: (this.attemptHistory.get(rule.id) || []).length + 1,
+        maxAttempts: rule.maxAttempts,
+        actions: rule.actions.map(a => a.description),
+        timestamp: new Date().toISOString()
+      },
+      ipAddress: '127.0.0.1',
+      userAgent: 'Auto-Remediation System'
+    });
 
     // Registra il tentativo
     const history = this.attemptHistory.get(rule.id) || [];
@@ -383,6 +406,50 @@ export class AutoRemediationSystem {
 
     // Salva il risultato nel database
     await this.saveRemediationResult(result);
+
+    // 📝 AUDIT: Registra il completamento della riparazione
+    const executionTime = Date.now() - startTime;
+    await auditLogService.log({
+      userId: 'SYSTEM_AUTO_REMEDIATION',
+      action: result.success ? 'AUTO_REMEDIATION_SUCCESS' : 'AUTO_REMEDIATION_FAILED',
+      entityType: 'HealthCheck',
+      entityId: `${rule.module}-${rule.id}`,
+      details: {
+        ruleName: rule.id,
+        module: rule.module,
+        success: result.success,
+        actionsExecuted: result.actionsExecuted,
+        scoreBefore: result.healthScoreBefore,
+        scoreAfter: result.healthScoreAfter,
+        improvement: result.healthScoreAfter ? result.healthScoreAfter - result.healthScoreBefore : 0,
+        executionTimeMs: executionTime,
+        error: result.error,
+        timestamp: new Date().toISOString()
+      },
+      ipAddress: '127.0.0.1',
+      userAgent: 'Auto-Remediation System'
+    });
+
+    // Se il miglioramento è significativo (20+ punti), registra anche questo
+    if (result.success && result.healthScoreAfter && (result.healthScoreAfter - result.healthScoreBefore) >= 20) {
+      await auditLogService.log({
+        userId: 'SYSTEM_AUTO_REMEDIATION',
+        action: 'AUTO_REMEDIATION_SIGNIFICANT_IMPROVEMENT',
+        entityType: 'HealthCheck',
+        entityId: rule.module,
+        details: {
+          module: rule.module,
+          improvement: result.healthScoreAfter - result.healthScoreBefore,
+          finalScore: result.healthScoreAfter,
+          ruleName: rule.id,
+          message: `Sistema ${rule.module} migliorato significativamente dopo auto-riparazione`
+        },
+        ipAddress: '127.0.0.1',
+        userAgent: 'Auto-Remediation System'
+      });
+
+      logger.info(`✨ SIGNIFICANT IMPROVEMENT: ${rule.module} improved by ${result.healthScoreAfter - result.healthScoreBefore} points!`);
+    }
 
     return result;
   }

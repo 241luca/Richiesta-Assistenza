@@ -3,7 +3,7 @@
  * Endpoints per la gestione del sistema Health Check dalla Dashboard
  */
 
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
 import { 
@@ -19,8 +19,54 @@ import { prisma } from '../../config/database';
 import { notificationService } from '../../services/notification.service';
 import { apiKeyService } from '../../services/apiKey.service';
 import { GoogleApiKeyService } from '../../services/google-api-key.service'; // NUOVO
+import { healthCheckService, SystemHealthSummary } from '../../services/healthCheck.service'; // FIXED: import mancante!
 import * as os from 'os';
 import * as process from 'process';
+
+// Interfacce TypeScript per strict mode
+interface ServiceStatus {
+  name: string;
+  status: 'online' | 'offline' | 'warning';
+  latency?: number;
+  message: string;
+}
+
+interface SystemStats {
+  cpu: {
+    model: string;
+    cores: number;
+    usage: number;
+    loadAvg: number[];
+  };
+  memory: {
+    total: number;
+    used: number;
+    free: number;
+    percentage: number;
+  };
+  disk: {
+    total: string;
+    used: string;
+    free: string;
+  };
+  network: {
+    interfaces: number;
+  };
+  os: {
+    platform: string;
+    type: string;
+    release: string;
+    hostname: string;
+    uptime: number;
+  };
+}
+
+interface HealthStatusResponse {
+  overall: 'healthy' | 'degraded' | 'critical';
+  services: ServiceStatus[];
+  systemStats: SystemStats;
+  timestamp: string;
+}
 
 const router = Router();
 
@@ -29,19 +75,46 @@ router.use(authenticate);
 router.use(requireRole(['ADMIN', 'SUPER_ADMIN']));
 
 /**
+ * GET /api/admin/health-check/summary
+ * Ottiene l'ultimo summary completo salvato dal database
+ */
+router.get('/summary', async (req: Request, res: Response): Promise<Response> => {
+  try {
+    console.log('[API] Getting last health check summary from database');
+    
+    const summary: SystemHealthSummary | null = await healthCheckService.getLastSummary();
+    
+    if (!summary) {
+      // Se non ci sono risultati salvati, esegui un check completo
+      console.log('[API] No saved summary found, running fresh check');
+      const freshSummary: SystemHealthSummary = await healthCheckService.runAllChecks();
+      return res.json(ResponseFormatter.success(freshSummary, 'Fresh health check summary'));
+    }
+    
+    console.log(`[API] Returning summary with ${summary.modules.length} modules`);
+    return res.json(ResponseFormatter.success(summary, 'Last health check summary'));
+  } catch (error: unknown) {
+    logger.error('Error getting health summary:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Failed to get health summary', 'SUMMARY_ERROR')
+    );
+  }
+});
+
+/**
  * GET /api/admin/health-check/status
  * Ottiene lo stato dettagliato di tutti i servizi per il ServiceStatusIndicator
  */
-router.get('/status', async (req: any, res: any) => {
+router.get('/status', async (req: Request & { app: any }, res: Response): Promise<Response> => {
   try {
-    const services = [];
+    const services: ServiceStatus[] = [];
     let overallStatus: 'healthy' | 'degraded' | 'critical' = 'healthy';
 
     // 1. PostgreSQL Database
     try {
-      const startTime = Date.now();
+      const startTime: number = Date.now();
       await prisma.$queryRaw`SELECT 1`;
-      const latency = Date.now() - startTime;
+      const latency: number = Date.now() - startTime;
       
       services.push({
         name: 'PostgreSQL',
@@ -49,7 +122,7 @@ router.get('/status', async (req: any, res: any) => {
         latency,
         message: `Database responsive (${latency}ms)`
       });
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'PostgreSQL',
         status: 'offline',
@@ -91,52 +164,36 @@ router.get('/status', async (req: any, res: any) => {
 
     // 3. Socket.io/WebSocket
     try {
-      // Proviamo a verificare se Socket.io esiste nell'app
-      const io = req.app.get('io');
-      
-      if (io) {
-        // Socket.io esiste, contiamo i client
-        let socketCount = 0;
-        try {
-          // Prova diversi modi per contare i client
-          if (io.engine && io.engine.clientsCount !== undefined) {
-            socketCount = io.engine.clientsCount;
-          } else if (io.sockets && io.sockets.sockets) {
-            socketCount = io.sockets.sockets.size;
-          }
-        } catch (e) {
-          socketCount = 0;
-        }
-        
-        services.push({
-          name: 'WebSocket',
-          status: 'online',
-          message: `${socketCount} client${socketCount !== 1 ? 's' : ''} connected`
-        });
+      // Usa NotificationService per metriche, con fallback se il metodo avanzato non è disponibile
+      let ws: { isConnected: boolean; clientsCount: number; roomsCount: number; namespaces: string[] };
+      const svc: any = notificationService as any;
+
+      if (typeof svc.getWebSocketMetrics === 'function') {
+        ws = svc.getWebSocketMetrics();
+      } else if (typeof svc.getSocketIOStatus === 'function') {
+        const s = svc.getSocketIOStatus();
+        ws = {
+          isConnected: !!s.isConnected,
+          clientsCount: s.clientsCount || 0,
+          roomsCount: 0,
+          namespaces: ['/']
+        };
       } else {
-        // Socket.io non trovato nell'app, proviamo con notificationService
-        try {
-          const socketStatus = notificationService.getSocketIOStatus();
-          services.push({
-            name: 'WebSocket', 
-            status: socketStatus.isConnected ? 'online' : 'offline',
-            message: `${socketStatus.clientsCount} client${socketStatus.clientsCount !== 1 ? 's' : ''} connected`
-          });
-          
-          if (!socketStatus.isConnected && overallStatus === 'healthy') {
-            overallStatus = 'degraded';
-          }
-        } catch (innerError) {
-          // NotificationService non ha il metodo o errore
-          services.push({
-            name: 'WebSocket',
-            status: 'offline',
-            message: 'WebSocket not initialized'
-          });
-          if (overallStatus === 'healthy') overallStatus = 'degraded';
-        }
+        ws = { isConnected: false, clientsCount: 0, roomsCount: 0, namespaces: [] };
       }
-    } catch (error) {
+
+      const baseMessage = `${ws.clientsCount} client${ws.clientsCount !== 1 ? 's' : ''} connected`;
+      const extra = `rooms: ${ws.roomsCount}, namespaces: ${ws.namespaces.join(', ') || '/'}`;
+      services.push({
+        name: 'WebSocket',
+        status: ws.isConnected ? 'online' : 'offline',
+        message: `${baseMessage} | ${extra}`
+      });
+
+      if (!ws.isConnected && overallStatus === 'healthy') {
+        overallStatus = 'degraded';
+      }
+    } catch (error: unknown) {
       logger.error('Error checking WebSocket status:', error);
       services.push({
         name: 'WebSocket',
@@ -153,7 +210,7 @@ router.get('/status', async (req: any, res: any) => {
         status: emailKey ? 'online' : 'warning',
         message: emailKey ? 'Email service configured' : 'Email API key missing'
       });
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'Email',
         status: 'warning',
@@ -176,7 +233,7 @@ router.get('/status', async (req: any, res: any) => {
         status: openAIKey ? 'online' : 'warning',
         message: openAIKey ? 'AI service configured' : 'OpenAI API key missing'
       });
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'OpenAI',
         status: 'warning',
@@ -192,7 +249,7 @@ router.get('/status', async (req: any, res: any) => {
         status: stripeKey ? 'online' : 'warning',
         message: stripeKey ? 'Payment service configured' : 'Stripe API key missing'
       });
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'Stripe',
         status: 'warning',
@@ -208,7 +265,7 @@ router.get('/status', async (req: any, res: any) => {
         status: mapsKey ? 'online' : 'warning',
         message: mapsKey ? 'Maps service configured' : 'Google Maps API key missing'
       });
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'Google Maps',
         status: 'warning',
@@ -224,7 +281,7 @@ router.get('/status', async (req: any, res: any) => {
         status: hasCalendarCredentials ? 'online' : 'warning',
         message: hasCalendarCredentials ? 'Calendar service configured' : 'Google Calendar OAuth not configured'
       });
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'Google Calendar',
         status: 'warning',
@@ -288,9 +345,9 @@ router.get('/status', async (req: any, res: any) => {
       timestamp: new Date().toISOString()
     }));
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error checking system health:', error);
-    res.status(500).json(ResponseFormatter.error(
+    return res.status(500).json(ResponseFormatter.error(
       'Failed to check system health',
       'HEALTH_CHECK_ERROR'
     ));
@@ -298,10 +355,40 @@ router.get('/status', async (req: any, res: any) => {
 });
 
 /**
+ * GET /api/admin/health-check/metrics/websocket
+ * Restituisce metriche dettagliate del server WebSocket
+ */
+router.get('/metrics/websocket', async (_req: Request, res: Response): Promise<Response> => {
+  try {
+    const svc: any = notificationService as any;
+    let ws: { isConnected: boolean; clientsCount: number; roomsCount: number; namespaces: string[] };
+    if (typeof svc.getWebSocketMetrics === 'function') {
+      ws = svc.getWebSocketMetrics();
+    } else if (typeof svc.getSocketIOStatus === 'function') {
+      const s = svc.getSocketIOStatus();
+      ws = {
+        isConnected: !!s.isConnected,
+        clientsCount: s.clientsCount || 0,
+        roomsCount: 0,
+        namespaces: ['/']
+      };
+    } else {
+      ws = { isConnected: false, clientsCount: 0, roomsCount: 0, namespaces: [] };
+    }
+    return res.json(ResponseFormatter.success(ws, 'WebSocket metrics'));
+  } catch (error: unknown) {
+    logger.error('Error getting WebSocket metrics:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Failed to get WebSocket metrics', 'WEBSOCKET_METRICS_ERROR')
+    );
+  }
+});
+
+/**
  * GET /api/admin/health-check/modules
  * Ottiene la lista dei moduli disponibili
  */
-router.get('/modules', async (req, res) => {
+router.get('/modules', async (req: Request, res: Response): Promise<Response> => {
   try {
     const modules = [
       { 
@@ -373,7 +460,7 @@ router.get('/modules', async (req, res) => {
     ];
     
     return res.json(ResponseFormatter.success(modules, 'Modules list retrieved'));
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error getting modules list:', error);
     return res.status(500).json(
       ResponseFormatter.error('Failed to get modules', 'MODULES_ERROR')
@@ -385,12 +472,11 @@ router.get('/modules', async (req, res) => {
  * POST /api/admin/health-check/run
  * Esegue un health check manuale per un modulo specifico o tutti
  */
-router.post('/run', async (req, res) => {
+router.post('/run', async (req: Request, res: Response): Promise<Response> => {
   try {
     const { module } = req.body;
     
-    // Importa il servizio healthCheck reale
-    const { healthCheckService } = require('../../services/healthCheck.service');
+    // FIXED: Usa l'import statico invece del require dinamico
     
     let result;
     if (module) {
@@ -420,7 +506,7 @@ router.post('/run', async (req, res) => {
       result = await healthCheckService.runAllChecks();
       return res.json(ResponseFormatter.success(result, 'All health checks executed'));
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error running health check:', error);
     return res.status(500).json(
       ResponseFormatter.error('Failed to run health check', 'RUN_ERROR')
@@ -432,11 +518,11 @@ router.post('/run', async (req, res) => {
  * POST /api/admin/health-check/start
  * Avvia il sistema di automazione
  */
-router.post('/start', async (req, res) => {
+router.post('/start', async (req: Request, res: Response): Promise<Response> => {
   try {
     await orchestrator.start();
     return res.json(ResponseFormatter.success(null, 'Automation system started'));
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error starting automation:', error);
     return res.status(500).json(
       ResponseFormatter.error('Failed to start automation', 'START_ERROR')
@@ -448,11 +534,11 @@ router.post('/start', async (req, res) => {
  * POST /api/admin/health-check/stop
  * Ferma il sistema di automazione
  */
-router.post('/stop', async (req, res) => {
+router.post('/stop', async (req: Request, res: Response): Promise<Response> => {
   try {
     await orchestrator.stop();
     return res.json(ResponseFormatter.success(null, 'Automation system stopped'));
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error stopping automation:', error);
     return res.status(500).json(
       ResponseFormatter.error('Failed to stop automation', 'STOP_ERROR')
@@ -464,11 +550,11 @@ router.post('/stop', async (req, res) => {
  * GET /api/admin/health-check/schedule
  * Ottiene la configurazione dello scheduler
  */
-router.get('/schedule', async (req, res) => {
+router.get('/schedule', async (req: Request, res: Response): Promise<Response> => {
   try {
     const config = scheduler.getConfig();
     return res.json(ResponseFormatter.success(config, 'Schedule configuration retrieved'));
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error getting schedule config:', error);
     return res.status(500).json(
       ResponseFormatter.error('Failed to get schedule', 'SCHEDULE_ERROR')
@@ -480,12 +566,12 @@ router.get('/schedule', async (req, res) => {
  * PUT /api/admin/health-check/schedule
  * Aggiorna la configurazione dello scheduler
  */
-router.put('/schedule', async (req, res) => {
+router.put('/schedule', async (req: Request, res: Response): Promise<Response> => {
   try {
     const config = req.body;
     await scheduler.updateConfig(config);
     return res.json(ResponseFormatter.success(null, 'Schedule updated successfully'));
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error updating schedule:', error);
     return res.status(500).json(
       ResponseFormatter.error('Failed to update schedule', 'UPDATE_ERROR')
@@ -497,16 +583,16 @@ router.put('/schedule', async (req, res) => {
  * POST /api/admin/health-check/report
  * Genera un report immediato
  */
-router.post('/report', async (req, res) => {
+router.post('/report', async (req: Request, res: Response): Promise<Response> => {
   try {
     const { startDate, endDate, format = 'pdf' } = req.body;
     const report = await reportGenerator.generateReport(startDate, endDate, format);
     
     return res.json(ResponseFormatter.success(
-      { filename: report.filename, path: report.path },
+      { filename: report.filename, filepath: report.filepath },
       'Report generated successfully'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error generating report:', error);
     return res.status(500).json(
       ResponseFormatter.error('Failed to generate report', 'REPORT_ERROR')
@@ -518,11 +604,11 @@ router.post('/report', async (req, res) => {
  * GET /api/admin/health-check/report/history
  * Ottiene lo storico dei report generati
  */
-router.get('/report/history', async (req, res) => {
+router.get('/report/history', async (req: Request, res: Response): Promise<Response> => {
   try {
     const history = await reportGenerator.getReportHistory();
     return res.json(ResponseFormatter.success(history, 'Report history retrieved'));
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error getting report history:', error);
     return res.status(500).json(
       ResponseFormatter.error('Failed to get report history', 'HISTORY_ERROR')
@@ -534,7 +620,7 @@ router.get('/report/history', async (req, res) => {
  * GET /api/admin/health-check/download/:filename
  * Download di un report
  */
-router.get('/download/:filename', async (req, res) => {
+router.get('/download/:filename', async (req: Request, res: Response): Promise<Response | void> => {
   try {
     const { filename } = req.params;
     const filepath = await reportGenerator.getReportPath(filename);
@@ -546,7 +632,7 @@ router.get('/download/:filename', async (req, res) => {
     }
     
     res.download(filepath);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error downloading report:', error);
     return res.status(500).json(
       ResponseFormatter.error('Failed to download report', 'DOWNLOAD_ERROR')
@@ -558,7 +644,7 @@ router.get('/download/:filename', async (req, res) => {
  * GET /api/admin/health-check/remediation
  * Ottiene le regole di auto-remediation
  */
-router.get('/remediation', async (req, res) => {
+router.get('/remediation', async (req: Request, res: Response): Promise<Response> => {
   try {
     const rules = autoRemediation.getRules();
     return res.json(ResponseFormatter.success(rules, 'Remediation rules retrieved'));
@@ -574,10 +660,10 @@ router.get('/remediation', async (req, res) => {
  * POST /api/admin/health-check/remediation
  * Aggiunge una regola di remediation
  */
-router.post('/remediation', async (req, res) => {
+router.post('/remediation', async (req: Request, res: Response): Promise<Response> => {
   try {
     const rule = req.body;
-    await autoRemediation.addRule(rule);
+    await autoRemediation.addOrUpdateRule(rule);
     return res.json(ResponseFormatter.success(null, 'Remediation rule added'));
   } catch (error) {
     logger.error('Error adding remediation rule:', error);
@@ -591,7 +677,7 @@ router.post('/remediation', async (req, res) => {
  * DELETE /api/admin/health-check/remediation/:id
  * Rimuove una regola di remediation
  */
-router.delete('/remediation/:id', async (req, res) => {
+router.delete('/remediation/:id', async (req: Request, res: Response): Promise<Response> => {
   try {
     const { id } = req.params;
     await autoRemediation.removeRule(id);
@@ -608,7 +694,7 @@ router.delete('/remediation/:id', async (req, res) => {
  * PATCH /api/admin/health-check/remediation/:id/toggle
  * Abilita/disabilita una regola
  */
-router.patch('/remediation/:id/toggle', async (req, res) => {
+router.patch('/remediation/:id/toggle', async (req: Request, res: Response): Promise<Response> => {
   try {
     const { id } = req.params;
     const { enabled } = req.body;
@@ -626,7 +712,7 @@ router.patch('/remediation/:id/toggle', async (req, res) => {
  * GET /api/admin/health-check/performance
  * Ottiene le metriche di performance correnti
  */
-router.get('/performance', async (req, res) => {
+router.get('/performance', async (req: Request, res: Response): Promise<Response> => {
   try {
     const metrics = await performanceMonitor.getCurrentMetrics();
     return res.json(ResponseFormatter.success(metrics, 'Performance metrics retrieved'));
@@ -642,7 +728,7 @@ router.get('/performance', async (req, res) => {
  * GET /api/admin/health-check/performance/history
  * Ottiene lo storico delle performance
  */
-router.get('/performance/history', async (req, res) => {
+router.get('/performance/history', async (req: Request, res: Response): Promise<Response> => {
   try {
     const { startDate, endDate } = req.query;
     const history = await performanceMonitor.getHistory(
@@ -662,7 +748,7 @@ router.get('/performance/history', async (req, res) => {
  * POST /api/admin/health-check/export
  * Esporta i dati in formato JSON/CSV
  */
-router.post('/export', async (req, res) => {
+router.post('/export', async (req: Request, res: Response): Promise<Response> => {
   try {
     const { format = 'json', startDate, endDate } = req.body;
     const data = await orchestrator.exportData(format, startDate, endDate);
@@ -683,7 +769,7 @@ router.post('/export', async (req, res) => {
  * GET /api/admin/health-check/history
  * Ottiene lo storico dei check generale
  */
-router.get('/history', async (req, res) => {
+router.get('/history', async (req: Request, res: Response): Promise<Response> => {
   try {
     const { limit = 50 } = req.query;
     
@@ -702,7 +788,7 @@ router.get('/history', async (req, res) => {
  * GET /api/admin/health-check/history/:module
  * Ottiene lo storico dei check per un modulo specifico
  */
-router.get('/history/:module', async (req, res) => {
+router.get('/history/:module', async (req: Request, res: Response): Promise<Response> => {
   try {
     const { module } = req.params;
     const { limit = 50 } = req.query;

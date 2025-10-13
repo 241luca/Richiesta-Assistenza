@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { XMarkIcon, ClockIcon, CalendarDaysIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { api } from '../../../services/api';
 
 interface AvailabilityManagerProps {
@@ -81,7 +81,7 @@ export default function AvailabilityManager({ onClose }: AvailabilityManagerProp
       return await api.put('/calendar/availability', { workingHours: hours });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['professional-availability']);
+      queryClient.invalidateQueries({ queryKey: ['professional-availability'] });
       toast.success('Orari di lavoro aggiornati');
     },
     onError: () => {
@@ -95,7 +95,7 @@ export default function AvailabilityManager({ onClose }: AvailabilityManagerProp
       return await api.post('/calendar/unavailability', data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['professional-unavailability']);
+      queryClient.invalidateQueries({ queryKey: ['professional-unavailability'] });
       toast.success('Periodo di chiusura aggiunto');
       setNewUnavailability({
         startDate: '',
@@ -116,7 +116,7 @@ export default function AvailabilityManager({ onClose }: AvailabilityManagerProp
       return await api.delete(`/calendar/unavailability/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['professional-unavailability']);
+      queryClient.invalidateQueries({ queryKey: ['professional-unavailability'] });
       toast.success('Periodo di chiusura rimosso');
     }
   });

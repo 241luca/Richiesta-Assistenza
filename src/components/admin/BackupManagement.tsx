@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../services/api';
-import { toast } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { 
   CloudArrowUpIcon, 
   CloudArrowDownIcon, 

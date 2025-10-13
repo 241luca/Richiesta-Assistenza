@@ -4,7 +4,7 @@ import logger from '../utils/logger';
 import { authenticate } from '../middleware/auth';
 import { checkRole } from '../middleware/checkRole';
 import { auditLogger } from '../middleware/auditLogger';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, AuditAction, LogCategory } from '@prisma/client';
 import { requireModule } from '../middleware/module.middleware';
 
 // Servizi esistenti
@@ -14,6 +14,9 @@ import { wppConnectService } from '../services/wppconnect.service';
 import { whatsAppValidation } from '../services/whatsapp-validation.service';
 import { whatsAppErrorHandler, WhatsAppErrorType } from '../services/whatsapp-error-handler.service';
 import { whatsAppTemplateService } from '../services/whatsapp-template.service';
+import { multiAccountService } from '../services/multi-account-whatsapp.service';
+import { sessionManager } from '../services/whatsapp-session-manager';
+import { healthMonitor } from '../services/whatsapp-health-monitor';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -29,7 +32,13 @@ router.use(requireModule('whatsapp'));
 /**
  * POST /api/whatsapp/send - Invia messaggio CON VALIDAZIONE
  */
-router.post('/send', authenticate, auditLogger('WHATSAPP_SEND'), async (req: any, res: Response) => {
+router.post('/send', authenticate, auditLogger({
+  action: AuditAction.CREATE,
+  category: LogCategory.INTEGRATION,
+  entityType: 'WhatsAppMessage',
+  captureBody: true,
+  captureResponse: true
+}), async (req: any, res: Response) => {
   try {
     const { recipient, message, phoneNumber } = req.body;
     
@@ -101,7 +110,12 @@ router.post('/send', authenticate, auditLogger('WHATSAPP_SEND'), async (req: any
 /**
  * POST /api/whatsapp/send-bulk - Invio multiplo CON VALIDAZIONE
  */
-router.post('/send-bulk', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), auditLogger('WHATSAPP_SEND_BULK'), async (req: any, res: Response) => {
+router.post('/send-bulk', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), auditLogger({
+  action: AuditAction.CREATE,
+  category: LogCategory.INTEGRATION,
+  entityType: 'WhatsAppBulkMessage',
+  captureBody: true
+}), async (req: any, res: Response) => {
   try {
     const { recipients, message } = req.body;
     
@@ -237,7 +251,13 @@ router.put('/templates/:id', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), 
 /**
  * POST /api/whatsapp/templates/:id/send - Invia messaggio da template
  */
-router.post('/templates/:id/send', authenticate, auditLogger('WHATSAPP_TEMPLATE_SEND'), async (req: any, res: Response) => {
+router.post('/templates/:id/send', authenticate, auditLogger({
+  action: AuditAction.CREATE,
+  category: LogCategory.INTEGRATION,
+  entityType: 'WhatsAppTemplateSend',
+  captureBody: true,
+  captureResponse: true
+}), async (req: any, res: Response) => {
   try {
     const { id } = req.params;
     const { to, variables } = req.body;
@@ -271,7 +291,12 @@ router.post('/templates/:id/send', authenticate, auditLogger('WHATSAPP_TEMPLATE_
 /**
  * POST /api/whatsapp/templates/:id/send-bulk - Invio bulk da template
  */
-router.post('/templates/:id/send-bulk', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), auditLogger('WHATSAPP_TEMPLATE_BULK'), async (req: any, res: Response) => {
+router.post('/templates/:id/send-bulk', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), auditLogger({
+  action: AuditAction.CREATE,
+  category: LogCategory.INTEGRATION,
+  entityType: 'WhatsAppTemplateBulkSend',
+  captureBody: true
+}), async (req: any, res: Response) => {
   try {
     const { id } = req.params;
     const { recipients, commonVariables, individualVariables } = req.body;
@@ -562,7 +587,7 @@ router.get('/messages/:phoneNumber', authenticate, async (req: any, res: Respons
       where: { phoneNumber },
       orderBy: { timestamp: 'asc' },
       include: {
-        contact: true
+        user: true
       }
     });
     
@@ -803,12 +828,30 @@ router.get('/contacts', authenticate, async (req: any, res: Response) => {
       where,
       orderBy: { name: 'asc' },
       include: {
-        user: true
+        User_WhatsAppContact_userIdToUser: {
+          select: { id: true, fullName: true, email: true, role: true }
+        },
+        User_WhatsAppContact_professionalIdToUser: {
+          select: { id: true, fullName: true, email: true, role: true }
+        },
+        WhatsAppGroup: true
         // Rimosso 'messages' che non esiste nella relazione
-      }
+      } as any
     });
     
-    return res.json(ResponseFormatter.success(contacts, 'Contatti recuperati'));
+    // Normalizza: esponi `user` camelCase e `group` derivati dalle relazioni Prisma
+    const contactsNormalized = contacts.map((c: any) => ({
+      ...c,
+      user: c.User_WhatsAppContact_userIdToUser
+        ?? c.User_WhatsAppContact_professionalIdToUser
+        ?? null,
+      group: c.WhatsAppGroup ?? null,
+      // rimuovi chiavi PascalCase se presenti
+      User_WhatsAppContact_userIdToUser: undefined,
+      User_WhatsAppContact_professionalIdToUser: undefined
+    }));
+
+    return res.json(ResponseFormatter.success(contactsNormalized, 'Contatti recuperati'));
   } catch (error: any) {
     logger.error('Errore recupero contatti:', error);
     return res.status(500).json(
@@ -982,9 +1025,6 @@ router.get('/info', authenticate, async (req: any, res: Response) => {
 });
 
 // Importa prisma per le query dirette
-import { prisma } from '../config/database';
-import { sessionManager } from '../services/whatsapp-session-manager';
-import { healthMonitor } from '../services/whatsapp-health-monitor';
 
 /**
  * POST /api/whatsapp/session/backup - Crea backup manuale della sessione
@@ -1057,6 +1097,44 @@ router.delete('/session', authenticate, async (req: any, res: Response) => {
     logger.error('Errore eliminazione sessione:', error);
     return res.status(500).json(
       ResponseFormatter.error('Errore eliminazione sessione', 'DELETE_ERROR')
+    );
+  }
+});
+
+/**
+ * GET /api/whatsapp/multi-account/status - Stato di tutti gli account WhatsApp
+ */
+router.get('/multi-account/status', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), async (req: any, res: Response) => {
+  try {
+    const data = await multiAccountService.getAllAccountsStatus();
+    return res.json(ResponseFormatter.success(data, 'Stato multi-account'));
+  } catch (error: any) {
+    logger.error('Errore stato multi-account:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore stato multi-account', 'MULTI_ACCOUNT_STATUS_ERROR')
+    );
+  }
+});
+
+/**
+ * POST /api/whatsapp/multi-account/add - Aggiungi nuovo account WhatsApp
+ */
+router.post('/multi-account/add', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), async (req: any, res: Response) => {
+  try {
+    const { sessionName, phoneNumber, description, department } = req.body;
+
+    if (!sessionName || !phoneNumber) {
+      return res.status(400).json(
+        ResponseFormatter.error('sessionName e phoneNumber sono richiesti', 'VALIDATION_ERROR')
+      );
+    }
+
+    const status = await multiAccountService.addAccount({ sessionName, phoneNumber, description, department });
+    return res.json(ResponseFormatter.success(status, 'Account aggiunto'));
+  } catch (error: any) {
+    logger.error('Errore aggiunta account multi-account:', error);
+    return res.status(500).json(
+      ResponseFormatter.error('Errore aggiunta account', 'MULTI_ACCOUNT_ADD_ERROR')
     );
   }
 });

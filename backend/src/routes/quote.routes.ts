@@ -7,36 +7,18 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { body, param, query } from 'express-validator';
 import { validate } from '../middleware/validate';
-import { authenticate } from '../middleware/auth';
+import { authenticate, AuthRequest } from '../middleware/auth';
 import { checkRole } from '../middleware/checkRole';
 import { quoteService } from '../services/quote.service';
 import { pdfService } from '../services/pdf.service';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient, QuoteStatus } from '@prisma/client';
 import { AppError } from '../utils/errors';
 import { logger } from '../utils/logger';
 import { ResponseFormatter } from '../utils/responseFormatter';
 
 // ==================== INTERFACCE ====================
 
-interface UserPayload {
-  id: string;
-  email: string;
-  role: string;
-  fullName?: string;
-}
-
-interface AuthRequest extends Request {
-  user?: UserPayload;
-}
-
-interface QuoteWhereClause {
-  requestId?: string;
-  status?: string | { not: string };
-  professionalId?: string;
-  request?: {
-    clientId: string;
-  };
-}
+type QuoteWhereClause = Prisma.QuoteWhereInput;
 
 interface QuoteItem {
   description: string;
@@ -106,19 +88,19 @@ router.get(
       }
 
       if (status && typeof status === 'string') {
-        where.status = status;
+        where.status = status as QuoteStatus;
       }
 
       if (user.role === 'CLIENT') {
         where.request = {
-          clientId: user.id,
+          is: { clientId: user.id },
         };
-        where.status = where.status || { not: 'DRAFT' };
+        where.status = where.status || { not: QuoteStatus.DRAFT };
 
         if (status && status !== 'DRAFT') {
-          where.status = status as string;
+          where.status = status as QuoteStatus;
         } else if (!status) {
-          where.status = { not: 'DRAFT' };
+          where.status = { not: QuoteStatus.DRAFT };
         } else if (status === 'DRAFT') {
           return res.json(
             ResponseFormatter.success({
@@ -142,12 +124,12 @@ router.get(
       const quotes = await prisma.quote.findMany({
         where,
         include: {
-          items: {
+          QuoteItem: {
             orderBy: { order: 'asc' },
           },
-          request: {
+          AssistanceRequest: {
             include: {
-              client: {
+              User_AssistanceRequest_clientIdToUser: {
                 select: {
                   id: true,
                   firstName: true,
@@ -156,11 +138,11 @@ router.get(
                   email: true,
                 },
               },
-              category: true,
-              subcategory: true,
+              Category: true,
+              Subcategory: true,
             },
           },
-          professional: {
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -170,28 +152,29 @@ router.get(
               Profession: true,
             },
           },
-        },
+        } as any,
         skip: (Number(page) - 1) * Number(limit),
         take: Number(limit),
         orderBy: { createdAt: 'desc' },
       });
 
       const transformedQuotes = quotes.map((quote) => {
+        const items = (quote as any).QuoteItem || [];
         let totalAmount = 0;
-        if (quote.items && quote.items.length > 0) {
-          totalAmount = quote.items.reduce((sum, item) => {
+        if (items && items.length > 0) {
+          totalAmount = items.reduce((sum: number, item: any) => {
             return sum + Number(item.totalPrice) * 100;
           }, 0);
         } else {
-          totalAmount = Number(quote.amount) * 100;
+          totalAmount = Number((quote as any).amount) * 100;
         }
 
         return {
           ...quote,
           totalAmount,
-          request: quote.request,
-          professional: quote.professional,
-          items: quote.items.map((item) => ({
+          request: (quote as any).AssistanceRequest,
+          professional: (quote as any).User,
+          items: items.map((item: any) => ({
             ...item,
             unitPrice: Number(item.unitPrice) * 100,
             totalPrice: Number(item.totalPrice) * 100,
@@ -284,7 +267,7 @@ router.post(
 
       const request = await prisma.assistanceRequest.findUnique({
         where: { id: requestId },
-        include: { client: true },
+        include: { User_AssistanceRequest_clientIdToUser: true },
       });
 
       if (!request) {
@@ -351,15 +334,15 @@ router.get(
       const quote = await prisma.quote.findUnique({
         where: { id },
         include: {
-          items: { orderBy: { order: 'asc' } },
-          request: {
+          QuoteItem: { orderBy: { order: 'asc' } },
+          AssistanceRequest: {
             include: {
-              client: true,
-              category: true,
-              subcategory: true,
+              User_AssistanceRequest_clientIdToUser: true,
+              Category: true,
+              Subcategory: true,
             },
           },
-          professional: {
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -369,7 +352,7 @@ router.get(
               Profession: true,
             },
           },
-        },
+        } as any,
       });
 
       if (!quote) {
@@ -384,7 +367,7 @@ router.get(
             .status(403)
             .json(ResponseFormatter.error('Quote not available', 'FORBIDDEN'));
         }
-        if (quote.request.clientId !== user.id) {
+        if ((quote as any).AssistanceRequest.clientId !== user.id) {
           return res
             .status(403)
             .json(ResponseFormatter.error('Unauthorized', 'FORBIDDEN'));
@@ -396,8 +379,9 @@ router.get(
       }
 
       let totalAmount = 0;
-      if (quote.items && quote.items.length > 0) {
-        totalAmount = quote.items.reduce((sum, item) => {
+      const items = (quote as any).QuoteItem || [];
+      if (items && items.length > 0) {
+        totalAmount = items.reduce((sum: number, item: any) => {
           return sum + Number(item.totalPrice) * 100;
         }, 0);
       } else {
@@ -411,9 +395,9 @@ router.get(
         depositAmount: quote.depositAmount
           ? Number(quote.depositAmount) * 100
           : null,
-        request: quote.request,
-        professional: quote.professional,
-        items: quote.items.map((item) => ({
+        request: (quote as any).AssistanceRequest,
+        professional: (quote as any).User,
+        items: items.map((item: any) => ({
           ...item,
           unitPrice: Number(item.unitPrice) * 100,
           totalPrice: Number(item.totalPrice) * 100,
@@ -484,7 +468,7 @@ router.put(
 
       const quote = await prisma.quote.findUnique({
         where: { id },
-        include: { request: true },
+        include: { AssistanceRequest: true } as any,
       });
 
       if (!quote) {
@@ -575,7 +559,7 @@ router.delete(
 
       const quote = await prisma.quote.findUnique({
         where: { id },
-        include: { request: true },
+        include: { AssistanceRequest: true },
       });
 
       if (!quote) {
@@ -622,15 +606,15 @@ router.delete(
       const quoteDetails = await prisma.quote.findUnique({
         where: { id },
         include: {
-          items: true,
-          request: {
+          QuoteItem: true,
+          AssistanceRequest: {
             select: {
               id: true,
               title: true,
               clientId: true,
             },
           },
-        },
+        } as any,
       });
 
       logger.info('Quote deletion:', {
@@ -645,11 +629,11 @@ router.delete(
           version: quoteDetails?.version,
           professionalId: quoteDetails?.professionalId,
           requestId: quoteDetails?.requestId,
-          requestTitle: quoteDetails?.request?.title,
-          itemCount: quoteDetails?.items?.length || 0,
+          requestTitle: (quoteDetails as any)?.AssistanceRequest?.title,
+          itemCount: (quoteDetails as any)?.QuoteItem?.length || 0,
           totalValue:
-            quoteDetails?.items?.reduce(
-              (sum, item) => sum + (Number(item.totalPrice) || 0),
+            (quoteDetails as any)?.QuoteItem?.reduce(
+              (sum: number, item: any) => sum + (Number(item.totalPrice) || 0),
               0
             ) || 0,
         },
@@ -707,7 +691,7 @@ router.get(
 
       const quote = await prisma.quote.findUnique({
         where: { id },
-        include: { request: true },
+        include: { AssistanceRequest: true },
       });
 
       if (!quote) {
@@ -718,7 +702,7 @@ router.get(
           );
       }
 
-      if (user.role === 'CLIENT' && quote.request.clientId !== user.id) {
+      if (user.role === 'CLIENT' && quote.AssistanceRequest.clientId !== user.id) {
         return res
           .status(403)
           .json(ResponseFormatter.error('Non autorizzato', 'UNAUTHORIZED'));
@@ -733,7 +717,7 @@ router.get(
       const revisions = await prisma.quoteRevision.findMany({
         where: { quoteId: id },
         include: {
-          professional: {
+          user: {
             select: {
               id: true,
               firstName: true,
@@ -789,12 +773,12 @@ router.post(
       const quote = await prisma.quote.findUnique({
         where: { id },
         include: {
-          request: {
+          AssistanceRequest: {
             include: {
-              client: true,
+              User_AssistanceRequest_clientIdToUser: true,
             },
           },
-          professional: true,
+          User: true,
         },
       });
 
@@ -804,7 +788,7 @@ router.post(
           .json(ResponseFormatter.error('Preventivo non trovato', 'NOT_FOUND'));
       }
 
-      if (quote.request.clientId !== user.id) {
+      if (quote.AssistanceRequest.clientId !== user.id) {
         return res
           .status(403)
           .json(
@@ -835,12 +819,12 @@ router.post(
             updatedAt: new Date(),
           },
           include: {
-            request: {
+            AssistanceRequest: {
               include: {
-                client: true,
+                User_AssistanceRequest_clientIdToUser: true,
               },
             },
-            professional: true,
+            User: true,
           },
         });
 
@@ -866,12 +850,12 @@ router.post(
         const { notificationService } = await import(
           '../services/notification.service'
         );
-        await notificationService.sendToUser(quote.professionalId, {
+        await notificationService.sendToUser({
+          userId: quote.professionalId,
           title: '✅ Preventivo Accettato!',
-          message: `Il tuo preventivo di €${quote.amount} è stato accettato da ${quote.request.client.firstName}`,
+          message: `Il tuo preventivo di €${quote.amount} è stato accettato da ${quote.AssistanceRequest.User_AssistanceRequest_clientIdToUser.firstName}`,
           type: 'quote_accepted',
-          relatedId: id,
-          relatedType: 'quote',
+          data: { relatedId: id, relatedType: 'quote' },
         });
       } catch (notifError) {
         logger.warn('Could not send notification:', notifError);
@@ -928,12 +912,12 @@ router.post(
       const quote = await prisma.quote.findUnique({
         where: { id },
         include: {
-          request: {
+          AssistanceRequest: {
             include: {
-              client: true,
+              User_AssistanceRequest_clientIdToUser: true,
             },
           },
-          professional: true,
+          User: true,
         },
       });
 
@@ -943,7 +927,7 @@ router.post(
           .json(ResponseFormatter.error('Preventivo non trovato', 'NOT_FOUND'));
       }
 
-      if (quote.request.clientId !== user.id) {
+      if (quote.AssistanceRequest.clientId !== user.id) {
         return res
           .status(403)
           .json(
@@ -974,12 +958,12 @@ router.post(
           updatedAt: new Date(),
         },
         include: {
-          request: {
+          AssistanceRequest: {
             include: {
-              client: true,
+              User_AssistanceRequest_clientIdToUser: true,
             },
           },
-          professional: true,
+          User: true,
         },
       });
 
@@ -997,12 +981,12 @@ router.post(
           ? `Il tuo preventivo è stato rifiutato. Motivo: ${reason}`
           : 'Il tuo preventivo è stato rifiutato';
 
-        await notificationService.sendToUser(quote.professionalId, {
+        await notificationService.sendToUser({
+          userId: quote.professionalId,
           title: '❌ Preventivo Rifiutato',
           message,
           type: 'quote_rejected',
-          relatedId: id,
-          relatedType: 'quote',
+          data: { relatedId: id, relatedType: 'quote' },
         });
       } catch (notifError) {
         logger.warn('Could not send notification:', notifError);
@@ -1034,12 +1018,12 @@ router.get('/:id/pdf', authenticate, async (req: AuthRequest, res: Response) => 
     const quote = await prisma.quote.findUnique({
       where: { id: quoteId },
       include: {
-        request: {
+        AssistanceRequest: {
           include: {
-            client: true,
+            User_AssistanceRequest_clientIdToUser: true,
           },
         },
-        professional: true,
+        User: true,
       },
     });
 
@@ -1053,7 +1037,7 @@ router.get('/:id/pdf', authenticate, async (req: AuthRequest, res: Response) => 
       user.role === 'ADMIN' ||
       user.role === 'SUPER_ADMIN' ||
       quote.professionalId === user.id ||
-      quote.request?.clientId === user.id;
+      quote.AssistanceRequest?.clientId === user.id;
 
     if (!canAccess) {
       return res

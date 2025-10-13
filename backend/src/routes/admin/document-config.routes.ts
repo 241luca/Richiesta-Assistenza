@@ -20,7 +20,7 @@ router.get('/stats',
         uiConfigs: {
           total: 0,
           active: 0,
-          byRole: []
+          byRole: [] as any[]
         },
         settings: {
           total: 0,
@@ -56,7 +56,7 @@ router.get('/',
   requireRole([Role.ADMIN, Role.SUPER_ADMIN]),
   async (req: any, res) => {
     try {
-      const configs = [];
+      const configs: any[] = [];
       
       return res.json(ResponseFormatter.success(
         configs,
@@ -147,7 +147,7 @@ router.get('/system-settings',
   async (req: any, res) => {
     try {
       // Ritorna impostazioni di default
-      const settings = [];
+      const settings: any[] = [];
       
       return res.json(ResponseFormatter.success(
         settings,
@@ -218,7 +218,7 @@ router.get('/system-settings/export',
       const config = {
         version: '4.0.0',
         exportDate: new Date().toISOString(),
-        settings: []
+        settings: [] as any[]
       };
       
       return res.json(ResponseFormatter.success(

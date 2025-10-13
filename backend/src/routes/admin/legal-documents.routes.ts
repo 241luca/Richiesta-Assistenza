@@ -7,7 +7,7 @@ import { legalDocumentService } from '../../services/legal-document.service';
 import { ResponseFormatter } from '../../utils/responseFormatter';
 import logger from '../../utils/logger';
 import { z } from 'zod';
-import { Role, PrismaClient } from '@prisma/client';
+import { Role, PrismaClient, AuditAction, LogCategory, LogSeverity } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -61,7 +61,7 @@ const recordAcceptanceSchema = z.object({
 router.get('/', 
   authenticate, 
   requireRole([Role.ADMIN, Role.SUPER_ADMIN]),
-  auditLogger('LIST_LEGAL_DOCUMENTS'),
+  auditLogger({ category: LogCategory.BUSINESS, entityType: 'LegalDocument' }),
   async (req: any, res) => {
     try {
       const { type, isActive, includeVersions } = req.query;
@@ -70,17 +70,18 @@ router.get('/',
       if (type) where.type = type;
       if (isActive !== undefined) where.isActive = isActive === 'true';
 
-      const documents = await prisma.legalDocument.findMany({
+      const documentsRaw = await prisma.legalDocument.findMany({
         where,
-        include: {
-          creator: {
+        include: ({
+          // Prisma schema uses PascalCase relation names on LegalDocument
+          User: {
             select: {
               id: true,
               fullName: true,
               email: true
             }
           },
-          versions: includeVersions === 'true' ? {
+          LegalDocumentVersion: includeVersions === 'true' ? {
             orderBy: {
               createdAt: 'desc'
             },
@@ -95,14 +96,31 @@ router.get('/',
           } : false,
           _count: {
             select: {
-              versions: true,
-              acceptances: true
+              LegalDocumentVersion: true,
+              UserLegalAcceptance: true
             }
           }
-        },
+        } as any),
         orderBy: {
           sortOrder: 'asc'
         }
+      });
+
+      // Normalize keys to maintain expected camelCase fields
+      const documents = documentsRaw.map((doc: any) => {
+        const creator = doc.User ?? doc.creator ?? null;
+        const versions = doc.LegalDocumentVersion ?? doc.versions ?? [];
+        const count = doc._count ? {
+          versions: doc._count?.LegalDocumentVersion ?? doc._count?.versions ?? 0,
+          acceptances: doc._count?.UserLegalAcceptance ?? doc._count?.acceptances ?? 0,
+        } : undefined;
+        delete doc.User;
+        delete (doc as any).LegalDocumentVersion;
+        if (doc._count) {
+          delete (doc._count as any).LegalDocumentVersion;
+          delete (doc._count as any).UserLegalAcceptance;
+        }
+        return { ...doc, creator, versions, _count: count };
       });
 
       return res.json(ResponseFormatter.success(
@@ -373,6 +391,55 @@ router.post('/',
   async (req: any, res, next) => {
     // Debug: log del body ricevuto
     logger.info('POST /api/admin/legal-documents - Body received:', JSON.stringify(req.body));
+    // Normalizzazione tipo: accetta codici custom mappandoli a CUSTOM + typeConfigId
+    try {
+      const incomingTypeRaw = req.body?.type;
+      if (incomingTypeRaw) {
+        const incomingType = String(incomingTypeRaw).toUpperCase();
+        const systemTypes = [
+          'PRIVACY_POLICY',
+          'TERMS_SERVICE',
+          'COOKIE_POLICY',
+          'DPA',
+          'SLA',
+          'NDA',
+          'EULA',
+          'DISCLAIMER',
+          'COPYRIGHT',
+          'ACCEPTABLE_USE',
+          'CUSTOM'
+        ];
+
+        // Se non è uno dei tipi di sistema, prova a risolverlo come codice di DocumentTypeConfig
+        if (!systemTypes.includes(incomingType)) {
+          const typeConfig = await prisma.documentTypeConfig.findUnique({
+            where: { code: incomingType }
+          });
+
+          if (!typeConfig) {
+            return res.status(400).json(ResponseFormatter.error(
+              `Unknown document type code: ${incomingType}`,
+              'UNKNOWN_TYPE',
+              { received: incomingType, allowed: systemTypes }
+            ));
+          }
+
+          // Mappa a CUSTOM e collega il typeConfigId
+          req.body.type = 'CUSTOM';
+          req.body.typeConfigId = typeConfig.id;
+        }
+
+        // Se è CUSTOM, richiedi che typeConfigId sia presente
+        if (incomingType === 'CUSTOM' && !req.body.typeConfigId) {
+          return res.status(400).json(ResponseFormatter.error(
+            'typeConfigId is required when type is CUSTOM',
+            'MISSING_TYPE_CONFIG'
+          ));
+        }
+      }
+    } catch (normErr) {
+      logger.warn('Type normalization failed:', normErr);
+    }
     
     // Validazione manuale con Zod
     try {
@@ -394,7 +461,7 @@ router.post('/',
       ));
     }
   },
-  auditLogger('CREATE_LEGAL_DOCUMENT'),
+  auditLogger({ category: LogCategory.BUSINESS, entityType: 'LegalDocument' }),
   async (req: any, res) => {
     try {
       const document = await legalDocumentService.createDocument({
@@ -432,28 +499,41 @@ router.put('/:id',
   authenticate,
   requireRole([Role.ADMIN, Role.SUPER_ADMIN]),
   validateRequest(createDocumentSchema.partial()),
-  auditLogger('UPDATE_LEGAL_DOCUMENT'),
+  auditLogger({ category: LogCategory.BUSINESS, entityType: 'LegalDocument' }),
   async (req: any, res) => {
     try {
-      const document = await prisma.legalDocument.update({
+      const documentRaw = await prisma.legalDocument.update({
         where: { id: req.params.id },
         data: {
           ...req.body,
           updatedAt: new Date()
         },
-        include: {
-          creator: true,
+        include: ({
+          User: true,
           _count: {
             select: {
-              versions: true,
-              acceptances: true
+              LegalDocumentVersion: true,
+              UserLegalAcceptance: true
             }
           }
-        }
+        } as any)
       });
 
+      const document = (() => {
+        const d: any = documentRaw;
+        const creator = d.User ?? d.creator ?? null;
+        delete d.User;
+        if (d._count) {
+          d._count = {
+            versions: d._count?.LegalDocumentVersion ?? d._count?.versions ?? 0,
+            acceptances: d._count?.UserLegalAcceptance ?? d._count?.acceptances ?? 0,
+          };
+        }
+        return { ...d, creator };
+      })();
+
       return res.json(ResponseFormatter.success(
-        document,
+        document as any,
         'Legal document updated successfully'
       ));
     } catch (error: any) {
@@ -483,30 +563,30 @@ router.get('/:id',
   requireRole([Role.ADMIN, Role.SUPER_ADMIN]),
   async (req: any, res) => {
     try {
-      const document = await prisma.legalDocument.findUnique({
+      const documentRaw = await prisma.legalDocument.findUnique({
         where: { id: req.params.id },
-        include: {
-          creator: true,
-          versions: {
+        include: ({
+          User: true,
+          LegalDocumentVersion: {
             orderBy: {
               createdAt: 'desc'
             },
             include: {
-              creator: {
+              User_LegalDocumentVersion_createdByToUser: {
                 select: {
                   id: true,
                   fullName: true,
                   email: true
                 }
               },
-              approver: {
+              User_LegalDocumentVersion_approvedByToUser: {
                 select: {
                   id: true,
                   fullName: true,
                   email: true
                 }
               },
-              publisher: {
+              User_LegalDocumentVersion_publishedByToUser: {
                 select: {
                   id: true,
                   fullName: true,
@@ -515,18 +595,18 @@ router.get('/:id',
               },
               _count: {
                 select: {
-                  acceptances: true
+                  UserLegalAcceptance: true
                 }
               }
             }
           },
-          acceptances: {
+          UserLegalAcceptance: {
             take: 10,
             orderBy: {
               acceptedAt: 'desc'
             },
             include: {
-              user: {
+              User: {
                 select: {
                   id: true,
                   fullName: true,
@@ -535,18 +615,37 @@ router.get('/:id',
               }
             }
           }
-        }
+        } as any)
       });
 
-      if (!document) {
+      if (!documentRaw) {
         return res.status(404).json(ResponseFormatter.error(
           'Document not found',
           'NOT_FOUND'
         ));
       }
 
+      // Normalize fields for downstream consumers
+      const document = (() => {
+        const d: any = documentRaw;
+        const creator = d.User ?? d.creator ?? null;
+        const versions = d.LegalDocumentVersion ?? d.versions ?? [];
+        const acceptances = d.UserLegalAcceptance ?? d.acceptances ?? [];
+        // Normalize acceptance nested user key
+        const acceptancesNorm = acceptances.map((a: any) => {
+          const user = a.User ?? a.user ?? null;
+          const rest = { ...a };
+          delete (rest as any).User;
+          return { ...rest, user };
+        });
+        delete d.User;
+        delete (d as any).LegalDocumentVersion;
+        delete (d as any).UserLegalAcceptance;
+        return { ...d, creator, versions, acceptances: acceptancesNorm };
+      })();
+
       return res.json(ResponseFormatter.success(
-        document,
+        document as any,
         'Document retrieved successfully'
       ));
     } catch (error) {
@@ -582,21 +681,21 @@ router.get('/:id/versions/:versionId',
         },
         include: {
           document: true,
-          creator: {
+          User_LegalDocumentVersion_createdByToUser: {
             select: {
               id: true,
               fullName: true,
               email: true
             }
           },
-          approver: {
+          User_LegalDocumentVersion_approvedByToUser: {
             select: {
               id: true,
               fullName: true,
               email: true
             }
           },
-          publisher: {
+          User_LegalDocumentVersion_publishedByToUser: {
             select: {
               id: true,
               fullName: true,
@@ -605,7 +704,7 @@ router.get('/:id/versions/:versionId',
           },
           _count: {
             select: {
-              acceptances: true
+              UserLegalAcceptance: true
             }
           }
         }
@@ -660,7 +759,7 @@ router.post('/:id/versions',
       ));
     }
   },
-  auditLogger('CREATE_LEGAL_VERSION'),
+  auditLogger({ category: LogCategory.BUSINESS, entityType: 'LegalDocumentVersion' }),
   async (req: any, res) => {
     try {
       const version = await legalDocumentService.createVersion(
@@ -763,7 +862,7 @@ router.put('/:id/versions/:versionId',
 router.put('/versions/:versionId/approve',
   authenticate,
   requireRole([Role.ADMIN, Role.SUPER_ADMIN]),
-  auditLogger('APPROVE_LEGAL_VERSION'),
+  auditLogger({ category: LogCategory.BUSINESS, entityType: 'LegalDocumentVersion' }),
   async (req: any, res) => {
     try {
       const version = await prisma.legalDocumentVersion.update({
@@ -775,7 +874,7 @@ router.put('/versions/:versionId/approve',
         },
         include: {
           document: true,
-          approver: {
+          User_LegalDocumentVersion_approvedByToUser: {
             select: {
               id: true,
               fullName: true,
@@ -806,7 +905,7 @@ router.put('/versions/:versionId/approve',
 router.put('/versions/:versionId/reject',
   authenticate,
   requireRole([Role.ADMIN, Role.SUPER_ADMIN]),
-  auditLogger('REJECT_LEGAL_VERSION'),
+  auditLogger({ category: LogCategory.BUSINESS, entityType: 'LegalDocumentVersion' }),
   async (req: any, res) => {
     try {
       const version = await prisma.legalDocumentVersion.update({
@@ -842,7 +941,7 @@ router.put('/versions/:versionId/reject',
 router.put('/versions/:versionId/unpublish',
   authenticate,
   requireRole([Role.ADMIN, Role.SUPER_ADMIN]),
-  auditLogger('UNPUBLISH_LEGAL_VERSION'),
+  auditLogger({ category: LogCategory.BUSINESS, entityType: 'LegalDocumentVersion' }),
   async (req: any, res) => {
     try {
       // Prima verifica che la versione esista
@@ -898,14 +997,14 @@ router.put('/versions/:versionId/unpublish',
           userRole: req.user.role,
           ipAddress: req.ip || 'unknown',
           userAgent: req.headers['user-agent'] || 'unknown',
-          action: 'UPDATE',
+          action: AuditAction.UPDATE,
           entityType: 'LegalDocumentVersion',
           entityId: req.params.versionId,
           oldValues: { status: existingVersion.status },
           newValues: { status: 'DRAFT' },
           success: true,
-          severity: 'INFO',
-          category: 'BUSINESS',
+          severity: LogSeverity.INFO,
+          category: LogCategory.BUSINESS,
           metadata: {
             operation: 'unpublish',
             documentId: version.documentId
@@ -942,7 +1041,7 @@ router.put('/versions/:versionId/unpublish',
 router.post('/versions/:versionId/publish',
   authenticate,
   requireRole([Role.ADMIN, Role.SUPER_ADMIN]),
-  auditLogger('PUBLISH_LEGAL_VERSION'),
+  auditLogger({ category: LogCategory.BUSINESS, entityType: 'LegalDocumentVersion' }),
   async (req: any, res) => {
     try {
       const { notifyUsers = true, publishDate } = req.body;

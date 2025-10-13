@@ -265,7 +265,8 @@ export async function createIntervention(data: any) {
         notes: data.notes,
         status: data.status || 'pending',
         clientConfirmed: data.clientConfirmed || false,
-        createdBy: data.professionalId
+        createdBy: data.professionalId,
+        updatedAt: new Date()
       },
       include: {
         request: {

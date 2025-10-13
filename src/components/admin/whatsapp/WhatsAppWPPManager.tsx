@@ -186,7 +186,7 @@ const WhatsAppWPPManager: React.FC = () => {
         setShowQRCode(true);
         toast.success('QR Code generato!');
       } else {
-        toast.info('Inizializzazione in corso...');
+  toast('Inizializzazione in corso...');
       }
       refetchStatus();
       refetchQR();

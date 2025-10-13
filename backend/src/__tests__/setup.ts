@@ -24,8 +24,8 @@ beforeAll(async () => {
   console.log('🧹 Cleaning test database...');
   
   // Delete in correct order due to foreign key constraints
-  await prisma.assistanceRequest.deleteMany({});
   await prisma.quote.deleteMany({});
+  await prisma.assistanceRequest.deleteMany({});
   await prisma.subcategory.deleteMany({});
   await prisma.category.deleteMany({});
   await prisma.loginHistory.deleteMany({});
@@ -44,9 +44,9 @@ afterEach(async () => {
 afterAll(async () => {
   console.log('🧹 Final cleanup...');
   
-  // Clean all data
-  await prisma.assistanceRequest.deleteMany({});
+  // Clean all data (respect foreign keys)
   await prisma.quote.deleteMany({});
+  await prisma.assistanceRequest.deleteMany({});
   await prisma.subcategory.deleteMany({});
   await prisma.category.deleteMany({});
   await prisma.loginHistory.deleteMany({});

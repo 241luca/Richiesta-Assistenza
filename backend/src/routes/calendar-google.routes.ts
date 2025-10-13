@@ -266,12 +266,13 @@ router.get('/callback', async (req, res) => {
       },
       create: {
         id: uuidv4(),
-        professionalId,
+        professional: { connect: { id: professionalId } },
         accessToken: tokens.access_token!,
         refreshToken: tokens.refresh_token!,
         expiryDate: new Date(tokens.expiry_date!),
         scope: tokens.scope,
-        tokenType: tokens.token_type
+        tokenType: tokens.token_type,
+        updatedAt: new Date()
       }
     });
 
@@ -280,9 +281,10 @@ router.get('/callback', async (req, res) => {
       where: { professionalId },
       create: {
         id: uuidv4(),
-        professionalId,
+        professional: { connect: { id: professionalId } },
         googleCalendarConnected: true,
-        lastGoogleSync: new Date()
+        lastGoogleSync: new Date(),
+        updatedAt: new Date()
       },
       update: {
         googleCalendarConnected: true,
@@ -409,10 +411,11 @@ router.post('/sync', requireRole(['PROFESSIONAL', 'ADMIN', 'SUPER_ADMIN']), asyn
           await prisma.calendarBlock.create({
             data: {
               id: uuidv4(),
-              professionalId,
+              professional: { connect: { id: professionalId } },
               startDateTime: new Date(event.start.dateTime),
               endDateTime: new Date(event.end.dateTime),
-              reason: event.summary || 'Importato da Google Calendar'
+              reason: event.summary || 'Importato da Google Calendar',
+              updatedAt: new Date()
             }
           });
           syncedCount++;

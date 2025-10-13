@@ -24,8 +24,9 @@ router.get('/dashboard', async (req: any, res: any) => {
       'title': 'title',
       'status': 'status',
       'priority': 'priority',
-      'client': 'client.lastName',
-      'professional': 'professional.lastName',
+      // Ordine su campi nested: usa le relazioni Prisma reali
+      'client': 'User_AssistanceRequest_clientIdToUser.lastName',
+      'professional': 'User_AssistanceRequest_professionalIdToUser.lastName',
       'requestedDate': 'requestedDate',
       'scheduledDate': 'scheduledDate'
     };
@@ -70,12 +71,12 @@ router.get('/dashboard', async (req: any, res: any) => {
       }),
       prisma.quote.findMany({ 
         take: 5, 
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: 'desc' }, 
         include: {
-          request: {
+          AssistanceRequest: {
             select: { id: true, title: true }
           }
-        }
+        } as any
       }),
       // Recupera TUTTE le richieste per la griglia (con paginazione)
       prisma.assistanceRequest.findMany({
@@ -83,13 +84,13 @@ router.get('/dashboard', async (req: any, res: any) => {
         take: limit,
         orderBy,
         include: {
-          subcategory: {
+          Subcategory: {
             select: { id: true, name: true }
           },
-          client: {
+          User_AssistanceRequest_clientIdToUser: {
             select: { id: true, firstName: true, lastName: true }
           },
-          professional: {
+          User_AssistanceRequest_professionalIdToUser: {
             select: { id: true, firstName: true, lastName: true }
           }
         }
@@ -158,22 +159,26 @@ router.get('/dashboard', async (req: any, res: any) => {
         })),
         recentQuotes: quotes.map(quote => ({
           id: quote.id,
-          requestId: quote.request.id, // Aggiungiamo l'ID della richiesta
-          requestTitle: quote.request.title,
+          requestId: (quote as any).AssistanceRequest?.id,
+          requestTitle: (quote as any).AssistanceRequest?.title,
           amount: Number(quote.amount), // Converti Decimal a number
           status: quote.status,
           createdAt: quote.createdAt
         })),
         // Aggiungiamo le richieste per la griglia
-        allRequests: allRequests.map(request => ({
+        allRequests: allRequests.map((request: any) => ({
           id: request.id,
           title: request.title,
           status: request.status,
           priority: request.priority,
-          subcategory: request.subcategory?.name || 'N/A',
+          subcategory: (request as any).Subcategory?.name || 'N/A',
           subcategoryId: request.subcategoryId,
-          client: request.client ? `${request.client.firstName} ${request.client.lastName}` : 'N/A',
-          professional: request.professional ? `${request.professional.firstName} ${request.professional.lastName}` : null,
+          client: (request as any).User_AssistanceRequest_clientIdToUser 
+            ? `${(request as any).User_AssistanceRequest_clientIdToUser.firstName} ${(request as any).User_AssistanceRequest_clientIdToUser.lastName}` 
+            : 'N/A',
+          professional: (request as any).User_AssistanceRequest_professionalIdToUser 
+            ? `${(request as any).User_AssistanceRequest_professionalIdToUser.firstName} ${(request as any).User_AssistanceRequest_professionalIdToUser.lastName}` 
+            : null,
           createdAt: request.createdAt,
           requestedDate: request.requestedDate,
           scheduledDate: request.scheduledDate

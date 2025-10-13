@@ -64,7 +64,7 @@ router.get('/settings', requireRole(['PROFESSIONAL', 'ADMIN']), async (req: Auth
       settings = await prisma.calendarSettings.create({
         data: {
           id: uuidv4(),
-          professionalId,
+          professional: { connect: { id: professionalId } },
           defaultView: 'week',
           weekStartsOn: 1,
           timeSlotDuration: 30,
@@ -78,7 +78,8 @@ router.get('/settings', requireRole(['PROFESSIONAL', 'ADMIN']), async (req: Auth
             confirmed: '#4CAF50',
             completed: '#808080',
             cancelled: '#FF0000'
-          }
+          },
+          updatedAt: new Date()
         }
       });
     }
@@ -138,11 +139,12 @@ router.get('/availability', requireRole(['PROFESSIONAL', 'ADMIN']), async (req: 
         const hour = await prisma.calendarAvailability.create({
           data: {
             id: uuidv4(),
-            professionalId,
+            professional: { connect: { id: professionalId } },
             dayOfWeek: day,
             startTime: day === 0 ? '' : '09:00',
             endTime: day === 0 ? '' : '18:00',
-            isActive: day !== 0 // Attivo tutti i giorni tranne domenica
+            isActive: day !== 0, // Attivo tutti i giorni tranne domenica
+            updatedAt: new Date()
           }
         });
         defaultHours.push(hour);
@@ -182,8 +184,9 @@ router.put('/availability', requireRole(['PROFESSIONAL', 'ADMIN']), async (req: 
           },
           create: {
             id: uuidv4(),
-            professionalId,
-            ...hour
+            professional: { connect: { id: professionalId } },
+            ...hour,
+            updatedAt: new Date()
           }
         });
       })
@@ -249,10 +252,11 @@ router.post('/unavailability', requireRole(['PROFESSIONAL', 'ADMIN']), async (re
         },
         create: {
           id: uuidv4(),
-          professionalId,
+          professional: { connect: { id: professionalId } },
           date: new Date(date),
           isWorkingDay: false,
-          reason: validatedData.reason
+          reason: validatedData.reason,
+          updatedAt: new Date()
         }
       });
       exceptions.push(exception);
@@ -336,12 +340,13 @@ router.post('/blocks', requireRole(['PROFESSIONAL', 'ADMIN']), async (req: AuthR
     const block = await prisma.calendarBlock.create({
       data: {
         id: uuidv4(),
-        professionalId,
+        professional: { connect: { id: professionalId } },
         startDateTime: new Date(startDateTime),
         endDateTime: new Date(endDateTime),
         reason,
         isRecurring: isRecurring || false,
-        recurringPattern: recurringPattern || null
+        recurringPattern: recurringPattern || null,
+        updatedAt: new Date()
       }
     });
 

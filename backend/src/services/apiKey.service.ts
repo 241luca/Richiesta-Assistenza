@@ -75,14 +75,14 @@ export class ApiKeyService {
       
       const apiKeys = await prisma.apiKey.findMany({
         include: {
-          user: {
+          User: {
             select: {
               id: true,
               firstName: true,
               lastName: true
             }
           }
-        },
+        } as any,
         orderBy: { service: 'asc' }
       });
 

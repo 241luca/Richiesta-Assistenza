@@ -279,7 +279,7 @@ router.get(
           data: {
             id: `pai_${professionalId}_${subcategoryId}`,
             professionalId: professionalId,
-            subcategory: { connect: { id: subcategoryId } },
+            Subcategory: { connect: { id: subcategoryId } },
             modelName: 'gpt-3.5-turbo',
             temperature: 0.7,
             maxTokens: 2000,
@@ -330,7 +330,7 @@ router.put(
         create: {
           id: `pai_${professionalId}_${subcategoryId}`,
           professionalId: professionalId,
-          subcategory: { connect: { id: subcategoryId } },
+          Subcategory: { connect: { id: subcategoryId } },
           ...validatedData,
           updatedAt: new Date(),
         },
@@ -847,17 +847,17 @@ router.get(
                 hourlyRate: true,
               },
             },
-            ProfessionalUserSubcategory: {
-              select: {
-                subcategoryId: true,
-                experienceYears: true,
-                subcategory: {
-                  select: {
-                    name: true,
-                  },
+          ProfessionalUserSubcategory: {
+            select: {
+              subcategoryId: true,
+              experienceYears: true,
+              Subcategory: {
+                select: {
+                  name: true,
                 },
               },
             },
+          },
           },
           take: limitNum,
           skip: offsetNum,
@@ -885,7 +885,7 @@ router.get(
         hourlyRate: prof.ProfessionalPricing?.hourlyRate ?? null,
         subcategories: prof.ProfessionalUserSubcategory.map((sub) => ({
           id: sub.subcategoryId,
-          name: sub.subcategory.name,
+          name: sub.Subcategory.name,
           experienceYears: sub.experienceYears,
         })),
       }));

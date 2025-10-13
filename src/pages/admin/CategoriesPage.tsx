@@ -33,6 +33,7 @@ export function CategoriesPage() {
   const queryClient = useQueryClient();
   const [isCreating, setIsCreating] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [activeTab, setActiveTab] = useState<'all' | 'active' | 'inactive'>('all');
 
   // Fetch categories
   const { data: categoriesData, isLoading } = useQuery({
@@ -58,6 +59,9 @@ export function CategoriesPage() {
       console.log('Parsed categories:', categories);
       return Array.isArray(categories) ? categories : [];
     },
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
+    staleTime: 0,
   });
 
   // Delete mutation
@@ -82,6 +86,7 @@ export function CategoriesPage() {
     onSuccess: () => {
       toast.success('Stato aggiornato con successo');
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+      queryClient.invalidateQueries({ queryKey: ['profession-categories'] });
     },
     onError: () => {
       toast.error('Errore durante l\'aggiornamento');
@@ -93,6 +98,14 @@ export function CategoriesPage() {
   // Debug: Controlliamo il tipo di dati ricevuti
   console.log('Categories data type:', typeof categoriesData, 'isArray:', Array.isArray(categoriesData));
   console.log('Final categories:', categories);
+
+  const activeCount = categories.filter((c: Category) => c.isActive).length;
+  const inactiveCount = categories.length - activeCount;
+  const shownCategories = activeTab === 'all'
+    ? categories
+    : activeTab === 'active'
+      ? categories.filter((c: Category) => c.isActive)
+      : categories.filter((c: Category) => !c.isActive);
 
   const handleDelete = (category: Category) => {
     if (category._count && category._count.subcategories > 0) {
@@ -124,7 +137,7 @@ export function CategoriesPage() {
         <div className="flex justify-between items-center">
           <div>
             <p className="text-sm text-gray-600">
-              {categories.length} categorie totali • {categories.filter((c: Category) => c.isActive).length} attive
+              {categories.length} totali • {activeCount} attive • {inactiveCount} inattive
             </p>
           </div>
           <button
@@ -133,6 +146,35 @@ export function CategoriesPage() {
           >
             <PlusIcon className="h-4 w-4 mr-2" style={{ width: '16px', height: '16px' }} />
             Nuova Categoria
+          </button>
+        </div>
+        <div className="mt-4 flex items-center space-x-2">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={cn(
+              'px-3 py-1 text-sm rounded-md border',
+              activeTab === 'all' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+            )}
+          >
+            Tutte
+          </button>
+          <button
+            onClick={() => setActiveTab('active')}
+            className={cn(
+              'px-3 py-1 text-sm rounded-md border',
+              activeTab === 'active' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+            )}
+          >
+            Attive ({activeCount})
+          </button>
+          <button
+            onClick={() => setActiveTab('inactive')}
+            className={cn(
+              'px-3 py-1 text-sm rounded-md border',
+              activeTab === 'inactive' ? 'bg-gray-100 border-gray-300 text-gray-800' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+            )}
+          >
+            Inattive ({inactiveCount})
           </button>
         </div>
       </div>
@@ -150,7 +192,7 @@ export function CategoriesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
-            {categories.map((category: Category) => (
+            {shownCategories.map((category: Category) => (
               <div
                 key={category.id}
                 className={cn(
@@ -258,7 +300,9 @@ export function CategoriesPage() {
           onSuccess={() => {
             setIsCreating(false);
             setEditingCategory(null);
+            // Aggiorna anche la pagina di associazioni professioni-categorie
             queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+            queryClient.invalidateQueries({ queryKey: ['profession-categories'] });
           }}
         />
       )}
@@ -298,7 +342,11 @@ function CategoryFormModal({
       onSuccess();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error || 'Errore durante il salvataggio');
+      const message =
+        (error?.response?.data?.message as string) ||
+        (typeof error?.message === 'string' ? error.message : undefined) ||
+        'Errore durante il salvataggio';
+      toast.error(message);
     },
   });
 

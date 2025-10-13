@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '@/services/api';
-import { toast } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import {
   ChatBubbleLeftIcon,
   XMarkIcon,

@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon, CalendarIcon, ClockIcon, MapPinIcon, UserIcon, ExclamationTriangleIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -61,7 +62,7 @@ export default function InterventionModal({ intervention, onClose, onSave }: Int
   });
 
   // Debug: Log degli errori (solo in development)
-  if (requestsError && import.meta.env.DEV) {
+  if (requestsError && (import.meta as any).env?.DEV) {
     console.error('Error fetching requests:', requestsError);
   }
 
@@ -201,6 +202,45 @@ export default function InterventionModal({ intervention, onClose, onSave }: Int
             </div>
           </div>
 
+          {/* Riepilogo cliente e indirizzo - prima della richiesta */}
+          {(intervention?.client || intervention?.address || typeof intervention?.clientConfirmed !== 'undefined') && (
+            <div className="space-y-2 border rounded-lg p-4 bg-gray-50">
+              <h3 className="font-medium text-gray-900 flex items-center">
+                <UserIcon className="w-5 h-5 mr-2" />
+                Cliente e Indirizzo
+              </h3>
+              <div className="text-sm text-gray-800 space-y-1">
+                {intervention?.client?.fullName && (
+                  <p className="flex items-center">
+                    <UserIcon className="w-4 h-4 mr-2 text-gray-500" />
+                    <span className="font-medium">Cliente:</span>
+                    <span className="ml-1">{intervention.client.fullName}</span>
+                  </p>
+                )}
+                {(intervention?.address || intervention?.location) && (
+                  <p className="flex items-center">
+                    <MapPinIcon className="w-4 h-4 mr-2 text-gray-500" />
+                    <span className="font-medium">Indirizzo:</span>
+                    <span className="ml-1">{intervention.address || intervention.location}</span>
+                  </p>
+                )}
+                {typeof intervention?.clientConfirmed !== 'undefined' && (
+                  <div className="pt-1">
+                    {intervention.clientConfirmed ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                        ✓ Confermato dal cliente
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                        In attesa di conferma
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Selezione richiesta (OBBLIGATORIO!) */}
           {!isEditing && (
             <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
@@ -251,7 +291,7 @@ export default function InterventionModal({ intervention, onClose, onSave }: Int
                             title: 'Intervento Demo - Test Calendario',
                             description: 'Questo è un intervento di test per verificare il funzionamento del calendario'
                           });
-                          toast.info('Modalità demo attivata - Solo per test');
+  toast('Modalità demo attivata - Solo per test');
                         }}
                         className="px-3 py-1 bg-amber-600 text-white text-sm rounded hover:bg-amber-700"
                       >
@@ -267,6 +307,22 @@ export default function InterventionModal({ intervention, onClose, onSave }: Int
           {/* Informazioni intervento */}
           <div className="space-y-4">
             <h3 className="font-medium text-gray-900">Dettagli Intervento</h3>
+
+            {/* Stato conferma cliente nel dettaglio */}
+            {typeof intervention?.clientConfirmed !== 'undefined' && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-gray-700">Conferma cliente:</span>
+                {intervention.clientConfirmed ? (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                    Confermato
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                    Da confermare
+                  </span>
+                )}
+              </div>
+            )}
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -417,6 +473,16 @@ export default function InterventionModal({ intervention, onClose, onSave }: Int
                     <p><span className="font-medium">Telefono:</span> {selectedRequest.client?.phone || 'N/D'}</p>
                     <p><span className="font-medium">Email:</span> {selectedRequest.client?.email || 'N/D'}</p>
                     <p><span className="font-medium">Indirizzo:</span> {selectedRequest.address || 'N/D'}, {selectedRequest.city || ''} {selectedRequest.postalCode || ''}</p>
+                    {typeof selectedRequest?.clientConfirmed !== 'undefined' && (
+                      <p>
+                        <span className="font-medium">Conferma cliente:</span>{' '}
+                        {selectedRequest.clientConfirmed ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 border border-green-200 ml-1">Confermato</span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200 ml-1">Da confermare</span>
+                        )}
+                      </p>
+                    )}
                   </div>
                 );
               })()}

@@ -1,11 +1,21 @@
 import { Request, Response, NextFunction } from 'express';
+import { Role } from '@prisma/client';
 import * as jwt from 'jsonwebtoken';
 import { prisma } from '../config/database';
 import { logger } from '../utils/logger';
 import { ResponseFormatter } from '../utils/responseFormatter';
 
 export interface AuthRequest extends Request {
-  user?: any;
+  user?: {
+    id: string;
+    email: string;
+    fullName: string;
+    role: Role;
+    professionalId?: string;
+    firstName?: string;
+    lastName?: string;
+    [key: string]: any;
+  };
   requestId?: string;
 }
 

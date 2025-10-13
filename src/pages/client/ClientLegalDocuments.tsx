@@ -307,7 +307,7 @@ export default function ClientLegalDocuments() {
                       <button
                         onClick={() => {
                           // Implementare download PDF del consenso
-                          toast.info('Download consenso in arrivo...');
+  toast('Download consenso in arrivo...');
                         }}
                         className="text-indigo-600 hover:text-indigo-900 mr-3"
                       >

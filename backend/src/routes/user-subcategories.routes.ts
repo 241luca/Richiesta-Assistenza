@@ -38,9 +38,9 @@ router.get('/subcategories', authenticate, async (req: any, res) => {
         isActive: true 
       },
       include: {
-        subcategory: {
+        Subcategory: {
           include: {
-            category: true
+            Category: true
           }
         }
       }
@@ -141,9 +141,9 @@ router.put('/subcategories', authenticate, async (req: any, res) => {
         isActive: true 
       },
       include: {
-        subcategory: {
+        Subcategory: {
           include: {
-            category: true
+            Category: true
           }
         }
       }
@@ -279,9 +279,9 @@ router.get('/subcategories/:userId', authenticate, canAccessUserData, async (req
         isActive: true 
       },
       include: {
-        subcategory: {
+        Subcategory: {
           include: {
-            category: true
+            Category: true
           }
         }
       }
@@ -386,9 +386,9 @@ router.put('/subcategories/:userId', authenticate, requireAdmin, async (req: any
         isActive: true 
       },
       include: {
-        subcategory: {
+        Subcategory: {
           include: {
-            category: true
+            Category: true
           }
         }
       }
@@ -473,9 +473,9 @@ router.post('/subcategories/:userId/add', authenticate, requireAdmin, async (req
         updatedAt: new Date()
       },
       include: {
-        subcategory: {
+        Subcategory: {
           include: {
-            category: true
+            Category: true
           }
         }
       }

@@ -45,6 +45,20 @@ apiClient.interceptors.response.use(
 
     // Handle 401 Unauthorized
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // Non attivare il flusso di refresh/redirect per endpoint pubblici
+      // Evita anche di ricaricare la pagina se siamo già su /login
+      const url = originalRequest?.url || '';
+      const isPublicEndpoint = url.startsWith('/public/') || url.includes('/public/');
+      const isOnLoginPage = typeof window !== 'undefined' && window.location.pathname === '/login';
+      // Evita redirect quando siamo su percorsi pubblici (landing, login, ecc.)
+      const publicPaths = ['/', '/login', '/register', '/forgot-password', '/privacy', '/terms'];
+      const isOnPublicPath = typeof window !== 'undefined' 
+        && publicPaths.some((p) => window.location.pathname === p || window.location.pathname.startsWith(p));
+
+      if (isPublicEndpoint) {
+        return Promise.reject(error);
+      }
+
       originalRequest._retry = true;
 
       try {
@@ -52,8 +66,14 @@ apiClient.interceptors.response.use(
         
         if (!refreshToken) {
           // No refresh token, redirect to login
-          localStorage.clear();
-          window.location.href = '/login';
+          // NON cancellare tutto lo storage: rimuovi solo chiavi di auth
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('user');
+          // Evita redirect se già su pagine pubbliche per non abortire richieste pubbliche
+          if (!isOnLoginPage && !isOnPublicPath) {
+            window.location.href = '/login';
+          }
           return Promise.reject(error);
         }
 
@@ -74,8 +94,14 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         // Refresh failed, redirect to login
-        localStorage.clear();
-        window.location.href = '/login';
+        // NON cancellare tutto lo storage: rimuovi solo chiavi di auth
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        // Evita redirect se già su pagine pubbliche per non abortire richieste pubbliche
+        if (!isOnLoginPage && !isOnPublicPath) {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       }
     }

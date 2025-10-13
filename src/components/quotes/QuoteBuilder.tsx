@@ -237,7 +237,7 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
     const travelItemIndex = fields.findIndex(item => item.itemType === 'travel' && item.isAutomatic);
     if (travelItemIndex >= 0) {
       remove(travelItemIndex);
-      toast.info('Costi di viaggio rimossi dal preventivo');
+  toast('Costi di viaggio rimossi dal preventivo');
     }
     setTravelCostInfo(null);
     setManualEditMode(false);
@@ -263,14 +263,14 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
       // Entering manual edit mode
       setManualEditMode(true);
       setManualTravelCost(originalTravelCost);
-      toast.info('Modalità modifica manuale attivata');
+  toast('Modalità modifica manuale attivata');
     } else {
       // Exiting manual edit mode - restore original
       setManualEditMode(false);
       setManualTravelCost(null);
       if (originalTravelCost !== null) {
         updateTravelCostItem(originalTravelCost);
-        toast.info('Costo ripristinato al valore calcolato');
+  toast('Costo ripristinato al valore calcolato');
       }
     }
   };

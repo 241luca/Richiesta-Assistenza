@@ -3,6 +3,7 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { ResponseFormatter } from '../utils/responseFormatter';
 import { logger } from '../utils/logger';
 import { prisma } from '../config/database';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
@@ -73,13 +74,14 @@ router.post('/interventions', authenticate, async (req: AuthRequest, res) => {
     // Crea l'intervento direttamente senza notifiche
     const intervention = await prisma.scheduledIntervention.create({
       data: {
-        requestId,
-        professionalId,
-        proposedDate: new Date(proposedDate),
-        description: description || 'Intervento programmato',
-        estimatedDuration: estimatedDuration || 60,
-        status: 'PROPOSED',
-        clientConfirmed: false
+        id: uuidv4(),
+        request: { connect: { id: requestId } },
+        professional: { connect: { id: professionalId } },
+        scheduledDateTime: new Date(proposedDate),
+        duration: estimatedDuration || 60,
+        notes: description || 'Intervento programmato',
+        status: 'scheduled',
+        updatedAt: new Date()
       },
       include: {
         request: {

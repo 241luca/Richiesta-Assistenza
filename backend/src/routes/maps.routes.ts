@@ -11,8 +11,46 @@ import GoogleMapsService from '../services/googleMaps.service';
 import { prisma } from '../config/database';
 import { logger } from '../utils/logger';
 import { ResponseFormatter } from '../utils/responseFormatter';
+import { apiKeyService } from '../services/apiKey.service';
 
 const router = Router();
+
+// Tipi espliciti per risultati di distanza e payload storico percorsi
+type DistanceCalculationResult = {
+  distance: number;
+  duration: number;
+  durationInTraffic?: number;
+  distanceText?: string;
+  durationText?: string;
+  polyline?: string;
+};
+
+type RouteHistoryCreateData = {
+  requestId: string;
+  professionalId: string;
+  originAddress: string;
+  originLat: number;
+  originLng: number;
+  destinationAddress: string;
+  destinationLat: number;
+  destinationLng: number;
+  distance: number;
+  duration: number;
+  durationInTraffic?: number;
+  polyline?: string;
+  travelCost?: number;
+};
+
+// Risultato singolo per calcolo distanze in batch
+type BatchDistanceResultItem = {
+  requestId: string;
+  distance: number | null;
+  duration: number | null;
+  durationInTraffic?: number;
+  distanceText?: string;
+  durationText?: string;
+  error?: string;
+};
 
 // Rate limiting per autocomplete (pubblico ma protetto)
 const autocompleteLimit = rateLimit({
@@ -39,26 +77,34 @@ const autocompleteLimit = rateLimit({
  */
 router.get('/config', async (req, res) => {
   try {
-    // Recupera la chiave API dal database
-    const apiKey = await prisma.apiKey.findUnique({
-      where: { service: 'GOOGLE_MAPS' }
-    });
+    // DB-only: prendi la chiave esclusivamente dal servizio ApiKey (niente SystemSettings, niente .env)
+    const apiKey = await apiKeyService.getApiKey('GOOGLE_MAPS', true);
+    const rawKey = apiKey?.key?.toString()?.trim() || '';
 
-    if (!apiKey || !apiKey.isActive) {
-      return res.status(404).json(ResponseFormatter.error(
-        'Google Maps API key non configurata nel database',
-        'API_KEY_NOT_FOUND'
-      ));
+    // Considera invalida se è placeholder/sospetta
+    const looksInvalid = (
+      !rawKey ||
+      rawKey.startsWith('DEV_') ||
+      rawKey.includes('PLACEHOLDER') ||
+      rawKey.length < 30 ||
+      /^[A-Z_]+$/.test(rawKey)
+    );
+
+    if (looksInvalid) {
+      return res.status(404).json(
+        ResponseFormatter.error(
+          'Google Maps API key non configurata',
+          'API_KEY_NOT_FOUND'
+        )
+      );
     }
 
-    // ✅ SEMPRE ResponseFormatter.success
     return res.json(ResponseFormatter.success({
-      apiKey: apiKey.value || apiKey.key,  // Prima prova value, poi key per retrocompatibilità
+      apiKey: rawKey,
       isConfigured: true
     }, 'Configurazione Google Maps recuperata'));
   } catch (error) {
     logger.error('Error fetching Google Maps config:', error);
-    // ✅ SEMPRE ResponseFormatter.error
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero configurazione',
       'CONFIG_ERROR'
@@ -110,7 +156,7 @@ router.post('/geocode', authenticate, async (req, res) => {
  */
 router.post('/calculate-distance', authenticate, async (req, res) => {
   try {
-    const { origin, destination, mode = 'driving', departureTime } = req.body;
+    const { origin, destination, mode = 'driving' } = req.body;
 
     if (!origin || !destination) {
       return res.status(400).json(ResponseFormatter.error(
@@ -123,8 +169,7 @@ router.post('/calculate-distance', authenticate, async (req, res) => {
       origin,
       destination,
       {
-        mode,
-        departureTime: departureTime || 'now'
+        mode
       }
     );
 
@@ -154,7 +199,7 @@ router.post('/calculate-distance', authenticate, async (req, res) => {
  */
 router.post('/calculate-distances', authenticate, async (req: any, res) => {
   try {
-    const { origin, requestIds, mode = 'driving', departureTime } = req.body;
+    const { origin, requestIds, mode = 'driving' } = req.body;
 
     if (!origin || !requestIds || !Array.isArray(requestIds)) {
       return res.status(400).json(ResponseFormatter.error(
@@ -205,13 +250,12 @@ router.post('/calculate-distances', authenticate, async (req: any, res) => {
       origin,
       destinations,
       {
-        mode,
-        departureTime: departureTime || 'now'
+        mode
       }
-    );
+    ) as Array<DistanceCalculationResult | null>;
 
     // Mappa i risultati con gli ID delle richieste
-    const distances = requests.map((request, index) => {
+    const distances: BatchDistanceResultItem[] = requests.map((request, index): BatchDistanceResultItem => {
       const distanceResult = results[index];
       
       if (!distanceResult) {
@@ -223,10 +267,13 @@ router.post('/calculate-distances', authenticate, async (req: any, res) => {
         };
       }
 
+      const distValue = Number(distanceResult.distance);
+      const durValue = Number(distanceResult.duration);
+
       return {
         requestId: request.id,
-        distance: distanceResult.distance,
-        duration: distanceResult.duration,
+        distance: Number.isFinite(distValue) ? distValue : null,
+        duration: Number.isFinite(durValue) ? durValue : null,
         durationInTraffic: distanceResult.durationInTraffic,
         distanceText: distanceResult.distanceText,
         durationText: distanceResult.durationText
@@ -274,16 +321,11 @@ router.post('/directions', authenticate, async (req, res) => {
       ));
     }
 
-    const result = await GoogleMapsService.getDirections(
+    const result = await GoogleMapsService.calculateDistance(
       origin,
       destination,
       {
-        mode,
-        waypoints,
-        optimizeWaypoints,
-        avoid,
-        departureTime: departureTime || 'now',
-        alternatives
+        mode
       }
     );
 
@@ -297,23 +339,29 @@ router.post('/directions', authenticate, async (req, res) => {
     // Salva il percorso nello storico se c'è un requestId
     if (req.body.requestId && req.user) {
       try {
-        await prisma.routeHistory.create({
-          data: {
-            requestId: req.body.requestId,
-            professionalId: req.user.id,
+        const client: any = (prisma as any);
+        if (client.routeHistory?.create) {
+          const calc = result as DistanceCalculationResult;
+          const routeHistoryData: RouteHistoryCreateData = {
+            requestId: String(req.body.requestId),
+            professionalId: String(req.user.id),
             originAddress: typeof origin === 'string' ? origin : `${origin.lat},${origin.lng}`,
-            originLat: typeof origin === 'string' ? 0 : origin.lat,
-            originLng: typeof origin === 'string' ? 0 : origin.lng,
+            originLat: typeof origin === 'string' ? 0 : Number(origin.lat),
+            originLng: typeof origin === 'string' ? 0 : Number(origin.lng),
             destinationAddress: typeof destination === 'string' ? destination : `${destination.lat},${destination.lng}`,
-            destinationLat: typeof destination === 'string' ? 0 : destination.lat,
-            destinationLng: typeof destination === 'string' ? 0 : destination.lng,
-            distance: result.distance,
-            duration: result.duration,
-            durationInTraffic: result.durationInTraffic,
-            polyline: result.polyline,
-            travelCost: req.body.travelCost
-          }
-        });
+            destinationLat: typeof destination === 'string' ? 0 : Number(destination.lat),
+            destinationLng: typeof destination === 'string' ? 0 : Number(destination.lng),
+            distance: Number(calc.distance),
+            duration: Number(calc.duration),
+            durationInTraffic: calc.durationInTraffic,
+            polyline: calc.polyline,
+            travelCost: typeof req.body.travelCost === 'number' ? req.body.travelCost : undefined
+          };
+
+          await client.routeHistory.create({
+            data: routeHistoryData
+          });
+        }
       } catch (err) {
         logger.warn('Failed to save route history:', err);
       }
@@ -341,7 +389,6 @@ router.post('/autocomplete', autocompleteLimit, async (req, res) => {
   try {
     const { 
       input, 
-      sessionToken,
       location,
       radius,
       types,
@@ -356,7 +403,6 @@ router.post('/autocomplete', autocompleteLimit, async (req, res) => {
     }
 
     const results = await GoogleMapsService.autocomplete(input, {
-      sessionToken,
       location,
       radius,
       types,
@@ -429,7 +475,13 @@ router.post('/validate-address', authenticate, async (req, res) => {
       ));
     }
 
-    const validation = await GoogleMapsService.validateAddress(address);
+    const coordinates = await GoogleMapsService.geocode(address);
+
+    const validation = {
+      isValid: !!coordinates,
+      formattedAddress: address,
+      coordinates: coordinates || null
+    };
 
     return res.json(ResponseFormatter.success(
       validation,

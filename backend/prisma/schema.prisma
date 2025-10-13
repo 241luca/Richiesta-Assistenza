@@ -61,7 +61,7 @@ model ApiKey {
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime
-  user        User?     @relation(fields: [userId], references: [id])
+  User        User?     @relation(fields: [userId], references: [id])
 
   @@index([isActive])
   @@index([key])
@@ -126,18 +126,18 @@ model AssistanceRequest {
   travelDuration                              Int?
   travelDurationText                          String?
   AiConversation                              AiConversation[]
-  assignedByUser                              User?                   @relation("RequestAssignedBy", fields: [assignedBy], references: [id])
-  category                                    Category                @relation(fields: [categoryId], references: [id])
-  client                                      User                    @relation("ClientRequests", fields: [clientId], references: [id])
-  professional                                User?                   @relation("ProfessionalRequests", fields: [professionalId], references: [id])
-  subcategory                                 Subcategory?            @relation(fields: [subcategoryId], references: [id])
+  User_AssistanceRequest_assignedByToUser     User?                   @relation("AssistanceRequest_assignedByToUser", fields: [assignedBy], references: [id])
+  Category                                    Category                @relation(fields: [categoryId], references: [id])
+  User_AssistanceRequest_clientIdToUser       User                    @relation("AssistanceRequest_clientIdToUser", fields: [clientId], references: [id])
+  User_AssistanceRequest_professionalIdToUser User?                   @relation("AssistanceRequest_professionalIdToUser", fields: [professionalId], references: [id])
+  Subcategory                                 Subcategory?            @relation(fields: [subcategoryId], references: [id])
   Complaint                                   Complaint[]
   InterventionReport                          InterventionReport[]
   Invoice                                     Invoice[]
   Message                                     Message[]
   Payment                                     Payment[]
   Portfolio                                   Portfolio?
-  quotes                                      Quote[]
+  Quote                                       Quote[]
   RequestAttachment                           RequestAttachment[]
   RequestChatMessage                          RequestChatMessage[]
   RequestUpdate                               RequestUpdate[]
@@ -178,7 +178,7 @@ model AuditLog {
   statusCode   Int?
   severity     LogSeverity
   category     LogCategory
-  user         User?       @relation("UserAuditLogs", fields: [userId], references: [id])
+  User         User?       @relation(fields: [userId], references: [id])
 
   @@index([action, timestamp])
   @@index([category, severity])
@@ -409,12 +409,12 @@ model Category {
   displayOrder               Int                          @default(0)
   createdAt                  DateTime                     @default(now())
   updatedAt                  DateTime
-  requests                   AssistanceRequest[]
+  AssistanceRequest          AssistanceRequest[]
   DepositRule                DepositRule[]
   InterventionReportTemplate InterventionReportTemplate[]
   Portfolio                  Portfolio[]
   ProfessionCategory         ProfessionCategory[]
-  subcategories              Subcategory[]
+  Subcategory                Subcategory[]
 
   @@index([isActive])
   @@index([slug])
@@ -855,7 +855,7 @@ model DocumentTemplate {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime
   deletedAt   DateTime?
-  createdBy   User      @relation(fields: [createdById], references: [id])
+  User        User      @relation(fields: [createdById], references: [id])
 
   @@index([createdById])
   @@index([deletedAt])
@@ -1449,10 +1449,10 @@ model LegalDocument {
   createdAt            DateTime               @default(now())
   updatedAt            DateTime
   createdBy            String
-  creator              User                   @relation(fields: [createdBy], references: [id])
+  User                 User                   @relation(fields: [createdBy], references: [id])
   DocumentTypeConfig   DocumentTypeConfig?    @relation(fields: [typeConfigId], references: [id])
-  versions             LegalDocumentVersion[]
-  acceptances          UserLegalAcceptance[]
+  LegalDocumentVersion LegalDocumentVersion[]
+  UserLegalAcceptance  UserLegalAcceptance[]
 
   @@unique([type, internalName])
   @@index([isRequired])
@@ -1506,7 +1506,7 @@ model LegalDocumentVersion {
   User_LegalDocumentVersion_approvedByToUser  User?                 @relation("LegalDocumentVersion_approvedByToUser", fields: [approvedBy], references: [id])
   User_LegalDocumentVersion_archivedByToUser  User?                 @relation("LegalDocumentVersion_archivedByToUser", fields: [archivedBy], references: [id])
   User_LegalDocumentVersion_createdByToUser   User                  @relation("LegalDocumentVersion_createdByToUser", fields: [createdBy], references: [id])
-  document                                    LegalDocument         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  LegalDocument                               LegalDocument         @relation(fields: [documentId], references: [id], onDelete: Cascade)
   User_LegalDocumentVersion_publishedByToUser User?                 @relation("LegalDocumentVersion_publishedByToUser", fields: [publishedBy], references: [id])
   UserLegalAcceptance                         UserLegalAcceptance[]
 
@@ -1541,9 +1541,9 @@ model Message {
   editedAt                       DateTime?
   deletedAt                      DateTime?
   createdAt                      DateTime           @default(now())
-  recipient                      User               @relation("MessagesReceived", fields: [recipientId], references: [id])
-  request                        AssistanceRequest? @relation(fields: [requestId], references: [id])
-  sender                         User               @relation("MessagesSent", fields: [senderId], references: [id])
+  User_Message_recipientIdToUser User               @relation("Message_recipientIdToUser", fields: [recipientId], references: [id])
+  AssistanceRequest              AssistanceRequest? @relation(fields: [requestId], references: [id])
+  User_Message_senderIdToUser    User               @relation("Message_senderIdToUser", fields: [senderId], references: [id])
 
   @@index([isRead])
   @@index([recipientId])
@@ -1605,8 +1605,8 @@ model Notification {
   readAt                              DateTime?
   metadata                            Json?
   createdAt                           DateTime             @default(now())
-  recipient                           User                 @relation("NotificationsReceived", fields: [recipientId], references: [id])
-  sender                              User?                @relation("NotificationsSent", fields: [senderId], references: [id])
+  User_Notification_recipientIdToUser User                 @relation("Notification_recipientIdToUser", fields: [recipientId], references: [id])
+  User_Notification_senderIdToUser    User?                @relation("Notification_senderIdToUser", fields: [senderId], references: [id])
 
   @@index([isRead])
   @@index([recipientId])
@@ -1959,8 +1959,8 @@ model Profession {
   displayOrder       Int                  @default(0)
   createdAt          DateTime             @default(now())
   updatedAt          DateTime
-  categories         ProfessionCategory[]
-  users              User[]
+  ProfessionCategory ProfessionCategory[]
+  User               User[]
 
   @@index([isActive])
   @@index([slug])
@@ -1974,8 +1974,8 @@ model ProfessionCategory {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @default(now())
   isActive     Boolean    @default(true)
-  category     Category   @relation(fields: [categoryId], references: [id])
-  profession   Profession @relation(fields: [professionId], references: [id])
+  Category     Category   @relation(fields: [categoryId], references: [id])
+  Profession   Profession @relation(fields: [professionId], references: [id])
 
   @@unique([professionId, categoryId])
   @@index([categoryId])
@@ -2227,12 +2227,136 @@ model ProfessionalUserSubcategory {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime
   experienceLevel String      @default("INTERMEDIATE")
-  subcategory     Subcategory @relation(fields: [subcategoryId], references: [id])
-  user            User        @relation(fields: [userId], references: [id])
+  Subcategory     Subcategory @relation(fields: [subcategoryId], references: [id])
+  User            User        @relation(fields: [userId], references: [id])
 
   @@unique([userId, subcategoryId])
   @@index([subcategoryId])
   @@index([userId])
+}
+
+model ProfessionalWhatsApp {
+  id                            String                          @id
+  professionalId                String
+  phoneNumber                   String
+  instanceId                    String                          @unique
+  sendappApiKey                 String?
+  status                        WhatsAppStatus                  @default(PENDING)
+  activationDate                DateTime?
+  suspensionDate                DateTime?
+  suspensionReason              String?
+  professionalPhones            String[]                        @default([])
+  trustedNumbers                String[]                        @default([])
+  blacklistedNumbers            String[]                        @default([])
+  aiConfigProfessional          Json?
+  aiConfigClient                Json?
+  kbProfessionalIds             String[]                        @default([])
+  kbClientIds                   String[]                        @default([])
+  systemPromptProfessional      String?
+  systemPromptClient            String?
+  autoDetectMode                Boolean                         @default(true)
+  defaultMode                   DetectionMode                   @default(CLIENT)
+  confidenceThreshold           Float                           @default(0.7)
+  planId                        String?
+  billingCycle                  String                          @default("MONTHLY")
+  nextBillingDate               DateTime?
+  messagesLimit                 Int                             @default(1000)
+  messagesUsed                  Int                             @default(0)
+  aiResponsesLimit              Int                             @default(500)
+  aiResponsesUsed               Int                             @default(0)
+  settings                      Json?
+  businessHours                 Json?
+  autoReplySettings             Json?
+  createdAt                     DateTime                        @default(now())
+  updatedAt                     DateTime
+  createdBy                     String?
+  User                          User                            @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  ProfessionalWhatsAppAnalytics ProfessionalWhatsAppAnalytics[]
+  ProfessionalWhatsAppContact   ProfessionalWhatsAppContact[]
+
+  @@index([instanceId])
+  @@index([professionalId])
+  @@index([status])
+}
+
+model ProfessionalWhatsAppAnalytics {
+  id                   String               @id
+  whatsappId           String
+  date                 DateTime             @db.Date
+  hour                 Int?
+  messagesSentTech     Int                  @default(0)
+  messagesSentClient   Int                  @default(0)
+  messagesReceived     Int                  @default(0)
+  correctDetections    Int                  @default(0)
+  incorrectDetections  Int                  @default(0)
+  manualOverrides      Int                  @default(0)
+  detectionAccuracy    Float?
+  uniqueContacts       Int                  @default(0)
+  professionalContacts Int                  @default(0)
+  clientContacts       Int                  @default(0)
+  aiResponsesTech      Int                  @default(0)
+  aiResponsesClient    Int                  @default(0)
+  aiSuccessRate        Float?
+  createdAt            DateTime             @default(now())
+  ProfessionalWhatsApp ProfessionalWhatsApp @relation(fields: [whatsappId], references: [id], onDelete: Cascade)
+
+  @@unique([whatsappId, date, hour])
+  @@index([date])
+  @@index([whatsappId])
+}
+
+model ProfessionalWhatsAppContact {
+  id                   String               @id
+  whatsappId           String
+  phoneNumber          String
+  name                 String?
+  email                String?
+  contactType          ContactType          @default(CLIENT)
+  isVerified           Boolean              @default(false)
+  verifiedBy           String?
+  verifiedAt           DateTime?
+  whatsappName         String?
+  whatsappAvatar       String?
+  lastSeen             DateTime?
+  customerSince        DateTime?
+  totalMessages        Int                  @default(0)
+  totalOrders          Int                  @default(0)
+  totalRevenue         Float                @default(0)
+  aiInteractionsTech   Int                  @default(0)
+  aiInteractionsClient Int                  @default(0)
+  lastAiMode           String?
+  tags                 String[]             @default([])
+  notes                String?
+  internalNotes        String?
+  status               ContactStatus        @default(ACTIVE)
+  blocked              Boolean              @default(false)
+  blockedReason        String?
+  customFields         Json?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime
+  ProfessionalWhatsApp ProfessionalWhatsApp @relation(fields: [whatsappId], references: [id], onDelete: Cascade)
+
+  @@unique([whatsappId, phoneNumber])
+  @@index([contactType])
+  @@index([phoneNumber])
+  @@index([status])
+  @@index([whatsappId])
+}
+
+model ProfessionalWhatsAppDetectionOverride {
+  id                String        @id
+  whatsappId        String
+  phoneNumber       String
+  originalDetection DetectionMode
+  overriddenTo      DetectionMode
+  overriddenBy      String
+  reason            String?
+  shouldLearnFrom   Boolean       @default(true)
+  createdAt         DateTime      @default(now())
+
+  @@index([createdAt])
+  @@index([phoneNumber])
+  @@index([whatsappId])
 }
 
 model Quote {
@@ -2264,10 +2388,10 @@ model Quote {
   Invoice           Invoice[]
   OldPayment        OldPayment[]
   Payment           Payment[]
-  professional      User              @relation("ProfessionalQuotes", fields: [professionalId], references: [id])
-  request           AssistanceRequest @relation(fields: [requestId], references: [id])
-  items             QuoteItem[]
-  revisions         QuoteRevision[]
+  User              User              @relation(fields: [professionalId], references: [id])
+  AssistanceRequest AssistanceRequest @relation(fields: [requestId], references: [id])
+  QuoteItem         QuoteItem[]
+  QuoteRevision     QuoteRevision[]
 
   @@index([professionalId])
   @@index([requestId])
@@ -2469,9 +2593,9 @@ model ScheduledIntervention {
   createdAt                                       DateTime          @default(now())
   updatedAt                                       DateTime
   createdBy                                       String?
-  createdByUser                                   User?             @relation("InterventionCreatedBy", fields: [createdBy], references: [id])
-  professional                                    User              @relation("InterventionProfessional", fields: [professionalId], references: [id])
-  request                                         AssistanceRequest @relation(fields: [requestId], references: [id])
+  User_ScheduledIntervention_createdByToUser      User?             @relation("ScheduledIntervention_createdByToUser", fields: [createdBy], references: [id])
+  User_ScheduledIntervention_professionalIdToUser User              @relation("ScheduledIntervention_professionalIdToUser", fields: [professionalId], references: [id])
+  AssistanceRequest                               AssistanceRequest @relation(fields: [requestId], references: [id])
 
   @@index([professionalId])
   @@index([professionalId, proposedDate, status])
@@ -2571,7 +2695,7 @@ model Subcategory {
   categoryId                  String
   createdAt                   DateTime                      @default(now())
   updatedAt                   DateTime
-  requests                    AssistanceRequest[]
+  AssistanceRequest           AssistanceRequest[]
   ClientAiSettings            ClientAiSettings[]
   InterventionReportTemplate  InterventionReportTemplate[]
   KbDocument                  KbDocument[]
@@ -2579,7 +2703,7 @@ model Subcategory {
   KnowledgeBaseConfig         KnowledgeBaseConfig[]
   ProfessionalAiSettings      ProfessionalAiSettings[]
   ProfessionalUserSubcategory ProfessionalUserSubcategory[]
-  category                    Category                      @relation(fields: [categoryId], references: [id])
+  Category                    Category                      @relation(fields: [categoryId], references: [id])
   SubcategoryAiSettings       SubcategoryAiSettings?
 
   @@unique([categoryId, slug])
@@ -2606,7 +2730,7 @@ model SubcategoryAiSettings {
   isActive                    Boolean                       @default(true)
   metadata                    Json?
   createdAt                   DateTime                      @default(now())
-  updatedAt                   DateTime
+  updatedAt                   DateTime                      @updatedAt
   AiConversation              AiConversation[]
   ProfessionalAiCustomization ProfessionalAiCustomization[]
   Subcategory                 Subcategory                   @relation(fields: [subcategoryId], references: [id])
@@ -2801,10 +2925,10 @@ model User {
   referralCode                                                                 String?                       @unique
   AiConversation                                                               AiConversation[]
   ApiKey                                                                       ApiKey[]
-  assignedRequests                                                             AssistanceRequest[]           @relation("RequestAssignedBy")
-  clientRequests                                                               AssistanceRequest[]           @relation("ClientRequests")
-  professionalRequests                                                         AssistanceRequest[]           @relation("ProfessionalRequests")
-  auditLogs                                                                    AuditLog[]                    @relation("UserAuditLogs")
+  AssistanceRequest_AssistanceRequest_assignedByToUser                         AssistanceRequest[]           @relation("AssistanceRequest_assignedByToUser")
+  AssistanceRequest_AssistanceRequest_clientIdToUser                           AssistanceRequest[]           @relation("AssistanceRequest_clientIdToUser")
+  AssistanceRequest_AssistanceRequest_professionalIdToUser                     AssistanceRequest[]           @relation("AssistanceRequest_professionalIdToUser")
+  AuditLog                                                                     AuditLog[]
   BackupRestore                                                                BackupRestore[]
   BackupSchedule                                                               BackupSchedule[]
   CalendarAvailability                                                         CalendarAvailability[]
@@ -2834,11 +2958,11 @@ model User {
   LegalDocumentVersion_LegalDocumentVersion_createdByToUser                    LegalDocumentVersion[]        @relation("LegalDocumentVersion_createdByToUser")
   LegalDocumentVersion_LegalDocumentVersion_publishedByToUser                  LegalDocumentVersion[]        @relation("LegalDocumentVersion_publishedByToUser")
   LoginHistory                                                                 LoginHistory[]
-  messagesReceived                                                             Message[]                     @relation("MessagesReceived")
-  messagesSent                                                                 Message[]                     @relation("MessagesSent")
+  Message_Message_recipientIdToUser                                            Message[]                     @relation("Message_recipientIdToUser")
+  Message_Message_senderIdToUser                                               Message[]                     @relation("Message_senderIdToUser")
   ModuleHistory                                                                ModuleHistory[]
-  notificationsReceived                                                        Notification[]                @relation("NotificationsReceived")
-  notificationsSent                                                            Notification[]                @relation("NotificationsSent")
+  Notification_Notification_recipientIdToUser                                  Notification[]                @relation("Notification_recipientIdToUser")
+  Notification_Notification_senderIdToUser                                     Notification[]                @relation("Notification_senderIdToUser")
   NotificationLog                                                              NotificationLog[]
   NotificationPreference                                                       NotificationPreference?
   OldPayment                                                                   OldPayment[]
@@ -2863,7 +2987,8 @@ model User {
   ProfessionalReportTemplate                                                   ProfessionalReportTemplate[]
   ProfessionalSkill                                                            ProfessionalSkill[]
   ProfessionalUserSubcategory                                                  ProfessionalUserSubcategory[]
-  quotes                                                                       Quote[]                       @relation("ProfessionalQuotes")
+  ProfessionalWhatsApp                                                         ProfessionalWhatsApp[]
+  Quote                                                                        Quote[]
   QuoteRevision                                                                QuoteRevision[]
   QuoteTemplate                                                                QuoteTemplate[]
   Referral_Referral_refereeIdToUser                                            Referral?                     @relation("Referral_refereeIdToUser")
@@ -2874,18 +2999,17 @@ model User {
   RequestUpdate                                                                RequestUpdate[]
   Review_Review_clientIdToUser                                                 Review[]                      @relation("Review_clientIdToUser")
   Review_Review_professionalIdToUser                                           Review[]                      @relation("Review_professionalIdToUser")
-  interventionsCreated                                                         ScheduledIntervention[]       @relation("InterventionCreatedBy")
-  interventionsAssigned                                                        ScheduledIntervention[]       @relation("InterventionProfessional")
+  ScheduledIntervention_ScheduledIntervention_createdByToUser                  ScheduledIntervention[]       @relation("ScheduledIntervention_createdByToUser")
+  ScheduledIntervention_ScheduledIntervention_professionalIdToUser             ScheduledIntervention[]       @relation("ScheduledIntervention_professionalIdToUser")
   ScriptExecution                                                              ScriptExecution[]
   StripeConnect                                                                StripeConnect?
   SystemBackup                                                                 SystemBackup[]
   Profession                                                                   Profession?                   @relation(fields: [professionId], references: [id])
   UserLegalAcceptance                                                          UserLegalAcceptance[]
   UserPoints                                                                   UserPoints?
-  whatsappContactsAsProfessional                                               WhatsAppContact[]             @relation("WhatsAppContactProfessional")
-  whatsappContactsAsUser                                                       WhatsAppContact[]             @relation("WhatsAppContactUser")
+  WhatsAppContact_WhatsAppContact_professionalIdToUser                         WhatsAppContact[]             @relation("WhatsAppContact_professionalIdToUser")
+  WhatsAppContact_WhatsAppContact_userIdToUser                                 WhatsAppContact[]             @relation("WhatsAppContact_userIdToUser")
   WhatsAppMessage                                                              WhatsAppMessage[]
-  whatsappConfigs                                                              ProfessionalWhatsApp[]        @relation("ProfessionalWhatsAppConfig")
 
   @@index([createdAt])
   @@index([email])
@@ -2911,9 +3035,9 @@ model UserLegalAcceptance {
   isActive             Boolean              @default(true)
   revokedAt            DateTime?
   revokedReason        String?
-  document             LegalDocument        @relation(fields: [documentId], references: [id])
-  user                 User                 @relation(fields: [userId], references: [id])
-  version              LegalDocumentVersion @relation(fields: [versionId], references: [id])
+  LegalDocument        LegalDocument        @relation(fields: [documentId], references: [id])
+  User                 User                 @relation(fields: [userId], references: [id])
+  LegalDocumentVersion LegalDocumentVersion @relation(fields: [versionId], references: [id])
 
   @@unique([userId, documentId, versionId])
   @@index([acceptedAt])
@@ -2973,8 +3097,8 @@ model WhatsAppContact {
   createdAt                                 DateTime        @default(now())
   updatedAt                                 DateTime
   syncedAt                                  DateTime?
-  professional                              User?           @relation("WhatsAppContactProfessional", fields: [professionalId], references: [id])
-  user                                      User?           @relation("WhatsAppContactUser", fields: [userId], references: [id])
+  User_WhatsAppContact_professionalIdToUser User?           @relation("WhatsAppContact_professionalIdToUser", fields: [professionalId], references: [id])
+  User_WhatsAppContact_userIdToUser         User?           @relation("WhatsAppContact_userIdToUser", fields: [userId], references: [id])
   WhatsAppGroup                             WhatsAppGroup[] @relation("GroupMembers")
 
   @@index([isBusiness])
@@ -3047,8 +3171,8 @@ model WhatsAppMessage {
   updatedAt         DateTime
   userId            String?
   requestId         String?
-  request           AssistanceRequest? @relation(fields: [requestId], references: [id])
-  user              User?              @relation(fields: [userId], references: [id])
+  AssistanceRequest AssistanceRequest? @relation(fields: [requestId], references: [id])
+  User              User?              @relation(fields: [userId], references: [id])
 
   @@index([chatId])
   @@index([direction])
@@ -3070,6 +3194,46 @@ model WhatsAppSession {
 
   @@index([isActive])
   @@index([sessionName])
+}
+
+// === CRM UNIFICATO PER CONTATTI MULTICANALE ===
+// Gestisce lead/prospect provenienti da referral, WhatsApp e web
+
+enum CrmSource {
+  REFERRAL
+  WHATSAPP
+  WEB
+}
+
+enum CrmContactStatus {
+  INVITED
+  REGISTERED
+  CONVERTED
+  ARCHIVED
+}
+
+model CrmContact {
+  id          String            @id
+  email       String?           @unique
+  phoneNumber String?           @unique
+  name        String?
+  source      CrmSource
+  status      CrmContactStatus  @default(INVITED)
+
+  // Collegamenti opzionali
+  referrerId  String?
+  referralId  String?
+  userId      String?
+
+  notes       String?
+  metadata    Json?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime
+
+  @@index([source, status])
+  @@index([email])
+  @@index([phoneNumber])
+  @@index([referralId])
 }
 
 enum AcceptanceMethod {
@@ -3191,10 +3355,29 @@ enum ComplaintStatus {
   CLOSED
 }
 
+enum ContactStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+enum ContactType {
+  CLIENT
+  PROFESSIONAL
+  TRUSTED
+  BLOCKED
+}
+
 enum DetailLevel {
   BASIC
   INTERMEDIATE
   ADVANCED
+}
+
+enum DetectionMode {
+  PROFESSIONAL
+  CLIENT
+  UNKNOWN
 }
 
 enum DocumentType {
@@ -3471,219 +3654,10 @@ enum VersionStatus {
   ARCHIVED
   SUPERSEDED
 }
-// ==========================================
-// MODELLI WHATSAPP PER DUAL MODE DETECTOR
-// ==========================================
 
-// Enum necessari per WhatsApp
 enum WhatsAppStatus {
   PENDING
   ACTIVE
   SUSPENDED
   DELETED
-}
-
-enum DetectionMode {
-  PROFESSIONAL
-  CLIENT
-  UNKNOWN
-}
-
-enum ContactType {
-  CLIENT
-  PROFESSIONAL
-  TRUSTED
-  BLOCKED
-}
-
-enum ContactStatus {
-  ACTIVE
-  INACTIVE
-  BLOCKED
-}
-
-// ==========================================
-// MODELLO PRINCIPALE - ProfessionalWhatsApp
-// ==========================================
-
-model ProfessionalWhatsApp {
-  id                      String                                @id @default(uuid())
-  professionalId          String
-  phoneNumber             String
-  instanceId              String                                @unique
-  sendappApiKey           String?
-  status                  WhatsAppStatus                        @default(PENDING)
-  activationDate          DateTime?
-  suspensionDate          DateTime?
-  suspensionReason        String?
-  
-  // Phone Recognition Lists
-  professionalPhones      String[]                              @default([])
-  trustedNumbers          String[]                              @default([])
-  blacklistedNumbers      String[]                              @default([])
-  
-  // AI Configurations (stored as JSON)
-  aiConfigProfessional    Json?
-  aiConfigClient          Json?
-  
-  // Knowledge Bases
-  kbProfessionalIds       String[]                              @default([])
-  kbClientIds             String[]                              @default([])
-  
-  // System Prompts
-  systemPromptProfessional String?
-  systemPromptClient       String?
-  
-  // Detection Settings
-  autoDetectMode          Boolean                               @default(true)
-  defaultMode             DetectionMode                         @default(CLIENT)
-  confidenceThreshold     Float                                 @default(0.7)
-  
-  // Billing
-  planId                  String?
-  billingCycle            String                                @default("MONTHLY")
-  nextBillingDate         DateTime?
-  messagesLimit           Int                                   @default(1000)
-  messagesUsed            Int                                   @default(0)
-  aiResponsesLimit        Int                                   @default(500)
-  aiResponsesUsed         Int                                   @default(0)
-  
-  // Settings
-  settings                Json?
-  businessHours           Json?
-  autoReplySettings       Json?
-  
-  // Metadata
-  createdAt               DateTime                              @default(now())
-  updatedAt               DateTime                              @updatedAt
-  createdBy               String?
-  
-  // Relations
-  professional            User                                  @relation("ProfessionalWhatsAppConfig", fields: [professionalId], references: [id], onDelete: Cascade)
-  contacts                ProfessionalWhatsAppContact[]
-  analytics               ProfessionalWhatsAppAnalytics[]
-  
-  @@index([professionalId])
-  @@index([instanceId])
-  @@index([status])
-}
-
-// ==========================================
-// MODELLO CONTATTI - ProfessionalWhatsAppContact
-// ==========================================
-
-model ProfessionalWhatsAppContact {
-  id                      String                                @id @default(uuid())
-  whatsappId              String
-  
-  // Contact Info
-  phoneNumber             String
-  name                    String?
-  email                   String?
-  
-  // Classification - CRITICAL!
-  contactType             ContactType                           @default(CLIENT)
-  isVerified              Boolean                               @default(false)
-  verifiedBy              String?
-  verifiedAt              DateTime?
-  
-  // WhatsApp Info
-  whatsappName            String?
-  whatsappAvatar          String?
-  lastSeen                DateTime?
-  
-  // Business Data
-  customerSince           DateTime?
-  totalMessages           Int                                   @default(0)
-  totalOrders             Int                                   @default(0)
-  totalRevenue            Float                                 @default(0)
-  
-  // AI Interaction Stats
-  aiInteractionsTech      Int                                   @default(0)
-  aiInteractionsClient    Int                                   @default(0)
-  lastAiMode              String?
-  
-  // Notes
-  tags                    String[]                              @default([])
-  notes                   String?
-  internalNotes           String?
-  
-  // Status
-  status                  ContactStatus                         @default(ACTIVE)
-  blocked                 Boolean                               @default(false)
-  blockedReason           String?
-  
-  customFields            Json?
-  createdAt               DateTime                              @default(now())
-  updatedAt               DateTime                              @updatedAt
-  
-  // Relations
-  whatsapp                ProfessionalWhatsApp                  @relation(fields: [whatsappId], references: [id], onDelete: Cascade)
-  
-  @@unique([whatsappId, phoneNumber])
-  @@index([whatsappId])
-  @@index([phoneNumber])
-  @@index([contactType])
-  @@index([status])
-}
-
-// ==========================================
-// MODELLO OVERRIDE - ProfessionalWhatsAppDetectionOverride
-// ==========================================
-
-model ProfessionalWhatsAppDetectionOverride {
-  id                      String                                @id @default(uuid())
-  whatsappId              String
-  phoneNumber             String
-  originalDetection       DetectionMode
-  overriddenTo            DetectionMode
-  overriddenBy            String
-  reason                  String?
-  shouldLearnFrom         Boolean                               @default(true)
-  createdAt               DateTime                              @default(now())
-  
-  @@index([whatsappId])
-  @@index([phoneNumber])
-  @@index([createdAt])
-}
-
-// ==========================================
-// MODELLO ANALYTICS - ProfessionalWhatsAppAnalytics
-// ==========================================
-
-model ProfessionalWhatsAppAnalytics {
-  id                      String                                @id @default(uuid())
-  whatsappId              String
-  date                    DateTime                              @db.Date
-  hour                    Int?
-  
-  // Messages by Mode
-  messagesSentTech        Int                                   @default(0)
-  messagesSentClient      Int                                   @default(0)
-  messagesReceived        Int                                   @default(0)
-  
-  // Detection Metrics
-  correctDetections       Int                                   @default(0)
-  incorrectDetections     Int                                   @default(0)
-  manualOverrides         Int                                   @default(0)
-  detectionAccuracy       Float?
-  
-  // Contacts
-  uniqueContacts          Int                                   @default(0)
-  professionalContacts    Int                                   @default(0)
-  clientContacts          Int                                   @default(0)
-  
-  // AI Metrics
-  aiResponsesTech         Int                                   @default(0)
-  aiResponsesClient       Int                                   @default(0)
-  aiSuccessRate           Float?
-  
-  createdAt               DateTime                              @default(now())
-  
-  // Relations
-  whatsapp                ProfessionalWhatsApp                  @relation(fields: [whatsappId], references: [id], onDelete: Cascade)
-  
-  @@unique([whatsappId, date, hour])
-  @@index([whatsappId])
-  @@index([date])
 }

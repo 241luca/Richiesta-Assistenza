@@ -301,7 +301,7 @@ function EnumsTab() {
                       </Badge>
                       {/* Pulsante aggiungi disabilitato per ora */}
                       <button
-                        onClick={() => toast.info('Funzionalità in sviluppo')}
+            onClick={() => toast('Funzionalità in sviluppo')}
                         className="text-gray-400 hover:text-gray-600 p-1"
                         title="Aggiungi valore"
                         disabled
@@ -349,7 +349,7 @@ function EnumsTab() {
                                 <td className="py-2 text-right">
                                   <div className="flex items-center justify-end space-x-1">
                                     <button
-                                      onClick={() => toast.info('Modifica in sviluppo')}
+            onClick={() => toast('Modifica in sviluppo')}
                                       className="text-gray-400 hover:text-gray-600 p-1"
                                       title="Modifica"
                                       disabled
@@ -357,7 +357,7 @@ function EnumsTab() {
                                       <PencilIcon className="h-3 w-3" />
                                     </button>
                                     <button
-                                      onClick={() => toast.info('Eliminazione in sviluppo')}
+            onClick={() => toast('Eliminazione in sviluppo')}
                                       className="text-gray-400 hover:text-gray-600 p-1"
                                       title="Elimina"
                                       disabled

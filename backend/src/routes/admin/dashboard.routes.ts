@@ -173,7 +173,7 @@ router.get('/', async (req: any, res: any) => {
         })),
         recentQuotes: recentQuotes.map(quote => ({
           id: quote.id,
-          requestTitle: quote.AssistanceRequest?.title,
+          requestTitle: quote.request?.title,
           amount: Number(quote.amount),
           status: quote.status.toLowerCase(),
           createdAt: quote.createdAt.toISOString()

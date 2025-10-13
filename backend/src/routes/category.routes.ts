@@ -153,7 +153,7 @@ router.post(
         'Category created successfully'
       ));
     } catch (error) {
-      res.json(ResponseFormatter.error(
+      res.status(500).json(ResponseFormatter.error(
         'Failed to create category',
         'CATEGORY_CREATE_ERROR'
       ));

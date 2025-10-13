@@ -16,6 +16,7 @@
  */
 
 import { prisma } from '../config/database';
+import { randomUUID } from 'crypto';
 import { logger } from '../utils/logger';
 import { generateSlug } from '../utils/slug';
 import type { Category } from '@prisma/client';
@@ -72,9 +73,9 @@ export class CategoryService {
         include: {
           _count: {
             select: {
-              subcategories: true,
-              requests: true,
-            },
+              Subcategory: true,
+              AssistanceRequest: true,
+            } as any,
           },
         },
         orderBy: [
@@ -120,9 +121,9 @@ export class CategoryService {
         include: {
           _count: {
             select: {
-              subcategories: true,
-              requests: true,
-            },
+              Subcategory: true,
+              AssistanceRequest: true,
+            } as any,
           },
         },
       });
@@ -185,6 +186,7 @@ export class CategoryService {
       // Creazione categoria
       const newCategory = await prisma.category.create({
         data: {
+          id: randomUUID(),
           name: data.name,
           slug,
           description: data.description,
@@ -193,13 +195,15 @@ export class CategoryService {
           textColor: data.textColor || '#FFFFFF', // White default
           isActive: data.isActive ?? true,
           displayOrder: data.displayOrder || 0,
+          // Campo obbligatorio nello schema: updatedAt NON ha default
+          updatedAt: new Date(),
         } as any, // TypeScript: id e updatedAt sono auto-generati
         include: {
           _count: {
             select: {
-              subcategories: true,
-              requests: true,
-            },
+              Subcategory: true,
+              AssistanceRequest: true,
+            } as any,
           },
         },
       });
@@ -281,9 +285,9 @@ export class CategoryService {
         include: {
           _count: {
             select: {
-              subcategories: true,
-              requests: true,
-            },
+              Subcategory: true,
+              AssistanceRequest: true,
+            } as any,
           },
         },
       });
@@ -333,12 +337,12 @@ export class CategoryService {
       }
 
       // Validazione integrità referenziale
-      if (category._count && category._count.subcategories > 0) {
-        throw new Error(`Cannot delete category with ${category._count.subcategories} subcategories`);
+      if (category._count && (category._count as any).Subcategory > 0) {
+        throw new Error(`Cannot delete category with ${(category._count as any).Subcategory} subcategories`);
       }
 
-      if (category._count && category._count.requests > 0) {
-        throw new Error(`Cannot delete category with ${category._count.requests} active requests`);
+      if (category._count && (category._count as any).AssistanceRequest > 0) {
+        throw new Error(`Cannot delete category with ${(category._count as any).AssistanceRequest} active requests`);
       }
 
       // Eliminazione
@@ -382,9 +386,9 @@ export class CategoryService {
         include: {
           _count: {
             select: {
-              subcategories: true,
-              requests: true,
-            },
+              Subcategory: true,
+              AssistanceRequest: true,
+            } as any,
           },
         },
       });
@@ -425,9 +429,9 @@ export class CategoryService {
         include: {
           _count: {
             select: {
-              subcategories: true,
-              requests: true,
-            },
+              Subcategory: true,
+              AssistanceRequest: true,
+            } as any,
           },
         },
         orderBy: [

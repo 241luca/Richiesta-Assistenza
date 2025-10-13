@@ -17,7 +17,7 @@ import toast from 'react-hot-toast';
 // NUOVA FUNZIONALITÀ: Import componente indirizzo lavoro per professionisti
 import { WorkAddressSettings } from '../components/travel/WorkAddressSettings';
 // AGGIUNTO: Import autocompletamento per profilo generale
-import AddressAutocomplete from '../components/address/AddressAutocomplete';
+import { PlaceAutocomplete } from '../components/address/PlaceAutocomplete';
 // NUOVO: Import componenti Portfolio
 import { PortfolioGallery, AddPortfolioModal } from '../components/portfolio';
 
@@ -25,6 +25,28 @@ export function ProfilePage() {
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showAddPortfolio, setShowAddPortfolio] = useState(false);
+  // Helper per estrarre città, provincia, CAP e coordinate dai dettagli di Google Places
+  const parseAddressDetails = (details: any) => {
+    try {
+      const comps: any[] = details?.address_components || [];
+      const findType = (t: string) => comps.find((c) => c.types?.includes(t));
+      const city =
+        findType('locality')?.long_name ||
+        findType('administrative_area_level_3')?.long_name ||
+        findType('sublocality')?.long_name ||
+        '';
+      const province =
+        findType('administrative_area_level_2')?.short_name ||
+        findType('administrative_area_level_1')?.short_name ||
+        '';
+      const postalCode = findType('postal_code')?.long_name || '';
+      const latitude = details?.geometry?.location?.lat?.();
+      const longitude = details?.geometry?.location?.lng?.();
+      return { city, province, postalCode, latitude, longitude };
+    } catch (e) {
+      return { city: '', province: '', postalCode: '', latitude: undefined, longitude: undefined };
+    }
+  };
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
@@ -57,7 +79,7 @@ export function ProfilePage() {
 
   const handleEditPortfolio = (portfolio: any) => {
     // TODO: Implementare modifica portfolio
-    toast.info('Funzionalità modifica portfolio in arrivo!');
+  toast('Funzionalità modifica portfolio in arrivo!');
   };
 
   const handleDeletePortfolio = async (portfolioId: string) => {
@@ -221,25 +243,21 @@ export function ProfilePage() {
                 </div>
               </div>
               
-              {isEditing ? (
-                <AddressAutocomplete
-                  value={{
-                    address: formData.address,
-                    city: formData.city,
-                    province: formData.province,
-                    postalCode: formData.postalCode
-                  }}
-                  onChange={(addressData) => {
+                {isEditing ? (
+                <PlaceAutocomplete
+                  value={formData.address}
+                  onChange={(value, details) => {
+                    const parsed = parseAddressDetails(details);
                     setFormData({
                       ...formData,
-                      address: addressData.address,
-                      city: addressData.city,
-                      province: addressData.province,
-                      postalCode: addressData.postalCode
+                      address: value,
+                      city: parsed.city || formData.city,
+                      province: parsed.province || formData.province,
+                      postalCode: parsed.postalCode || formData.postalCode,
                     });
-                    console.log('🏠 Indirizzo residenza selezionato:', addressData);
+                    console.log('🏠 Indirizzo residenza selezionato:', { value, ...parsed });
                   }}
-                  errors={{}}
+                  label="Indirizzo completo"
                 />
               ) : (
                 <div className="space-y-2">

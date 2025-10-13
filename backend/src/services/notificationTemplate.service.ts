@@ -224,9 +224,23 @@ export class NotificationTemplateService {
       const template = await prisma.notificationTemplate.create({
         data: {
           id: uuidv4(),
-          ...data,
+          code: data.code,
+          name: data.name,
+          description: data.description,
+          category: data.category,
+          subject: data.subject,
+          htmlContent: data.htmlContent,
+          textContent: data.textContent,
+          smsContent: data.smsContent,
+          whatsappContent: data.whatsappContent,
+          // Cast to Prisma JSON types to satisfy InputJsonValue
+          variables: data.variables as unknown as Prisma.InputJsonValue,
+          channels: data.channels as unknown as Prisma.InputJsonValue,
+          priority: data.priority ?? NotificationPriority.NORMAL,
+          isActive: data.isActive ?? true,
           createdBy: userId,
           updatedBy: userId,
+          updatedAt: new Date(),
         },
       });
 
@@ -267,8 +281,27 @@ export class NotificationTemplateService {
       const template = await prisma.notificationTemplate.update({
         where: { id },
         data: {
-          ...data,
+          code: data.code,
+          name: data.name,
+          description: data.description,
+          category: data.category,
+          subject: data.subject,
+          htmlContent: data.htmlContent,
+          textContent: data.textContent,
+          smsContent: data.smsContent,
+          whatsappContent: data.whatsappContent,
+          variables:
+            data.variables !== undefined
+              ? (data.variables as unknown as Prisma.InputJsonValue)
+              : undefined,
+          channels:
+            data.channels !== undefined
+              ? (data.channels as unknown as Prisma.InputJsonValue)
+              : undefined,
+          priority: data.priority,
+          isActive: data.isActive,
           updatedBy: userId,
+          updatedAt: new Date(),
           version: { increment: 1 },
         },
       });
@@ -386,7 +419,22 @@ export class NotificationTemplateService {
       const event = await prisma.notificationEvent.create({
         data: {
           id: uuidv4(),
-          ...data,
+          code: data.code,
+          name: data.name,
+          description: data.description,
+          eventType: data.eventType,
+          entityType: data.entityType,
+          conditions:
+            data.conditions !== undefined
+              ? (data.conditions as unknown as Prisma.InputJsonValue)
+              : undefined,
+          delay: data.delay ?? 0,
+          retryPolicy:
+            data.retryPolicy !== undefined
+              ? (data.retryPolicy as unknown as Prisma.InputJsonValue)
+              : undefined,
+          updatedAt: new Date(),
+          NotificationTemplate: { connect: { id: data.templateId } },
         },
         include: {
           NotificationTemplate: true,
@@ -412,8 +460,24 @@ export class NotificationTemplateService {
       const event = await prisma.notificationEvent.update({
         where: { id },
         data: {
-          ...data,
+          code: data.code,
+          name: data.name,
+          description: data.description,
+          eventType: data.eventType,
+          entityType: data.entityType,
+          conditions:
+            data.conditions !== undefined
+              ? (data.conditions as unknown as Prisma.InputJsonValue)
+              : undefined,
+          delay: data.delay,
+          retryPolicy:
+            data.retryPolicy !== undefined
+              ? (data.retryPolicy as unknown as Prisma.InputJsonValue)
+              : undefined,
           updatedAt: new Date(),
+          ...(data.templateId
+            ? { NotificationTemplate: { connect: { id: data.templateId } } }
+            : {}),
         },
         include: {
           NotificationTemplate: true,
@@ -628,12 +692,17 @@ export class NotificationTemplateService {
 
           const template = await this.getTemplateById(notification.templateId);
 
-          const notificationData = notification.data as TemplateData;
+          // Safely extract variables from JSON payload
+          const payload = notification.data as unknown;
+          const variables =
+            typeof payload === 'object' && payload !== null && 'variables' in (payload as Record<string, unknown>)
+              ? (((payload as Record<string, unknown>).variables as unknown) as Record<string, unknown>)
+              : {};
 
           const result = await this.sendViaChannel(
             template,
             notification.recipientId,
-            notificationData.variables || {},
+            variables,
             notification.channel,
             notification.priority
           );

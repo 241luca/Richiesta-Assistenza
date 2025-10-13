@@ -2,15 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { moduleService } from '../services/module.service';
 import { ResponseFormatter } from '../utils/responseFormatter';
 import { logger } from '../utils/logger';
-
-// Extend Express Request type
-interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    role?: string;
-    [key: string]: any;
-  };
-}
+import { AuthRequest } from './auth';
 
 // Cache semplice in memoria per migliorare le prestazioni
 const moduleStatusCache = new Map<string, { isEnabled: boolean; cachedAt: number }>();

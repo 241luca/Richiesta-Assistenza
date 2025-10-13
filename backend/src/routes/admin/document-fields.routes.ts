@@ -17,7 +17,7 @@ router.get('/',
   async (req: any, res) => {
     try {
       // Per ora ritorna array vuoto - tabelle non esistono
-      const fields = [];
+      const fields: any[] = [];
       
       return res.json(ResponseFormatter.success(
         fields,
@@ -47,8 +47,8 @@ router.get('/stats',
           required: 0,
           searchable: 0
         },
-        byType: [],
-        byDocumentType: []
+        byType: [] as any[],
+        byDocumentType: [] as any[]
       };
       
       return res.json(ResponseFormatter.success(

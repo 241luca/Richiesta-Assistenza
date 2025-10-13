@@ -172,12 +172,12 @@ class ModuleService {
       const module = await prisma.systemModule.findUnique({
         where: { code },
         include: {
-          settings: {
+          ModuleSetting: {
             orderBy: { key: 'asc' }
           },
           _count: {
             select: { 
-              settings: true
+              ModuleSetting: true
             }
           }
         }
@@ -219,7 +219,7 @@ class ModuleService {
         orderBy: { order: 'asc' },
         include: {
           _count: {
-            select: { settings: true }
+            select: { ModuleSetting: true }
           }
         }
       });
@@ -348,18 +348,12 @@ class ModuleService {
       logger.info('[ModuleService] Fetching modules with dependencies');
 
       const modules = await prisma.systemModule.findMany({
-        where: {
-          OR: [
-            { dependsOn: { isEmpty: false } },
-            { requiredFor: { isEmpty: false } }
-          ]
-        },
+        where: { dependsOn: { isEmpty: false } },
         select: {
           code: true,
           name: true,
           isEnabled: true,
           dependsOn: true,
-          requiredFor: true,
           category: true
         },
         orderBy: { name: 'asc' }
@@ -399,7 +393,6 @@ class ModuleService {
           name: true,
           isEnabled: true,
           dependsOn: true,
-          requiredFor: true
         }
       });
 
@@ -428,23 +421,8 @@ class ModuleService {
           }
         }
 
-        // ✅ Validazione tipo sicura per requiredFor
-        const requiredFor = module.requiredFor;
-        if (isStringArray(requiredFor) && requiredFor.length > 0) {
-          for (const reqCode of requiredFor) {
-            const reqModule = moduleMap.get(reqCode);
-            
-            if (!reqModule) {
-              errors.push(
-                `Modulo ${module.code} è richiesto da ${reqCode} che non esiste`
-              );
-            } else if (reqModule.isEnabled && !module.isEnabled) {
-              warnings.push(
-                `Modulo ${module.code} è disabilitato ma richiesto da ${reqCode} che è abilitato`
-              );
-            }
-          }
-        }
+        // Nota: il campo requiredFor non è presente nello schema attivo;
+        // la validazione si concentra su dependsOn.
       }
 
       const validation: DependencyValidation = {
@@ -654,8 +632,6 @@ class ModuleService {
         where: { code },
         data: {
           isEnabled: true,
-          enabledAt: new Date(),
-          enabledBy: userId
         }
       });
 
@@ -665,10 +641,12 @@ class ModuleService {
           userId: userId,
           moduleType: 'SYSTEM_MODULE',
           action: 'ENABLED',
-          moduleCode: code,
-          performedBy: userId,
-          reason,
-          newValue: { isEnabled: true } as Prisma.InputJsonValue
+          metadata: {
+            moduleCode: code,
+            performedBy: userId,
+            reason,
+            newValue: { isEnabled: true }
+          } as Prisma.InputJsonValue
         }
       });
 
@@ -755,8 +733,6 @@ class ModuleService {
         where: { code },
         data: {
           isEnabled: false,
-          disabledAt: new Date(),
-          disabledBy: userId
         }
       });
 
@@ -766,11 +742,13 @@ class ModuleService {
           userId: userId,
           moduleType: 'SYSTEM_MODULE',
           action: 'DISABLED',
-          moduleCode: code,
-          performedBy: userId,
-          reason,
-          oldValue: { isEnabled: true } as Prisma.InputJsonValue,
-          newValue: { isEnabled: false } as Prisma.InputJsonValue
+          metadata: {
+            moduleCode: code,
+            performedBy: userId,
+            reason,
+            oldValue: { isEnabled: true },
+            newValue: { isEnabled: false }
+          } as Prisma.InputJsonValue
         }
       });
 
@@ -844,12 +822,28 @@ class ModuleService {
           userId: userId,
           moduleType: 'SYSTEM_MODULE',
           action: 'CONFIG_CHANGED',
-          moduleCode: code,
-          performedBy: userId,
-          oldValue: oldConfig as Prisma.InputJsonValue,
-          newValue: config as Prisma.InputJsonValue
+          metadata: {
+            moduleCode: code,
+            performedBy: userId,
+            oldValue: oldConfig,
+            newValue: config
+          } as Prisma.InputJsonValue
         }
       });
+
+      // Notifica admins del cambio configurazione
+      try {
+        await notificationService.emitToAdmins('module:config_changed', {
+          moduleName: module.name,
+          changedBy: userId,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        logger.error('[ModuleService] Error sending config change notification:', error);
+      }
+
+      // Invalida cache per riflettere il cambio immediatamente
+      invalidateModuleCache(code);
 
       logger.info(`[ModuleService] Module ${code} config updated successfully`);
       return updated;
@@ -882,8 +876,9 @@ class ModuleService {
       const settings = await prisma.moduleSetting.findMany({
         where: { moduleCode: code },
         orderBy: [
-          { category: 'asc' },
-          { order: 'asc' }
+          { group: 'asc' },
+          { order: 'asc' },
+          { key: 'asc' }
         ]
       });
 
@@ -951,12 +946,29 @@ class ModuleService {
           userId: userId,
           moduleType: 'SYSTEM_MODULE',
           action: 'SETTING_UPDATED',
-          moduleCode: code,
-          performedBy: userId,
-          oldValue: { [settingKey]: setting.value } as Prisma.InputJsonValue,
-          newValue: { [settingKey]: value } as Prisma.InputJsonValue
+          metadata: {
+            moduleCode: code,
+            performedBy: userId,
+            oldValue: { [settingKey]: setting.value },
+            newValue: { [settingKey]: value }
+          } as Prisma.InputJsonValue
         }
       });
+
+      // Notifica admins dell’aggiornamento setting
+      try {
+        await notificationService.emitToAdmins('module:setting_updated', {
+          moduleName: setting.moduleCode,
+          settingKey,
+          changedBy: userId,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        logger.error('[ModuleService] Error sending setting update notification:', error);
+      }
+
+      // Invalida cache per riflettere il cambio immediatamente
+      invalidateModuleCache(code);
 
       logger.info(`[ModuleService] Setting ${code}.${settingKey} updated successfully`);
       return updated;
@@ -988,12 +1000,12 @@ class ModuleService {
     try {
       logger.info(`[ModuleService] Fetching module history: ${code}`, { limit });
 
-      const history = await prisma.moduleHistory.findMany({
-        where: { moduleCode: code },
+      const historyAll = await prisma.moduleHistory.findMany({
+        where: { moduleType: 'SYSTEM_MODULE' },
         orderBy: { createdAt: 'desc' },
         take: limit,
         include: {
-          user: {
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -1002,6 +1014,12 @@ class ModuleService {
             }
           }
         }
+      });
+
+      // Filtra per codice modulo dentro metadata (se presente)
+      const history = historyAll.filter((h: any) => {
+        const meta = h.metadata as any;
+        return meta && typeof meta === 'object' && meta.moduleCode === code;
       });
 
       logger.info(`[ModuleService] Found ${history.length} history records for module ${code}`);

@@ -24,6 +24,7 @@ import {
   AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
 import api from '../../services/api';
+import { healthService } from '../../services/health.service';
 import HealthCheckCard from '../../components/admin/health-check/HealthCheckCard';
 import HealthScoreChart from '../../components/admin/health-check/HealthScoreChart';
 import ModuleStatus from '../../components/admin/health-check/ModuleStatus';
@@ -43,7 +44,7 @@ export default function HealthCheckDashboard() {
   const { data: summary, isLoading, error, refetch } = useQuery({
     queryKey: ['health-check-summary'],
     queryFn: async () => {
-      const response = await api.health.getSummary();
+      const response = await healthService.getSummary();
       return response.data.data;
     },
     refetchInterval: autoRefresh ? 30000 : false,
@@ -55,14 +56,14 @@ export default function HealthCheckDashboard() {
   const { data: modules } = useQuery({
     queryKey: ['health-check-modules'],
     queryFn: async () => {
-      const response = await api.health.getModules();
+      const response = await healthService.getModules();
       return response.data.data;
     },
   });
 
   // Run all checks mutation
   const runAllChecksMutation = useMutation({
-    mutationFn: () => api.health.runAllChecks(),
+    mutationFn: () => healthService.runAllChecks(),
     onSuccess: () => {
       // Reset il modulo singolo quando si eseguono tutti i test
       setLastSingleTestModule(null);
@@ -76,7 +77,7 @@ export default function HealthCheckDashboard() {
   // Run single check mutation - FIX: mostra solo i risultati del modulo testato
   const runSingleCheckMutation = useMutation({
     mutationFn: async (module: string) => {
-      const response = await api.health.runSingleCheck(module);
+      const response = await healthService.runSingleCheck(module);
       return response;
     },
     onSuccess: async (data, module) => {
@@ -91,7 +92,7 @@ export default function HealthCheckDashboard() {
       await queryClient.fetchQuery({
         queryKey: ['health-check-summary'],
         queryFn: async () => {
-          const response = await api.health.getSummary();
+          const response = await healthService.getSummary();
           const summaryData = response.data.data;
           
           // Se c'è un flag singleModuleTest dal backend, usalo

@@ -215,8 +215,10 @@ class AuditLogService {
     const [logs, total] = await Promise.all([
       prisma.auditLog.findMany({
         where,
+        // La relazione utente su AuditLog è denominata in PascalCase (User)
+        // Usiamo include con chiave "User" e normalizziamo il payload più sotto
         include: {
-          user: {
+          User: {
             select: {
               id: true,
               email: true,
@@ -224,15 +226,20 @@ class AuditLogService {
               role: true
             }
           }
-        },
+        } as any,
         orderBy: { timestamp: 'desc' },
         take: filters.limit || 50,
         skip: filters.offset || 0
       }),
       prisma.auditLog.count({ where })
     ]);
+    // Normalizza: esponi anche la proprietà camelCase "user" per compatibilità
+    const normalizedLogs = logs.map((log: any) => ({
+      ...log,
+      user: log.User ?? null
+    }));
 
-    return { logs, total };
+    return { logs: normalizedLogs, total };
   }
 
   /**

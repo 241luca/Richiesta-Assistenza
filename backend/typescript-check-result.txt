@@ -1,7 +1,0 @@
-=== Test compilazione TypeScript ===
-node_modules/@prisma/client/runtime/library.d.ts(73,5): error TS18028: Private identifiers are only available when targeting ECMAScript 2015 and higher.
-node_modules/@prisma/client/runtime/library.d.ts(396,5): error TS18028: Private identifiers are only available when targeting ECMAScript 2015 and higher.
-node_modules/@prisma/client/runtime/library.d.ts(2032,5): error TS18028: Private identifiers are only available when targeting ECMAScript 2015 and higher.
-node_modules/@types/nodemailer/lib/ses-transport/index.d.ts(3,8): error TS1192: Module '"/Users/lucamambelli/Desktop/Richiesta-Assistenza/backend/node_modules/@aws-sdk/client-sesv2/dist-types/index"' has no default export.
-
-❌ Ci sono ancora errori TypeScript da correggere

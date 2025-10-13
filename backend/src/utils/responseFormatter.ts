@@ -51,6 +51,17 @@ function safeToISOString(date: any): string | null {
 export function formatAssistanceRequest(request: any): any {
   if (!request) return null;
   
+  // Supporta sia i vecchi alias (client/professional/category/subcategory)
+  // sia i nomi corretti derivati da Prisma
+  const clientRel = request.User_AssistanceRequest_clientIdToUser || request.client;
+  const professionalRel = request.User_AssistanceRequest_professionalIdToUser || request.professional;
+  const categoryRel = request.Category || request.category;
+  const subcategoryRel = request.Subcategory || request.subcategory;
+  const quotesRel = request.Quote || request.quotes;
+  const attachmentsRel = request.RequestAttachment || request.attachments;
+  const updatesRel = request.RequestUpdate || request.updates;
+  const messagesRel = request.Message || request.messages;
+
   return {
     id: request.id,
     title: request.title,
@@ -92,14 +103,14 @@ export function formatAssistanceRequest(request: any): any {
     updatedAt: safeToISOString(request.updatedAt),
     
     // Formatta relazioni se presenti - CORRETTE secondo lo schema Prisma
-    client: request.client ? formatUser(request.client) : null,
-    professional: request.professional ? formatUser(request.professional) : null,
-    category: request.category || request.category ? formatCategory(request.category || request.category) : null,
-    subcategory: request.subcategory || request.subcategory ? formatSubcategory(request.subcategory || request.subcategory) : null,
-    quotes: request.quotes || request.quotes ? (request.quotes || request.quotes).map(formatQuote) : [],
-    attachments: request.attachments || request.attachments ? (request.attachments || request.attachments).map(formatAttachment) : [],
-    updates: request.RequestUpdate || request.updates ? (request.RequestUpdate || request.updates).map(formatRequestUpdate) : [],
-    messages: request.Message || request.messages ? (request.Message || request.messages).map(formatMessage) : []
+    client: clientRel ? formatUser(clientRel) : null,
+    professional: professionalRel ? formatUser(professionalRel) : null,
+    category: categoryRel ? formatCategory(categoryRel) : null,
+    subcategory: subcategoryRel ? formatSubcategory(subcategoryRel) : null,
+    quotes: quotesRel ? quotesRel.map(formatQuote) : [],
+    attachments: attachmentsRel ? attachmentsRel.map(formatAttachment) : [],
+    updates: updatesRel ? updatesRel.map(formatRequestUpdate) : [],
+    messages: messagesRel ? messagesRel.map(formatMessage) : []
   };
 }
 
@@ -122,6 +133,12 @@ export function formatUser(user: any): any {
     avatar: user.avatar,
     bio: user.bio,
     status: user.status,
+    // Campi di approvazione/verifica professionista
+    approvalStatus: user.approvalStatus,
+    approvedAt: safeToISOString(user.approvedAt),
+    approvedBy: user.approvedBy,
+    rejectionReason: user.rejectionReason,
+    isVerified: user.isVerified,
     address: user.address,
     city: user.city,
     province: user.province,
@@ -317,8 +334,13 @@ export function formatQuote(quote: any): any {
     
     // Formatta relazioni se presenti - USANDO I NOMI CORRETTI DI PRISMA
     professional: quote.User || quote.professional ? formatUser(quote.User || quote.professional) : null,
-    request: quote.assistanceRequest || quote.request ? formatAssistanceRequest(quote.assistanceRequest || quote.request) : null,
-    items: quote.items || quote.items ? (quote.items || quote.items).map(formatitems) : [],
+    request: (quote.AssistanceRequest || quote.assistanceRequest || quote.request) 
+      ? formatAssistanceRequest(quote.AssistanceRequest || quote.assistanceRequest || quote.request) 
+      : null,
+    // Supporta sia 'items' (alias moderno) sia 'QuoteItem' (nome relazione Prisma)
+    items: (quote.items || (quote as any).QuoteItem)
+      ? (quote.items || (quote as any).QuoteItem).map(formatitems)
+      : [],
     payments: quote.Payment || quote.payments ? (quote.Payment || quote.payments).map(formatPayment) : []
   };
 }

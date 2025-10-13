@@ -53,8 +53,9 @@ export default function ProfessionalsList() {
   // Mutation per approvare un professionista
   const approveMutation = useMutation({
     mutationFn: async (professionalId: string) => {
-      return await api.put(`/users/${professionalId}/approve`, {
-        approvalStatus: 'APPROVED'
+      // Allinea al backend: PUT /api/professionals/:id/approve
+      return await api.put(`/professionals/${professionalId}/approve`, {
+        notes: ''
       });
     },
     onSuccess: () => {
@@ -69,9 +70,9 @@ export default function ProfessionalsList() {
   // Mutation per rifiutare un professionista
   const rejectMutation = useMutation({
     mutationFn: async ({ professionalId, reason }: { professionalId: string; reason: string }) => {
-      return await api.put(`/users/${professionalId}/reject`, {
-        approvalStatus: 'REJECTED',
-        rejectionReason: reason
+      // Allinea al backend: PUT /api/professionals/:id/reject
+      return await api.put(`/professionals/${professionalId}/reject`, {
+        reason
       });
     },
     onSuccess: () => {
@@ -170,7 +171,7 @@ export default function ProfessionalsList() {
                       let approved = 0;
                       for (const prof of pendingProfs || []) {
                         try {
-                          await api.put(`/users/${prof.id}/approve`, {
+                          await api.put(`/professionals/${prof.id}/approve`, {
                             approvalStatus: 'APPROVED'
                           });
                           approved++;

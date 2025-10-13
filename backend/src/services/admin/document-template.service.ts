@@ -38,7 +38,7 @@ interface CreateFromDocumentData {
 // Ottieni tutti i template (pubblici + propri dell'utente)
 export async function getAllTemplates(userId: string) {
   try {
-    const templates = await prisma.documentTemplate.findMany({
+    const templatesRaw = await prisma.documentTemplate.findMany({
       where: {
         OR: [
           { createdById: userId },
@@ -46,18 +46,27 @@ export async function getAllTemplates(userId: string) {
         ],
         deletedAt: null
       },
-      include: {
-        createdBy: {
+      include: ({
+        User: {
           select: {
             id: true,
             fullName: true,
             email: true
           }
         }
-      },
+      } as any),
       orderBy: { createdAt: 'desc' }
     });
-    return templates;
+    const templates = templatesRaw.map(t => {
+      const anyT: any = t;
+      if (anyT.User) {
+        const formatted = { ...anyT, createdBy: anyT.User };
+        delete (formatted as any).User;
+        return formatted;
+      }
+      return t as any;
+    });
+    return templates as any;
   } catch (error) {
     logger.error('Error getting templates:', error);
     throw error;
@@ -67,7 +76,7 @@ export async function getAllTemplates(userId: string) {
 // Ottieni un template specifico
 export async function getTemplateById(id: string, userId: string) {
   try {
-    const template = await prisma.documentTemplate.findFirst({
+    const templateRaw = await prisma.documentTemplate.findFirst({
       where: {
         id,
         OR: [
@@ -76,17 +85,28 @@ export async function getTemplateById(id: string, userId: string) {
         ],
         deletedAt: null
       },
-      include: {
-        createdBy: {
+      include: ({
+        User: {
           select: {
             id: true,
             fullName: true,
             email: true
           }
         }
-      }
+      } as any)
     });
-    return template;
+    const template = templateRaw
+      ? (() => {
+          const anyT: any = templateRaw;
+          if (anyT.User) {
+            const formatted = { ...anyT, createdBy: anyT.User };
+            delete (formatted as any).User;
+            return formatted;
+          }
+          return anyT;
+        })()
+      : null;
+    return template as any;
   } catch (error) {
     logger.error('Error getting template:', error);
     throw error;
@@ -96,28 +116,35 @@ export async function getTemplateById(id: string, userId: string) {
 // Crea un nuovo template
 export async function createTemplate(data: CreateTemplateData) {
   try {
-    const template = await prisma.documentTemplate.create({
+    const templateRaw = await prisma.documentTemplate.create({
       data: {
         name: data.name,
         description: data.description,
         type: data.type,
         content: data.content,
-        createdById: data.createdById,
-        metadata: data.metadata || {}
+        metadata: data.metadata || {},
+        User: {
+          connect: { id: data.createdById }
+        }
       },
-      include: {
-        createdBy: {
+      include: ({
+        User: {
           select: {
             id: true,
             fullName: true,
             email: true
           }
         }
-      }
+      } as any)
     });
     
+    const template: any = templateRaw;
+    if (template.User) {
+      template.createdBy = template.User;
+      delete template.User;
+    }
     logger.info('Template created:', { id: template.id, name: template.name });
-    return template;
+    return template as any;
   } catch (error) {
     logger.error('Error creating template:', error);
     throw error;
@@ -149,37 +176,44 @@ export async function createTemplateFromDocument(data: CreateFromDocumentData) {
     }
 
     // Crea il template dal contenuto della versione
-    const template = await prisma.documentTemplate.create({
+    const templateRaw = await prisma.documentTemplate.create({
       data: {
         name: data.name,
         description: data.description || `Template creato da: ${document.displayName}`,
-        type: document.type,
+        type: String(document.type),
         content: version.content,
-        createdById: data.createdById,
         metadata: {
           sourceDocumentId: document.id,
           sourceVersionId: version.id,
           sourceDocumentName: document.displayName
+        },
+        User: {
+          connect: { id: data.createdById }
         }
       },
-      include: {
-        createdBy: {
+      include: ({
+        User: {
           select: {
             id: true,
             fullName: true,
             email: true
           }
         }
-      }
+      } as any)
     });
     
+    const template: any = templateRaw;
+    if (template.User) {
+      template.createdBy = template.User;
+      delete template.User;
+    }
     logger.info('Template created from document:', { 
       templateId: template.id, 
       documentId: data.documentId,
       versionId: version.id 
     });
     
-    return template;
+    return template as any;
   } catch (error) {
     logger.error('Error creating template from document:', error);
     throw error;
@@ -202,7 +236,7 @@ export async function updateTemplate(id: string, userId: string, data: UpdateTem
       return null;
     }
 
-    const updated = await prisma.documentTemplate.update({
+    const updatedRaw = await prisma.documentTemplate.update({
       where: { id },
       data: {
         name: data.name,
@@ -213,19 +247,24 @@ export async function updateTemplate(id: string, userId: string, data: UpdateTem
           ...data.metadata
         } : existing.metadata
       },
-      include: {
-        createdBy: {
+      include: ({
+        User: {
           select: {
             id: true,
             fullName: true,
             email: true
           }
         }
-      }
+      } as any)
     });
 
+    const updated: any = updatedRaw;
+    if (updated.User) {
+      updated.createdBy = updated.User;
+      delete updated.User;
+    }
     logger.info('Template updated:', { id: updated.id });
-    return updated;
+    return updated as any;
   } catch (error) {
     logger.error('Error updating template:', error);
     throw error;

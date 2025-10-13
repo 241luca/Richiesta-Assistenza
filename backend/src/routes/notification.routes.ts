@@ -104,7 +104,8 @@ router.get('/', authenticate, async (req, res) => {
       take: parseInt(limit as string),
       skip: parseInt(offset as string),
       include: {
-        recipient: {  // Cambiato da user a recipient
+        // Usa il nome di relazione conforme allo schema.prisma attivo
+        User_Notification_recipientIdToUser: {
           select: { firstName: true, lastName: true }
         }
       }

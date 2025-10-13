@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../services/api';
@@ -53,6 +53,22 @@ export default function AddSubcategoryModal({
     },
     enabled: !!professionId && isOpen
   });
+
+  // Auto-seleziona la categoria default (o l'unica categoria) quando il modal si apre
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!selectedCategoryId && Array.isArray(professionCategories) && professionCategories.length > 0) {
+      // Trova la categoria default
+      const defaultPc = professionCategories.find((pc: any) => pc.isDefault);
+      const targetPc = defaultPc || (professionCategories.length === 1 ? professionCategories[0] : null);
+      if (targetPc) {
+        const autoCategoryId = targetPc.category?.id || targetPc.categoryId || targetPc.id;
+        if (autoCategoryId) {
+          setSelectedCategoryId(autoCategoryId);
+        }
+      }
+    }
+  }, [isOpen, professionCategories, selectedCategoryId]);
 
   // Fetch sottocategorie della categoria selezionata
   const { data: subcategories } = useQuery({

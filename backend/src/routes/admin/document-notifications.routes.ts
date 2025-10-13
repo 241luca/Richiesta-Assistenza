@@ -17,7 +17,7 @@ router.get('/',
   async (req: any, res) => {
     try {
       // Per ora ritorna array vuoto - tabelle non esistono
-      const templates = [];
+      const templates: any[] = [];
       
       return res.json(ResponseFormatter.success(
         templates,

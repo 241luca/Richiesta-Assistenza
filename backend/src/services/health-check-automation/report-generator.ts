@@ -10,6 +10,7 @@ import * as path from 'path';
 import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { NotificationService } from '../../services/notification.service';
+import { auditLogService } from '../../services/auditLog.service'; // 🆕 INTEGRAZIONE 2: Audit Log
 import { logger } from '../../utils/logger';
 
 const prisma = new PrismaClient();
@@ -419,6 +420,155 @@ export class HealthCheckReportGenerator {
     });
 
     return filepath;
+  }
+
+  /**
+   * Genera un report (wrapper per compatibilità API)
+   * 🎯 INTEGRAZIONE 2: Aggiungo Audit Log per report generati
+   */
+  public async generateReport(
+    startDate: string | Date,
+    endDate: string | Date,
+    format: 'pdf' | 'csv' = 'pdf',
+    generatedBy?: string
+  ): Promise<{ filename: string; filepath: string }> {
+    const startTime = Date.now();
+    
+    // 📝 AUDIT: Registra l'inizio della generazione report
+    await auditLogService.log({
+      userId: generatedBy || 'MANUAL',
+      action: 'HEALTH_REPORT_GENERATION_START',
+      entityType: 'HealthCheck',
+      entityId: 'report',
+      details: {
+        startDate: typeof startDate === 'string' ? startDate : startDate.toISOString(),
+        endDate: typeof endDate === 'string' ? endDate : endDate.toISOString(),
+        format: format,
+        triggeredBy: generatedBy || 'Manual Request',
+        timestamp: new Date().toISOString()
+      },
+      ipAddress: '127.0.0.1',
+      userAgent: 'Report Generator'
+    });
+    
+    try {
+      const start = typeof startDate === 'string' ? new Date(startDate) : startDate;
+      const end = typeof endDate === 'string' ? new Date(endDate) : endDate;
+
+      logger.info(`📊 Generating report from ${start.toISOString()} to ${end.toISOString()}...`);
+
+      const filepath = await this.generateCustomReport(start, end);
+      
+      // Ottieni info sul file generato
+      const stats = await fs.promises.stat(filepath);
+      const fileSizeKB = Math.round(stats.size / 1024);
+      const executionTime = Date.now() - startTime;
+      
+      // 📝 AUDIT: Registra il successo della generazione
+      await auditLogService.log({
+        userId: generatedBy || 'MANUAL',
+        action: 'HEALTH_REPORT_GENERATION_SUCCESS',
+        entityType: 'HealthCheck',
+        entityId: 'report',
+        details: {
+          filename: path.basename(filepath),
+          filepath: filepath,
+          fileSizeKB: fileSizeKB,
+          startDate: start.toISOString(),
+          endDate: end.toISOString(),
+          format: format,
+          executionTimeMs: executionTime,
+          triggeredBy: generatedBy || 'Manual Request',
+          timestamp: new Date().toISOString()
+        },
+        ipAddress: '127.0.0.1',
+        userAgent: 'Report Generator'
+      });
+      
+      logger.info(`✅ Report generated: ${path.basename(filepath)} (${fileSizeKB}KB) in ${executionTime}ms`);
+
+      return {
+        filename: path.basename(filepath),
+        filepath: filepath
+      };
+    } catch (error) {
+      // 📝 AUDIT: Registra il fallimento
+      const executionTime = Date.now() - startTime;
+      await auditLogService.log({
+        userId: generatedBy || 'MANUAL',
+        action: 'HEALTH_REPORT_GENERATION_FAILED',
+        entityType: 'HealthCheck',
+        entityId: 'report',
+        details: {
+          startDate: typeof startDate === 'string' ? startDate : startDate.toISOString(),
+          endDate: typeof endDate === 'string' ? endDate : endDate.toISOString(),
+          format: format,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          executionTimeMs: executionTime,
+          timestamp: new Date().toISOString()
+        },
+        ipAddress: '127.0.0.1',
+        userAgent: 'Report Generator'
+      });
+      
+      logger.error('Error generating report:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Ottiene lo storico dei report generati
+   */
+  public async getReportHistory(): Promise<Array<{
+    filename: string;
+    filepath: string;
+    size: number;
+    created: Date;
+    modified: Date;
+  }>> {
+    try {
+      const files = await fs.promises.readdir(this.reportsDir);
+
+      const reports = await Promise.all(
+        files
+          .filter(f => f.endsWith('.pdf'))
+          .map(async (filename) => {
+            const filepath = path.join(this.reportsDir, filename);
+            const stats = await fs.promises.stat(filepath);
+
+            return {
+              filename,
+              filepath,
+              size: stats.size,
+              created: stats.birthtime,
+              modified: stats.mtime
+            };
+          })
+      );
+
+      // Ordina per data modificato (più recente prima)
+      return reports.sort((a, b) => b.modified.getTime() - a.modified.getTime());
+    } catch (error) {
+      logger.error('Error getting report history:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Ottiene il path di un report specifico
+   */
+  public async getReportPath(filename: string): Promise<string | null> {
+    try {
+      const filepath = path.join(this.reportsDir, filename);
+
+      // Verifica che il file esista
+      await fs.promises.access(filepath, fs.constants.F_OK);
+
+      return filepath;
+    } catch (error) {
+      logger.debug(`Report file not found: ${filename}`);
+      return null;
+    }
   }
 }
 

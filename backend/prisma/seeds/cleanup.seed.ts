@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { v4 as uuidv4 } from 'uuid'
 
 export async function seedCleanupConfig(prisma: PrismaClient) {
   console.log('🧹 SEEDING SISTEMA CLEANUP AUTOMATICO...\n')
@@ -11,6 +12,7 @@ export async function seedCleanupConfig(prisma: PrismaClient) {
       where: { name: 'default' },
       update: {},
       create: {
+        id: uuidv4(),
         name: 'default',
         isActive: true,
         targetDirectory: '/Users/lucamambelli/Desktop/backup-ra/cleanup',
@@ -23,7 +25,10 @@ export async function seedCleanupConfig(prisma: PrismaClient) {
         autoCleanupDays: 30,
         createReadme: true,
         preserveStructure: true,
-        notifyOnCleanup: true
+        notifyOnCleanup: true,
+        enablePreview: true,
+        notifyEmails: [],
+        updatedAt: new Date()
       }
     })
     console.log('✅ Configurazione principale creata')

@@ -5,6 +5,7 @@ import { ResponseFormatter } from '../../utils/responseFormatter';
 import { prisma } from '../../config/database';
 import { logger } from '../../utils/logger';
 import { Role } from '@prisma/client';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
@@ -88,12 +89,15 @@ router.post('/',
 
       const newTemplate = await prisma.legalDocumentTemplate.create({
         data: {
+          id: uuidv4(),
           name,
           type,
           title,
           content,
           language: language || 'it',
-          variables: req.body.variables || {}
+          category: req.body.category || 'LEGAL',
+          variables: req.body.variables || {},
+          updatedAt: new Date()
         }
       });
 
@@ -180,6 +184,7 @@ router.delete('/:id',
  */
 function getDefaultTemplates() {
   const currentDate = new Date().toLocaleDateString('it-IT');
+  const now = new Date();
   
   return [
     {
@@ -188,6 +193,9 @@ function getDefaultTemplates() {
       name: 'Privacy Policy GDPR',
       title: 'Informativa sulla Privacy',
       language: 'it',
+      category: 'LEGAL',
+      createdAt: now,
+      updatedAt: now,
       content: `<h1>Informativa sulla Privacy</h1>
 <p><em>Ai sensi del Regolamento UE 2016/679 (GDPR)</em></p>
 <p>Ultimo aggiornamento: ${currentDate}</p>
@@ -233,6 +241,9 @@ function getDefaultTemplates() {
       name: 'Termini e Condizioni',
       title: 'Termini e Condizioni di Servizio',
       language: 'it',
+      category: 'LEGAL',
+      createdAt: now,
+      updatedAt: now,
       content: `<h1>Termini e Condizioni di Servizio</h1>
 <p>Ultimo aggiornamento: ${currentDate}</p>
 
@@ -261,6 +272,9 @@ function getDefaultTemplates() {
       name: 'Cookie Policy',
       title: 'Informativa sui Cookie',
       language: 'it',
+      category: 'LEGAL',
+      createdAt: now,
+      updatedAt: now,
       content: `<h1>Informativa sui Cookie</h1>
 <p>Ultimo aggiornamento: ${currentDate}</p>
 

@@ -14,7 +14,7 @@ export async function seedInterventionReports() {
     const configId = '00000000-0000-0000-0000-000000000001';
     const config = await prisma.interventionReportConfig.upsert({
       where: { id: configId },
-      update: {},
+      update: { updatedAt: new Date() },
       create: {
         id: configId,
         name: 'Configurazione Rapporti',
@@ -36,7 +36,8 @@ export async function seedInterventionReports() {
         pdfFormat: 'A4',
         notifyProfessionalOnSign: true,
         notifyClientOnCreate: true,
-        notifyAdminOnIssue: false
+        notifyAdminOnIssue: false,
+        updatedAt: new Date()
       }
     });
     console.log('✅ Configurazione globale creata');
@@ -192,8 +193,8 @@ export async function seedInterventionReports() {
     for (const fieldType of fieldTypes) {
       await prisma.interventionFieldType.upsert({
         where: { code: fieldType.code },
-        update: fieldType,
-        create: fieldType
+        update: { ...fieldType, updatedAt: new Date() },
+        create: { id: fieldType.code, ...fieldType, updatedAt: new Date() }
       });
     }
     console.log(`✅ ${fieldTypes.length} tipi di campo creati`);
@@ -269,8 +270,8 @@ export async function seedInterventionReports() {
     for (const section of sections) {
       await prisma.interventionTemplateSection.upsert({
         where: { code: section.code },
-        update: section,
-        create: section
+        update: { ...section, updatedAt: new Date() },
+        create: { id: section.code, ...section, updatedAt: new Date() }
       });
     }
     console.log(`✅ ${sections.length} sezioni template create`);
@@ -378,8 +379,8 @@ export async function seedInterventionReports() {
     for (const status of statuses) {
       await prisma.interventionReportStatus.upsert({
         where: { code: status.code },
-        update: status,
-        create: status
+        update: { ...status, updatedAt: new Date() },
+        create: { id: status.code, ...status, updatedAt: new Date() }
       });
     }
     console.log(`✅ ${statuses.length} stati rapporto creati`);
@@ -463,8 +464,8 @@ export async function seedInterventionReports() {
     for (const type of interventionTypes) {
       await prisma.interventionType.upsert({
         where: { code: type.code },
-        update: type,
-        create: type
+        update: { ...type, updatedAt: new Date() },
+        create: { id: type.code, ...type, updatedAt: new Date() }
       });
     }
     console.log(`✅ ${interventionTypes.length} tipi intervento creati`);
@@ -570,8 +571,8 @@ export async function seedInterventionReports() {
     for (const material of materials) {
       await prisma.interventionMaterial.upsert({
         where: { code: material.code },
-        update: material,
-        create: material
+        update: { ...material, updatedAt: new Date() },
+        create: { id: material.code, ...material, updatedAt: new Date() }
       });
     }
     console.log(`✅ ${materials.length} materiali base creati`);

@@ -15,6 +15,9 @@ import {
   checkAISystem as checkAISystemExtended 
 } from './healthCheckSeparateModules.service';
 import { apiKeyService } from './apiKey.service';
+import { notificationService } from './notification.service';
+import { auditLogService } from './auditLog.service';
+import logger from '../utils/logger';
 
 const prisma = new PrismaClient();
 
@@ -1546,15 +1549,70 @@ class HealthCheckService {
 
     try {
       for (const module of modules) {
-        const result = await this.runSingleCheck(module);
-        results.push(result);
+        // FIX: runSingleCheck ritorna SystemHealthSummary, dobbiamo usare i metodi individuali
+        let moduleResult: HealthCheckResult;
+        
+        switch (module) {
+          case 'auth':
+            moduleResult = await this.checkAuthSystem();
+            break;
+          case 'database':
+            moduleResult = await this.checkDatabase();
+            break;
+          case 'redis':
+            moduleResult = await checkRedisSystem();
+            break;
+          case 'websocket':
+            moduleResult = await checkWebSocketSystem();
+            break;
+          case 'emailservice':
+            moduleResult = await checkEmailService();
+            break;
+          case 'notification':
+            moduleResult = await this.checkNotificationSystem();
+            break;
+          case 'backup':
+            moduleResult = await this.checkBackupSystem();
+            break;
+          case 'chat':
+            moduleResult = await this.checkChatSystem();
+            break;
+          case 'payment':
+            moduleResult = await this.checkPaymentSystem();
+            break;
+          case 'ai':
+            moduleResult = await checkAISystemExtended();
+            break;
+          case 'request':
+            moduleResult = await this.checkRequestSystem();
+            break;
+          default:
+            throw new Error(`Unknown module: ${module}`);
+        }
+        
+        // Assicurati che checks sia sempre un array
+        if (!moduleResult.checks) {
+          moduleResult.checks = [];
+        }
+        
+        console.log(`[HealthCheck] Module ${module} - Checks: ${moduleResult.checks.length}`);
+        
+        // Salva il risultato
+        this.lastResults.set(module, moduleResult);
+        await this.saveResultToDatabase(moduleResult);
+        
+        results.push(moduleResult);
       }
 
       const summary = this.calculateSummary(results);
       
-      // Log totale check - FIX: controlla che checks esista
-      const totalChecks = results.reduce((sum, r) => sum + (r.checks ? r.checks.length : 0), 0);
-      console.log(`[HealthCheck] Total modules: ${results.length}, Total checks: ${totalChecks}`);
+      // Log totale check - CORRETTO: ora results contiene HealthCheckResult con checks array
+      const totalChecks = results.reduce((sum, r) => {
+        const checksCount = r.checks && Array.isArray(r.checks) ? r.checks.length : 0;
+        console.log(`[HealthCheck] Module ${r.module} contributes ${checksCount} checks`);
+        return sum + checksCount;
+      }, 0);
+      console.log(`[HealthCheck] FINAL COUNT - Total modules: ${results.length}, Total checks: ${totalChecks}`);
       
       await this.saveSummaryToDatabase(summary);
       
@@ -1701,7 +1759,7 @@ class HealthCheckService {
   }
 
   /**
-   * Salva il risultato nel database
+   * Salva il risultato nel database e invia notifiche se necessario
    */
   private async saveResultToDatabase(result: HealthCheckResult): Promise<void> {
     try {
@@ -1719,6 +1777,11 @@ class HealthCheckService {
           timestamp: result.timestamp || new Date()
         }
       });
+
+      // 🎯 INTEGRAZIONE 1: NOTIFICHE AUTOMATICHE per problemi critici
+      if (result.score < 60) {
+        await this.sendCriticalAlert(result);
+      }
     } catch (error) {
       console.error('Error saving result to database:', error);
     }
@@ -1740,6 +1803,128 @@ class HealthCheckService {
       console.error('Error saving summary to database:', error);
     }
   }
+
+  /**
+   * 🚨 METODO ENTERPRISE: Invia notifiche automatiche per problemi critici
+   */
+  private async sendCriticalAlert(result: HealthCheckResult): Promise<void> {
+    try {
+      logger.error(`⚠️ CRITICAL ALERT: ${result.displayName} score is ${result.score}/100`);
+      
+      // 1. Recupera tutti gli admin
+      const admins = await prisma.user.findMany({
+        where: {
+          role: { in: ['ADMIN', 'SUPER_ADMIN'] },
+          isActive: true
+        },
+        select: {
+          id: true,
+          email: true,
+          fullName: true
+        }
+      });
+
+      // 2. Prepara il messaggio dettagliato
+      const alertTitle = `🚨 ALERT: ${result.displayName} in stato critico!`;
+      const alertMessage = `
+Il modulo ${result.displayName} ha un punteggio critico di ${result.score}/100.
+
+Problemi rilevati:
+${result.errors.map(e => `• ${e}`).join('\n')}
+
+Avvertenze:
+${result.warnings.map(w => `• ${w}`).join('\n')}
+
+Raccomandazioni:
+${result.recommendations.map(r => `• ${r}`).join('\n') || '• Intervento immediato richiesto'}
+
+Controlla subito il sistema dall'Admin Dashboard:
+http://localhost:5193/admin/health`;
+
+      // 3. Invia notifica in-app a tutti gli admin
+      for (const admin of admins) {
+        try {
+          await prisma.notification.create({
+            data: {
+              userId: admin.id,
+              type: 'HEALTH_ALERT',
+              title: alertTitle,
+              message: alertMessage,
+              priority: 'HIGH',
+              metadata: {
+                module: result.module,
+                score: result.score,
+                status: result.status,
+                timestamp: result.timestamp
+              }
+            }
+          });
+
+          // 4. Invia anche via WebSocket per notifica real-time
+          if (global.io) {
+            global.io.to(`user:${admin.id}`).emit('health-alert', {
+              type: 'critical',
+              module: result.module,
+              displayName: result.displayName,
+              score: result.score,
+              message: `${result.displayName} richiede attenzione immediata!`,
+              timestamp: new Date()
+            });
+          }
+        } catch (notifError) {
+          logger.error(`Failed to send notification to admin ${admin.email}:`, notifError);
+        }
+      }
+
+      // 5. Invia email agli admin (usando il sistema notifiche centralizzato)
+      if (admins.length > 0) {
+        try {
+          // Usa il servizio notifiche per inviare email
+          await notificationService.sendBulkNotifications(
+            admins.map(admin => ({
+              userId: admin.id,
+              templateId: 'health_alert',  // Template predefinito per alert
+              channels: ['email'],
+              data: {
+                recipientName: admin.fullName,
+                recipientEmail: admin.email,
+                moduleName: result.displayName,
+                score: result.score,
+                errors: result.errors.join(', '),
+                warnings: result.warnings.join(', '),
+                timestamp: new Date().toLocaleString('it-IT')
+              }
+            }))
+          );
+          
+          logger.info(`✅ Critical alerts sent to ${admins.length} administrators`);
+        } catch (emailError) {
+          logger.error('Failed to send email alerts:', emailError);
+        }
+      }
+
+      // 6. Registra nell'Audit Log (INTEGRAZIONE 2)
+      await auditLogService.log({
+        userId: 'SYSTEM',
+        action: 'HEALTH_CHECK_CRITICAL',
+        entityType: 'HealthCheck',
+        entityId: result.module,
+        details: {
+          module: result.module,
+          displayName: result.displayName,
+          score: result.score,
+          status: result.status,
+          errors: result.errors,
+          alertsSent: admins.length
+        },
+        ipAddress: '127.0.0.1',
+        userAgent: 'HealthCheck System'
+      });
+
+    } catch (error) {
+      logger.error('Error sending critical alert:', error);
+    }
+  }
 }
 
 // Singleton instance
@@ -1747,5 +1932,10 @@ export const healthCheckService = new HealthCheckService();
 
 // Esporta per l'uso nei worker di socket.io
 declare global {
+  namespace NodeJS {
+    interface Global {
+      io: any;
+    }
+  }
   var io: any;
 }

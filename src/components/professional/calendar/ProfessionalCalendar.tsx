@@ -14,8 +14,8 @@ import {
   PlusIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ViewGridIcon,
-  ViewListIcon,
+  Squares2X2Icon as ViewGridIcon,
+  ListBulletIcon as ViewListIcon,
   CogIcon,
   ArrowPathIcon,
   BellIcon,
@@ -106,9 +106,26 @@ export default function ProfessionalCalendar() {
   // Estrai le impostazioni dalla risposta
   const calendarSettings = calendarSettingsResponse?.data;
 
+  // Tipi per le mutation di interventi
+  interface CreateInterventionVars {
+    id?: string;
+    requestId?: string;
+    proposedDate?: string | Date;
+    startDate?: string | Date;
+    description?: string;
+    title?: string;
+    estimatedDuration?: number;
+  }
+
+  interface UpdateInterventionDateVars {
+    id: string | number;
+    start: Date | string;
+    end: Date | string;
+  }
+
   // Mutation per creare/aggiornare interventi
-  const createInterventionMutation = useMutation({
-    mutationFn: async (data) => {
+  const createInterventionMutation = useMutation<any, any, CreateInterventionVars>({
+    mutationFn: async (data: CreateInterventionVars) => {
       // Il backend si aspetta un formato specifico per gli interventi schedulati
       const formattedData = {
         requestId: data.requestId,
@@ -126,23 +143,23 @@ export default function ProfessionalCalendar() {
       return await api.post('/scheduled-interventions', formattedData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['professional-interventions']);
+  queryClient.invalidateQueries({ queryKey: ['professional-interventions'] });
       toast.success('Intervento salvato con successo');
       setShowInterventionModal(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Error saving intervention:', error);
       toast.error(error.response?.data?.message || 'Errore nel salvare l\'intervento');
     }
   });
 
   // Mutation per drag & drop
-  const updateInterventionDateMutation = useMutation({
-    mutationFn: async ({ id, start, end }) => {
+  const updateInterventionDateMutation = useMutation<any, any, UpdateInterventionDateVars>({
+    mutationFn: async ({ id, start, end }: UpdateInterventionDateVars) => {
       return await api.patch(`/calendar/interventions/${id}/reschedule`, { start, end });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['professional-interventions']);
+  queryClient.invalidateQueries({ queryKey: ['professional-interventions'] });
       toast.success('Intervento riprogrammato');
     },
     onError: () => {
@@ -479,13 +496,14 @@ export default function ProfessionalCalendar() {
               headerToolbar={false} // Usiamo il nostro header custom
               locale="it"
               firstDay={1} // Lunedì come primo giorno
-              height="100%"
+              height="auto"
               events={calendarEvents}
               editable={true}
               droppable={true}
               selectable={true}
               selectMirror={true}
-              dayMaxEvents={true}
+              expandRows={true}
+              dayMaxEventRows={false}
               weekends={calendarSettings?.showWeekends !== false}
               slotMinTime={calendarSettings?.minTime || '08:00'}
               slotMaxTime={calendarSettings?.maxTime || '20:00'}
@@ -572,7 +590,16 @@ export default function ProfessionalCalendar() {
         }
         
         .confirmed-event {
-          border-left: 4px solid #4CAF50 !important;
+          border-left: 4px solid #16A34A !important; /* verde più visibile */
+          background-image: linear-gradient(to right, rgba(34,197,94,0.12), transparent);
+        }
+
+        /* Etichetta visiva per confermato */
+        .fc-event.confirmed-event .fc-event-main::after {
+          content: '  ✓';
+          color: #166534; /* verde scuro */
+          font-weight: 700;
+          margin-left: 4px;
         }
         
         @keyframes pulse {

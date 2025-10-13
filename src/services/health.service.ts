@@ -10,7 +10,7 @@ export const healthService = {
    * Ottiene il summary generale del sistema
    */
   getSummary: () => {
-    return apiClient.get('/admin/health-check/status');
+    return apiClient.get('/admin/health-check/summary');  // FIXED: usa il nuovo endpoint
   },
 
   /**

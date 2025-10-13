@@ -27,43 +27,58 @@ export class DualKnowledgeBaseService {
     subcategoryId: string
   ): Promise<any> {
     try {
-      // 1. Recupera configurazione KB duale per la sottocategoria
-      const dualConfig = await prisma.professionalSubcategoryDualConfig.findFirst({
-        where: {
-          whatsappId,
-          subcategoryId
-        }
+      // 1. Mappa whatsappId -> professionalId
+      const whatsapp = await prisma.professionalWhatsApp.findUnique({
+        where: { id: whatsappId },
+        select: { professionalId: true }
       });
 
-      // 2. Se non esiste config specifica, usa KB generale della sottocategoria
-      if (!dualConfig) {
-        logger.info(`No dual config found for subcategory ${subcategoryId}, using default`);
+      if (!whatsapp) {
+        logger.warn(`WhatsApp config ${whatsappId} non trovata. Uso KB di default.`);
         return this.getDefaultKBForMode(mode, subcategoryId);
       }
 
-      // 3. Selezione KB basata su modalità
-      let selectedKB;
+      // 2. Recupera eventuale personalizzazione AI per professionista+sottocategoria
+      const customization = await prisma.professionalAiCustomization.findFirst({
+        where: {
+          professionalId: whatsapp.professionalId,
+          subcategoryId,
+          isActive: true
+        },
+        select: {
+          customKnowledgeBase: true,
+          metadata: true
+        }
+      });
+
+      // 3. Se non esiste personalizzazione, usa KB di default
+      if (!customization) {
+        logger.info(`Nessuna KB custom per subcategory ${subcategoryId}. Uso default.`);
+        return this.getDefaultKBForMode(mode, subcategoryId);
+      }
+
+      // 4. Selezione KB basata su modalità
+      let selectedKB: any = {};
       switch (mode) {
         case DetectionMode.PROFESSIONAL:
-          // Per professionisti: KB tecnica completa
-          selectedKB = dualConfig.kbProfessional || {};
+          selectedKB = customization.customKnowledgeBase || {};
           logger.info(`Using PROFESSIONAL KB for subcategory ${subcategoryId}`);
           break;
-
         case DetectionMode.CLIENT:
         case DetectionMode.UNKNOWN:
         default:
-          // Per clienti o sconosciuti: KB sanitizzata
-          selectedKB = dualConfig.kbClient || {};
+          // Se presente una KB specifica lato cliente in metadata, usala; altrimenti deriva da quella professionale
+          const clientKB = (customization.metadata as any)?.clientKB;
+          selectedKB = clientKB ?? customization.customKnowledgeBase ?? {};
           logger.info(`Using CLIENT KB for subcategory ${subcategoryId}`);
           break;
       }
 
-      // 4. Merge con KB base se necessario
+      // 5. Merge con KB base se necessario
       const baseKB = await this.getBaseKBForSubcategory(subcategoryId);
       const mergedKB = this.mergeKnowledgeBases(baseKB, selectedKB);
 
-      // 5. Sanitizza ulteriormente se modalità CLIENT
+      // 6. Sanitizza ulteriormente se modalità CLIENT
       if (mode === DetectionMode.CLIENT) {
         return this.sanitizeKBForClient(mergedKB);
       }
@@ -86,33 +101,62 @@ export class DualKnowledgeBaseService {
     kb: any
   ): Promise<void> {
     try {
-      // Verifica se esiste già una configurazione
-      const existing = await prisma.professionalSubcategoryDualConfig.findFirst({
+      // Mappa whatsappId -> professionalId
+      const whatsapp = await prisma.professionalWhatsApp.findUnique({
+        where: { id: whatsappId },
+        select: { professionalId: true }
+      });
+
+      if (!whatsapp) {
+        throw new Error(`WhatsApp config ${whatsappId} non trovata`);
+      }
+
+      // Recupera/crea settings base per la sottocategoria
+      let baseSettings = await prisma.subcategoryAiSettings.findUnique({
+        where: { subcategoryId }
+      });
+
+      if (!baseSettings) {
+        baseSettings = await prisma.subcategoryAiSettings.create({
+          data: {
+            id: require('crypto').randomUUID(),
+            subcategoryId,
+            systemPrompt: 'Impostazioni AI di base per la sottocategoria',
+            updatedAt: new Date()
+          }
+        });
+      }
+
+      // Cerca personalizzazione esistente
+      const existing = await prisma.professionalAiCustomization.findFirst({
         where: {
-          whatsappId,
+          professionalId: whatsapp.professionalId,
           subcategoryId
-        }
+        },
+        select: { id: true }
       });
 
       if (existing) {
-        // Aggiorna KB esistente
-        await prisma.professionalSubcategoryDualConfig.update({
+        await prisma.professionalAiCustomization.update({
           where: { id: existing.id },
           data: {
-            kbProfessional: kb,
-            lastSyncProfessional: new Date()
+            customKnowledgeBase: kb,
+            settingsId: baseSettings.id,
+            updatedAt: new Date(),
+            isActive: true
           }
         });
       } else {
-        // Crea nuova configurazione
-        await prisma.professionalSubcategoryDualConfig.create({
+        await prisma.professionalAiCustomization.create({
           data: {
-            whatsappId,
+            id: require('crypto').randomUUID(),
+            professionalId: whatsapp.professionalId,
             subcategoryId,
-            kbProfessional: kb,
-            kbClient: {}, // KB cliente vuota inizialmente
-            enableDualMode: true,
-            lastSyncProfessional: new Date()
+            settingsId: baseSettings.id,
+            customKnowledgeBase: kb,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
           }
         });
       }
@@ -133,33 +177,68 @@ export class DualKnowledgeBaseService {
     kb: any
   ): Promise<void> {
     try {
-      // Verifica se esiste già una configurazione
-      const existing = await prisma.professionalSubcategoryDualConfig.findFirst({
+      // Mappa whatsappId -> professionalId
+      const whatsapp = await prisma.professionalWhatsApp.findUnique({
+        where: { id: whatsappId },
+        select: { professionalId: true }
+      });
+
+      if (!whatsapp) {
+        throw new Error(`WhatsApp config ${whatsappId} non trovata`);
+      }
+
+      // Recupera/crea settings base per la sottocategoria
+      let baseSettings = await prisma.subcategoryAiSettings.findUnique({
+        where: { subcategoryId }
+      });
+
+      if (!baseSettings) {
+        baseSettings = await prisma.subcategoryAiSettings.create({
+          data: {
+            id: require('crypto').randomUUID(),
+            subcategoryId,
+            systemPrompt: 'Impostazioni AI di base per la sottocategoria',
+            updatedAt: new Date()
+          }
+        });
+      }
+
+      // Cerca personalizzazione esistente
+      const existing = await prisma.professionalAiCustomization.findFirst({
         where: {
-          whatsappId,
+          professionalId: whatsapp.professionalId,
           subcategoryId
-        }
+        },
+        select: { id: true, metadata: true }
       });
 
       if (existing) {
-        // Aggiorna KB esistente
-        await prisma.professionalSubcategoryDualConfig.update({
+        await prisma.professionalAiCustomization.update({
           where: { id: existing.id },
           data: {
-            kbClient: kb,
-            lastSyncClient: new Date()
+            settingsId: baseSettings.id,
+            updatedAt: new Date(),
+            isActive: true,
+            // Memorizza la KB lato cliente dentro metadata.clientKB
+            metadata: {
+              ...(existing.metadata as any ?? {}),
+              clientKB: kb
+            }
           }
         });
       } else {
-        // Crea nuova configurazione
-        await prisma.professionalSubcategoryDualConfig.create({
+        await prisma.professionalAiCustomization.create({
           data: {
-            whatsappId,
+            id: require('crypto').randomUUID(),
+            professionalId: whatsapp.professionalId,
             subcategoryId,
-            kbProfessional: {}, // KB professional vuota inizialmente
-            kbClient: kb,
-            enableDualMode: true,
-            lastSyncClient: new Date()
+            settingsId: baseSettings.id,
+            // Nessuna KB professionale inizialmente, solo client override
+            customKnowledgeBase: {},
+            metadata: { clientKB: kb },
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
           }
         });
       }
@@ -254,9 +333,7 @@ export class DualKnowledgeBaseService {
         where: { id: subcategoryId },
         select: {
           name: true,
-          description: true,
-          basePrice: true,
-          estimatedDuration: true,
+          description: true
           // Altri campi utili per KB base
         }
       });
@@ -339,22 +416,40 @@ export class DualKnowledgeBaseService {
    */
   async getKBUsageStats(whatsappId: string): Promise<any> {
     try {
-      const configs = await prisma.professionalSubcategoryDualConfig.findMany({
-        where: { whatsappId },
-        select: {
-          subcategoryId: true,
-          enableDualMode: true,
-          lastSyncProfessional: true,
-          lastSyncClient: true
-        }
+      // Mappa whatsappId -> professionalId
+      const whatsapp = await prisma.professionalWhatsApp.findUnique({
+        where: { id: whatsappId },
+        select: { professionalId: true }
       });
 
+      if (!whatsapp) {
+        return { totalConfigs: 0, enabledConfigs: 0, lastSync: { professional: null, client: null } };
+      }
+
+      const customizations = await prisma.professionalAiCustomization.findMany({
+        where: { professionalId: whatsapp.professionalId },
+        select: { subcategoryId: true, isActive: true, updatedAt: true, metadata: true }
+      });
+
+      const professionalLast = customizations
+        .map(c => c.updatedAt)
+        .filter(Boolean)
+        .sort()
+        .pop() || null;
+
+      const clientLast = customizations
+        .filter(c => (c.metadata as any)?.clientKB)
+        .map(c => c.updatedAt)
+        .filter(Boolean)
+        .sort()
+        .pop() || null;
+
       return {
-        totalConfigs: configs.length,
-        enabledConfigs: configs.filter(c => c.enableDualMode).length,
+        totalConfigs: customizations.length,
+        enabledConfigs: customizations.filter(c => c.isActive).length,
         lastSync: {
-          professional: configs.map(c => c.lastSyncProfessional).filter(Boolean).sort().pop(),
-          client: configs.map(c => c.lastSyncClient).filter(Boolean).sort().pop()
+          professional: professionalLast,
+          client: clientLast
         }
       };
     } catch (error) {

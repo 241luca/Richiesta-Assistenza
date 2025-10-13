@@ -6,6 +6,7 @@ import { requireRole } from '../middleware/rbac';
 import { ResponseFormatter } from '../utils/responseFormatter';
 import { logger } from '../utils/logger';
 import { z } from 'zod';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -46,10 +47,17 @@ router.post('/chat', authenticate, async (req: any, res) => {
       conversationType = validatedData.mode === 'professional' ? 'professional_help' : 'client_help';
     }
 
+    // Costruisci payload esplicito per rispettare AiChatRequest (message richiesto)
     const response = await aiProfessionalService.sendMessage({
-      userId,
-      ...validatedData,
-      conversationType: conversationType || 'client_help'
+      recipientId: String(userId),
+      message: validatedData.message,
+      requestId: validatedData.requestId,
+      subcategoryId: validatedData.subcategoryId,
+      professionalId: validatedData.professionalId,
+      mode: validatedData.mode,
+      conversationType: conversationType || 'client_help',
+      conversationId: validatedData.conversationId,
+      userId: userId
     });
 
     return res.json(ResponseFormatter.success(
@@ -206,7 +214,10 @@ router.post('/config/subcategory/:id',
       } else {
         config = await prisma.subcategoryAiSettings.create({
           data: {
-            subcategoryId: id,
+            id: uuidv4(),
+            updatedAt: new Date(),
+            Subcategory: { connect: { id } },
+            systemPrompt: validatedData.systemPrompt,
             ...validatedData
           }
         });
@@ -254,7 +265,7 @@ router.get('/config/professional', authenticate, async (req: any, res) => {
         isActive: true
       },
       include: {
-        settings: true
+        SubcategoryAiSettings: true
       }
     });
 

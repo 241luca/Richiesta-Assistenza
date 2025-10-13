@@ -27,7 +27,7 @@ export const PlaceAutocomplete: React.FC<PlaceAutocompleteProps> = ({
   className = ''
 }) => {
   const [inputValue, setInputValue] = useState(value);
-  const [suggestions, setSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   
@@ -36,18 +36,12 @@ export const PlaceAutocomplete: React.FC<PlaceAutocompleteProps> = ({
   
   // Carica libreria Places
   const placesLib = useMapsLibrary('places');
-  const [autocompleteService, setAutocompleteService] = useState<google.maps.places.AutocompleteService | null>(null);
-  const [placesService, setPlacesService] = useState<google.maps.places.PlacesService | null>(null);
+  const sessionTokenRef = useRef<any | null>(null);
 
   // Inizializza servizi quando la libreria è caricata
   useEffect(() => {
     if (!placesLib) return;
-
-    setAutocompleteService(new placesLib.AutocompleteService());
-    
-    // PlacesService richiede un div (non serve visualizzarlo)
-    const div = document.createElement('div');
-    setPlacesService(new placesLib.PlacesService(div));
+    sessionTokenRef.current = null;
   }, [placesLib]);
 
   // Sincronizza valore esterno con input
@@ -57,59 +51,80 @@ export const PlaceAutocomplete: React.FC<PlaceAutocompleteProps> = ({
 
   // Fetch suggestions quando l'utente digita
   useEffect(() => {
-    if (!autocompleteService || !inputValue || inputValue.length < 3) {
+    if (!placesLib || !inputValue || inputValue.length < 3) {
       setSuggestions([]);
       setIsOpen(false);
       return;
     }
 
-    const timer = setTimeout(() => {
-      autocompleteService.getPlacePredictions(
-        {
-          input: inputValue,
-          componentRestrictions: { country: 'it' }, // Solo Italia
-          types: ['address']
-        },
-        (predictions, status) => {
-          if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
-            setSuggestions(predictions);
-            // Apri dropdown solo se l'input ha il focus
-            if (document.activeElement === inputRef.current) {
-              setIsOpen(true);
-            }
-          } else {
-            setSuggestions([]);
-            setIsOpen(false);
-          }
+    const timer = setTimeout(async () => {
+      try {
+        if (!sessionTokenRef.current) {
+          // @ts-ignore
+          sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
         }
-      );
-    }, 300); // Debounce 300ms
+        const request: any = {
+          input: inputValue,
+          includedPrimaryTypes: ['address'],
+          includedRegionCodes: ['it'],
+          sessionToken: sessionTokenRef.current,
+        };
+        // @ts-ignore
+        const result = await placesLib.AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
+        const list = result?.suggestions || [];
+        setSuggestions(list);
+        if (document.activeElement === inputRef.current && list.length > 0) {
+          setIsOpen(true);
+        } else {
+          setIsOpen(false);
+        }
+      } catch (e) {
+        setSuggestions([]);
+        setIsOpen(false);
+      }
+    }, 300);
 
     return () => clearTimeout(timer);
-  }, [inputValue, autocompleteService]);
+  }, [inputValue, placesLib]);
 
   // Gestisce la selezione di un suggerimento
-  const handleSelect = async (prediction: google.maps.places.AutocompletePrediction) => {
-    if (!placesService) return;
-
-    setInputValue(prediction.description);
+  const handleSelect = async (s: any) => {
+    const p = s?.placePrediction;
+    const main = p?.structuredFormat?.mainText
+      || p?.text?.text
+      || p?.text?.primaryText
+      || s?.structured_formatting?.main_text
+      || s?.description
+      || '';
+    setInputValue(main);
     setIsOpen(false);
     setSelectedIndex(-1);
 
-    // Ottieni dettagli completi del luogo
-    placesService.getDetails(
-      {
-        placeId: prediction.place_id,
-        fields: ['address_components', 'formatted_address', 'geometry']
-      },
-      (place, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-          onChange(place.formatted_address || prediction.description, place);
-        } else {
-          onChange(prediction.description);
-        }
+    try {
+      // @ts-ignore
+      const placeWrapper = p?.toPlace?.();
+      if (!placeWrapper) {
+        onChange(main);
+        sessionTokenRef.current = null;
+        return;
       }
-    );
+      // @ts-ignore
+      const { place } = await placeWrapper.fetchFields({
+        fields: ['formattedAddress', 'addressComponents', 'location', 'id']
+      });
+      const formatted = place.formattedAddress || main;
+      const placeResult: any = {
+        formatted_address: place.formattedAddress,
+        address_components: place.addressComponents,
+        geometry: place.location ? { location: place.location } : undefined,
+        place_id: (place as any)?.id || p?.placeId,
+      };
+      onChange(formatted, placeResult);
+      sessionTokenRef.current = null;
+    } catch (e) {
+      onChange(main);
+      sessionTokenRef.current = null;
+    }
   };
 
   // Gestisce input da tastiera
@@ -201,11 +216,24 @@ export const PlaceAutocomplete: React.FC<PlaceAutocompleteProps> = ({
           ref={dropdownRef}
           className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
         >
-          {suggestions.map((suggestion, index) => (
+          {suggestions.map((s, index) => {
+            const p = s?.placePrediction;
+            const main = p?.structuredFormat?.mainText
+              || p?.text?.text
+              || p?.text?.primaryText
+              || s?.structured_formatting?.main_text
+              || s?.description
+              || '';
+            const secondary = p?.structuredFormat?.secondaryText
+              || p?.text?.secondaryText
+              || s?.structured_formatting?.secondary_text
+              || '';
+            const key = p?.id || p?.placeId || s?.place_id || `${main}-${index}`;
+            return (
             <button
-              key={suggestion.place_id}
+              key={key}
               type="button"
-              onClick={() => handleSelect(suggestion)}
+              onClick={() => handleSelect(s)}
               className={`
                 w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors
                 ${index === selectedIndex ? 'bg-blue-100' : ''}
@@ -222,15 +250,15 @@ export const PlaceAutocomplete: React.FC<PlaceAutocompleteProps> = ({
                 </svg>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">
-                    {suggestion.structured_formatting.main_text}
+                    {main}
                   </p>
                   <p className="text-xs text-gray-500 truncate">
-                    {suggestion.structured_formatting.secondary_text}
+                    {secondary}
                   </p>
                 </div>
               </div>
             </button>
-          ))}
+          );})}
         </div>
       )}
     </div>

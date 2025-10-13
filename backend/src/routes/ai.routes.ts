@@ -33,7 +33,7 @@ router.post('/chat', authenticate, async (req: any, res) => {
     }
 
     const response = await aiService.sendMessage({
-      userId,
+      recipientId: userId,
       message,
       requestId,
       subcategoryId,
@@ -99,7 +99,7 @@ router.post('/categorize-request', authenticate, validateRequest(categorizeSchem
     
     // Chiama il servizio AI per la categorizzazione
     const aiResponse = await aiService.sendMessage({
-      userId,
+      recipientId: userId,
       message: `Categorizza questa richiesta di assistenza domestica: "${description}"
       
 Categorie disponibili: ${JSON.stringify(categoryList, null, 2)}
@@ -115,14 +115,23 @@ Rispondi SOLO con un oggetto JSON valido:
         "confidence": "0.XX (numero tra 0 e 1)",
         "reason": "spiegazione breve della scelta"
       }`,
-      conversationType: 'categorization'
+      conversationType: 'system_help'
     });
     
     // Cerca di parsare la risposta JSON
-    let result;
+    let result: {
+      categoryId: string;
+      categoryName?: string;
+      subcategoryId: string;
+      subcategoryName?: string;
+      priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+      estimatedDuration: number;
+      confidence: number;
+      reason: string;
+    };
     try {
       // Pulisci la risposta da eventuali markdown
-      const cleanResponse = aiResponse.replace(/```json\n?|```\n?/g, '').trim();
+      const cleanResponse = aiResponse.message.replace(/```json\n?|```\n?/g, '').trim();
       result = JSON.parse(cleanResponse);
       
       // Valida che i campi richiesti siano presenti

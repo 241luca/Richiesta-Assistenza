@@ -108,7 +108,12 @@ export default function TinyMCEConfig() {
       setFormData(prev => ({ ...prev, key: '' }));
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error || 'Errore nel salvataggio');
+      // Assicura che venga mostrato un messaggio stringa, non un oggetto
+      const message = error?.response?.data?.message
+        || error?.response?.data?.error?.message
+        || error?.message
+        || 'Errore nel salvataggio';
+      toast.error(message);
     }
   });
 

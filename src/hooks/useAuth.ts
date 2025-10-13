@@ -22,6 +22,7 @@ interface LoginData {
   email: string;
   password: string;
   remember?: boolean;
+  twoFactorCode?: string; // opzionale per login con 2FA
 }
 
 interface RegisterData {
@@ -98,13 +99,29 @@ export const useAuth = () => {
     onSuccess: (responseData) => {
       // AGGIORNATO: Gestisce il nuovo formato ResponseFormatter
       const data = responseData.data || responseData; // Compatibilità con vecchio e nuovo formato
-      
+      const userObj = (data && (data.user || data.User)) || null;
+      const requiresTwoFactor = !!data?.requiresTwoFactor;
+
+      // Gestione 2FA: se richiesta, avvisa e non procede con il redirect
+      if (requiresTwoFactor) {
+        const msg = responseData.message || 'È richiesta l\'autenticazione a due fattori. Inserisci il codice 2FA.';
+        toast.error(msg);
+        return;
+      }
+
       // Salva il token
       if (data.accessToken) {
         localStorage.setItem('accessToken', data.accessToken);
       }
       if (data.refreshToken) {
         localStorage.setItem('refreshToken', data.refreshToken);
+      }
+
+      // Salva anche l'oggetto utente per retrocompatibilità con componenti che leggono da localStorage
+      if (userObj) {
+        try {
+          localStorage.setItem('user', JSON.stringify(userObj));
+        } catch {}
       }
       
       // Invalida e ricarica i dati utente
@@ -115,7 +132,8 @@ export const useAuth = () => {
       toast.success(message);
       
       // Redirect basato sul ruolo
-      switch (data.user?.role) {
+      const role = userObj?.role;
+      switch (role) {
         case 'ADMIN':
         case 'SUPER_ADMIN':
           navigate('/admin');
@@ -267,7 +285,8 @@ export const useAuth = () => {
   });
 
   // Funzione per verificare se l'utente è autenticato
-  const isAuthenticated = !!user && !!token;
+  // FIX: considera autenticato se esiste un token; l'utente può arrivare poco dopo via /users/profile
+  const isAuthenticated = !!token;
 
   // Funzione per verificare i permessi
   const hasRole = (roles: string | string[]) => {

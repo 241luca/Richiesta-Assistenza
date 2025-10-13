@@ -32,8 +32,10 @@ import {
   CpuChipIcon,
   UsersIcon,
   BanknotesIcon,
-  GlobeAltIcon
+  GlobeAltIcon,
+  GiftIcon
 } from '@heroicons/react/24/outline';
+import { Squares2X2Icon } from '@heroicons/react/24/outline';
 import { BellIcon as BellIconSolid } from '@heroicons/react/24/solid';
 // CAMBIATO: Ora usa il hook invece del context
 import { useAuth } from '../hooks/useAuth';
@@ -52,6 +54,18 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
+  // Tipi per gli elementi di navigazione (menu)
+  type NavigationItem =
+    | { type: 'separator' }
+    | {
+        name: string;
+        href: string;
+        icon?: typeof HomeIcon;
+        isNew?: boolean;
+        tourId?: string;
+      };
+  // Type guard per separatori
+  const isSeparator = (item: NavigationItem): item is { type: 'separator' } => 'type' in item;
   const location = useLocation();
   const { user, logout } = useAuth();
   const { siteName, siteLogo, siteClaim } = useSystemSettings();
@@ -68,10 +82,10 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   // Navigation items basati sul ruolo utente
-  const getNavigationItems = () => {
+  const getNavigationItems = (): NavigationItem[] => {
     if (!user) return [];
 
-    const baseItems = [
+    const baseItems: NavigationItem[] = [
       { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
     ];
 
@@ -95,6 +109,7 @@ export default function Layout({ children }: LayoutProps) {
           { name: 'Gestione Professioni-Categorie', href: '/admin/profession-categories', icon: TagIcon },
           { name: 'Categorie', href: '/admin/categories', icon: BuildingOfficeIcon },
           { name: 'Sottocategorie', href: '/admin/subcategories', icon: TagIcon },
+          { name: 'Tassonomia', href: '/admin/taxonomy', icon: Squares2X2Icon, isNew: true },
           { name: 'Utenti', href: '/admin/users', icon: UserGroupIcon },
           
           { type: 'separator' },
@@ -106,6 +121,8 @@ export default function Layout({ children }: LayoutProps) {
           { name: 'Sistema Notifiche', href: '/admin/notifications', icon: BellIconSolid },
           { name: 'Sistema Backup', href: '/admin/backup', icon: ServerIcon, isNew: true },
           { name: 'AI Duale WhatsApp', href: '/admin/ai-duale', icon: CpuChipIcon, isNew: true },
+          { name: 'Sistema Referral', href: '/referrals', icon: GiftIcon, isNew: true },
+          { name: 'Referral Admin', href: '/admin/referrals', icon: GiftIcon, isNew: true },
           
           { type: 'separator' },
           
@@ -143,6 +160,7 @@ export default function Layout({ children }: LayoutProps) {
         return [
           ...baseItems,
           { name: 'Dashboard Admin', href: '/admin', icon: ChartBarIcon },
+          { name: 'Referral Admin', href: '/admin/referrals', icon: GiftIcon, isNew: true },
           { name: 'Gestione Moduli', href: '/admin/modules', icon: CpuChipIcon, isNew: true },
           { name: 'Audit Log', href: '/admin/audit', icon: ShieldCheckIcon, isNew: true },
           { name: 'Test Sistema', href: '/admin/test', icon: BeakerIcon },
@@ -157,6 +175,7 @@ export default function Layout({ children }: LayoutProps) {
           { name: 'Preventivi', href: '/quotes', icon: CurrencyDollarIcon },
           { name: 'Categorie', href: '/admin/categories', icon: BuildingOfficeIcon },
           { name: 'Sottocategorie', href: '/admin/subcategories', icon: TagIcon },
+          { name: 'Tassonomia', href: '/admin/taxonomy', icon: Squares2X2Icon, isNew: true },
           { name: 'Sistema AI', href: '/admin/ai', icon: SparklesIcon },
           { name: 'Gestione Professionisti', href: '/admin/professionals', icon: UserGroupIcon },
           { name: 'Health Check', href: '/admin/health', icon: HeartIcon, isNew: true },
@@ -165,7 +184,7 @@ export default function Layout({ children }: LayoutProps) {
           { name: 'Profilo', href: '/profile', icon: UserCircleIcon },
         ];
       case 'PROFESSIONAL':
-        const professionalItems = [
+        const professionalItems: NavigationItem[] = [
           ...baseItems,
         ];
         
@@ -204,7 +223,7 @@ export default function Layout({ children }: LayoutProps) {
     }
   };
 
-  const navigationItems = getNavigationItems();
+  const navigationItems: NavigationItem[] = getNavigationItems();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -240,7 +259,7 @@ export default function Layout({ children }: LayoutProps) {
           <nav className="flex-1 space-y-1 px-2 py-4 overflow-y-auto">
             {navigationItems.map((item, index) => {
               // Se è un separatore, renderizza una linea
-              if (item.type === 'separator') {
+              if (isSeparator(item)) {
                 return (
                   <div key={`separator-${index}`} className="py-2">
                     <div className="border-t border-gray-200"></div>
@@ -304,7 +323,9 @@ export default function Layout({ children }: LayoutProps) {
         <header className="bg-white shadow-sm border-b border-gray-200">
           <div className="flex items-center justify-between px-6 py-4">
             <h2 className="text-xl font-semibold text-gray-800">
-              {navigationItems.find(item => item.href === location.pathname)?.name || 'Dashboard'}
+              {
+                (navigationItems.find((it) => !isSeparator(it) && it.href === location.pathname) as Exclude<NavigationItem, { type: 'separator' }> | undefined)?.name || 'Dashboard'
+              }
             </h2>
             
             <div className="flex items-center space-x-4">

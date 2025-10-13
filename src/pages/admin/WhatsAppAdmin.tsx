@@ -107,7 +107,7 @@ export default function WhatsAppAdminPage() {
       const firstInstance = instances[0];
       if (firstInstance.instanceName) {
         setCurrentInstance(firstInstance.instanceName);
-        toast.info(`Istanza selezionata: ${firstInstance.instanceName}`);
+  toast(`Istanza selezionata: ${firstInstance.instanceName}`);
       }
     }
   }, [instances]);
@@ -326,7 +326,7 @@ export default function WhatsAppAdminPage() {
         setQrCode(response.data.data.qrcode);
         toast.success('QR Code generato!');
       } else if (response.data?.data?.connected) {
-        toast.info('WhatsApp già connesso');
+  toast('WhatsApp già connesso');
         setQrCode(null);
       }
     } catch (error: any) {
@@ -621,14 +621,14 @@ export default function WhatsAppAdminPage() {
     setLoading(true);
     try {
       // Prima disconnetti
-      toast.info('Disconnessione in corso...');
+  toast('Disconnessione in corso...');
       await api.delete(`/whatsapp/logout/${currentInstance}`);
       
       // Aspetta un attimo
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Poi riconnetti
-      toast.info('Riconnessione in corso...');
+  toast('Riconnessione in corso...');
       await api.get(`/whatsapp/qrcode`);
       
       // Ricarica stato
@@ -966,7 +966,7 @@ export default function WhatsAppAdminPage() {
                           // Forza un restart dell'istanza per sincronizzare
                           try {
                             await api.put(`/whatsapp/restart/${currentInstance}`);
-                            toast.info('Riavvio istanza... Attendere 5 secondi');
+  toast('Riavvio istanza... Attendere 5 secondi');
                             setTimeout(async () => {
                               await verifyConnectionViaNumberCheck();
                               setLoading(false);

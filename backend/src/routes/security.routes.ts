@@ -1,17 +1,9 @@
 import { Router, Request, Response } from 'express';
-import { authenticate, requireRole } from '../middleware/auth';
+import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 import { ResponseFormatter } from '../utils/responseFormatter';
 import { prisma } from '../config/database';
 import { logger } from '../utils/logger';
-import { AuditAction, LogSeverity } from '@prisma/client';
-
-interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    role: string;
-  };
-}
+import { AuditAction, LogSeverity, LogCategory } from '@prisma/client';
 
 const router = Router();
 
@@ -112,23 +104,20 @@ router.get('/status', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async
       }
     }).catch(() => 0);
 
-    // IP bloccati (analisi da audit log)
-    const suspiciousIpsCount = await prisma.auditLog.groupBy({
-      by: ['ipAddress'],
+    // IP sospetti (conteggio lato codice per compatibilità Prisma)
+    const failedLoginIps = await prisma.auditLog.findMany({
       where: {
         action: AuditAction.LOGIN_FAILED,
         timestamp: { gte: oneDayAgo }
       },
-      _count: true,
-      having: {
-        ipAddress: {
-          _count: {
-            gt: 5
-          }
-        }
-      }
+      select: { ipAddress: true }
     });
-    const blockedIps = suspiciousIpsCount.length;
+    const ipCounts = new Map<string, number>();
+    for (const row of failedLoginIps) {
+      const ip = row.ipAddress || 'unknown';
+      ipCounts.set(ip, (ipCounts.get(ip) || 0) + 1);
+    }
+    const blockedIps = Array.from(ipCounts.values()).filter((c) => c > 5).length;
 
     // Calcola Security Score (0-100)
     let securityScore = 100;
@@ -183,7 +172,6 @@ router.get('/status', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async
         OR: [
           { action: AuditAction.LOGIN_FAILED },
           { action: AuditAction.UNAUTHORIZED_ACCESS },
-          { action: AuditAction.PERMISSION_DENIED },
           { action: AuditAction.SUSPICIOUS_ACTIVITY },
           { action: AuditAction.RATE_LIMIT_EXCEEDED },
           { severity: LogSeverity.CRITICAL },
@@ -194,7 +182,7 @@ router.get('/status', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async
       orderBy: { timestamp: 'desc' },  // Cambiato da createdAt a timestamp
       take: 10,
       include: {
-        user: {
+        User: {
           select: {
             email: true,
             firstName: true,
@@ -207,7 +195,7 @@ router.get('/status', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async
     // Formatta eventi per il frontend
     const events = recentEvents.map(event => {
       let type: string = 'suspicious_activity';
-      let message = event.details || 'Evento di sicurezza';
+      let message = 'Evento di sicurezza';
       
       switch (event.action) {
         case AuditAction.LOGIN_FAILED:
@@ -217,10 +205,6 @@ router.get('/status', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async
         case AuditAction.UNAUTHORIZED_ACCESS:
           type = 'permission_denied';
           message = 'Accesso non autorizzato';
-          break;
-        case AuditAction.PERMISSION_DENIED:
-          type = 'permission_denied';
-          message = 'Permesso negato';
           break;
         case AuditAction.RATE_LIMIT_EXCEEDED:
           type = 'rate_limit';
@@ -260,7 +244,7 @@ router.get('/status', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async
         message,
         details: event.metadata,
         userId: event.userId,
-        userEmail: event.userEmail || event.user?.email,
+        userEmail: event.userEmail || (event as any).User?.email,
         ipAddress: event.ipAddress,
         userAgent: event.userAgent,
         location: (event.metadata as any)?.location,
@@ -364,9 +348,9 @@ router.post('/resolve-event/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADM
         userRole: req.user?.role,
         ipAddress: req.ip || 'unknown',
         userAgent: req.get('user-agent') || 'unknown',
-        details: `Security event resolved: ${notes}`,
+        metadata: { resolutionMessage: `Security event resolved: ${notes}` },
         severity: LogSeverity.INFO,
-        category: 'SECURITY',
+        category: LogCategory.SECURITY,
         success: true
       }
     });
@@ -391,25 +375,25 @@ router.get('/blocked-ips', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), 
     // Trova IP con molti login falliti nelle ultime 24 ore
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     
-    const suspiciousIps = await prisma.auditLog.groupBy({
-      by: ['ipAddress'],
+    const failedLoginIps = await prisma.auditLog.findMany({
       where: {
         action: AuditAction.LOGIN_FAILED,
         timestamp: { gte: oneDayAgo }
       },
-      _count: true,
-      having: {
-        ipAddress: {
-          _count: {
-            gt: 5 // Più di 5 tentativi falliti
-          }
-        }
-      }
+      select: { ipAddress: true }
     });
+    const ipCounts = new Map<string, number>();
+    for (const row of failedLoginIps) {
+      const ip = row.ipAddress || 'unknown';
+      ipCounts.set(ip, (ipCounts.get(ip) || 0) + 1);
+    }
+    const suspicious = Array.from(ipCounts.entries())
+      .filter(([_, count]) => count > 5)
+      .map(([ipAddress, count]) => ({ ipAddress, count }));
 
     res.json(ResponseFormatter.success({
       blocked: [], // Nessun IP effettivamente bloccato (tabella non esistente)
-      suspicious: suspiciousIps
+      suspicious
     }));
 
   } catch (error) {
