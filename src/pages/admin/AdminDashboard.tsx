@@ -41,6 +41,7 @@ interface DashboardStats {
     monthlyGrowth: {
       users: number;
       requests: number;
+      quotes: number;
       revenue: number;
     };
   };
@@ -65,6 +66,8 @@ interface DashboardStats {
       amount: number;
       status: string;
       createdAt: string;
+      professional?: string; // Nome del professionista
+      client?: string; // Nome del cliente
     }>;
     allRequests?: Array<{
       id: string;
@@ -87,35 +90,39 @@ function StatCard({
   value, 
   icon: Icon, 
   change, 
-  changeType = 'neutral' 
+  changeType = 'neutral',
+  onClick
 }: { 
   title: string; 
   value: string | number; 
   icon: any; 
   change?: string;
   changeType?: 'increase' | 'decrease' | 'neutral';
+  onClick?: () => void;
 }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        {change && (
-          <p className={`text-xs flex items-center mt-1 ${
-            changeType === 'increase' ? 'text-green-600' : 
-            changeType === 'decrease' ? 'text-red-600' : 
-            'text-gray-600'
-          }`}>
-            {changeType === 'increase' && <ArrowUpIcon className="h-3 w-3 mr-1" />}
-            {changeType === 'decrease' && <ArrowDownIcon className="h-3 w-3 mr-1" />}
-            {change}
-          </p>
-        )}
-      </CardContent>
-    </Card>
+    <div className={onClick ? "cursor-pointer hover:shadow-lg transition-shadow rounded-lg" : ""} onClick={onClick}>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
+          <Icon className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{value}</div>
+          {change && (
+            <p className={`text-xs flex items-center mt-1 ${
+              changeType === 'increase' ? 'text-green-600' : 
+              changeType === 'decrease' ? 'text-red-600' : 
+              'text-gray-600'
+            }`}>
+              {changeType === 'increase' && <ArrowUpIcon className="h-3 w-3 mr-1" />}
+              {changeType === 'decrease' && <ArrowDownIcon className="h-3 w-3 mr-1" />}
+              {change}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -376,7 +383,7 @@ export default function AdminDashboard() {
       completed: 0,
       cancelled: 0
     },
-    monthlyGrowth: { users: 0, requests: 0, revenue: 0 }
+    monthlyGrowth: { users: 0, requests: 0, quotes: 0, revenue: 0 }
   };
 
   const activity = data?.recentActivity || {
@@ -418,6 +425,7 @@ export default function AdminDashboard() {
           icon={UserIcon}
           change={`${stats.monthlyGrowth.users > 0 ? '+' : ''}${stats.monthlyGrowth.users}% questo mese`}
           changeType={stats.monthlyGrowth.users > 0 ? 'increase' : stats.monthlyGrowth.users < 0 ? 'decrease' : 'neutral'}
+          onClick={() => navigate('/admin/users')}
         />
         <StatCard 
           title="Richieste Totali" 
@@ -425,11 +433,20 @@ export default function AdminDashboard() {
           icon={ClipboardDocumentListIcon}
           change={`${stats.monthlyGrowth.requests > 0 ? '+' : ''}${stats.monthlyGrowth.requests}% questo mese`}
           changeType={stats.monthlyGrowth.requests > 0 ? 'increase' : stats.monthlyGrowth.requests < 0 ? 'decrease' : 'neutral'}
+          onClick={() => {
+            const element = document.getElementById('richieste-grid');
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth' });
+            }
+          }}
         />
         <StatCard 
           title="Preventivi Totali" 
           value={stats.totalQuotes}
           icon={ChartBarIcon}
+          change={`${stats.monthlyGrowth.quotes > 0 ? '+' : ''}${stats.monthlyGrowth.quotes || 0}% questo mese`}
+          changeType={stats.monthlyGrowth.quotes > 0 ? 'increase' : stats.monthlyGrowth.quotes < 0 ? 'decrease' : 'neutral'}
+          onClick={() => navigate('/quotes')}
         />
         <StatCard 
           title="Fatturato Totale" 
@@ -440,31 +457,14 @@ export default function AdminDashboard() {
         />
       </div>
 
-      {/* Card Gestione Moduli */}
-      <Link
-        to="/admin/modules"
-        className="bg-gradient-to-br from-purple-500 to-purple-700 rounded-lg p-6 text-white hover:shadow-xl transition-shadow block mb-8"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold">🔧 Gestione Moduli</h3>
-          <span className="text-3xl">→</span>
-        </div>
-        <p className="text-purple-100 mb-4">
-          Abilita/Disabilita funzionalità sistema
-        </p>
-        <div className="text-sm space-y-1">
-          <p>• Sistema Recensioni</p>
-          <p>• WhatsApp Business</p>
-          <p>• AI Assistant</p>
-          <p>• Portfolio Lavori</p>
-        </div>
-      </Link>
+
 
       {/* Griglia Richieste - Con scroll */}
       {data?.recentActivity?.allRequests && (
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Tutte le Richieste di Assistenza</CardTitle>
+        <div id="richieste-grid">
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Tutte le Richieste di Assistenza</CardTitle>
             <p className="text-sm text-gray-500 mt-1">Clicca su una richiesta per vedere i dettagli</p>
           </CardHeader>
           <CardContent>
@@ -633,7 +633,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+            <div className="overflow-x-auto max-h-[630px] overflow-y-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-white z-10">
                   <tr className="border-b">
@@ -707,6 +707,7 @@ export default function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
+        </div>
       )}
 
       {/* Modal Assegnazione Professionista */}
@@ -797,12 +798,10 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Widget ModulesStatus */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8 mb-8">
+      {/* Statistiche dettagliate - 4 box in una riga */}
+      <div className="grid gap-6 grid-cols-4 mb-8">
+        {/* Widget Stato Moduli */}
         <ModulesStatusWidget />
-      </div>
-      
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
         {/* Distribuzione Utenti */}
         <Card>
           <CardHeader>
@@ -908,6 +907,8 @@ export default function AdminDashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
+                    <th className="text-left pb-2">Professionista</th>
+                    <th className="text-left pb-2">Cliente</th>
                     <th className="text-left pb-2">Richiesta</th>
                     <th className="text-left pb-2">Importo</th>
                     <th className="text-left pb-2">Stato</th>
@@ -915,12 +916,14 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {activity.recentQuotes.map((quote) => (
+                  {activity.recentQuotes.slice(0, 10).map((quote) => (
                     <tr 
                       key={quote.id} 
                       className="border-b hover:bg-gray-50 cursor-pointer transition-colors"
                       onClick={() => navigate(`/quotes/${quote.id}`)}
                     >
+                      <td className="py-2">{quote.professional || 'Non assegnato'}</td>
+                      <td className="py-2">{quote.client || 'N/A'}</td>
                       <td className="py-2">{quote.requestTitle}</td>
                       <td className="py-2">€{(quote.amount / 100).toFixed(2)}</td>
                       <td className="py-2">

@@ -169,10 +169,15 @@ router.get(
           totalAmount = Number((quote as any).amount) * 100;
         }
 
+        const assistanceRequest = (quote as any).AssistanceRequest;
+        
         return {
           ...quote,
           totalAmount,
-          request: (quote as any).AssistanceRequest,
+          request: {
+            ...assistanceRequest,
+            client: assistanceRequest.User_AssistanceRequest_clientIdToUser
+          },
           professional: (quote as any).User,
           items: items.map((item: any) => ({
             ...item,
@@ -395,7 +400,14 @@ router.get(
         depositAmount: quote.depositAmount
           ? Number(quote.depositAmount) * 100
           : null,
-        request: (quote as any).AssistanceRequest,
+        request: {
+          ...(quote as any).AssistanceRequest,
+          client: (quote as any).AssistanceRequest?.User_AssistanceRequest_clientIdToUser || null,
+        },
+        AssistanceRequest: {
+          ...(quote as any).AssistanceRequest,
+          client: (quote as any).AssistanceRequest?.User_AssistanceRequest_clientIdToUser || null,
+        },
         professional: (quote as any).User,
         items: items.map((item: any) => ({
           ...item,
