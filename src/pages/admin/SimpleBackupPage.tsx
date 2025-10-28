@@ -54,12 +54,30 @@ interface CleanupDir {
   fileCount: number;
 }
 
+interface CleanupPreviewResult {
+  filesToMove: Array<{
+    sourcePath: string;
+    relativePath: string;
+    size: number;
+    targetPath?: string;
+  }>;
+  totalSize: number;
+  totalFiles: number;
+  cleanupDirName: string;
+  patterns: string[];
+  excludedFiles: string[];
+  excludedDirs: string[];
+}
+
 const SimpleBackupPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [creatingBackup, setCreatingBackup] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'backup' | 'info' | 'cleanup' | 'docs'>('backup');
   const [showDeleteCleanupModal, setShowDeleteCleanupModal] = useState<string | null>(null);
   const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewData, setPreviewData] = useState<CleanupPreviewResult | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   // Query per lista backup
   const { data: backups = [], isLoading } = useQuery<Backup[]>({
@@ -175,6 +193,25 @@ const SimpleBackupPage: React.FC = () => {
     onError: (error: any) => {
       const message = error.response?.data?.message || 'Errore durante l\'eliminazione';
       toast.error(message);
+    },
+  });
+
+  // Mutation per preview cleanup
+  const previewCleanupMutation = useMutation({
+    mutationFn: async () => {
+      setPreviewLoading(true);
+      const response = await apiClient.post('/backup/cleanup-preview');
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setPreviewData(data.data);
+      setShowPreviewModal(true);
+      setPreviewLoading(false);
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Errore durante il preview';
+      toast.error(message);
+      setPreviewLoading(false);
     },
   });
 
@@ -747,32 +784,56 @@ const SimpleBackupPage: React.FC = () => {
                 </p>
               </div>
               
-              {/* Bottone Avvia Cleanup */}
-              <button
-                onClick={() => {
-                  if (confirm('Vuoi eseguire il cleanup dei file temporanei?\n\nQuesto sposterà tutti i file .backup-*, .sh, .fixed.ts e altri file temporanei in una cartella CLEANUP datata.')) {
-                    executeCleanupMutation.mutate();
-                  }
-                }}
-                disabled={cleanupLoading}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-colors ${
-                  cleanupLoading 
-                    ? 'bg-gray-400 cursor-not-allowed' 
-                    : 'bg-orange-600 hover:bg-orange-700'
-                }`}
-              >
-                {cleanupLoading ? (
-                  <>
-                    <ArrowPathIcon className="h-5 w-5 animate-spin" />
-                    Cleanup in corso...
-                  </>
-                ) : (
-                  <>
-                    <ArrowPathIcon className="h-5 w-5" />
-                    Avvia Cleanup
-                  </>
-                )}
-              </button>
+              {/* Bottoni Preview ed Execute */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => previewCleanupMutation.mutate()}
+                  disabled={previewLoading || cleanupLoading}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-colors ${
+                    previewLoading || cleanupLoading
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                >
+                  {previewLoading ? (
+                    <>
+                      <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                      Analisi in corso...
+                    </>
+                  ) : (
+                    <>
+                      <InformationCircleIcon className="h-5 w-5" />
+                      Anteprima Cleanup
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (confirm('Vuoi eseguire il cleanup dei file temporanei?\n\nQuesto sposterà tutti i file .backup-*, .sh, .fixed.ts e altri file temporanei in una cartella CLEANUP datata.')) {
+                      executeCleanupMutation.mutate();
+                    }
+                  }}
+                  disabled={cleanupLoading}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-colors ${
+                    cleanupLoading
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-orange-600 hover:bg-orange-700'
+                  }`}
+                >
+                  {cleanupLoading ? (
+                    <>
+                      <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                      Cleanup in corso...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowPathIcon className="h-5 w-5" />
+                      Esegui Cleanup
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
             
             {/* Info Box Cleanup */}
@@ -923,6 +984,197 @@ const SimpleBackupPage: React.FC = () => {
       {isLoading && activeTab === 'backup' && (
         <div className="flex justify-center items-center py-12">
           <ArrowPathIcon className="h-8 w-8 animate-spin text-gray-500" />
+        </div>
+      )}
+
+      {/* Modal Preview Cleanup */}
+      {showPreviewModal && previewData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <InformationCircleIcon className="h-8 w-8 text-blue-600" />
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">Anteprima Cleanup</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    File che verranno spostati in: <code className="bg-gray-100 px-2 py-1 rounded text-xs">{previewData.cleanupDirName}</code>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowPreviewModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+              {/* Statistiche Preview */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="text-sm text-blue-600">File da spostare</div>
+                  <div className="text-2xl font-bold text-blue-900">{previewData.totalFiles}</div>
+                </div>
+
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="text-sm text-blue-600">Spazio totale</div>
+                  <div className="text-2xl font-bold text-blue-900">
+                    {previewData.totalSize < 1024
+                      ? `${previewData.totalSize} B`
+                      : previewData.totalSize < 1024 * 1024
+                      ? `${(previewData.totalSize / 1024).toFixed(2)} KB`
+                      : `${(previewData.totalSize / (1024 * 1024)).toFixed(2)} MB`
+                    }
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="text-sm text-blue-600">Pattern utilizzati</div>
+                  <div className="text-2xl font-bold text-blue-900">{previewData.patterns.length}</div>
+                </div>
+              </div>
+
+              {/* Lista File */}
+              <div className="mb-6">
+                <h4 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <DocumentTextIcon className="h-5 w-5" />
+                  File da spostare ({previewData.filesToMove.length})
+                </h4>
+
+                {previewData.filesToMove.length === 0 ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                    <CheckCircleIcon className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                    <p className="text-green-800 font-medium">Nessun file da spostare!</p>
+                    <p className="text-green-600 text-sm mt-1">Il progetto è già pulito secondo i pattern configurati.</p>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 rounded-lg border max-h-96 overflow-y-auto">
+                    <div className="divide-y divide-gray-200">
+                      {previewData.filesToMove.map((file, index) => (
+                        <div key={index} className="px-4 py-3 hover:bg-gray-100">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-mono text-sm text-gray-900 truncate">
+                                {file.relativePath}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                Da: {file.sourcePath}
+                                {file.targetPath && (
+                                  <>
+                                    <br />
+                                    A: {file.targetPath}
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-sm text-gray-600 ml-4">
+                              {file.size < 1024
+                                ? `${file.size} B`
+                                : file.size < 1024 * 1024
+                                ? `${(file.size / 1024).toFixed(1)} KB`
+                                : `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+                              }
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Configurazione Utilizzata */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <h4 className="text-md font-semibold mb-3 flex items-center gap-2">
+                    <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                    Pattern utilizzati ({previewData.patterns.length})
+                  </h4>
+                  <div className="bg-green-50 rounded-lg p-3">
+                    <div className="space-y-1">
+                      {previewData.patterns.map((pattern, index) => (
+                        <code key={index} className="text-sm bg-green-100 px-2 py-1 rounded text-green-800 block">
+                          {pattern}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-md font-semibold mb-3 flex items-center gap-2">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />
+                    File esclusi ({previewData.excludedFiles.length})
+                  </h4>
+                  <div className="bg-red-50 rounded-lg p-3">
+                    {previewData.excludedFiles.length === 0 ? (
+                      <p className="text-sm text-red-600">Nessun file escluso</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {previewData.excludedFiles.slice(0, 10).map((excluded, index) => (
+                          <code key={index} className="text-sm bg-red-100 px-2 py-1 rounded text-red-800 block">
+                            {excluded}
+                          </code>
+                        ))}
+                        {previewData.excludedFiles.length > 10 && (
+                          <p className="text-sm text-red-600 mt-2">
+                            ... e altri {previewData.excludedFiles.length - 10}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Directory Escluse */}
+              {previewData.excludedDirs.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-md font-semibold mb-3 flex items-center gap-2">
+                    <FolderIcon className="h-5 w-5 text-orange-500" />
+                    Directory escluse ({previewData.excludedDirs.length})
+                  </h4>
+                  <div className="bg-orange-50 rounded-lg p-3">
+                    <div className="space-y-1">
+                      {previewData.excludedDirs.map((dir, index) => (
+                        <code key={index} className="text-sm bg-orange-100 px-2 py-1 rounded text-orange-800 block">
+                          {dir}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer con azioni */}
+            <div className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setShowPreviewModal(false)}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg font-medium"
+              >
+                Chiudi Anteprima
+              </button>
+
+              {previewData.totalFiles > 0 && (
+                <button
+                  onClick={() => {
+                    setShowPreviewModal(false);
+                    if (confirm(`Confermi l'esecuzione del cleanup?\n\nVerranno spostati ${previewData.totalFiles} file (${previewData.totalSize < 1024 ? `${previewData.totalSize} B` : previewData.totalSize < 1024 * 1024 ? `${(previewData.totalSize / 1024).toFixed(2)} KB` : `${(previewData.totalSize / (1024 * 1024)).toFixed(2)} MB`}) nella cartella ${previewData.cleanupDirName}`)) {
+                      executeCleanupMutation.mutate();
+                    }
+                  }}
+                  className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium flex items-center gap-2"
+                >
+                  <ArrowPathIcon className="h-5 w-5" />
+                  Esegui Cleanup ({previewData.totalFiles} file)
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

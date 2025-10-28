@@ -190,6 +190,24 @@ export async function seedModules(prisma?: PrismaClient) {
       color: '#2563EB',
       order: 17,
       dependsOn: ['calendar', 'requests']
+    },
+    {
+      code: 'custom-forms',
+      name: 'Moduli Personalizzati',
+      description: 'Creazione e gestione moduli personalizzati per sottocategorie',
+      category: ModuleCategory.BUSINESS,
+      isCore: false,
+      isEnabled: true,
+      icon: '📝',
+      color: '#8B5CF6',
+      order: 18,
+      dependsOn: ['categories', 'requests'],
+      config: {
+        maxFieldsPerForm: 50,
+        allowFileUploads: true,
+        enableValidationRules: true,
+        enableConditionalLogic: true
+      }
     }
   ];
 
@@ -741,6 +759,21 @@ export async function seedModules(prisma?: PrismaClient) {
       color: '#10A37F',
       order: 74,
       dependsOn: ['ai-assistant']
+    },
+    {
+      code: 'smartdocs',
+      name: 'SmartDocs',
+      description: 'Sistema gestione documentale con RAG (Retrieval-Augmented Generation)',
+      category: ModuleCategory.INTEGRATIONS,
+      isCore: false,
+      isEnabled: false,
+      icon: '📚',
+      color: '#7C3AED',
+      order: 75,
+      config: {
+        apiUrl: 'http://localhost:3500',
+        autoIngest: false
+      }
     }
   ];
 
@@ -1127,6 +1160,61 @@ export async function seedModuleSettings(prisma?: PrismaClient) {
       description: 'Giorni entro cui modificare recensione',
       validation: { min: 0, max: 30 },
       order: 2
+    },
+
+    // SmartDocs Settings
+    {
+      moduleCode: 'smartdocs',
+      key: 'api_url',
+      value: 'http://localhost:3500',
+      type: SettingType.TEXT,
+      label: 'API URL',
+      description: 'URL del servizio SmartDocs',
+      isRequired: true,
+      order: 1,
+      group: 'Connessione'
+    },
+    {
+      moduleCode: 'smartdocs',
+      key: 'auto_ingest',
+      value: 'false',
+      type: SettingType.BOOLEAN,
+      label: 'Auto Ingest',
+      description: 'Carica automaticamente documenti in SmartDocs',
+      order: 2,
+      group: 'Automazione'
+    },
+    {
+      moduleCode: 'smartdocs',
+      key: 'default_ai_model',
+      value: 'gpt-4',
+      type: SettingType.TEXT,
+      label: 'Modello AI Default',
+      description: 'Modello AI da utilizzare per RAG',
+      order: 3,
+      group: 'AI Configuration'
+    },
+    {
+      moduleCode: 'smartdocs',
+      key: 'chunk_size',
+      value: '1000',
+      type: SettingType.NUMBER,
+      label: 'Chunk Size',
+      description: 'Dimensione chunk per embeddings (tokens)',
+      validation: { min: 500, max: 2000 },
+      order: 4,
+      group: 'AI Configuration'
+    },
+    {
+      moduleCode: 'smartdocs',
+      key: 'chunk_overlap',
+      value: '200',
+      type: SettingType.NUMBER,
+      label: 'Chunk Overlap',
+      description: 'Overlap tra chunk (tokens)',
+      validation: { min: 0, max: 500 },
+      order: 5,
+      group: 'AI Configuration'
     }
   ];
 

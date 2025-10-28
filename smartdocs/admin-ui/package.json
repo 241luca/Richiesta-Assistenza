@@ -1,0 +1,9 @@
+{
+  "name": "smartdocs-admin-ui",
+  "version": "1.0.0",
+  "description": "SmartDocs Standalone Admin Panel",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  }
+}

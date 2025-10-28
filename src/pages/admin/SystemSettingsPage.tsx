@@ -21,7 +21,8 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ExclamationTriangleIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  UserCircleIcon
 } from '@heroicons/react/24/outline';
 import { Input } from '@/components/ui/input';
 import { TextArea } from '@/components/ui/textarea';
@@ -76,6 +77,12 @@ const CATEGORIES_CONFIG = {
     gradient: 'from-indigo-500 to-blue-500',
     bgLight: 'from-indigo-50 to-blue-50',
     description: 'Link social media e presenza online'
+  },
+  'Promemoria Immagini': {
+    icon: UserCircleIcon,
+    gradient: 'from-orange-500 to-red-500',
+    bgLight: 'from-orange-50 to-red-50',
+    description: 'Configurazione promemoria per immagini mancanti'
   }
 };
 

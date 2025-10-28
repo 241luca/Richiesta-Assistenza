@@ -587,7 +587,7 @@ router.get('/messages/:phoneNumber', authenticate, async (req: any, res: Respons
       where: { phoneNumber },
       orderBy: { timestamp: 'asc' },
       include: {
-        user: true
+        User: true
       }
     });
     
@@ -973,14 +973,14 @@ router.get('/messages', authenticate, async (req: any, res: Response) => {
         take,
         orderBy: { timestamp: 'desc' },
         include: {
-          user: {
+          User: {
             select: {
               id: true,
               fullName: true,
               email: true
             }
           },
-          request: {
+          AssistanceRequest: {
             select: {
               id: true,
               title: true,

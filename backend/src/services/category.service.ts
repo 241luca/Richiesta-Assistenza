@@ -16,7 +16,6 @@
  */
 
 import { prisma } from '../config/database';
-import { randomUUID } from 'crypto';
 import { logger } from '../utils/logger';
 import { generateSlug } from '../utils/slug';
 import type { Category } from '@prisma/client';
@@ -71,6 +70,10 @@ export class CategoryService {
 
       const categories = await prisma.category.findMany({
         include: {
+          Subcategory: {
+            where: { isActive: true },
+            orderBy: { displayOrder: 'asc' }
+          },
           _count: {
             select: {
               Subcategory: true,
@@ -186,7 +189,6 @@ export class CategoryService {
       // Creazione categoria
       const newCategory = await prisma.category.create({
         data: {
-          id: randomUUID(),
           name: data.name,
           slug,
           description: data.description,
@@ -195,8 +197,6 @@ export class CategoryService {
           textColor: data.textColor || '#FFFFFF', // White default
           isActive: data.isActive ?? true,
           displayOrder: data.displayOrder || 0,
-          // Campo obbligatorio nello schema: updatedAt NON ha default
-          updatedAt: new Date(),
         } as any, // TypeScript: id e updatedAt sono auto-generati
         include: {
           _count: {

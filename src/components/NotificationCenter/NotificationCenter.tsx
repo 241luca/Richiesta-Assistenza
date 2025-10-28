@@ -8,7 +8,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bell, X, Check, CheckCheck, Mail, MessageSquare, Phone, Send, Wifi, AlertCircle, Info } from 'lucide-react';
 import { api } from '@/services/api';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { toast } from 'react-hot-toast';
 
@@ -74,7 +74,7 @@ export const NotificationCenter: React.FC = () => {
   // WebSocket per notifiche real-time
   const { socket, isConnected } = useWebSocket();
   
-  // Query notifiche
+  // Query notifiche ottimizzata
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['notifications', filter],
     queryFn: () => api.get('/notifications', {
@@ -83,11 +83,15 @@ export const NotificationCenter: React.FC = () => {
         limit: 50
       }
     }),
-    refetchInterval: 30000 // Refresh ogni 30 secondi
+    staleTime: 5 * 60 * 1000, // 5 minuti di cache
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchInterval: false, // Disabilita polling - usa WebSocket per real-time
+    refetchOnReconnect: false
   });
   
-  const notifications = data?.notifications || [];
-  const unreadCount = data?.unread || 0;
+  const notifications = data?.data?.notifications || [];
+  const unreadCount = data?.data?.unread || 0;
   
   // Mutation per marcare come letta
   const markAsReadMutation = useMutation({

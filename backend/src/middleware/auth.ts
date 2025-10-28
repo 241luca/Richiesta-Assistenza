@@ -30,12 +30,12 @@ export async function authenticate(
     method: req.method,
     hasAuthHeader: !!req.headers.authorization
   });
-  
+
   try {
     // Get token from header
     const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith('Bearer ') 
-      ? authHeader.substring(7) 
+    const token = authHeader?.startsWith('Bearer ')
+      ? authHeader.substring(7)
       : null;
 
     if (!token) {
@@ -47,13 +47,21 @@ export async function authenticate(
 
     // Verify token
     const decoded = jwt.verify(
-      token, 
+      token,
       process.env.JWT_SECRET!
     ) as any;
 
+    // DEBUG: Log del token decodificato
+    logger.info('[AUTH] Token decodificato:', {
+      decoded,
+      hasUserId: !!decoded.userId,
+      hasId: !!decoded.id,
+      keys: Object.keys(decoded)
+    });
+
     // Get user from database - using only essential fields that exist
     const user = await prisma.user.findUnique({
-      where: { 
+      where: {
         id: decoded.userId
       }
     });
@@ -76,6 +84,7 @@ export async function authenticate(
     // Attach user and organization to request
     req.user = user;
 
+    logger.info('[AUTH] Authentication successful, calling next()');
     next();
   } catch (error: any) {
     logger.error('Authentication error:', {

@@ -11,7 +11,7 @@ import {
   CalendarIcon,
   CreditCardIcon
 } from '@heroicons/react/24/outline';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../hooks/useAuth';
 import toast from 'react-hot-toast';
 
 interface ApiKeysLayoutProps {

@@ -1,1 +1,0 @@
-/Users/lucamambelli/Desktop/Richiesta-Assistenza/run-dry-run.sh: line 7: node: command not found

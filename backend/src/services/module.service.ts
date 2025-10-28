@@ -27,6 +27,7 @@ import { prisma } from '../config/database';
 import { logger } from '../utils/logger';
 import { ModuleCategory, Prisma } from '@prisma/client';
 import { notificationService } from './notification.service';
+import { v4 as uuidv4 } from 'uuid';
 // Import per invalidazione cache middleware
 import { invalidateModuleCache } from '../middleware/module.middleware';
 
@@ -638,6 +639,7 @@ class ModuleService {
       // Log history
       await prisma.moduleHistory.create({
         data: {
+          id: uuidv4(),
           userId: userId,
           moduleType: 'SYSTEM_MODULE',
           action: 'ENABLED',
@@ -739,6 +741,7 @@ class ModuleService {
       // Log
       await prisma.moduleHistory.create({
         data: {
+          id: uuidv4(),
           userId: userId,
           moduleType: 'SYSTEM_MODULE',
           action: 'DISABLED',
@@ -819,6 +822,7 @@ class ModuleService {
       // Log
       await prisma.moduleHistory.create({
         data: {
+          id: uuidv4(),
           userId: userId,
           moduleType: 'SYSTEM_MODULE',
           action: 'CONFIG_CHANGED',

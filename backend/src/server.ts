@@ -133,7 +133,7 @@ const authLimiter = isAuthRateLimitDisabled
     });
 
 // Static files
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 app.use('/uploads', express.static(path.join(__dirname, '../../public/uploads')));
 app.use(express.static(path.join(__dirname, '../../public')));
 
@@ -237,6 +237,7 @@ import whatsappConfigRoutes from './routes/admin/whatsapp-config.routes';
 // DISABILITATO - File .disabled - Sistema articoli KB mai completato
 // import knowledgebaseRoutes from './routes/knowledgebase.routes';
 import knowledgeBaseRoutes from './routes/knowledge-base.routes'; // NUOVO IMPORT
+import smartDocsRoutes from './routes/smartdocs.routes'; // NUOVO - SmartDocs Integration
 
 // Dashboard routes - IMPORTANTE!
 import userDashboardRoutes from './routes/dashboard/user-dashboard.routes';
@@ -245,12 +246,13 @@ import userDashboardRoutes from './routes/dashboard/user-dashboard.routes';
 import requestRoutes from './routes/request.routes';
 import { quoteRoutes } from './routes/quote.routes';
 import reviewRoutes from './routes/reviews.routes'; // NUOVO - Sistema recensioni
+import reviewAdminRoutes from './routes/admin/reviews.routes'; // NUOVO - Admin config recensioni
 import portfolioRoutes from './routes/portfolio.routes'; // NUOVO - Sistema portfolio
 import referralRoutes from './routes/referral.routes'; // NUOVO - Sistema referral
 import notificationRoutes from './routes/notification.routes';
 import notificationAdminRoutes from './routes/notificationAdmin.routes';
 import notificationTemplateRoutes from './routes/notificationTemplate.routes';
-import attachmentRoutes from './routes/attachment.routes';
+// import onboardingConfigRoutes from './routes/onboarding-config.routes'; // File non trovato
 
 // Professional routes
 import professionalRoutes from './routes/professional.routes';
@@ -290,18 +292,19 @@ import kbDocumentsRoutes from './routes/kb-documents.routes';
 
 // Document Management routes
 import documentTypesRoutes from './routes/admin/document-types.routes';
+import documentTypesExtendedRoutes from './routes/admin/document-types-extended.routes'; // NUOVO - Extended document types
+import unifiedDocumentsRoutes from './routes/unified-documents.routes'; // NUOVO - Unified documents
 import documentCategoriesRoutes from './routes/admin/document-categories.routes';
 import documentFieldsRoutes from './routes/admin/document-fields.routes';
 import documentPermissionsRoutes from './routes/admin/document-permissions.routes';
 import documentNotificationsRoutes from './routes/admin/document-notifications.routes';
 import documentConfigRoutes from './routes/admin/document-config.routes';
-import documentUIConfigsRoutes from './routes/admin/document-ui-configs.routes';
-// Helpers routing
-import { aggregateRouter, mountAdmin } from './utils/router-helpers';
+// import { aggregateRouter, mountAdmin } from './utils/router-helpers'; // File non trovato
 import approvalWorkflowsRoutes from './routes/admin/approval-workflows.routes';
 
 // Legal Documents routes
 import legalRoutes from './routes/legal.routes';
+import documentTemplatesRoutes from './routes/document-templates.routes';
 
 // WhatsApp routes 
 // import professionalWhatsappRoutes from './routes/professional-whatsapp.routes'; // RIMOSSO - Migration a solo WPPConnect
@@ -326,6 +329,7 @@ import uploadRoutes from './routes/upload.routes';
 
 // Chat routes
 import { chatRoutes } from './routes/chat.routes';
+import attachmentRoutes from './routes/attachment.routes';
 
 // System routes - IMPORTATI DIRETTAMENTE (senza try-catch opzionale)
 import auditRoutes from './routes/audit.routes';
@@ -336,6 +340,9 @@ import simpleBackupRoutes from './routes/simple-backup.routes';
 import calendarGoogleRoutes from './routes/calendar-google.routes'; // NUOVO - Google Calendar OAuth
 import calendarRoutes from './routes/calendar.routes'; // CALENDARIO BASE - Route principali
 import calendarSimpleRoutes from './routes/calendar-simple.routes'; // CALENDARIO SEMPLIFICATO - Per test
+import customFormsRoutes from './routes/customForms.routes'; // NUOVO - Custom Forms
+import customFormSendingRoutes from './routes/customFormSending.routes'; // NUOVO - Custom Forms Sending
+import clientRoutes from './routes/client.routes'; // NUOVO - Client-specific endpoints
 
 logger.info('✅ All system routes imported successfully');
 
@@ -343,8 +350,10 @@ logger.info('✅ All system routes imported successfully');
 
 // Public routes (no auth)
 import publicSystemSettingsRoutes from './routes/public/system-settings.routes';
+import publicModulesRoutes from './routes/public/modules.routes';
 app.use('/api/public', publicRoutes);
 app.use('/api/public/system-settings', publicSystemSettingsRoutes);
+app.use('/api/public/modules', publicModulesRoutes);
 
 // Auth routes with rate limiting
 app.use('/api/auth', authLimiter, authRoutes);
@@ -354,6 +363,7 @@ app.use('/api/auth', authLimiter, authRoutes);
 // User routes
 app.use('/api/users', authenticate, userRoutes);
 app.use('/api/user', authenticate, userSubcategoriesRoutes);
+app.use('/api/upload', authenticate, uploadRoutes); // RIPRISTINO: Upload per utenti normali
 
 // DASHBOARD ROUTE - IMPORTANTE! Deve essere dopo l'autenticazione
 app.use('/api/dashboard', authenticate, userDashboardRoutes);
@@ -367,30 +377,30 @@ app.use('/api/subcategories', authenticate, subcategoryRoutes);
 app.use('/api/requests', authenticate, requestRoutes);
 app.use('/api/quotes', authenticate, quoteRoutes);
 app.use('/api/reviews', authenticate, reviewRoutes); // NUOVO - Sistema recensioni
+app.use('/api/admin/reviews', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), reviewAdminRoutes); // NUOVO - Admin config
 app.use('/api/portfolio', portfolioRoutes); // NUOVO - Sistema portfolio (alcuni endpoint pubblici)
 app.use('/api/referrals', referralRoutes); // NUOVO - Sistema referral (alcuni endpoint pubblici)
 app.use('/api/payments', authenticate, paymentRoutes);
 app.use('/api/pricing', authenticate, pricingRoutes); // NUOVO - Sistema range prezzi indicativi
 
-// Notification routes - SEPARAZIONE CLEAN: admin routes separate
-app.use('/api/notification-templates', authenticate, notificationTemplateRoutes);
-app.use('/api/admin/notifications', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), notificationAdminRoutes); // Admin routes separate
-app.use('/api/notifications', authenticate, notificationRoutes); // User routes normali
+// Custom Forms routes
+app.use('/api/custom-forms', authenticate, customFormsRoutes); // NUOVO - Sistema custom forms
+app.use('/api', authenticate, customFormSendingRoutes); // NUOVO - Sistema invio e compilazione forms
+app.use('/api/client', authenticate, clientRoutes); // NUOVO - Endpoint specifici per clienti
+logger.info('📝 Custom Forms routes registered at /api/custom-forms');
+logger.info('📤 Custom Forms Sending routes registered at /api');
+logger.info('👤 Client routes registered at /api/client');
 
-// Professional routes
-/**
- * Aggregatore '/api/professionals'
- * Regole:
- * - Aggiungi nuove sotto-sezioni come singoli Router e includile in aggregateRouter
- * - Evita di montare prefissi diversi qui; questo blocco è esclusivo per '/api/professionals'
- */
-const professionalsRouter = aggregateRouter(
-  professionalRoutes,
-  professionalsRoutes, // NUOVO - endpoint by-subcategory
-  professionalPricingRoutes,
-  professionalSkillsCertRoutes
-);
-app.use('/api/professionals', authenticate, professionalsRouter);
+// Notification routes - User notifications accessible to all authenticated users
+app.use('/api/notifications', authenticate, notificationRoutes);  // Per tutti gli utenti
+app.use('/api/notifications/admin', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), notificationAdminRoutes);  // Admin-only endpoints
+app.use('/api/notification-templates', authenticate, notificationTemplateRoutes);
+// app.use('/api/onboarding', authenticate, onboardingRoutes); // File non trovato
+// app.use('/api/onboarding', authenticate, onboardingConfigRoutes); // File non trovato
+app.use('/api/professionals', authenticate, professionalRoutes);
+app.use('/api/professionals', authenticate, professionalsRoutes); // NUOVO - endpoint by-subcategory
+app.use('/api/professionals', authenticate, professionalPricingRoutes);
+app.use('/api/professionals', authenticate, professionalSkillsCertRoutes);
 // DISABILITATO TEMPORANEAMENTE - File ha estensione .disabled
 // app.use('/api/professionals', authenticate, professionalAISettingsRoutes);
 app.use('/api/professions', professionsRoutes);
@@ -403,23 +413,13 @@ app.use('/api/travel', authenticate, travelCostRoutes);
 // Address routes - con ricalcolo automatico distanze
 app.use('/api/address', authenticate, addressRoutes);
 logger.info('📍 Address routes registered at /api/address (with auto-recalculation)');
-
-// Intervention Report routes
-/**
- * Aggregatore '/api/intervention-reports'
- * Note:
- * - Le sotto-sezioni con percorsi dedicati (es. '/templates', '/materials') sono montate esplicitamente
- * - I router principali (config, base) sono aggregati con aggregateRouter
- */
-const interventionReportsRouter = aggregateRouter(
-  interventionReportConfigRoutes,
-  interventionReportRoutes
-);
-// Sotto‑sezioni
-interventionReportsRouter.use('/templates', interventionReportTemplateRoutes);
-interventionReportsRouter.use('/materials', interventionReportMaterialRoutes);
-interventionReportsRouter.use('/professional', interventionReportProfessionalRoutes);
-app.use('/api/intervention-reports', authenticate, interventionReportsRouter);
+app.use('/api/intervention-reports', authenticate, interventionReportConfigRoutes);
+app.use('/api/intervention-reports/templates', authenticate, interventionReportTemplateRoutes);
+app.use('/api/intervention-reports/materials', authenticate, interventionReportMaterialRoutes);
+app.use('/api/intervention-reports/professional', authenticate, interventionReportProfessionalRoutes);
+app.use('/api/intervention-reports', authenticate, interventionReportRoutes);
+interventionReportRoutes.use('/professional', interventionReportProfessionalRoutes);
+app.use('/api/intervention-reports', authenticate, interventionReportRoutes);
 
 // Chat routes
 app.use('/api/chat', authenticate, chatRoutes);
@@ -438,6 +438,15 @@ logger.info('📍 Location tracking routes registered at /api/location');
 // API Keys route - accessibile senza percorso admin per il frontend
 app.use('/api/apikeys', authenticate, apiKeysRoutes);
 logger.info('🔑 API Keys routes registered at /api/apikeys');
+
+// SmartDocs Integration routes - Con autenticazione
+app.use('/api/smartdocs', authenticate, smartDocsRoutes);
+logger.info('📚 SmartDocs routes registered at /api/smartdocs');
+
+// SmartDocs Config routes
+import smartDocsConfigRoutes from './routes/smartdocs-config.routes';
+app.use('/api/smartdocs', authenticate, smartDocsConfigRoutes);
+logger.info('⚙️ SmartDocs Config routes registered at /api/smartdocs/config');
 
 // Security routes - RIATTIVATO
 app.use('/api/security', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), securityRoutes);
@@ -465,7 +474,7 @@ logger.info('⚙️ Admin system settings routes registered at /api/admin/system
 
 // UPLOAD ROUTES - Per immagini e file
 app.use('/api/admin/upload', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), uploadRoutes);
-logger.info('📤 Upload routes registered at /api/admin/upload');
+logger.info('📤 Upload routes registered at /api/upload');
 
 app.use('/api/admin', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), adminRoutes);
 app.use('/api/kb-documents', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), kbDocumentsRoutes);
@@ -492,43 +501,29 @@ logger.info('📅 Google Calendar routes registered at /api/calendar/google');
 
 // Legal Documents routes
 import legalDocumentRoutes from './routes/admin/legal-documents.routes';
-import documentTemplatesRoutes from './routes/admin/document-templates.routes';
-
-// Admin Document routes (aggregatore sotto /api/admin)
-/**
- * Aggregatore Admin Documenti sotto '/api/admin'
- * Include sotto-percorsi dedicati per ciascun modulo documentale.
- * Autenticazione e ruoli applicati a livello di prefisso tramite helper.
- */
-const adminDocumentsRouter = express.Router();
-adminDocumentsRouter.use('/legal-documents', legalDocumentRoutes);
-adminDocumentsRouter.use('/document-templates', documentTemplatesRoutes);
-adminDocumentsRouter.use('/document-types', documentTypesRoutes);
-adminDocumentsRouter.use('/document-config', documentConfigRoutes);
-adminDocumentsRouter.use('/document-categories', documentCategoriesRoutes);
-adminDocumentsRouter.use('/document-fields', documentFieldsRoutes);
-adminDocumentsRouter.use('/approval-workflows', approvalWorkflowsRoutes);
-adminDocumentsRouter.use('/document-permissions', documentPermissionsRoutes);
-adminDocumentsRouter.use('/document-notifications', documentNotificationsRoutes);
-adminDocumentsRouter.use('/document-ui-configs', documentUIConfigsRoutes);
-mountAdmin(app, '/api/admin', authenticate, requireRole, [Role.ADMIN, Role.SUPER_ADMIN], adminDocumentsRouter);
+app.use('/api/admin/legal-documents', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), legalDocumentRoutes);
+app.use('/api/admin/document-templates', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentTemplatesRoutes);
+app.use('/api/admin/document-types', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentTypesRoutes);
+app.use('/api/admin/document-types-extended', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentTypesExtendedRoutes); // NUOVO - Extended document types
+app.use('/api/admin/document-config', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentConfigRoutes);
+app.use('/api/admin/document-categories', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentCategoriesRoutes);
+app.use('/api/admin/document-fields', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentFieldsRoutes);
+app.use('/api/admin/approval-workflows', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), approvalWorkflowsRoutes);
+app.use('/api/admin/document-permissions', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentPermissionsRoutes);
+app.use('/api/admin/document-notifications', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentNotificationsRoutes);
+// app.use('/api/admin/document-ui-configs', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), documentUIConfigsRoutes); // File non trovato
+// adminDocumentsRouter.use('/document-ui-configs', documentUIConfigsRoutes); // File non trovato
+// mountAdmin(app, '/api/admin', authenticate, requireRole, [Role.ADMIN, Role.SUPER_ADMIN], adminDocumentsRouter); // File non trovato
 app.use('/api/legal', legalRoutes);
+app.use('/api/unified-documents', authenticate, unifiedDocumentsRoutes); // NUOVO - Unified documents API
 logger.info('📜 Legal Documents routes registered');
 logger.info('⚙️ Document Management routes registered');
+logger.info('🔗 Unified Documents routes registered at /api/unified-documents');
 
 // WhatsApp e Knowledge Base routes
 
-// app.use('/api/professional/whatsapp', authenticate, professionalWhatsappRoutes); // RIMOSSO - Migration a solo WPPConnect
-app.use('/api/whatsapp/webhook', whatsappWebhookRoutes); // Webhook senza auth
-/**
- * Aggregatore WhatsApp sotto '/api/whatsapp'
- * - Endpoints generali pubblicati su '/'
- * - Contatti protetti con `authenticate`
- */
-const whatsappRouterAggregate = express.Router();
-whatsappRouterAggregate.use('/', whatsappRoutes); // Endpoints generali
-whatsappRouterAggregate.use('/', authenticate, whatsappContactsRoutes); // Contatti protetti
-app.use('/api/whatsapp', whatsappRouterAggregate);
+app.use('/api/whatsapp', whatsappRoutes); // Usa la versione senza crittografia
+app.use('/api/whatsapp', authenticate, whatsappContactsRoutes); // NUOVO - Gestione contatti WhatsApp
 app.use('/api/admin/whatsapp', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), whatsappConfigRoutes);
 // DISABILITATO - Sistema articoli KB mai completato (usa /api/knowledge-base invece)
 // app.use('/api/kb', knowledgebaseRoutes);

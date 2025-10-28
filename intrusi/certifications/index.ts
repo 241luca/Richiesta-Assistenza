@@ -1,2 +1,0 @@
-export { certificationsService, type ProfessionalCertification, type CreateCertificationData, type UpdateCertificationData } from './certifications.service';
-export { default } from './certifications.service';

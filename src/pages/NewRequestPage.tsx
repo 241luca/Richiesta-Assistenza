@@ -17,6 +17,7 @@ import {
   CheckCircleIcon,
   SparklesIcon,
   EyeIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 // CORRETTO: Usa l'API service strutturato e il nuovo hook useAuth
 import { api } from '../services/api';
@@ -28,6 +29,8 @@ import { GuaranteeBanner } from '../components/guarantees';
 import { QuickRequestForm } from '../components/requests/QuickRequestForm';
 import { useFormDraft } from '../hooks/useFormDraft';
 import { DraftBanner, DraftIndicator } from '../components/drafts';
+import { customFormsAPI, CustomForm } from '../services/customForms.api';
+import { CustomFormRenderer } from '../components/custom-forms/CustomFormRenderer';
 
 // Form validation schema
 const requestSchema = z.object({
@@ -44,6 +47,7 @@ const requestSchema = z.object({
   notes: z.string().optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
+  selectedCustomFormId: z.string().optional(),
 });
 
 type RequestFormData = z.infer<typeof requestSchema>;
@@ -63,6 +67,8 @@ export default function NewRequestPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('');
+  const [selectedCustomForm, setSelectedCustomForm] = useState<CustomForm | null>(null);
+  const [customFormData, setCustomFormData] = useState<Record<string, any>>({});
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [isUploading, setIsUploading] = useState(false);
   const [showAiChat, setShowAiChat] = useState(false);
@@ -272,8 +278,15 @@ export default function NewRequestPage() {
   // CORRETTO: Create request mutation con ResponseFormatter
   const createRequestMutation = useMutation({
     mutationFn: async (data: RequestFormData) => {
+      // Prepara i dati della richiesta includendo i custom form data se presenti
+      const requestPayload = {
+        ...data,
+        customFormData: selectedCustomForm && Object.keys(customFormData).length > 0 ? customFormData : undefined,
+        customFormId: selectedCustomForm?.id || undefined
+      };
+
       // Step 1: Crea la richiesta usando POST diretto
-      const response = await api.post('/requests', data);
+      const response = await api.post('/requests', requestPayload);
       // CORRETTO: Gestisce ResponseFormatter
       const responseData = response.data?.data || response.data;
       const requestData = responseData?.request || responseData;
@@ -333,6 +346,25 @@ export default function NewRequestPage() {
       console.error('Request creation error:', error);
     },
   });
+
+  // Query per caricare i custom forms associati alla sottocategoria
+  const { data: customFormsResponse, isLoading: isLoadingCustomForms } = useQuery({
+    queryKey: ['custom-forms', 'subcategory', selectedSubcategory],
+    queryFn: () => customFormsAPI.getCustomFormsBySubcategory(selectedSubcategory),
+    enabled: !!selectedSubcategory,
+    staleTime: 5 * 60 * 1000, // 5 minuti
+  });
+
+  // Estrai i custom forms dalla risposta
+  const customForms = Array.isArray(customFormsResponse) 
+    ? customFormsResponse 
+    : customFormsResponse?.data || [];
+
+  // Reset custom form quando cambia la sottocategoria
+  useEffect(() => {
+    setSelectedCustomForm(null);
+    setValue('selectedCustomFormId', '');
+  }, [selectedSubcategory, setValue]);
 
   const onSubmit = (data: RequestFormData) => {
     // Debug: log what we're sending
@@ -676,6 +708,140 @@ export default function NewRequestPage() {
               </div>
             </div>
           </div>
+
+          {/* STEP 1.5: Custom Forms (se disponibili) */}
+          {selectedSubcategory && customForms.length > 0 && (
+            <div className="bg-white shadow-sm rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                <ClipboardDocumentListIcon className="h-5 w-5 inline mr-2 text-blue-600" />
+                Form Specifico (Opzionale)
+              </h3>
+              
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Sono disponibili form specifici per questa categoria che possono aiutarti a fornire informazioni più dettagliate.
+                </p>
+                
+                {isLoadingCustomForms ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <span className="ml-2 text-sm text-gray-500">Caricamento form...</span>
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {/* Opzione "Nessun form" */}
+                    <label className={`
+                      relative flex items-start p-4 border rounded-lg cursor-pointer transition-all
+                      ${!selectedCustomForm 
+                        ? 'border-blue-500 bg-blue-50 shadow-sm' 
+                        : 'border-gray-200 hover:border-gray-300'
+                      }
+                    `}>
+                      <input
+                        type="radio"
+                        name="customForm"
+                        checked={!selectedCustomForm}
+                        onChange={() => {
+                          setSelectedCustomForm(null);
+                          setValue('selectedCustomFormId', '');
+                        }}
+                        className="sr-only"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center">
+                          <span className="text-sm font-medium text-gray-900">
+                            Continua senza form specifico
+                          </span>
+                          {!selectedCustomForm && (
+                            <CheckCircleIcon className="h-4 w-4 ml-2 text-blue-600" />
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Usa solo i campi standard della richiesta
+                        </p>
+                      </div>
+                    </label>
+
+                    {/* Form disponibili */}
+                    {customForms.map((form) => (
+                      <label
+                        key={form.id}
+                        className={`
+                          relative flex items-start p-4 border rounded-lg cursor-pointer transition-all
+                          ${selectedCustomForm?.id === form.id 
+                            ? 'border-blue-500 bg-blue-50 shadow-sm' 
+                            : 'border-gray-200 hover:border-gray-300'
+                          }
+                        `}
+                      >
+                        <input
+                          type="radio"
+                          name="customForm"
+                          checked={selectedCustomForm?.id === form.id}
+                          onChange={() => {
+                            setSelectedCustomForm(form);
+                            setValue('selectedCustomFormId', form.id);
+                          }}
+                          className="sr-only"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center">
+                            <span className="text-sm font-medium text-gray-900">
+                              {form.title}
+                            </span>
+                            {selectedCustomForm?.id === form.id && (
+                              <CheckCircleIcon className="h-4 w-4 ml-2 text-blue-600" />
+                            )}
+                          </div>
+                          {form.description && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              {form.description}
+                            </p>
+                          )}
+                          <div className="flex items-center mt-2 space-x-2">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              {form.fields?.length || 0} campi
+                            </span>
+                            {form.isPublished && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                Pubblicato
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* STEP 1.6: Render Custom Form (se selezionato) */}
+          {selectedCustomForm && (
+            <div className="bg-white shadow-sm rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                <ClipboardDocumentListIcon className="h-5 w-5 inline mr-2 text-blue-600" />
+                {selectedCustomForm.name}
+              </h3>
+              
+              {selectedCustomForm.description && (
+                <p className="text-sm text-gray-600 mb-6">
+                  {selectedCustomForm.description}
+                </p>
+              )}
+              
+              <CustomFormRenderer
+                form={selectedCustomForm}
+                mode="form"
+                onSubmit={(data) => {
+                  setCustomFormData(data);
+                  console.log('Custom form data updated:', data);
+                }}
+                initialData={customFormData}
+              />
+            </div>
+          )}
 
           {/* STEP 2: Title and Description */}
           <div className="bg-white shadow-sm rounded-lg p-6">

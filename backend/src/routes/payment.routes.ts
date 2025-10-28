@@ -102,9 +102,9 @@ router.get('/my-payments', authenticate, async (req: any, res) => {
     if (search) {
       where.OR = [
         { description: { contains: search as string, mode: 'insensitive' } },
-        { professional: { firstName: { contains: search as string, mode: 'insensitive' } } },
-        { professional: { lastName: { contains: search as string, mode: 'insensitive' } } },
-        { professional: { businessName: { contains: search as string, mode: 'insensitive' } } },
+        { User_Payment_professionalIdToUser: { firstName: { contains: search as string, mode: 'insensitive' } } },
+        { User_Payment_professionalIdToUser: { lastName: { contains: search as string, mode: 'insensitive' } } },
+        { User_Payment_professionalIdToUser: { ragioneSociale: { contains: search as string, mode: 'insensitive' } } },
       ];
     }
     
@@ -120,16 +120,16 @@ router.get('/my-payments', authenticate, async (req: any, res) => {
         take,
         orderBy: { createdAt: 'desc' },
         include: {
-          professional: {
+          User_Payment_professionalIdToUser: {
             select: {
               id: true,
               firstName: true,
               lastName: true,
               email: true,
-              ragioneSociale: true  // Usa ragioneSociale invece di businessName
+              ragioneSociale: true
             }
           },
-          request: {
+          AssistanceRequest: {
             select: {
               id: true,
               title: true,
@@ -141,54 +141,56 @@ router.get('/my-payments', authenticate, async (req: any, res) => {
               }
             }
           },
-          quote: {
+          Quote: {
             select: {
               id: true,
-              amount: true,  // Importo del preventivo
-              description: true  // Descrizione invece di title
+              amount: true,
+              description: true
             }
           },
-          invoice: {
-            select: {
-              id: true,
-              invoiceNumber: true,
-              createdAt: true,  // Usa createdAt invece di issuedAt
-              pdfUrl: true      // URL del PDF se disponibile
-            }
-          }
+          Invoice: true
         }
       }),
       prisma.payment.count({ where })
     ]);
     
-    // Calcola statistiche
-    const stats = await prisma.payment.groupBy({
-      by: ['status'],
-      where: { clientId: user.id },
-      _count: { _all: true },
-      _sum: { amount: true }
+    
+    // Calcola statistiche globali
+    const [completedPayments, pendingPayments, failedPayments, totalRevenue] = await Promise.all([
+      prisma.payment.count({ where: { ...where, status: PaymentStatus.COMPLETED } }),
+      prisma.payment.count({ where: { ...where, status: PaymentStatus.PENDING } }),
+      prisma.payment.count({ where: { ...where, status: PaymentStatus.FAILED } }),
+      prisma.payment.aggregate({ 
+        where: { ...where, status: PaymentStatus.COMPLETED },
+        _sum: { amount: true }
+      })
+    ]);
+    
+    // Trasforma i dati per il frontend
+    const formattedPayments = payments.map((payment: any) => {
+      const invoice = Array.isArray(payment.Invoice) && payment.Invoice.length > 0 
+        ? payment.Invoice[0] 
+        : null;
+      
+      return {
+        ...payment,
+        professional: payment.User_Payment_professionalIdToUser,
+        request: payment.AssistanceRequest,
+        quote: payment.Quote,
+        invoice: invoice,
+        paymentMethod: payment.method
+      };
     });
     
     const statsObj = {
-      total: 0,
-      completed: 0,
-      pending: 0,
-      failed: 0
+      total: totalRevenue._sum.amount || 0,
+      completed: completedPayments,
+      pending: pendingPayments,
+      failed: failedPayments
     };
     
-    stats.forEach(stat => {
-      statsObj.total += stat._sum.amount || 0;
-      if (stat.status === 'COMPLETED') {
-        statsObj.completed = stat._count._all;
-      } else if (stat.status === 'PENDING') {
-        statsObj.pending = stat._count._all;
-      } else if (stat.status === 'FAILED') {
-        statsObj.failed = stat._count._all;
-      }
-    });
-    
     res.json(ResponseFormatter.success({
-      payments,
+      payments: formattedPayments,
       pagination: {
         page: Number(page),
         limit: Number(limit),

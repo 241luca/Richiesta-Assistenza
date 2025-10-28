@@ -6,11 +6,10 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { MapPinIcon, CheckCircleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
-import { useLoadScript } from '@react-google-maps/api';
+import { Map, AdvancedMarker } from '@vis.gl/react-google-maps';
+import { useGoogleMaps } from '../../contexts/GoogleMapsContext';
 import toast from 'react-hot-toast';
 import { api } from '../../services/api';
-
-const libraries: ("places" | "geocoding")[] = ["geocoding"];
 
 interface AddressGeocodingProps {
   value: {
@@ -43,13 +42,36 @@ export default function AddressGeocoding({ value, onChange, errors }: AddressGeo
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
-  const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
-    libraries,
-    language: 'it',
-    region: 'IT',
-  });
+  // Use GoogleMapsContext instead of useLoadScript to avoid double loading
+  const { isLoaded, loadError } = useGoogleMaps();
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+
+    if (showSuggestions) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSuggestions]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Funzione per cercare indirizzi usando il nostro backend
   const searchAddress = async (query: string) => {
@@ -96,15 +118,27 @@ export default function AddressGeocoding({ value, onChange, errors }: AddressGeo
   const handleAddressChange = (newAddress: string) => {
     onChange({ ...value, address: newAddress });
     
+    // Reset verification when user types
+    if (isAddressVerified) {
+      setIsAddressVerified(false);
+      setShowMap(false);
+      setCoordinates(null);
+    }
+    
     // Cancella il timeout precedente
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
 
     // Imposta un nuovo timeout per la ricerca
-    searchTimeoutRef.current = setTimeout(() => {
-      searchAddress(newAddress);
-    }, 500);
+    if (newAddress.trim()) {
+      searchTimeoutRef.current = setTimeout(() => {
+        searchAddress(newAddress);
+      }, 500);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
   };
 
   // Seleziona un indirizzo dai suggerimenti
@@ -155,22 +189,28 @@ export default function AddressGeocoding({ value, onChange, errors }: AddressGeo
         params: { address: fullAddress }
       });
 
-      if (response.data.success) {
-        const location = response.data.location || { 
-          lat: response.data.latitude, 
-          lng: response.data.longitude 
-        };
+      if (response.data.success && response.data.data) {
+        // ResponseFormatter restituisce i dati dentro response.data.data
+        const coordinates = response.data.data;
+        
+        // Verifica che le coordinate siano valide
+        if (!coordinates.lat || !coordinates.lng) {
+          toast.error('Coordinate non valide ricevute dal server');
+          return;
+        }
         
         // Aggiorna con le coordinate trovate
         onChange({
           ...value,
-          latitude: location.lat,
-          longitude: location.lng,
+          latitude: coordinates.lat,
+          longitude: coordinates.lng,
         });
         
-        setCoordinates(location);
+        setCoordinates(coordinates);
         setIsAddressVerified(true);
         setShowMap(true);
+        setShowSuggestions(false); // 🔧 Chiudi i suggerimenti dopo la verifica
+        setSuggestions([]); // 🔧 Pulisci la lista dei suggerimenti
         
         toast.success('Indirizzo verificato e geolocalizzato!');
       } else {
@@ -184,46 +224,60 @@ export default function AddressGeocoding({ value, onChange, errors }: AddressGeo
     }
   };
 
-  // Mini map component
+  // Mini map component - Usa @vis.gl/react-google-maps (pattern moderno)
   const MiniMap = () => {
-    const mapRef = useRef<HTMLDivElement>(null);
-    const [map, setMap] = useState<google.maps.Map | null>(null);
-
-    useEffect(() => {
-      if (isLoaded && mapRef.current && coordinates && !map) {
-        const mapInstance = new google.maps.Map(mapRef.current, {
-          center: coordinates,
-          zoom: 16,
-          disableDefaultUI: true,
-          zoomControl: true,
-          mapTypeControl: false,
-        });
-
-        new google.maps.Marker({
-          position: coordinates,
-          map: mapInstance,
-          title: 'Indirizzo intervento',
-        });
-
-        setMap(mapInstance);
-      }
-    }, [isLoaded, coordinates, map]);
+    // Guard: Don't render if coordinates are missing
+    if (!coordinates || !coordinates.lat || !coordinates.lng) {
+      return null;
+    }
 
     return (
-      <div className="mt-4 border rounded-lg overflow-hidden shadow-sm">
-        <div className="bg-green-50 px-4 py-2 border-b border-green-200">
-          <p className="text-sm text-green-800 flex items-center">
-            <CheckCircleIcon className="h-4 w-4 mr-1" />
-            Indirizzo verificato - Posizione: {coordinates?.lat.toFixed(6)}, {coordinates?.lng.toFixed(6)}
+      <div className="mt-6 border border-green-200 rounded-xl overflow-hidden shadow-md bg-white">
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-4 py-3 border-b border-green-200">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-green-800 flex items-center">
+              <CheckCircleIcon className="h-5 w-5 mr-2 text-green-600" />
+              ✅ Indirizzo verificato e geolocalizzato
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setShowMap(false);
+                setIsAddressVerified(false);
+                setCoordinates(null);
+              }}
+              className="text-green-700 hover:text-green-900 text-xs font-medium"
+            >
+              Modifica
+            </button>
+          </div>
+          <p className="text-xs text-green-600 mt-1">
+            Coordinate: {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
           </p>
         </div>
-        <div ref={mapRef} className="h-48 w-full" />
+        {/* Usa Map component da @vis.gl/react-google-maps invece di new google.maps.Map() */}
+        <div className="h-64 w-full">
+          <Map
+            mapId="ADDRESS_GEOCODING_MAP"
+            center={coordinates}
+            zoom={16}
+            disableDefaultUI
+            zoomControl
+            gestureHandling="greedy"
+            style={{ width: '100%', height: '100%' }}
+          >
+            <AdvancedMarker
+              position={coordinates}
+              title="Indirizzo intervento"
+            />
+          </Map>
+        </div>
       </div>
     );
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" ref={suggestionsRef}>
       {/* Campo indirizzo con ricerca */}
       <div>
         <label htmlFor="address" className="block text-sm font-medium text-gray-700">
@@ -294,7 +348,15 @@ export default function AddressGeocoding({ value, onChange, errors }: AddressGeo
             type="text"
             id="city"
             value={value.city}
-            onChange={(e) => onChange({ ...value, city: e.target.value })}
+            onChange={(e) => {
+              onChange({ ...value, city: e.target.value });
+              // Reset verification when user types
+              if (isAddressVerified) {
+                setIsAddressVerified(false);
+                setShowMap(false);
+                setCoordinates(null);
+              }
+            }}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             placeholder="Es: Milano, Roma, Napoli"
           />
@@ -311,7 +373,15 @@ export default function AddressGeocoding({ value, onChange, errors }: AddressGeo
             type="text"
             id="province"
             value={value.province}
-            onChange={(e) => onChange({ ...value, province: e.target.value.toUpperCase() })}
+            onChange={(e) => {
+              onChange({ ...value, province: e.target.value.toUpperCase() });
+              // Reset verification when user types
+              if (isAddressVerified) {
+                setIsAddressVerified(false);
+                setShowMap(false);
+                setCoordinates(null);
+              }
+            }}
             maxLength={2}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 uppercase"
             placeholder="Es: MI, RM, NA (2 lettere)"
@@ -329,7 +399,15 @@ export default function AddressGeocoding({ value, onChange, errors }: AddressGeo
             type="text"
             id="postalCode"
             value={value.postalCode}
-            onChange={(e) => onChange({ ...value, postalCode: e.target.value })}
+            onChange={(e) => {
+              onChange({ ...value, postalCode: e.target.value });
+              // Reset verification when user types
+              if (isAddressVerified) {
+                setIsAddressVerified(false);
+                setShowMap(false);
+                setCoordinates(null);
+              }
+            }}
             maxLength={5}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             placeholder="Es: 20121 (5 cifre)"

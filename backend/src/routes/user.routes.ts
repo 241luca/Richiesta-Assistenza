@@ -5,6 +5,8 @@ import { prisma } from '../config/database';
 import { logger } from '../utils/logger';
 import { z } from 'zod';
 import travelCalculationService from '../services/travelCalculation.service';
+import { userService } from '../services/user.service';
+import { systemSettingsService } from '../services/systemSettings.service';
 
 const router = Router();
 
@@ -85,7 +87,7 @@ router.get('/profile', authenticate, async (req: any, res) => {
 // PUT /profile - Aggiorna il profilo dell'utente autenticato
 router.put('/profile', authenticate, async (req: any, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const userRole = req.user.role;
     
     // Valida i dati
@@ -555,6 +557,74 @@ router.get('/professionals', authenticate, requireAdmin, async (req: any, res) =
   }
 });
 
+// Route per verificare lo stato delle immagini dell'utente
+router.get('/image-status', authenticate, async (req: any, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    console.log('DEBUG - userId:', userId, 'userRole:', userRole);
+
+    // Recupera i dati dell'utente
+    const user = await userService.getUserById(userId);
+    if (!user) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Utente non trovato',
+        'USER_NOT_FOUND'
+      ));
+    }
+
+    // Recupera le impostazioni di sistema per l'obbligatorietà delle immagini
+    const settings = await systemSettingsService.getSettingsByCategory('images');
+    
+    // Determina i requisiti delle immagini basati sul ruolo
+    let avatarRequired = false;
+    let recognitionImageRequired = false;
+    
+    settings.forEach((setting: any) => {
+      if (setting.key === 'avatar_required_for_clients' && userRole === 'CLIENT') {
+        avatarRequired = setting.value === 'true';
+      } else if (setting.key === 'avatar_required_for_professionals' && userRole === 'PROFESSIONAL') {
+        avatarRequired = setting.value === 'true';
+      } else if (setting.key === 'recognition_image_required_for_clients' && userRole === 'CLIENT') {
+        recognitionImageRequired = setting.value === 'true';
+      } else if (setting.key === 'recognition_image_required_for_professionals' && userRole === 'PROFESSIONAL') {
+        recognitionImageRequired = setting.value === 'true';
+      }
+    });
+
+    // Verifica lo stato delle immagini
+    const imageStatus = {
+      avatar: {
+        present: !!user.avatar,
+        required: avatarRequired,
+        missing: avatarRequired && !user.avatar
+      },
+      recognitionImage: {
+        present: !!user.recognitionImage,
+        required: recognitionImageRequired,
+        missing: recognitionImageRequired && !user.recognitionImage
+      }
+    };
+
+    // Determina se ci sono immagini mancanti
+    const hasMissingImages = imageStatus.avatar.missing || imageStatus.recognitionImage.missing;
+
+    return res.status(200).json(ResponseFormatter.success({
+      imageStatus,
+      hasMissingImages,
+      userRole
+    }));
+
+  } catch (error) {
+    logger.error('Errore nel recupero dello stato delle immagini:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore interno del server',
+      'INTERNAL_SERVER_ERROR'
+    ));
+  }
+});
+
 // GET /users/:id - Ottieni informazioni pubbliche di un utente (per admin o stesso utente)
 // IMPORTANTE: Questo endpoint con parametro DEVE essere DOPO tutti gli endpoint statici
 router.get('/:id', authenticate, async (req: any, res) => {
@@ -608,5 +678,206 @@ router.get('/:id', authenticate, async (req: any, res) => {
 });
 
 
+
+// PUT /users/:id/approve - Approva un professionista (solo admin)
+router.put('/:id/approve', authenticate, requireAdmin, async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    const adminId = req.user.id;
+    
+    logger.info(`[PROFESSIONAL APPROVAL] Admin ${adminId} approving professional ${id}`);
+    
+    // Verifica che l'utente esista e sia un professionista
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+        approvalStatus: true
+      }
+    });
+    
+    if (!user) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Professionista non trovato',
+        'USER_NOT_FOUND'
+      ));
+    }
+    
+    if (user.role !== 'PROFESSIONAL') {
+      return res.status(400).json(ResponseFormatter.error(
+        'Questo utente non è un professionista',
+        'NOT_A_PROFESSIONAL'
+      ));
+    }
+    
+    // Aggiorna lo stato di approvazione
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: {
+        approvalStatus: 'APPROVED',
+        approvedAt: new Date(),
+        approvedBy: adminId,
+        updatedAt: new Date()
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        approvalStatus: true,
+        approvedAt: true,
+        approvedBy: true
+      }
+    });
+    
+    // Crea un audit log
+    await prisma.auditLog.create({
+      data: {
+        id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        userId: adminId,
+        userEmail: req.user.email,
+        userRole: req.user.role,
+        ipAddress: req.ip || 'unknown',
+        userAgent: req.get('user-agent') || 'unknown',
+        action: 'PROFESSIONAL_APPROVED',
+        entityType: 'User',
+        entityId: id,
+        endpoint: req.originalUrl,
+        method: req.method,
+        newValues: {
+          approvalStatus: 'APPROVED',
+          approvedAt: new Date(),
+          approvedBy: adminId
+        },
+        success: true,
+        severity: 'INFO',
+        category: 'ADMIN_ACTION'
+      }
+    });
+    
+    logger.info(`✅ Professional ${user.email} approved by admin ${adminId}`);
+    
+    return res.json(ResponseFormatter.success(
+      updatedUser,
+      `Professionista ${user.firstName} ${user.lastName} approvato con successo`
+    ));
+    
+  } catch (error) {
+    logger.error('Error approving professional:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nell\'approvazione del professionista',
+      'APPROVAL_ERROR'
+    ));
+  }
+});
+
+// PUT /users/:id/reject - Rifiuta un professionista (solo admin)
+router.put('/:id/reject', authenticate, requireAdmin, async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    const { rejectionReason } = req.body;
+    const adminId = req.user.id;
+    
+    logger.info(`[PROFESSIONAL REJECTION] Admin ${adminId} rejecting professional ${id}`);
+    
+    // Valida che il motivo sia fornito
+    if (!rejectionReason || typeof rejectionReason !== 'string' || rejectionReason.trim().length === 0) {
+      return res.status(400).json(ResponseFormatter.error(
+        'Motivo del rifiuto obbligatorio',
+        'REASON_REQUIRED'
+      ));
+    }
+    
+    // Verifica che l'utente esista e sia un professionista
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+        approvalStatus: true
+      }
+    });
+    
+    if (!user) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Professionista non trovato',
+        'USER_NOT_FOUND'
+      ));
+    }
+    
+    if (user.role !== 'PROFESSIONAL') {
+      return res.status(400).json(ResponseFormatter.error(
+        'Questo utente non è un professionista',
+        'NOT_A_PROFESSIONAL'
+      ));
+    }
+    
+    // Aggiorna lo stato di rifiuto
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: {
+        approvalStatus: 'REJECTED',
+        rejectionReason: rejectionReason.trim(),
+        approvedBy: adminId,
+        updatedAt: new Date()
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        approvalStatus: true,
+        rejectionReason: true,
+        approvedBy: true
+      }
+    });
+    
+    // Crea un audit log
+    await prisma.auditLog.create({
+      data: {
+        id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        userId: adminId,
+        userEmail: req.user.email,
+        userRole: req.user.role,
+        ipAddress: req.ip || 'unknown',
+        userAgent: req.get('user-agent') || 'unknown',
+        action: 'PROFESSIONAL_REJECTED',
+        entityType: 'User',
+        entityId: id,
+        endpoint: req.originalUrl,
+        method: req.method,
+        newValues: {
+          approvalStatus: 'REJECTED',
+          rejectionReason: rejectionReason.trim(),
+          approvedBy: adminId
+        },
+        success: true,
+        severity: 'INFO',
+        category: 'ADMIN_ACTION'
+      }
+    });
+    
+    logger.info(`❌ Professional ${user.email} rejected by admin ${adminId}. Reason: ${rejectionReason}`);
+    
+    return res.json(ResponseFormatter.success(
+      updatedUser,
+      `Professionista ${user.firstName} ${user.lastName} rifiutato`
+    ));
+    
+  } catch (error) {
+    logger.error('Error rejecting professional:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nel rifiuto del professionista',
+      'REJECTION_ERROR'
+    ));
+  }
+});
 
 export default router;

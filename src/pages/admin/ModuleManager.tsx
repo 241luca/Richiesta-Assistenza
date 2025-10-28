@@ -46,7 +46,7 @@ export const ModuleManager: React.FC = () => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Caricamento moduli...</p>
+          <p className="text-gray-600">Caricamento applicazioni...</p>
         </div>
       </div>
     );
@@ -57,7 +57,7 @@ export const ModuleManager: React.FC = () => {
       <div className="max-w-2xl mx-auto mt-12">
         <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
           <h2 className="text-xl font-bold text-red-900 mb-2">Errore Caricamento</h2>
-          <p className="text-red-700">Impossibile caricare i moduli del sistema.</p>
+          <p className="text-red-700">Impossibile caricare le applicazioni del sistema.</p>
         </div>
       </div>
     );
@@ -68,10 +68,10 @@ export const ModuleManager: React.FC = () => {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          🔧 Gestione Moduli Sistema
+          🔧 Gestione Applicazioni Sistema
         </h1>
         <p className="text-gray-600">
-          Abilita o disabilita le funzionalità del sistema
+          Abilita o disabilita le applicazioni e funzionalità del sistema
         </p>
       </div>
 

@@ -27,6 +27,62 @@ router.get('/unread', authenticate, async (req, res) => {
   }
 });
 
+// GET /logs - Ottieni i log delle notifiche inviate
+router.get('/logs', authenticate, async (req, res) => {
+  try {
+    const { limit = '50', offset = '0' } = req.query;
+    
+    const logs = await prisma.notificationLog.findMany({
+      where: {}, // Admin può vedere tutti i log
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit as string),
+      skip: parseInt(offset as string),
+      include: {
+        User: {
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            role: true
+          }
+        }
+      }
+    });
+    
+    const total = await prisma.notificationLog.count();
+    
+    // Formatta i risultati
+    const formattedLogs = logs.map(log => ({
+      id: log.id,
+      recipientEmail: log.recipientEmail,
+      recipientPhone: log.recipientPhone,
+      channel: log.channel, // Email, SMS, Push, etc.
+      status: log.status, // pending, sent, delivered, failed
+      subject: log.subject,
+      content: log.content,
+      sentAt: log.sentAt,
+      deliveredAt: log.deliveredAt,
+      readAt: log.readAt,
+      failureReason: log.failureReason,
+      retryCount: log.retryCount,
+      createdAt: log.createdAt,
+      user: log.User
+    }));
+    
+    res.json(ResponseFormatter.success({
+      logs: formattedLogs,
+      total,
+      limit: parseInt(limit as string),
+      offset: parseInt(offset as string)
+    }, 'Notification logs retrieved successfully'));
+  } catch (error) {
+    logger.error('Error fetching notification logs:', error);
+    res.status(500).json(
+      ResponseFormatter.error('Failed to fetch notification logs', 'LOGS_FETCH_ERROR')
+    );
+  }
+});
+
 // POST /:id/read - Marca una notifica come letta
 router.post('/:id/read', authenticate, async (req, res) => {
   try {

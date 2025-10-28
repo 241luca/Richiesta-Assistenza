@@ -19,14 +19,18 @@ interface SystemHealth {
 const ServiceStatusIndicator: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Polling ogni 30 secondi per lo stato dei servizi
+  // Query ottimizzata per lo stato dei servizi
   const { data: health, isLoading } = useQuery<SystemHealth>({
     queryKey: ['system-health'],
     queryFn: async () => {
       const response = await api.get('/admin/health-check/status');
       return response.data.data;
     },
-    refetchInterval: 30000, // Aggiorna ogni 30 secondi
+    staleTime: 5 * 60 * 1000, // 5 minuti di cache
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchInterval: false, // Disabilita polling automatico
+    refetchOnReconnect: false,
     retry: 1,
   });
 

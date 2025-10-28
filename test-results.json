@@ -1,0 +1,287 @@
+{
+  "config": {
+    "configFile": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/playwright.config.ts",
+    "rootDir": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/tests",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 2
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        null
+      ],
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "webkit",
+        "name": "webkit",
+        "testDir": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "Mobile Chrome",
+        "name": "Mobile Chrome",
+        "testDir": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "Mobile Safari",
+        "name": "Mobile Safari",
+        "testDir": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.55.1",
+    "workers": 6,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "address-modal-persistence.spec.ts",
+      "file": "address-modal-persistence.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Verifica persistenza modal indirizzo dopo invio richiesta",
+          "file": "address-modal-persistence.spec.ts",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "il modal indirizzo dovrebbe rimanere aperto dopo invio richiesta",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "timedOut",
+                      "duration": 32404,
+                      "error": {
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                      },
+                      "errors": [
+                        {
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                        },
+                        {
+                          "location": {
+                            "file": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/tests/address-modal-persistence.spec.ts",
+                            "column": 28,
+                            "line": 25
+                          },
+                          "message": "Error: locator.click: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button:has-text(\"Nuova Richiesta\"), button:has-text(\"New Request\")')\u001b[22m\n\u001b[2m    - waiting for navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://localhost:5193/login\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 23 |\u001b[39m     \u001b[90m// 2. Apri il modal \"Nuova Richiesta\"\u001b[39m\n \u001b[90m 24 |\u001b[39m     \u001b[36mconst\u001b[39m newRequestButton \u001b[33m=\u001b[39m page\u001b[33m.\u001b[39mlocator(\u001b[32m'button:has-text(\"Nuova Richiesta\"), button:has-text(\"New Request\")'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 25 |\u001b[39m     \u001b[36mawait\u001b[39m newRequestButton\u001b[33m.\u001b[39mclick()\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                            \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 26 |\u001b[39m     \n \u001b[90m 27 |\u001b[39m     \u001b[90m// Verifica che il modal sia aperto\u001b[39m\n \u001b[90m 28 |\u001b[39m     \u001b[36mconst\u001b[39m modal \u001b[33m=\u001b[39m page\u001b[33m.\u001b[39mlocator(\u001b[32m'[role=\"dialog\"], .modal, div:has(button:has-text(\"Salva\"))'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at /Users/lucamambelli/Desktop/Richiesta-Assistenza/tests/address-modal-persistence.spec.ts:25:28\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-20T16:46:40.366Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/test-results/address-modal-persistence--1ffd8-aperto-dopo-invio-richiesta-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/test-results/address-modal-persistence--1ffd8-aperto-dopo-invio-richiesta-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/test-results/address-modal-persistence--1ffd8-aperto-dopo-invio-richiesta-chromium/error-context.md"
+                        }
+                      ]
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "3f125f2052b40dfad107-09c93a82079b2feb4944",
+              "file": "address-modal-persistence.spec.ts",
+              "line": 12,
+              "column": 3
+            },
+            {
+              "title": "verifica chiusura modal con pulsante X o Annulla",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "timedOut",
+                      "duration": 33543,
+                      "error": {
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                      },
+                      "errors": [
+                        {
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                        },
+                        {
+                          "location": {
+                            "file": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/tests/address-modal-persistence.spec.ts",
+                            "column": 28,
+                            "line": 86
+                          },
+                          "message": "Error: locator.click: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button:has-text(\"Nuova Richiesta\"), button:has-text(\"New Request\")')\u001b[22m\n\n\n\u001b[0m \u001b[90m 84 |\u001b[39m     \u001b[90m// Apri il modal\u001b[39m\n \u001b[90m 85 |\u001b[39m     \u001b[36mconst\u001b[39m newRequestButton \u001b[33m=\u001b[39m page\u001b[33m.\u001b[39mlocator(\u001b[32m'button:has-text(\"Nuova Richiesta\"), button:has-text(\"New Request\")'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 86 |\u001b[39m     \u001b[36mawait\u001b[39m newRequestButton\u001b[33m.\u001b[39mclick()\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                            \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 87 |\u001b[39m     \n \u001b[90m 88 |\u001b[39m     \u001b[36mconst\u001b[39m modal \u001b[33m=\u001b[39m page\u001b[33m.\u001b[39mlocator(\u001b[32m'[role=\"dialog\"], .modal, div:has(button:has-text(\"Salva\"))'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 89 |\u001b[39m     \u001b[36mawait\u001b[39m expect(modal)\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at /Users/lucamambelli/Desktop/Richiesta-Assistenza/tests/address-modal-persistence.spec.ts:86:28\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-20T16:46:40.372Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/test-results/address-modal-persistence--c8582-al-con-pulsante-X-o-Annulla-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/test-results/address-modal-persistence--c8582-al-con-pulsante-X-o-Annulla-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/lucamambelli/Desktop/Richiesta-Assistenza/test-results/address-modal-persistence--c8582-al-con-pulsante-X-o-Annulla-chromium/error-context.md"
+                        }
+                      ]
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "3f125f2052b40dfad107-60710e134e8f4a723801",
+              "file": "address-modal-persistence.spec.ts",
+              "line": 83,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2025-10-20T16:46:39.036Z",
+    "duration": 36522.166000000005,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 2,
+    "flaky": 0
+  }
+}

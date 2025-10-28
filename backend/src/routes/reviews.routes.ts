@@ -6,6 +6,7 @@ import { ResponseFormatter } from '../utils/responseFormatter';
 import { z } from 'zod';
 import { auditLogger } from '../middleware/auditLogger';
 import { requireModule } from '../middleware/module.middleware';
+import { ReviewExclusionService } from '../services/review-exclusion.service';
 
 const router = Router();
 
@@ -26,6 +27,46 @@ const paginationSchema = z.object({
   limit: z.string().transform(val => parseInt(val, 10)).optional()
 });
 
+// Schema per configurazione sistema recensioni
+const reviewSystemConfigSchema = z.object({
+  isEnabled: z.boolean().optional(),
+  anonymousReviews: z.boolean().optional(),
+  showLastNameInitial: z.boolean().optional(),
+  requireComment: z.boolean().optional(),
+  minCommentLength: z.number().int().min(1).max(1000).optional(),
+  maxCommentLength: z.number().int().min(1).max(2000).optional(),
+  maxDaysToReview: z.number().int().min(1).max(365).optional(),
+  autoModeration: z.boolean().optional(),
+  publicReviews: z.boolean().optional(),
+  bannedWords: z.array(z.string()).optional(),
+  contentFilter: z.boolean().optional(),
+  requireManualApproval: z.boolean().optional(),
+  autoApproveThreshold: z.number().int().min(1).max(5).optional(),
+  notifyAdminForLowRatings: z.boolean().optional(),
+  lowRatingThreshold: z.number().int().min(1).max(5).optional(),
+  showStarsInName: z.boolean().optional(),
+  minReviewsToShowAverage: z.number().int().min(0).max(100).optional(),
+  defaultSortOrder: z.enum(['recent', 'rating_high', 'rating_low', 'helpful']).optional(),
+  reviewsPerPage: z.number().int().min(5).max(100).optional(),
+  enableBadges: z.boolean().optional(),
+  topRatedThreshold: z.number().min(0).max(5).optional(),
+  enableLoyaltyPoints: z.boolean().optional(),
+  pointsPerReview: z.number().int().min(0).max(1000).optional(),
+  notifyProfessionalOnReview: z.boolean().optional(),
+  remindClientAfterDays: z.number().int().min(1).max(30).optional(),
+  notifyAdminOnProblematic: z.boolean().optional()
+});
+
+// Schema per filtri recensioni
+const reviewFiltersSchema = z.object({
+  page: z.string().transform(val => parseInt(val, 10)).optional(),
+  limit: z.string().transform(val => parseInt(val, 10)).optional(),
+  sortBy: z.enum(['recent', 'rating_high', 'rating_low', 'helpful']).optional(),
+  minRating: z.string().transform(val => parseInt(val, 10)).optional(),
+  maxRating: z.string().transform(val => parseInt(val, 10)).optional(),
+  hasComment: z.string().transform(val => val === 'true').optional()
+});
+
 /**
  * POST /api/reviews
  * Crea una nuova recensione
@@ -34,16 +75,27 @@ router.post(
   '/',
   authenticate,
   validateRequest(createReviewSchema),
-  auditLogger('CREATE_REVIEW'),
+  auditLogger({ action: 'CREATE', entityType: 'Review' }),
   async (req, res) => {
     try {
+      const clientId = req.user.id;
+      
+      // Verifica se il cliente è escluso dal sistema recensioni
+      const canClientReview = await ReviewExclusionService.canClientReview(clientId);
+      if (!canClientReview) {
+        return res.status(403).json(ResponseFormatter.error(
+          'Non sei autorizzato a lasciare recensioni',
+          'CLIENT_EXCLUDED_FROM_REVIEWS'
+        ));
+      }
+
       const review = await reviewService.createReview({
         ...req.body,
-        clientId: req.user.id
+        clientId
       });
-      
+
       return res.json(ResponseFormatter.success(
-        review, 
+        review,
         'Recensione creata con successo'
       ));
     } catch (error: any) {
@@ -63,17 +115,40 @@ router.get(
   async (req, res) => {
     try {
       const { page = '1', limit = '10' } = req.query;
-      
+
       const reviews = await reviewService.getProfessionalReviews(
         req.params.professionalId,
         parseInt(page as string),
         parseInt(limit as string)
       );
-      
+
       return res.json(ResponseFormatter.success(reviews));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
         error.message || 'Errore nel recupero delle recensioni'
+      ));
+    }
+  }
+);
+
+/**
+ * GET /api/reviews/professional/:professionalId/filtered
+ * Ottieni recensioni filtrate e ordinate secondo configurazione
+ */
+router.get(
+  '/professional/:professionalId/filtered',
+  validateRequest(reviewFiltersSchema),
+  async (req, res) => {
+    try {
+      const result = await reviewService.getFilteredReviews(
+        req.params.professionalId,
+        req.query
+      );
+
+      return res.json(ResponseFormatter.success(result));
+    } catch (error: any) {
+      return res.status(400).json(ResponseFormatter.error(
+        error.message || 'Errore nel recupero delle recensioni filtrate'
       ));
     }
   }
@@ -87,14 +162,31 @@ router.get(
   '/professional/:professionalId/stats',
   async (req, res) => {
     try {
-      const stats = await reviewService.getProfessionalStats(
-        req.params.professionalId
-      );
-      
+      const stats = await reviewService.getProfessionalStats(req.params.professionalId);
+
       return res.json(ResponseFormatter.success(stats));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
         error.message || 'Errore nel recupero delle statistiche'
+      ));
+    }
+  }
+);
+
+/**
+ * GET /api/reviews/professional/:professionalId/stats-with-config
+ * Ottieni statistiche con configurazione sistema
+ */
+router.get(
+  '/professional/:professionalId/stats-with-config',
+  async (req, res) => {
+    try {
+      const stats = await reviewService.getProfessionalStatsWithConfig(req.params.professionalId);
+
+      return res.json(ResponseFormatter.success(stats));
+    } catch (error: any) {
+      return res.status(400).json(ResponseFormatter.error(
+        error.message || 'Errore nel recupero delle statistiche avanzate'
       ));
     }
   }
@@ -113,7 +205,7 @@ router.get(
         req.user.id,
         req.params.requestId
       );
-      
+
       return res.json(ResponseFormatter.success(result));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
@@ -132,11 +224,11 @@ router.get(
   async (req, res) => {
     try {
       const review = await reviewService.getReview(req.params.reviewId);
-      
+
       if (!review) {
         return res.status(404).json(ResponseFormatter.error('Recensione non trovata'));
       }
-      
+
       return res.json(ResponseFormatter.success(review));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
@@ -156,14 +248,14 @@ router.patch(
   async (req, res) => {
     try {
       const { isHelpful } = req.body;
-      
+
       const review = await reviewService.updateHelpfulCount(
         req.params.reviewId,
         isHelpful
       );
-      
+
       return res.json(ResponseFormatter.success(
-        review, 
+        review,
         isHelpful ? 'Recensione marcata come utile' : 'Feedback registrato'
       ));
     } catch (error: any) {
@@ -176,7 +268,7 @@ router.patch(
 
 /**
  * GET /api/reviews/latest
- * Ottieni le ultime recensioni (admin)
+ * Ottieni le ultime recensioni del sistema (admin)
  */
 router.get(
   '/latest',
@@ -187,9 +279,9 @@ router.get(
       if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') {
         return res.status(403).json(ResponseFormatter.error('Non autorizzato'));
       }
-      
+
       const reviews = await reviewService.getLatestReviews(10);
-      
+
       return res.json(ResponseFormatter.success(reviews));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
@@ -206,23 +298,115 @@ router.get(
 router.delete(
   '/:reviewId',
   authenticate,
-  auditLogger('DELETE_REVIEW'),
+  auditLogger({ action: 'DELETE', entityType: 'Review' }),
   async (req, res) => {
     try {
       // Verifica che l'utente sia admin
       if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') {
         return res.status(403).json(ResponseFormatter.error('Non autorizzato'));
       }
-      
+
       await reviewService.deleteReview(req.params.reviewId);
-      
+
       return res.json(ResponseFormatter.success(
-        null, 
+        null,
         'Recensione eliminata con successo'
       ));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
         error.message || 'Errore nell\'eliminazione della recensione'
+      ));
+    }
+  }
+);
+
+// ============================================
+// ENDPOINT CONFIGURAZIONE SISTEMA RECENSIONI
+// ============================================
+
+/**
+ * GET /api/reviews/config
+ * Ottieni configurazione sistema recensioni
+ */
+router.get(
+  '/config',
+  authenticate,
+  async (req, res) => {
+    try {
+      // Solo admin possono vedere la configurazione
+      if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') {
+        return res.status(403).json(ResponseFormatter.error('Non autorizzato'));
+      }
+
+      const config = await reviewService.getReviewSystemConfig();
+
+      return res.json(ResponseFormatter.success(config));
+    } catch (error: any) {
+      return res.status(400).json(ResponseFormatter.error(
+        error.message || 'Errore nel recupero della configurazione'
+      ));
+    }
+  }
+);
+
+/**
+ * PUT /api/reviews/config
+ * Aggiorna configurazione sistema recensioni
+ */
+router.put(
+  '/config',
+  authenticate,
+  validateRequest(reviewSystemConfigSchema),
+  auditLogger({ action: 'UPDATE', entityType: 'ReviewSystemConfig' }),
+  async (req, res) => {
+    try {
+      // Solo admin possono modificare la configurazione
+      if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') {
+        return res.status(403).json(ResponseFormatter.error('Non autorizzato'));
+      }
+
+      const config = await reviewService.updateReviewSystemConfig(req.body);
+
+      return res.json(ResponseFormatter.success(
+        config,
+        'Configurazione aggiornata con successo'
+      ));
+    } catch (error: any) {
+      return res.status(400).json(ResponseFormatter.error(
+        error.message || 'Errore nell\'aggiornamento della configurazione'
+      ));
+    }
+  }
+);
+
+/**
+ * POST /api/reviews/check-moderation
+ * Verifica se un commento richiede moderazione
+ */
+router.post(
+  '/check-moderation',
+  authenticate,
+  async (req, res) => {
+    try {
+      const { comment, rating } = req.body;
+
+      if (!comment || typeof comment !== 'string') {
+        return res.status(400).json(ResponseFormatter.error('Commento obbligatorio'));
+      }
+
+      const moderationResult = await reviewService.checkContentModeration(comment);
+      const requiresApproval = await reviewService.requiresManualApproval(rating || 5);
+      const notifyAdmin = await reviewService.shouldNotifyAdminForLowRating(rating || 5);
+
+      return res.json(ResponseFormatter.success({
+        moderation: moderationResult,
+        requiresApproval,
+        notifyAdmin,
+        canPublish: moderationResult.isApproved && !requiresApproval
+      }));
+    } catch (error: any) {
+      return res.status(400).json(ResponseFormatter.error(
+        error.message || 'Errore nella verifica di moderazione'
       ));
     }
   }

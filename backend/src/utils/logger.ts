@@ -1,6 +1,6 @@
-// ✅ FIX: Import con namespace per compatibilità esModuleInterop
+// ✅ FIX: Import corretto per winston-daily-rotate-file
 import * as winston from 'winston';
-import * as DailyRotateFile from 'winston-daily-rotate-file';
+import DailyRotateFile from 'winston-daily-rotate-file';
 import * as path from 'path';
 
 const logDir = path.join(__dirname, '../../logs');

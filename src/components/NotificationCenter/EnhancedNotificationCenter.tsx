@@ -69,7 +69,12 @@ const EnhancedNotificationCenter: React.FC = () => {
       // Il backend restituisce { success: true, data: [...array di notifiche...] }
       return response.data.data || [];
     },
-    refetchInterval: 30000,
+    staleTime: 5 * 60 * 1000, // 5 minuti
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchInterval: false, // Disabilita il polling automatico
+    refetchOnReconnect: false,
+    retry: 1
   });
 
   // Fetch statistiche
@@ -79,7 +84,12 @@ const EnhancedNotificationCenter: React.FC = () => {
       const response = await api.get('/notifications/stats');
       return response.data.data;
     },
-    refetchInterval: 60000,
+    staleTime: 10 * 60 * 1000, // 10 minuti
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchInterval: false, // Disabilita il polling automatico
+    refetchOnReconnect: false,
+    retry: 1
   });
 
   // Mutation per marcare come letta

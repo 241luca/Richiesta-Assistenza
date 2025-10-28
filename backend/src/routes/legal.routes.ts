@@ -41,7 +41,7 @@ router.get('/documents/:type', async (req: any, res) => {
       },
       include: {
         // Include solo la versione pubblicata più recente
-        versions: {
+        LegalDocumentVersion: {
           where: {
             status: 'PUBLISHED',
             effectiveDate: {
@@ -79,7 +79,7 @@ router.get('/documents/:type', async (req: any, res) => {
     }
 
     // Formatta il documento con la versione corrente
-    const currentVersion = document.versions[0] || null;
+    const currentVersion = document.LegalDocumentVersion[0] || null;
     
     // Se l'utente è autenticato, verifica se ha accettato il documento
     let userAcceptance = null;
@@ -93,7 +93,7 @@ router.get('/documents/:type', async (req: any, res) => {
           acceptedAt: 'desc'
         },
         include: {
-          version: {
+          LegalDocumentVersion: {
             select: {
               id: true,
               version: true
@@ -140,7 +140,7 @@ router.get('/documents', async (req: any, res) => {
         isActive: true
       },
       include: {
-        versions: {
+        LegalDocumentVersion: {
           where: {
             status: 'PUBLISHED',
             effectiveDate: {
@@ -175,7 +175,7 @@ router.get('/documents', async (req: any, res) => {
       documents.map(async (doc) => {
         let userAcceptance = null;
         
-        if (userId && doc.versions.length > 0) {
+        if (userId && doc.LegalDocumentVersion.length > 0) {
           userAcceptance = await prisma.userLegalAcceptance.findFirst({
             where: {
               userId: userId,
@@ -188,7 +188,7 @@ router.get('/documents', async (req: any, res) => {
               id: true,
               acceptedAt: true,
               versionId: true,
-              version: {
+              LegalDocumentVersion: {
                 select: {
                   version: true
                 }
@@ -204,11 +204,11 @@ router.get('/documents', async (req: any, res) => {
           description: doc.description,
           icon: doc.icon,
           isRequired: doc.isRequired,
-          currentVersion: doc.versions[0] || null,
+          currentVersion: doc.LegalDocumentVersion[0] || null,
           hasAccepted: !!userAcceptance,
           needsNewAcceptance: userAcceptance && 
-            doc.versions[0] && 
-            userAcceptance.versionId !== doc.versions[0].id,
+            doc.LegalDocumentVersion[0] && 
+            userAcceptance.versionId !== doc.LegalDocumentVersion[0].id,
           userAcceptance
         };
       })
@@ -259,7 +259,7 @@ router.post('/accept',
           status: 'PUBLISHED'
         },
         include: {
-          document: true
+          LegalDocument: true
         }
       });
 
@@ -289,6 +289,7 @@ router.post('/accept',
       // Crea il record di accettazione
       const acceptance = await prisma.userLegalAcceptance.create({
         data: {
+          id: require('crypto').randomUUID(),
           userId: userId,
           documentId: documentId,
           versionId: versionId,
@@ -300,7 +301,7 @@ router.post('/accept',
           metadata: {
             timestamp: new Date().toISOString(),
             platform: 'web',
-            documentTitle: version.document.displayName,
+            documentTitle: version.LegalDocument.displayName,
             documentVersion: version.version
           }
         }
@@ -354,14 +355,14 @@ router.get('/acceptances',
           userId: userId
         },
         include: {
-          document: {
+          LegalDocument: {
             select: {
               id: true,
               type: true,
               displayName: true
             }
           },
-          version: {
+          LegalDocumentVersion: {
             select: {
               id: true,
               version: true,

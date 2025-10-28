@@ -6,7 +6,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import toast from 'react-hot-toast';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 interface SocketContextType {
   socket: Socket | null;

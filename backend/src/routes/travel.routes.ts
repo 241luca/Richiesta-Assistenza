@@ -356,7 +356,7 @@ router.get('/request/:id/travel-info', authenticate, async (req: any, res) => {
       where: { id: requestId },
       include: {
         // Allinea al nome di relazione dello schema attivo
-        User_AssistanceRequest_professionalIdToUser: true
+        professional: true
       }
     });
     

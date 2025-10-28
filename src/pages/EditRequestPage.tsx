@@ -14,7 +14,7 @@ import {
   BellIcon
 } from '@heroicons/react/24/outline';
 import { api } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -232,10 +232,11 @@ export default function EditRequestPage() {
       queryClient.invalidateQueries({ queryKey: ['requests'] });
       queryClient.invalidateQueries({ queryKey: ['request', id] });
       
-      // Piccolo delay per permettere all'utente di vedere le notifiche
-      setTimeout(() => {
-        navigate(`/requests/${id}`);
-      }, 1000);
+      // ✅ RIMOSSO redirect automatico - mantieni la pagina aperta per permettere ulteriori modifiche
+      // L'utente può tornare manualmente cliccando "Torna ai dettagli" se vuole
+      // setTimeout(() => {
+      //   navigate(`/requests/${id}`);
+      // }, 1000);
     },
     onError: (error: any) => {
       console.error('Update error:', error.response?.data);

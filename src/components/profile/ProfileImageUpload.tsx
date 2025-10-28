@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CameraIcon, UserCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import api from '../../services/api';
+import { useImageModule } from '../../hooks/useImageModule';
 
 interface ProfileImageUploadProps {
   currentImage?: string;
@@ -10,6 +11,7 @@ interface ProfileImageUploadProps {
   onUploadSuccess?: (imageUrl: string) => void;
   isRequired?: boolean;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  isRecognitionImage?: boolean; // Nuovo prop per distinguere il tipo di immagine
 }
 
 export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
@@ -17,12 +19,21 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
   userId,
   onUploadSuccess,
   isRequired = false,
-  size = 'lg'
+  size = 'lg',
+  isRecognitionImage = false
 }) => {
   const [preview, setPreview] = useState<string | null>(currentImage || null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  
+  const { 
+    canUploadAvatars, 
+    canUploadRecognition, 
+    maxFileSize, 
+    allowedFormats,
+    isImageModuleEnabled 
+  } = useImageModule();
 
   // Dimensioni per ogni size
   const sizeClasses = {
@@ -52,20 +63,30 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
       const formData = new FormData();
       formData.append('image', file);
       
-      const response = await api.post('/upload/profile-image', formData, {
+      // Usa l'endpoint corretto in base al tipo di immagine
+      const endpoint = isRecognitionImage ? '/upload/recognition-image' : '/upload/profile-image';
+      
+      const response = await api.post(endpoint, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       });
       
-      return response.data.data.profileImageUrl;
+      // Restituisce l'URL corretto in base al tipo di immagine
+      return isRecognitionImage 
+        ? response.data.data.recognitionImageUrl 
+        : response.data.data.profileImageUrl;
     },
     onSuccess: (imageUrl) => {
-      toast.success('Foto profilo caricata con successo!');
+      const message = isRecognitionImage 
+        ? 'Immagine di riconoscimento caricata con successo!' 
+        : 'Foto profilo caricata con successo!';
+      toast.success(message);
       setPreview(imageUrl);
       
       // Aggiorna la cache di React Query
       queryClient.invalidateQueries({ queryKey: ['user', userId] });
+      queryClient.invalidateQueries({ queryKey: ['auth'] });
       
       // Chiama il callback se fornito
       if (onUploadSuccess) {
@@ -100,15 +121,17 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validazione lato client
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    // Validazione lato client usando le impostazioni del modulo
+    const validTypes = allowedFormats.map(format => `image/${format === 'jpg' ? 'jpeg' : format}`);
     if (!validTypes.includes(file.type)) {
-      toast.error('Formato non supportato. Usa JPG, PNG o WebP');
+      const formatsText = allowedFormats.join(', ').toUpperCase();
+      toast.error(`Formato non supportato. Usa ${formatsText}`);
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File troppo grande. Massimo 5MB');
+    if (file.size > maxFileSize) {
+      const maxSizeMB = Math.round(maxFileSize / (1024 * 1024));
+      toast.error(`File troppo grande. Massimo ${maxSizeMB}MB`);
       return;
     }
 
@@ -128,8 +151,17 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
     });
   };
 
+  // Controlla se il caricamento è abilitato per questo tipo di immagine
+  const isUploadEnabled = isImageModuleEnabled && 
+    (isRecognitionImage ? canUploadRecognition : canUploadAvatars);
+
   // Apre il file picker
   const handleClick = () => {
+    if (!isUploadEnabled) {
+      const imageType = isRecognitionImage ? 'riconoscimento' : 'avatar';
+      toast.error(`Il caricamento delle immagini ${imageType} è disabilitato`);
+      return;
+    }
     fileInputRef.current?.click();
   };
 
@@ -173,14 +205,14 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
           <button
             type="button"
             onClick={handleClick}
-            disabled={isUploading}
+            disabled={isUploading || !isUploadEnabled}
             className={`${buttonSizes[size]} bg-blue-600 rounded-full text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             <CameraIcon className="h-full w-full" />
           </button>
 
           {/* Bottone rimuovi (solo se c'è un'immagine) */}
-          {preview && !isRequired && (
+          {preview && !isRequired && isUploadEnabled && (
             <button
               type="button"
               onClick={handleRemove}
@@ -196,21 +228,29 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/jpg,image/png,image/webp"
+          accept={allowedFormats.map(format => `image/${format === 'jpg' ? 'jpeg' : format}`).join(',')}
           onChange={handleFileChange}
           className="hidden"
-          disabled={isUploading}
+          disabled={isUploading || !isUploadEnabled}
         />
       </div>
 
       {/* Testo informativo */}
       <div className="text-center">
-        <p className="text-sm text-gray-600">
-          {isRequired ? 'Foto profilo obbligatoria' : 'Foto profilo opzionale'}
-        </p>
-        <p className="text-xs text-gray-500 mt-1">
-          JPG, PNG o WebP. Max 5MB. Min 200x200px
-        </p>
+        {!isUploadEnabled ? (
+          <p className="text-sm text-red-600">
+            {isRecognitionImage ? 'Caricamento immagini riconoscimento disabilitato' : 'Caricamento avatar disabilitato'}
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-gray-600">
+              {isRequired ? 'Foto profilo obbligatoria' : 'Foto profilo opzionale'}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {allowedFormats.join(', ').toUpperCase()}. Max {Math.round(maxFileSize / (1024 * 1024))}MB. Min 200x200px
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

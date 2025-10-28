@@ -338,7 +338,7 @@ router.post('/check-conflicts', requireRole(['PROFESSIONAL', 'ADMIN']), async (r
         estimatedDuration: true,
         description: true,
         status: true,
-        request: {
+        AssistanceRequest: {
           select: {
             title: true,
             client: {
@@ -346,7 +346,7 @@ router.post('/check-conflicts', requireRole(['PROFESSIONAL', 'ADMIN']), async (r
                 fullName: true
               }
             },
-            category: {
+            Category: {
               select: {
                 name: true
               }
@@ -370,9 +370,9 @@ router.post('/check-conflicts', requireRole(['PROFESSIONAL', 'ADMIN']), async (r
       id: conflict.id,
       start: conflict.proposedDate,
       end: new Date(conflict.proposedDate.getTime() + (conflict.estimatedDuration || 60) * 60000),
-      title: conflict.description || conflict.request?.title || 'Intervento',
-      client: conflict.request?.client?.fullName || 'Cliente',
-      category: conflict.request?.category?.name || 'Categoria',
+      title: conflict.description || conflict.AssistanceRequest?.title || 'Intervento',
+      client: conflict.AssistanceRequest?.client?.fullName || 'Cliente',
+      category: conflict.AssistanceRequest?.Category?.name || 'Categoria',
       status: conflict.status
     }));
 
@@ -474,7 +474,7 @@ router.get('/interventions', requireRole(['PROFESSIONAL', 'ADMIN']), async (req:
         description: true,
         status: true,
         requestId: true,
-        request: {
+        AssistanceRequest: {
           select: {
             id: true,
             title: true,
@@ -487,7 +487,7 @@ router.get('/interventions', requireRole(['PROFESSIONAL', 'ADMIN']), async (req:
                 email: true
               }
             },
-            category: {
+            Category: {
               select: {
                 id: true,
                 name: true,
@@ -504,14 +504,14 @@ router.get('/interventions', requireRole(['PROFESSIONAL', 'ADMIN']), async (req:
     // Formatta per il calendario
     const calendarEvents = interventions.map(intervention => ({
       id: intervention.id,
-      title: intervention.description || `Intervento ${intervention.request.title}`,
+      title: intervention.description || `Intervento ${intervention.AssistanceRequest.title}`,
       start: intervention.proposedDate,
       end: new Date(new Date(intervention.proposedDate).getTime() + (intervention.estimatedDuration || 60) * 60000),
       status: intervention.status,
       estimatedDuration: intervention.estimatedDuration,
-      client: intervention.request.client,
-      category: intervention.request.category,
-      address: intervention.request.address,
+      client: intervention.AssistanceRequest.client,
+      category: intervention.AssistanceRequest.Category,
+      address: intervention.AssistanceRequest.address,
       requestId: intervention.requestId
     }));
 

@@ -8,49 +8,12 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { authenticate } from '../middleware/auth';
 import GoogleMapsService from '../services/googleMaps.service';
+import { ApiKeyService } from '../services/apiKey.service';
 import { prisma } from '../config/database';
 import { logger } from '../utils/logger';
 import { ResponseFormatter } from '../utils/responseFormatter';
-import { apiKeyService } from '../services/apiKey.service';
 
 const router = Router();
-
-// Tipi espliciti per risultati di distanza e payload storico percorsi
-type DistanceCalculationResult = {
-  distance: number;
-  duration: number;
-  durationInTraffic?: number;
-  distanceText?: string;
-  durationText?: string;
-  polyline?: string;
-};
-
-type RouteHistoryCreateData = {
-  requestId: string;
-  professionalId: string;
-  originAddress: string;
-  originLat: number;
-  originLng: number;
-  destinationAddress: string;
-  destinationLat: number;
-  destinationLng: number;
-  distance: number;
-  duration: number;
-  durationInTraffic?: number;
-  polyline?: string;
-  travelCost?: number;
-};
-
-// Risultato singolo per calcolo distanze in batch
-type BatchDistanceResultItem = {
-  requestId: string;
-  distance: number | null;
-  duration: number | null;
-  durationInTraffic?: number;
-  distanceText?: string;
-  durationText?: string;
-  error?: string;
-};
 
 // Rate limiting per autocomplete (pubblico ma protetto)
 const autocompleteLimit = rateLimit({
@@ -77,37 +40,76 @@ const autocompleteLimit = rateLimit({
  */
 router.get('/config', async (req, res) => {
   try {
-    // DB-only: prendi la chiave esclusivamente dal servizio ApiKey (niente SystemSettings, niente .env)
-    const apiKey = await apiKeyService.getApiKey('GOOGLE_MAPS', true);
-    const rawKey = apiKey?.key?.toString()?.trim() || '';
+    // ✅ USA ApiKeyService per decriptare automaticamente la chiave
+    const apiKeyService = new ApiKeyService();
+    const apiKey = await apiKeyService.getApiKey('GOOGLE_MAPS', true); // unmask = true per ottenere chiave decriptata
 
-    // Considera invalida se è placeholder/sospetta
-    const looksInvalid = (
-      !rawKey ||
-      rawKey.startsWith('DEV_') ||
-      rawKey.includes('PLACEHOLDER') ||
-      rawKey.length < 30 ||
-      /^[A-Z_]+$/.test(rawKey)
-    );
-
-    if (looksInvalid) {
-      return res.status(404).json(
-        ResponseFormatter.error(
-          'Google Maps API key non configurata',
-          'API_KEY_NOT_FOUND'
-        )
-      );
+    if (!apiKey) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Google Maps API key non configurata nel database',
+        'API_KEY_NOT_FOUND'
+      ));
     }
 
+    // La chiave è già decriptata grazie a unmask: true
+    const decryptedKey = apiKey.key;
+
+    // 🔍 DEBUG: Log della chiave decriptata
+    logger.info(`📤 Invio Google Maps API key DECRIPTATA al frontend:`);
+    logger.info(`   Lunghezza: ${decryptedKey?.length || 0} caratteri`);
+    logger.info(`   Prefisso: ${decryptedKey?.substring(0, 10) || 'VUOTA'}...`);
+    logger.info(`   Contiene ':' (criptata?): ${decryptedKey?.includes(':') ? 'SÌ ⚠️ PROBLEMA!' : 'NO ✅'}`);
+    logger.info(`   Inizia con AIzaSy?: ${decryptedKey?.startsWith('AIzaSy') ? 'SÌ ✅' : 'NO ⚠️'}`);
+    
+    // ✅ SEMPRE ResponseFormatter.success
     return res.json(ResponseFormatter.success({
-      apiKey: rawKey,
+      apiKey: decryptedKey,
       isConfigured: true
     }, 'Configurazione Google Maps recuperata'));
   } catch (error) {
     logger.error('Error fetching Google Maps config:', error);
+    // ✅ SEMPRE ResponseFormatter.error
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero configurazione',
       'CONFIG_ERROR'
+    ));
+  }
+});
+
+/**
+ * GET /api/maps/geocode
+ * Geocodifica un indirizzo (pubblico per tool admin)
+ * ✅ Usa GoogleMapsService con cache intelligente
+ */
+router.get('/geocode', async (req, res) => {
+  try {
+    const { address } = req.query;
+
+    if (!address || typeof address !== 'string') {
+      return res.status(400).json(ResponseFormatter.error(
+        'Indirizzo richiesto',
+        'ADDRESS_REQUIRED'
+      ));
+    }
+
+    const coordinates = await GoogleMapsService.geocode(address);
+
+    if (!coordinates) {
+      return res.status(404).json(ResponseFormatter.error(
+        'Indirizzo non trovato',
+        'ADDRESS_NOT_FOUND'
+      ));
+    }
+
+    return res.json(ResponseFormatter.success(
+      coordinates,
+      'Indirizzo geocodificato con successo'
+    ));
+  } catch (error) {
+    logger.error('Geocoding error:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore durante la geocodifica',
+      'GEOCODING_ERROR'
     ));
   }
 });
@@ -252,28 +254,33 @@ router.post('/calculate-distances', authenticate, async (req: any, res) => {
       {
         mode
       }
-    ) as Array<DistanceCalculationResult | null>;
+    );
 
     // Mappa i risultati con gli ID delle richieste
-    const distances: BatchDistanceResultItem[] = requests.map((request, index): BatchDistanceResultItem => {
+    const distances: Array<{
+      requestId: string;
+      distance: number | null;
+      duration: number | null;
+      durationInTraffic?: number;
+      distanceText?: string;
+      durationText?: string;
+      error?: string;
+    }> = requests.map((request, index) => {
       const distanceResult = results[index];
       
       if (!distanceResult) {
         return {
           requestId: request.id,
-          distance: null,
-          duration: null,
+          distance: null as number | null,
+          duration: null as number | null,
           error: 'Calcolo non riuscito'
         };
       }
 
-      const distValue = Number(distanceResult.distance);
-      const durValue = Number(distanceResult.duration);
-
       return {
         requestId: request.id,
-        distance: Number.isFinite(distValue) ? distValue : null,
-        duration: Number.isFinite(durValue) ? durValue : null,
+        distance: distanceResult.distance as number,
+        duration: distanceResult.duration as number,
         durationInTraffic: distanceResult.durationInTraffic,
         distanceText: distanceResult.distanceText,
         durationText: distanceResult.durationText
@@ -341,25 +348,22 @@ router.post('/directions', authenticate, async (req, res) => {
       try {
         const client: any = (prisma as any);
         if (client.routeHistory?.create) {
-          const calc = result as DistanceCalculationResult;
-          const routeHistoryData: RouteHistoryCreateData = {
-            requestId: String(req.body.requestId),
-            professionalId: String(req.user.id),
-            originAddress: typeof origin === 'string' ? origin : `${origin.lat},${origin.lng}`,
-            originLat: typeof origin === 'string' ? 0 : Number(origin.lat),
-            originLng: typeof origin === 'string' ? 0 : Number(origin.lng),
-            destinationAddress: typeof destination === 'string' ? destination : `${destination.lat},${destination.lng}`,
-            destinationLat: typeof destination === 'string' ? 0 : Number(destination.lat),
-            destinationLng: typeof destination === 'string' ? 0 : Number(destination.lng),
-            distance: Number(calc.distance),
-            duration: Number(calc.duration),
-            durationInTraffic: calc.durationInTraffic,
-            polyline: calc.polyline,
-            travelCost: typeof req.body.travelCost === 'number' ? req.body.travelCost : undefined
-          };
-
           await client.routeHistory.create({
-            data: routeHistoryData
+          data: {
+            requestId: req.body.requestId,
+            professionalId: req.user.id,
+            originAddress: typeof origin === 'string' ? origin : `${origin.lat},${origin.lng}`,
+            originLat: typeof origin === 'string' ? 0 : origin.lat,
+            originLng: typeof origin === 'string' ? 0 : origin.lng,
+            destinationAddress: typeof destination === 'string' ? destination : `${destination.lat},${destination.lng}`,
+            destinationLat: typeof destination === 'string' ? 0 : destination.lat,
+            destinationLng: typeof destination === 'string' ? 0 : destination.lng,
+            distance: result.distance,
+            duration: result.duration,
+            durationInTraffic: (result as any)?.durationInTraffic,
+            polyline: (result as any)?.polyline,
+            travelCost: req.body.travelCost
+          }
           });
         }
       } catch (err) {

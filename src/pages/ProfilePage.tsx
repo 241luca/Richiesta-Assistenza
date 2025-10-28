@@ -20,6 +20,8 @@ import { WorkAddressSettings } from '../components/travel/WorkAddressSettings';
 import { PlaceAutocomplete } from '../components/address/PlaceAutocomplete';
 // NUOVO: Import componenti Portfolio
 import { PortfolioGallery, AddPortfolioModal } from '../components/portfolio';
+// RIPRISTINO: Import componente per immagine di riconoscimento
+import { ProfileImageUpload } from '../components/profile/ProfileImageUpload';
 
 export function ProfilePage() {
   const { user } = useAuth();
@@ -101,22 +103,15 @@ export function ProfilePage() {
         <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 rounded-t-lg">
           <div className="flex items-center space-x-4">
             <div className="relative">
-              <div className="h-24 w-24 bg-white rounded-full flex items-center justify-center">
-                {user?.avatar ? (
-                  <img 
-                    src={user.avatar} 
-                    alt={`${user.firstName} ${user.lastName}`}
-                    className="h-full w-full rounded-full object-cover"
+              <ProfileImageUpload
+                    currentImage={user?.profileImage}
+                    userId={user?.id}
+                    onUploadSuccess={(url) => {
+                      console.log('Avatar aggiornato:', url);
+                    }}
+                    size="lg"
+                    isRecognitionImage={false}
                   />
-                ) : (
-                  <UserCircleIcon className="h-20 w-20 text-gray-400" />
-                )}
-              </div>
-              {isEditing && (
-                <button className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700">
-                  <CameraIcon className="h-4 w-4" />
-                </button>
-              )}
             </div>
             <div className="text-white">
               <h2 className="text-2xl font-bold">
@@ -376,6 +371,54 @@ export function ProfilePage() {
           <button className="w-full md:w-auto px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors ml-0 md:ml-2">
             Abilita Autenticazione a Due Fattori
           </button>
+        </div>
+      </div>
+
+      {/* Recognition Image Section */}
+      <div className="bg-white shadow-md rounded-lg mt-6 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <CameraIcon className="h-6 w-6 mr-2 text-blue-600" />
+          Immagine di Riconoscimento
+        </h3>
+        <p className="text-sm text-gray-600 mb-6">
+          Carica una tua foto per il riconoscimento. Questa immagine verrà utilizzata per verificare la tua identità durante le richieste di assistenza.
+        </p>
+        
+        <div className="flex flex-col md:flex-row md:items-start md:space-x-6">
+          <div className="mb-4 md:mb-0">
+            <ProfileImageUpload
+              currentImage={user?.recognitionImage}
+              userId={user?.id}
+              onUploadSuccess={(imageUrl) => {
+                // Il toast viene già mostrato dal componente
+                console.log('Immagine di riconoscimento salvata:', imageUrl);
+              }}
+              isRequired={user?.isRecognitionImageRequired}
+              size="xl"
+              isRecognitionImage={true}
+            />
+          </div>
+          
+          <div className="flex-1">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-900 mb-2">Linee guida per l'immagine:</h4>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>• Usa una foto recente e di buona qualità</li>
+                <li>• Il viso deve essere chiaramente visibile</li>
+                <li>• Evita occhiali da sole o cappelli che coprono il viso</li>
+                <li>• Formato supportato: JPG, PNG (max 5MB)</li>
+                <li>• L'immagine verrà ridimensionata automaticamente</li>
+              </ul>
+            </div>
+            
+            {user?.isRecognitionImageRequired && !user?.recognitionImage && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                <p className="text-sm text-yellow-800">
+                  <strong>Attenzione:</strong> L'immagine di riconoscimento è obbligatoria per il tuo account.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

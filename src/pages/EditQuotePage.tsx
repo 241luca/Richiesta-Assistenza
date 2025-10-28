@@ -11,7 +11,7 @@ import {
   ClockIcon
 } from '@heroicons/react/24/outline';
 import { api } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
 
 interface QuoteItem {

@@ -18,7 +18,7 @@
  * @author Sistema Richiesta Assistenza
  */
 
-import { PaymentStatus, PaymentMethod, PaymentType, Prisma } from '@prisma/client';
+import { PaymentStatus, PaymentMethod, PaymentType, RefundStatus, RefundReason, Prisma } from '@prisma/client';
 import Stripe from 'stripe';
 import { z } from 'zod';
 import { format, addDays, subMonths } from 'date-fns';
@@ -321,10 +321,11 @@ export class PaymentService {
       // Crea il pagamento nel database
       const payment = await prisma.payment.create({
         data: {
+          id: crypto.randomUUID(),
           clientId: validData.clientId,
           professionalId: validData.professionalId,
-          requestId: validData.requestId,
-          quoteId: validData.quoteId,
+          requestId: validData.requestId || undefined,
+          quoteId: validData.quoteId || undefined,
           amount: validData.amount,
           currency: 'EUR',
           type: validData.type,
@@ -334,6 +335,7 @@ export class PaymentService {
           platformFee,
           professionalAmount,
           metadata: validData.metadata || {},
+          updatedAt: new Date(),
         }
       });
 
@@ -350,10 +352,16 @@ export class PaymentService {
 
       // Log dell'azione per audit
       await auditLogService.log({
-        action: 'USER_REGISTERED', // Uso un'azione esistente nell'enum
+        action: 'PAYMENT_INITIATED',
         category: 'BUSINESS',
         userId: validData.clientId,
-        details: {
+        entityType: 'Payment',
+        entityId: payment.id,
+        ipAddress: '127.0.0.1', // Default per operazioni interne
+        userAgent: 'PaymentService',
+        success: true,
+        severity: 'INFO',
+        metadata: {
           paymentId: payment.id,
           amount: payment.amount,
           method: payment.method,
@@ -553,16 +561,22 @@ export class PaymentService {
             type: 'PAYMENT_RECEIVED',
             title: 'Pagamento Ricevuto',
             content: `Hai ricevuto un pagamento di €${payment.professionalAmount} da ${payment.User_Payment_clientIdToUser?.firstName || 'Cliente'} ${payment.User_Payment_clientIdToUser?.lastName || ''}`,
-            data: { paymentId },
+            metadata: { paymentId },
           });
         }
 
         // Log dell'azione per audit
         await auditLogService.log({
-          action: 'USER_REGISTERED', // Uso un'azione esistente nell'enum
+          action: 'PAYMENT_PROCESSED',
           category: 'BUSINESS',
           userId: payment.clientId,
-          details: {
+          entityType: 'Payment',
+          entityId: payment.id,
+          ipAddress: '127.0.0.1', // Default per operazioni interne
+          userAgent: 'PaymentService',
+          success: true,
+          severity: 'INFO',
+          metadata: {
             paymentId: payment.id,
             amount: payment.amount,
             stripePaymentIntentId,
@@ -637,7 +651,7 @@ export class PaymentService {
         const stripeRefund = await stripe.refunds.create({
           payment_intent: payment.stripePaymentIntentId,
           amount: Math.round(refundAmount * 100),
-          reason: reason === 'requested_by_customer' ? 'requested_by_customer' : 'other',
+          reason: reason === 'requested_by_customer' ? 'requested_by_customer' : undefined,
         });
         stripeRefundId = stripeRefund.id;
         
@@ -650,12 +664,14 @@ export class PaymentService {
       // Salva il rimborso nel database
       const refund = await prisma.refund.create({
         data: {
+          id: crypto.randomUUID(),
           paymentId,
           amount: refundAmount,
-          reason: reason || 'other',
-          status: 'PENDING',
+          reason: (reason === 'requested_by_customer' ? RefundReason.REQUESTED_BY_CUSTOMER : RefundReason.OTHER),
+          status: RefundStatus.PENDING,
           stripeRefundId,
           metadata: {},
+          updatedAt: new Date(),
         }
       });
 
@@ -931,7 +947,7 @@ export class PaymentService {
               where: { id: failedPaymentId },
               data: { 
                 status: PaymentStatus.FAILED,
-                metadata: { failureReason: failedIntent.last_payment_error?.message }
+                metadata: { failureReason: failedIntent.last_payment_error?.message || 'Unknown error' }
               }
             });
             logger.info('[PaymentService] Payment marked as failed via webhook', {
@@ -944,7 +960,7 @@ export class PaymentService {
           const refund = event.data.object as Stripe.Refund;
           await prisma.refund.updateMany({
             where: { stripeRefundId: refund.id },
-            data: { status: 'COMPLETED' }
+            data: { status: RefundStatus.COMPLETED }
           });
           logger.info('[PaymentService] Refund completed via webhook', {
             refundId: refund.id

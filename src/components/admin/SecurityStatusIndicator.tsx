@@ -34,14 +34,18 @@ interface SecurityStats {
 const SecurityStatusIndicator: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Polling ogni 60 secondi per lo stato di sicurezza
+  // Query ottimizzata per lo stato di sicurezza
   const { data: securityData, isLoading } = useQuery<SecurityStats>({
     queryKey: ['security-status'],
     queryFn: async () => {
       const response = await api.get('/security/status');
       return response.data.data;
     },
-    refetchInterval: 60000, // Aggiorna ogni 60 secondi
+    staleTime: 10 * 60 * 1000, // 10 minuti di cache
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchInterval: false, // Disabilita polling automatico
+    refetchOnReconnect: false,
     retry: 1,
   });
 

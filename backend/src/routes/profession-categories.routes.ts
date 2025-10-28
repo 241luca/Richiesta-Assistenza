@@ -406,9 +406,8 @@ router.post('/bulk',
             where: { id: genId },
             create: {
               id: genId,
-              // Usa le chiavi di relazione esatte generate da Prisma (PascalCase)
-              Profession: { connect: { id: professionId } },
-              Category: { connect: { id: categoryId } },
+              profession: { connect: { id: professionId } },
+              category: { connect: { id: categoryId } },
               isActive: true
             },
             update: {

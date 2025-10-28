@@ -150,7 +150,84 @@ router.get('/', authenticate, requireAdmin, async (req: any, res) => {
   }
 });
 
-// GET /api/admin/users/:id - Dettagli completi utente (READ)
+// GET /api/admin/users/search - Endpoint di ricerca specifico per compatibilità frontend
+router.get('/search', authenticate, requireAdmin, async (req: any, res) => {
+  try {
+    const { q: query, role = 'CLIENT' } = req.query;
+    
+    if (!query) {
+      return res.status(400).json(ResponseFormatter.error(
+        'Query di ricerca richiesta',
+        'QUERY_REQUIRED'
+      ));
+    }
+    
+    const searchQuery = query.toString().trim();
+    const roleFilter = role.toString().toUpperCase();
+    
+    logger.info(`[ADMIN USER SEARCH] Query: "${searchQuery}", Role: "${roleFilter}"`);
+    
+    // Usa il servizio utente per la ricerca
+    const filters = {
+      search: searchQuery,
+      role: roleFilter,
+      skip: 0,
+      take: 10
+    };
+    
+    const { users } = await userService.getUsers(filters);
+    
+    // Trasforma i dati per il frontend (formato compatibile con l'endpoint originale)
+    const transformedUsers = users.map(user => ({
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      address: user.address,
+      city: user.city,
+      province: user.province,
+      postalCode: user.postalCode,
+      codiceFiscale: user.codiceFiscale,
+      partitaIva: user.partitaIva,
+      createdAt: user.createdAt
+    }));
+    
+    logger.info(`[ADMIN USER SEARCH] Found ${transformedUsers.length} users`);
+    
+    if (transformedUsers.length === 0) {
+      return res.json(ResponseFormatter.success(
+        [],
+        'Nessun utente trovato con i criteri specificati'
+      ));
+    }
+    
+    // Se c'è un solo risultato, restituiscilo direttamente (compatibilità con frontend)
+    if (transformedUsers.length === 1) {
+      return res.json(ResponseFormatter.success(
+        transformedUsers[0],
+        'Utente trovato'
+      ));
+    }
+    
+    // Se ci sono più risultati, restituisci la lista
+    return res.json(ResponseFormatter.success(
+      transformedUsers,
+      `Trovati ${transformedUsers.length} utenti`
+    ));
+    
+  } catch (error) {
+    logger.error('[ADMIN USER SEARCH] Error:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Errore nella ricerca utente',
+      'SEARCH_ERROR'
+    ));
+  }
+});
+
+// GET /api/admin/users/:id - Dettagli utente specifico
 router.get('/:id', authenticate, requireAdmin, async (req: any, res) => {
   try {
     const userId = req.params.id;

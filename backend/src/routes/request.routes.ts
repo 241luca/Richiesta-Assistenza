@@ -72,20 +72,25 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
     const requests = await prisma.assistanceRequest.findMany({
       where: whereClause,
       include: {
-        User_AssistanceRequest_clientIdToUser: true,
-        User_AssistanceRequest_professionalIdToUser: {
-          include: {
-            Profession: true
-          }
-        },
+        client: true,
+        professional: true,
         Category: true,
         Subcategory: true,
         Quote: {
-          include: {
-            User: true
+          select: {
+            id: true,
+            status: true,
+            amount: true,
+            currency: true
           }
         },
-        RequestAttachment: true
+        RequestAttachment: true,
+        _count: {
+          select: {
+            Quote: true,
+            RequestAttachment: true
+          }
+        }
       },
       orderBy: {
         createdAt: 'desc'
@@ -296,7 +301,7 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
         updatedAt: new Date()
       },
       include: {
-        User_AssistanceRequest_clientIdToUser: true,
+        client: true,
         Category: true,
         Subcategory: true
       }
@@ -498,8 +503,8 @@ router.post('/for-client', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Au
         updatedAt: new Date()
       },
       include: {
-        User_AssistanceRequest_clientIdToUser: true,
-        User_AssistanceRequest_professionalIdToUser: {
+        client: true,
+        professional: {
           include: {
             Profession: true
           }
@@ -546,8 +551,8 @@ router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
         id: req.params.id
       },
       include: {
-        User_AssistanceRequest_clientIdToUser: true,
-        User_AssistanceRequest_professionalIdToUser: {
+        client: true,
+        professional: {
           include: {
             Profession: true
           }
@@ -630,8 +635,8 @@ router.post(
       const request = await prisma.assistanceRequest.findUnique({
         where: { id },
         include: {
-          User_AssistanceRequest_clientIdToUser: true,
-          User_AssistanceRequest_professionalIdToUser: true
+          client: true,
+          professional: true
         }
       });
 
@@ -674,8 +679,8 @@ router.post(
           updatedAt: new Date()
         },
         include: {
-          User_AssistanceRequest_clientIdToUser: true,
-          User_AssistanceRequest_professionalIdToUser: {
+          client: true,
+          professional: {
             include: {
               Profession: true
             }
@@ -694,12 +699,15 @@ router.post(
             ? `Il cliente ha cancellato la richiesta. Motivo: ${reason}`
             : 'Il cliente ha cancellato la richiesta';
             
-          await notificationService.sendToUser(request.professionalId, {
+          await notificationService.sendToUser({
+            userId: request.professionalId,
             title: '❌ Richiesta Cancellata',
             message,
             type: 'request_cancelled',
-            relatedId: id,
-            relatedType: 'request'
+            data: {
+              relatedId: id,
+              relatedType: 'request'
+            }
           });
         } catch (notifError) {
           logger.warn('Could not send cancellation notification to professional:', notifError);
@@ -791,7 +799,7 @@ router.post('/:id/assign', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Au
     const request = await prisma.assistanceRequest.findUnique({
       where: { id },
       include: {
-        User_AssistanceRequest_clientIdToUser: true,
+        client: true,
         Subcategory: true
       }
     });
@@ -838,8 +846,8 @@ router.post('/:id/assign', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Au
         updatedAt: new Date()
       },
       include: {
-        User_AssistanceRequest_clientIdToUser: true,
-        User_AssistanceRequest_professionalIdToUser: {
+        client: true,
+        professional: {
           include: {
             Profession: true
           }
@@ -888,7 +896,7 @@ router.patch('/:id/schedule', requireRole(['PROFESSIONAL']), async (req: AuthReq
         status: 'ASSIGNED'
       },
       include: {
-        User_AssistanceRequest_clientIdToUser: true
+        client: true
       }
     });
 
@@ -913,8 +921,8 @@ router.patch('/:id/schedule', requireRole(['PROFESSIONAL']), async (req: AuthReq
         updatedAt: new Date()
       },
       include: {
-        User_AssistanceRequest_clientIdToUser: true,
-        User_AssistanceRequest_professionalIdToUser: {
+        client: true,
+        professional: {
           include: {
             Profession: true
           }
@@ -949,8 +957,8 @@ router.get('/:id/pdf', async (req: AuthRequest, res: Response, next: NextFunctio
     const request = await prisma.assistanceRequest.findUnique({
       where: { id },
       include: {
-        User_AssistanceRequest_clientIdToUser: true,
-        User_AssistanceRequest_professionalIdToUser: true
+        client: true,
+        professional: true
       }
     });
     
@@ -1046,8 +1054,8 @@ router.put('/:id/status', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Aut
       where: { id },
       data: updateData,
       include: {
-        User_AssistanceRequest_clientIdToUser: true,
-        User_AssistanceRequest_professionalIdToUser: true
+        client: true,
+        professional: true
       }
     });
     
@@ -1060,12 +1068,15 @@ router.put('/:id/status', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Aut
           ? `La tua richiesta è stata annullata. Motivo: ${cancelReason}`
           : `La tua richiesta è ora in stato: ${status}`;
         
-        await notificationService.sendToUser(updatedRequest.clientId, {
+        await notificationService.sendToUser({
+          userId: updatedRequest.clientId,
           title,
           message,
           type: 'request_status_updated',
-          relatedId: id,
-          relatedType: 'request'
+          data: {
+            relatedId: id,
+            relatedType: 'request'
+          }
         });
       } catch (notificationError) {
         logger.warn('Could not send notification to client:', notificationError);
@@ -1076,12 +1087,15 @@ router.put('/:id/status', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Aut
     // Se assegnata, notifica anche il professionista
     if (updatedRequest.professionalId && status === 'IN_PROGRESS') {
       try {
-        await notificationService.sendToUser(updatedRequest.professionalId, {
+        await notificationService.sendToUser({
+          userId: updatedRequest.professionalId,
           title: 'Richiesta in corso',
           message: 'La richiesta è stata impostata come "In corso"',
           type: 'request_status_updated',
-          relatedId: id,
-          relatedType: 'request'
+          data: {
+            relatedId: id,
+            relatedType: 'request'
+          }
         });
       } catch (notificationError) {
         logger.warn('Could not send notification to professional:', notificationError);
@@ -1122,20 +1136,23 @@ router.put('/:id/priority', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: A
         updatedAt: new Date()
       },
       include: {
-        User_AssistanceRequest_clientIdToUser: true,
-        User_AssistanceRequest_professionalIdToUser: true
+        client: true,
+        professional: true
       }
     });
     
     // Se urgente, notifica il professionista assegnato (solo se esiste)
     if (priority === 'URGENT' && updatedRequest.professionalId) {
       try {
-        await notificationService.sendToUser(updatedRequest.professionalId, {
+        await notificationService.sendToUser({
+          userId: updatedRequest.professionalId,
           title: '⚠️ Richiesta URGENTE',
           message: 'Una richiesta assegnata a te è stata marcata come URGENTE',
           type: 'request_priority_updated',
-          relatedId: id,
-          relatedType: 'request'
+          data: {
+            relatedId: id,
+            relatedType: 'request'
+          }
         });
       } catch (notificationError) {
         logger.warn('Could not send notification to professional:', notificationError);
@@ -1166,8 +1183,8 @@ router.get('/:id/chat', async (req: AuthRequest, res: Response) => {
     const request = await prisma.assistanceRequest.findUnique({
       where: { id },
       include: {
-        User_AssistanceRequest_clientIdToUser: true,
-        User_AssistanceRequest_professionalIdToUser: true
+        client: true,
+        professional: true
       }
     });
     
@@ -1308,8 +1325,8 @@ router.post('/:id/chat', async (req: AuthRequest, res: Response) => {
     const request = await prisma.assistanceRequest.findUnique({
       where: { id },
       include: {
-        User_AssistanceRequest_clientIdToUser: true,
-        User_AssistanceRequest_professionalIdToUser: true
+        client: true,
+        professional: true
       }
     });
     
@@ -1370,12 +1387,15 @@ router.post('/:id/chat', async (req: AuthRequest, res: Response) => {
     
     for (const recipientId of recipients) {
       try {
-        await notificationService.sendToUser(recipientId, {
+        await notificationService.sendToUser({
+          userId: recipientId,
           title: 'Nuovo messaggio nella chat',
           message: `Hai ricevuto un nuovo messaggio per la richiesta: ${request.title}`,
           type: 'chat_message',
-          relatedId: id,
-          relatedType: 'request'
+          data: {
+            relatedId: id,
+            relatedType: 'request'
+          }
         });
       } catch (notifError) {
         logger.warn('Could not send chat notification:', notifError);
@@ -1409,7 +1429,7 @@ router.patch('/:id/coordinates', async (req: AuthRequest, res: Response, next: N
     const request = await prisma.assistanceRequest.findUnique({
       where: { id },
         include: {
-          User_AssistanceRequest_clientIdToUser: true
+          client: true
         }
     });
 
@@ -1440,8 +1460,8 @@ router.patch('/:id/coordinates', async (req: AuthRequest, res: Response, next: N
         updatedAt: new Date()
       },
       include: {
-        User_AssistanceRequest_clientIdToUser: true,
-        User_AssistanceRequest_professionalIdToUser: true,
+        client: true,
+        professional: true,
         Category: true,
         Subcategory: true,
         Quote: true,
@@ -1470,6 +1490,23 @@ router.patch('/:id/coordinates', async (req: AuthRequest, res: Response, next: N
     ));
   } catch (error) {
     logger.error('Error updating request coordinates:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/requests/:id/forms
+ * Ottiene tutti i form inviati per una richiesta
+ */
+router.get('/:id/forms', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { customFormService } = await import('../services/customForm.service');
+    
+    const result = await customFormService.getRequestForms(id);
+    res.status(result.success ? 200 : 500).json(result);
+  } catch (error) {
+    logger.error('Error getting request forms:', error);
     next(error);
   }
 });

@@ -37,6 +37,161 @@ router.get('/config', async (req, res) => {
 // AUTHENTICATED ENDPOINTS
 // ========================================
 
+// GET /api/payments/my-payments - Lista TUTTI pagamenti (SUPER_ADMIN + statistiche globali)
+router.get('/my-payments', authenticate, async (req: any, res) => {
+  try {
+    const { 
+      status, 
+      type, 
+      method, 
+      search, 
+      from, 
+      to,
+      page = 1,
+      limit = 10
+    } = req.query;
+    
+    // Costruisci filtri per TUTTI i pagamenti (no ruolo check)
+    const where: any = {};
+    
+    // Filtri opzionali
+    if (status) where.status = status;
+    if (type) where.type = type;
+    if (method) where.method = method;
+    
+    // Filtro date
+    if (from || to) {
+      where.createdAt = {};
+      if (from) where.createdAt.gte = new Date(from as string);
+      if (to) where.createdAt.lte = new Date(to as string);
+    }
+    
+    // Ricerca testuale - cerca in professionista, cliente, descrizione
+    if (search) {
+      where.OR = [
+        { description: { contains: search as string, mode: 'insensitive' } },
+        { User_Payment_professionalIdToUser: { OR: [
+          { firstName: { contains: search as string, mode: 'insensitive' } },
+          { lastName: { contains: search as string, mode: 'insensitive' } },
+          { email: { contains: search as string, mode: 'insensitive' } }
+        ] } },
+        { User_Payment_clientIdToUser: { OR: [
+          { firstName: { contains: search as string, mode: 'insensitive' } },
+          { lastName: { contains: search as string, mode: 'insensitive' } },
+          { email: { contains: search as string, mode: 'insensitive' } }
+        ] } },
+        { AssistanceRequest: { title: { contains: search as string, mode: 'insensitive' } } }
+      ];
+    }
+    
+    // Paginazione
+    const skip = (Number(page) - 1) * Number(limit);
+    const take = Number(limit);
+    
+    // Query database con tutte le relazioni necessarie
+    const [payments, total] = await Promise.all([
+      prisma.payment.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          User_Payment_clientIdToUser: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          },
+          User_Payment_professionalIdToUser: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              ragioneSociale: true  // Campo ragioneSociale per professionisti
+            }
+          },
+          AssistanceRequest: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              Subcategory: {
+                select: {
+                  name: true
+                }
+              }
+            }
+          },
+          Quote: {
+            select: {
+              id: true,
+              amount: true,
+              description: true
+            }
+          },
+          Invoice: true
+        }
+      }),
+      prisma.payment.count({ where })
+    ]);
+    
+    // Calcola statistiche globali
+    const statsWhere = from || to ? {
+      createdAt: where.createdAt
+    } : {};
+    
+    const [completedPayments, pendingPayments, failedPayments, totalRevenue] = await Promise.all([
+      prisma.payment.count({ where: { ...statsWhere, status: PaymentStatus.COMPLETED } }),
+      prisma.payment.count({ where: { ...statsWhere, status: PaymentStatus.PENDING } }),
+      prisma.payment.count({ where: { ...statsWhere, status: PaymentStatus.FAILED } }),
+      prisma.payment.aggregate({ 
+        where: { ...statsWhere, status: PaymentStatus.COMPLETED },
+        _sum: { amount: true }
+      })
+    ]);
+    
+    // Trasforma i dati per il frontend (rinomina i campi per la compatibilità)
+    const formattedPayments = payments.map((payment: any) => {
+      // Prendi la prima fattura dall'array Invoice
+      const invoice = Array.isArray(payment.Invoice) && payment.Invoice.length > 0 
+        ? payment.Invoice[0] 
+        : null;
+      
+      return {
+        ...payment,
+        professional: payment.User_Payment_professionalIdToUser,
+        client: payment.User_Payment_clientIdToUser,
+        request: payment.AssistanceRequest,
+        quote: payment.Quote,
+        invoice: invoice,
+        paymentMethod: payment.method    // Compatibilità frontend
+      };
+    });
+    
+    res.json(ResponseFormatter.success({
+      payments: formattedPayments,
+      stats: {
+        total: totalRevenue._sum.amount || 0,
+        completed: completedPayments,
+        pending: pendingPayments,
+        failed: failedPayments
+      },
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit))
+      }
+    }));
+  } catch (error: any) {
+    logger.error('Get my-payments error:', error);
+    res.status(500).json(ResponseFormatter.error('Failed to get payments'));
+  }
+});
+
 // GET /api/payments/stats - Statistiche pagamenti
 router.get('/stats', authenticate, async (req: any, res) => {
   try {

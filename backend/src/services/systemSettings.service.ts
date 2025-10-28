@@ -24,7 +24,7 @@ export class SystemSettingsService {
     try {
       const settings = await prisma.systemSetting.findMany({
         orderBy: [
-          { Category: 'asc' },
+          { category: 'asc' },
           { key: 'asc' }
         ]
       });
@@ -48,7 +48,7 @@ export class SystemSettingsService {
   /**
    * Get settings by category
    */
-  async getSettingsByCategory(Category: string) {
+  async getSettingsByCategory(category: string) {
     try {
       const settings = await prisma.systemSetting.findMany({
         where: { category },
@@ -157,7 +157,7 @@ export class SystemSettingsService {
           value: value,
           label: options?.label,
           description: options?.description,
-          Category: options?.category,
+          category: options?.category,
           type: options?.type,
           isEditable: options?.isEditable,
           isPublic: options?.isPublic,
@@ -171,7 +171,7 @@ export class SystemSettingsService {
           type: options?.type || 'string',
           label: options?.label || key,
           description: options?.description,
-          Category: options?.category || 'general',
+          category: options?.category || 'general',
           isEditable: options?.isEditable ?? true,
           isPublic: options?.isPublic ?? false,
           validation: options?.validation,

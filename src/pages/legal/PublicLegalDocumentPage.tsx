@@ -19,6 +19,10 @@ import { toast } from 'react-hot-toast';
 export default function PublicLegalDocumentPage() {
   const { type } = useParams<{ type: string }>();
   const navigate = useNavigate();
+  
+  // Leggi il parametro version dalla query string
+  const searchParams = new URLSearchParams(window.location.search);
+  const requestedVersion = searchParams.get('version');
 
   // Funzione per tornare indietro
   const handleGoBack = () => {
@@ -36,11 +40,14 @@ export default function PublicLegalDocumentPage() {
 
   // Fetch del documento pubblico
   const { data: document, isLoading, error } = useQuery({
-    queryKey: ['public-legal-document', documentType],
+    queryKey: ['public-legal-document', documentType, requestedVersion],
     queryFn: async () => {
       // L'endpoint pubblico non richiede autenticazione
       // Usa apiClient direttamente invece di api wrapper
-      const response = await apiClient.get(`/public/legal/${type}`);
+      const url = requestedVersion 
+        ? `/public/legal/${type}?version=${requestedVersion}`
+        : `/public/legal/${type}`;
+      const response = await apiClient.get(url);
       return response.data?.data;
     },
     enabled: !!type

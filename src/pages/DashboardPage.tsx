@@ -25,8 +25,10 @@ import {
   ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import { apiClient as api } from '@/services/api';
+import { clientCustomFormsAPI } from '../services/clientCustomForms.api';
 import { GuaranteeBanner } from '@/components/guarantees';
 import { OnboardingChecklist } from '@/components/onboarding';
+import ImageReminders from '../components/dashboard/ImageReminders';
 
 interface DashboardData {
   stats: {
@@ -150,6 +152,16 @@ export default function DashboardPage() {
     refetchInterval: 60000, // Refresh every minute
   });
 
+  // Query per i custom forms pendenti - SOLO PER CLIENTI
+  const { data: pendingFormsData } = useQuery({
+    queryKey: ['client-pending-forms'],
+    queryFn: () => clientCustomFormsAPI.getPendingForms(),
+    enabled: user?.role === 'CLIENT', // Solo per clienti
+    staleTime: 2 * 60 * 1000
+  });
+
+  const pendingCustomForms = pendingFormsData?.data || [];
+
   // Handler per completamento task onboarding
   const handleTaskComplete = (taskId: string) => {
     // Qui potresti aggiungere logica per tracciare il completamento
@@ -240,6 +252,9 @@ export default function DashboardPage() {
         userName={user?.firstName || user?.email?.split('@')[0] || 'utente'}
         onTaskComplete={handleTaskComplete}
       />
+
+      {/* 📸 PROMEMORIA IMMAGINI MANCANTI */}
+      <ImageReminders />
 
       {/* NUOVO: Alert per interventi da confermare - SOLO PER CLIENTI */}
       {isClient && interventionsToConfirm.length > 0 && (
@@ -556,6 +571,92 @@ export default function DashboardPage() {
                   <Link to={isClient ? "/my-legal-documents" : "/professional/legal-documents"}>
                     <Button variant="outline" className="border-purple-400 text-purple-700 hover:bg-purple-50">
                       Vedi tutti i documenti
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* NUOVO: Alert per custom forms pendenti - SOLO PER CLIENTI */}
+      {isClient && pendingCustomForms.length > 0 && (
+        <div className="mb-8">
+          <Alert className="border-blue-200 bg-blue-50">
+            <DocumentCheckIcon className="h-5 w-5 text-blue-600" />
+            <div className="ml-3">
+              <AlertDescription className="text-blue-800">
+                <span className="font-semibold">Nuovi Moduli!</span> Hai{' '}
+                <span className="font-bold text-blue-900">
+                  {pendingCustomForms.length} {pendingCustomForms.length === 1 ? 'modulo' : 'moduli'} da compilare
+                </span>
+              </AlertDescription>
+            </div>
+          </Alert>
+          
+          {/* Card con i moduli da compilare */}
+          <Card className="mt-4 border-blue-200">
+            <CardHeader className="bg-blue-50">
+              <CardTitle className="flex items-center text-blue-900">
+                <DocumentCheckIcon className="h-5 w-5 mr-2" />
+                Moduli da Compilare
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="space-y-3">
+                {pendingCustomForms.slice(0, 3).map((form: any) => (
+                  <div
+                    key={form.id}
+                    className="p-4 bg-white border-2 border-blue-200 rounded-lg"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center mb-2">
+                          <Badge className="bg-blue-100 text-blue-800">
+                            DA COMPILARE
+                          </Badge>
+                          <span className="ml-2 text-sm font-semibold text-gray-900">
+                            {form.CustomForm.name}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700 mb-1">
+                          <span className="font-medium">Richiesta:</span>{' '}
+                          <Link to={`/requests/${form.requestId}`} className="text-blue-600 hover:underline">
+                            {form.Request?.title || 'Vedi richiesta'}
+                          </Link>
+                        </p>
+                        {form.CustomForm.description && (
+                          <p className="text-sm text-gray-600 italic">
+                            {form.CustomForm.description}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-2">
+                          📅 Ricevuto il {new Date(form.createdAt).toLocaleDateString('it-IT')}
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Link to="/client/custom-forms">
+                          <Button 
+                            size="sm" 
+                            className="bg-blue-600 hover:bg-blue-700 text-white w-full"
+                          >
+                            Compila ora
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {pendingCustomForms.length > 3 && (
+                <div className="mt-4 text-center">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Ci sono altri {pendingCustomForms.length - 3} moduli da compilare
+                  </p>
+                  <Link to="/client/custom-forms">
+                    <Button variant="outline" className="border-blue-400 text-blue-700 hover:bg-blue-50">
+                      Vedi tutti i moduli
                     </Button>
                   </Link>
                 </div>

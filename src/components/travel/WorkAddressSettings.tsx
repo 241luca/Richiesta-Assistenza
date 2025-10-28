@@ -8,7 +8,7 @@ import { useForm } from 'react-hook-form';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import toast from 'react-hot-toast';
-import { PlaceAutocomplete } from '../address/PlaceAutocomplete';
+import AddressGeocoding from '../address/AddressGeocoding';
 import { useWorkAddress, useTravel } from '../../hooks/useTravel';
 
 interface WorkAddressFormData {
@@ -58,10 +58,10 @@ export const WorkAddressSettings: React.FC<WorkAddressSettingsProps> = ({
       setShowAddressFields(!useResidence);
       
       setValue('useResidenceAsWorkAddress', useResidence ? 'true' : 'false');
-      setValue('workAddress', workAddress.workAddress || '');
-      setValue('workCity', workAddress.workCity || '');
-      setValue('workProvince', workAddress.workProvince || '');
-      setValue('workPostalCode', workAddress.workPostalCode || '');
+      setValue('workAddress', workAddress.address || '');
+      setValue('workCity', workAddress.city || '');
+      setValue('workProvince', workAddress.province || '');
+      setValue('workPostalCode', workAddress.postalCode || '');
     }
   }, [workAddress, setValue]);
 
@@ -205,34 +205,22 @@ export const WorkAddressSettings: React.FC<WorkAddressSettingsProps> = ({
                 </div>
               </div>
 
-              <PlaceAutocomplete
-                value={currentWorkAddress || ''}
-                onChange={(formatted, place) => {
-                  setValue('workAddress', formatted);
-                  
-                  if (place?.address_components) {
-                    const components = place.address_components;
-                    
-                    const city = components.find(c => 
-                      c.types.includes('locality') || 
-                      c.types.includes('administrative_area_level_3')
-                    );
-                    if (city) setValue('workCity', city.long_name);
-                    
-                    const province = components.find(c => 
-                      c.types.includes('administrative_area_level_2')
-                    );
-                    if (province) setValue('workProvince', province.short_name);
-                    
-                    const postalCode = components.find(c => 
-                      c.types.includes('postal_code')
-                    );
-                    if (postalCode) setValue('workPostalCode', postalCode.long_name);
-                  }
+              <AddressGeocoding
+                value={{
+                  address: watch('workAddress') || '',
+                  city: watch('workCity') || '',
+                  province: watch('workProvince') || '',
+                  postalCode: watch('workPostalCode') || ''
                 }}
-                placeholder="Via, numero civico, città"
-                label="Indirizzo completo"
-                error={errors.workAddress?.message}
+                onChange={(data) => {
+                  setValue('workAddress', data.address);
+                  setValue('workCity', data.city);
+                  setValue('workProvince', data.province);
+                  setValue('workPostalCode', data.postalCode);
+                }}
+                errors={{
+                  address: errors.workAddress
+                }}
               />
 
               {watch('workCity') && (

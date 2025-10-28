@@ -110,7 +110,13 @@ export function formatAssistanceRequest(request: any): any {
     quotes: quotesRel ? quotesRel.map(formatQuote) : [],
     attachments: attachmentsRel ? attachmentsRel.map(formatAttachment) : [],
     updates: updatesRel ? updatesRel.map(formatRequestUpdate) : [],
-    messages: messagesRel ? messagesRel.map(formatMessage) : []
+    messages: messagesRel ? messagesRel.map(formatMessage) : [],
+    
+    // Aggiungi conteggi
+    _count: request._count ? {
+      quotes: request._count.Quote || 0,
+      attachments: request._count.RequestAttachment || 0
+    } : null
   };
 }
 
@@ -131,14 +137,9 @@ export function formatUser(user: any): any {
     // Mantieni role in UPPERCASE
     role: user.role,
     avatar: user.avatar,
+    profileImage: user.profileImage,  // AGGIUNTO: Campo per l'immagine del profilo
     bio: user.bio,
     status: user.status,
-    // Campi di approvazione/verifica professionista
-    approvalStatus: user.approvalStatus,
-    approvedAt: safeToISOString(user.approvedAt),
-    approvedBy: user.approvedBy,
-    rejectionReason: user.rejectionReason,
-    isVerified: user.isVerified,
     address: user.address,
     city: user.city,
     province: user.province,
@@ -155,6 +156,9 @@ export function formatUser(user: any): any {
     emailVerified: user.emailVerified,
     // IMPORTANTE: Aggiungi il campo canSelfAssign per i professionisti
     canSelfAssign: user.canSelfAssign,
+    // AGGIUNTO: Campo per l'immagine di riconoscimento
+    recognitionImage: user.recognitionImage,
+    isRecognitionImageRequired: user.isRecognitionImageRequired,
     lastLoginAt: safeToISOString(user.lastLoginAt),
     createdAt: safeToISOString(user.createdAt),
     updatedAt: safeToISOString(user.updatedAt)

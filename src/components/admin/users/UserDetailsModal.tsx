@@ -69,8 +69,16 @@ export default function UserDetailsModal({ user, onClose }: UserDetailsModalProp
         {/* Header - Fixed */}
         <div className="flex justify-between items-center mb-6 pb-4 border-b">
           <div className="flex items-center gap-4">
-            <div className="h-16 w-16 bg-gray-200 rounded-full flex items-center justify-center">
-              <UserCircleIcon className="h-10 w-10 text-gray-500" />
+            <div className="h-16 w-16 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
+              {details?.user.avatar || details?.user.profileImage ? (
+                <img 
+                  src={details?.user.avatar || details?.user.profileImage} 
+                  alt={`Avatar di ${details?.user.fullName}`}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <UserCircleIcon className="h-10 w-10 text-gray-500" />
+              )}
             </div>
             <div>
               <h3 className="text-xl font-bold text-gray-900">{details?.user.fullName}</h3>
@@ -121,6 +129,52 @@ export default function UserDetailsModal({ user, onClose }: UserDetailsModalProp
         <div className="max-h-[60vh] overflow-y-auto">
           {activeTab === 'info' && (
             <div className="space-y-6">
+              {/* Immagini */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-500 mb-3">Immagini</h4>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Avatar */}
+                    <div>
+                      <h5 className="text-sm font-medium text-gray-700 mb-2">Avatar</h5>
+                      <div className="w-32 h-32 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
+                        {details?.user.avatar || details?.user.profileImage ? (
+                          <img 
+                            src={details?.user.avatar || details?.user.profileImage} 
+                            alt={`Avatar di ${details?.user.fullName}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="text-center">
+                            <UserCircleIcon className="h-12 w-12 text-gray-400 mx-auto mb-1" />
+                            <span className="text-xs text-gray-500">Nessun avatar</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Immagine di riconoscimento */}
+                    <div>
+                      <h5 className="text-sm font-medium text-gray-700 mb-2">Immagine di Riconoscimento</h5>
+                      <div className="w-32 h-32 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
+                        {details?.user.recognitionImage ? (
+                          <img 
+                            src={details?.user.recognitionImage} 
+                            alt={`Immagine di riconoscimento di ${details?.user.fullName}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="text-center">
+                            <UserCircleIcon className="h-12 w-12 text-gray-400 mx-auto mb-1" />
+                            <span className="text-xs text-gray-500">Nessuna immagine</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Informazioni personali */}
               <div>
                 <h4 className="text-sm font-medium text-gray-500 mb-3">Informazioni Personali</h4>

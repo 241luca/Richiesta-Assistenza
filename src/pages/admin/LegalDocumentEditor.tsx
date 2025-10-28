@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
 import { toast } from 'react-hot-toast';
 import { Editor } from '@tinymce/tinymce-react';
@@ -78,6 +79,9 @@ interface DocumentTemplate {
 }
 
 export default function LegalDocumentEditor() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [selectedVersion, setSelectedVersion] = useState<Version | null>(null);
   const [editorContent, setEditorContent] = useState('');
@@ -86,7 +90,6 @@ export default function LegalDocumentEditor() {
   const [newVersionNumber, setNewVersionNumber] = useState('');
   const [newVersionTitle, setNewVersionTitle] = useState('');
   const [tinymceApiKey, setTinymceApiKey] = useState<string | null>(null);
-  const queryClient = useQueryClient();
 
   // Stati per creazione nuovo documento
   const [showNewDocumentModal, setShowNewDocumentModal] = useState(false);
@@ -449,179 +452,28 @@ export default function LegalDocumentEditor() {
     }
   };
 
-  // Template predefiniti COMPLETI
-  const applyTemplate = (type: string) => {
-    const templates: Record<string, string> = {
-      PRIVACY_POLICY: `<h1>Informativa sulla Privacy</h1>
-<p><em>Ai sensi del Regolamento UE 2016/679 (GDPR) e del D.Lgs. 196/2003</em></p>
+  // Applica template dal database
+  const applyTemplate = async (type: string) => {
+    try {
+      // Cerca il template nel database corrispondente al tipo
+      const template = templates?.find((t: any) => t.type === type);
+      
+      if (template && template.content) {
+        setEditorContent(template.content);
+        toast.success(`Template "${template.name}" applicato!`);
+      } else {
+        // Fallback: template vuoto se non trovato nel database
+        const fallbackContent = `<h1>Nuovo Documento ${type.replace(/_/g, ' ')}</h1>
 <p><strong>Ultimo aggiornamento:</strong> ${new Date().toLocaleDateString('it-IT')}</p>
-
-<h2>1. Titolare del Trattamento</h2>
-<p>Il Titolare del trattamento dei dati personali è <strong>Richiesta Assistenza S.r.l.</strong>, con sede legale in Via Example 123, 00100 Roma, Italia.</p>
-<ul>
-<li>P.IVA: 12345678901</li>
-<li>Email: privacy@richiesta-assistenza.it</li>
-<li>PEC: privacy@pec.richiesta-assistenza.it</li>
-<li>Telefono: +39 06 12345678</li>
-</ul>
-
-<h2>2. Responsabile della Protezione dei Dati (DPO)</h2>
-<p>Il Responsabile della Protezione dei Dati può essere contattato all'indirizzo:</p>
-<ul>
-<li>Email: dpo@richiesta-assistenza.it</li>
-</ul>
-
-<h2>3. Tipologie di Dati Raccolti</h2>
-<p>Nell'ambito dell'erogazione dei nostri servizi, trattiamo le seguenti categorie di dati personali:</p>
-
-<h3>3.1 Dati Anagrafici e di Contatto</h3>
-<ul>
-<li>Nome e cognome</li>
-<li>Data e luogo di nascita</li>
-<li>Codice fiscale e/o Partita IVA</li>
-<li>Indirizzo di residenza/domicilio</li>
-<li>Indirizzo email</li>
-<li>Numero di telefono fisso e/o mobile</li>
-</ul>
-
-<h3>3.2 Dati di Accesso e Utilizzo</h3>
-<ul>
-<li>Username e password (criptata)</li>
-<li>Indirizzo IP di connessione</li>
-<li>Log di accesso e attività sulla piattaforma</li>
-<li>Preferenze di utilizzo del servizio</li>
-<li>Storico delle richieste di assistenza</li>
-</ul>
-
-<h3>3.3 Dati di Pagamento</h3>
-<ul>
-<li>Coordinate bancarie (IBAN)</li>
-<li>Dati della carta di credito/debito (tramite provider sicuro)</li>
-<li>Storico transazioni e fatturazioni</li>
-</ul>
-
-<h2>4. Finalità del Trattamento e Base Giuridica</h2>
-<p>I suoi dati personali saranno trattati per le seguenti finalità:</p>
-
-<table>
-<thead>
-<tr>
-<th>Finalità</th>
-<th>Base Giuridica</th>
-<th>Periodo di Conservazione</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Erogazione del servizio</td>
-<td>Esecuzione del contratto (art. 6.1.b GDPR)</td>
-<td>Durata del contratto + 10 anni</td>
-</tr>
-<tr>
-<td>Gestione amministrativa</td>
-<td>Obbligo legale (art. 6.1.c GDPR)</td>
-<td>10 anni dalla cessazione</td>
-</tr>
-<tr>
-<td>Marketing diretto</td>
-<td>Consenso (art. 6.1.a GDPR)</td>
-<td>Fino a revoca del consenso</td>
-</tr>
-</tbody>
-</table>
-
-<h2>5. Diritti dell'Interessato</h2>
-<p>In qualità di interessato, Lei ha diritto di:</p>
-<ul>
-<li><strong>Accesso (art. 15 GDPR):</strong> ottenere conferma e accesso ai dati</li>
-<li><strong>Rettifica (art. 16 GDPR):</strong> correggere dati inesatti</li>
-<li><strong>Cancellazione (art. 17 GDPR):</strong> richiedere la cancellazione</li>
-<li><strong>Limitazione (art. 18 GDPR):</strong> limitare il trattamento</li>
-<li><strong>Portabilità (art. 20 GDPR):</strong> ricevere i dati in formato strutturato</li>
-<li><strong>Opposizione (art. 21 GDPR):</strong> opporsi al trattamento</li>
-</ul>
-
-<h2>6. Contatti</h2>
-<p>Per esercitare i suoi diritti o per qualsiasi domanda sulla privacy:</p>
-<ul>
-<li>Email: privacy@richiesta-assistenza.it</li>
-<li>PEC: privacy@pec.richiesta-assistenza.it</li>
-<li>Telefono: +39 06 12345678</li>
-</ul>`,
-
-      TERMS_SERVICE: `<h1>Termini e Condizioni di Servizio</h1>
-<p><strong>Ultimo aggiornamento:</strong> ${new Date().toLocaleDateString('it-IT')}</p>
-<p><strong>Versione:</strong> 1.0</p>
-
-<h2>1. Definizioni</h2>
-<p>Ai fini dei presenti Termini e Condizioni:</p>
-<ul>
-<li><strong>"Piattaforma"</strong>: il servizio online Richiesta Assistenza</li>
-<li><strong>"Società"</strong>: Richiesta Assistenza S.r.l.</li>
-<li><strong>"Cliente"</strong>: persona che richiede servizi di assistenza</li>
-<li><strong>"Professionista"</strong>: prestatore di servizi registrato</li>
-</ul>
-
-<h2>2. Oggetto del Servizio</h2>
-<p>La Piattaforma fornisce un servizio di intermediazione per servizi di assistenza tecnica professionale.</p>
-
-<h2>3. Registrazione e Account</h2>
-<p>Per utilizzare la Piattaforma è necessario:</p>
-<ul>
-<li>Avere almeno 18 anni di età</li>
-<li>Fornire informazioni veritiere</li>
-<li>Mantenere aggiornati i propri dati</li>
-</ul>
-
-<h2>4. Utilizzo del Servizio</h2>
-<p>L'utente si impegna a utilizzare il servizio in conformità con le leggi vigenti.</p>
-
-<h2>5. Pagamenti e Commissioni</h2>
-<p>La Società applica commissioni secondo il listino pubblicato.</p>
-
-<h2>6. Limitazione di Responsabilità</h2>
-<p>La Società agisce esclusivamente come intermediario.</p>
-
-<h2>7. Legge Applicabile</h2>
-<p>I presenti Termini sono regolati dalla legge italiana.</p>`,
-
-      COOKIE_POLICY: `<h1>Cookie Policy</h1>
-<p><strong>Ultimo aggiornamento:</strong> ${new Date().toLocaleDateString('it-IT')}</p>
-
-<h2>1. Cosa sono i Cookie</h2>
-<p>I cookie sono piccoli file di testo che i siti web salvano sul dispositivo dell'utente.</p>
-
-<h2>2. Tipologie di Cookie Utilizzati</h2>
-<h3>Cookie Tecnici</h3>
-<ul>
-<li>Cookie di sessione</li>
-<li>Cookie di autenticazione</li>
-</ul>
-
-<h3>Cookie Analitici</h3>
-<ul>
-<li>Google Analytics</li>
-<li>Cookie di performance</li>
-</ul>
-
-<h3>Cookie di Marketing</h3>
-<ul>
-<li>Google Ads</li>
-<li>Facebook Pixel</li>
-</ul>
-
-<h2>3. Gestione dei Cookie</h2>
-<p>È possibile gestire le preferenze sui cookie attraverso il browser.</p>
-
-<h2>4. Contatti</h2>
-<p>Per informazioni: privacy@richiesta-assistenza.it</p>`
-    };
-
-    const template = templates[type] || `<h1>Nuovo Documento</h1>
 <p>Contenuto del documento...</p>`;
-    
-    setEditorContent(template);
-    toast.success('Template applicato!');
+        
+        setEditorContent(fallbackContent);
+        toast('Nessun template trovato nel database. Vai su "Gestione Template" per caricare i template.');
+      }
+    } catch (error) {
+      console.error('Error applying template:', error);
+      toast.error('Errore nell\'applicazione del template');
+    }
   };
 
   // Gestione salvataggio
@@ -856,6 +708,13 @@ export default function LegalDocumentEditor() {
               </h1>
             </div>
             <div className="flex items-center space-x-2">
+              <button
+                onClick={() => navigate('/admin/legal-documents/templates')}
+                className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <DocumentDuplicateIcon className="h-5 w-5 mr-2" />
+                Gestione Template
+              </button>
               <button
                 onClick={() => setShowTemplatesModal(true)}
                 className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"

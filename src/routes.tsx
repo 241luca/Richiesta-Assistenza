@@ -28,9 +28,8 @@ import QuotesPage from './pages/QuotesPage';
 import QuoteDetailPage from './pages/QuoteDetailPage';
 import NewQuotePage from './pages/NewQuotePage';
 import EditQuotePage from './pages/EditQuotePage';
+import PaymentsPage from './pages/PaymentsPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
-import CategoriesPage from './pages/admin/CategoriesPage';
-import SubcategoriesPage from './pages/admin/SubcategoriesPage';
 import TaxonomyPage from './pages/admin/TaxonomyPage';
 import { AiConfigPage } from "./pages/admin/AiConfigPage";
 import { AiManagement } from "./pages/admin/AiManagement";
@@ -38,6 +37,7 @@ import SettingsPage from './pages/admin/SettingsPage';
 // NEW: Import new admin pages
 import SystemEnumsPage from './pages/admin/SystemEnumsPage';
 import SystemSettingsPage from './pages/admin/SystemSettingsPage';
+import ImageConfigPage from './pages/admin/ImageConfigPage';
 // TEMP: Import test page
 import SystemSettingsTestPage from './pages/admin/SystemSettingsTestPage';
 import SystemSettingsSimplePage from './pages/admin/SystemSettingsSimplePage';
@@ -81,6 +81,7 @@ import TestScriptConfig from './pages/admin/TestScriptConfig';
 
 // SISTEMA AUDIT LOG - Added 07/01/2025
 import AuditDashboard from './components/admin/audit/AuditDashboard';
+import OnboardingAnalyticsPage from './pages/admin/OnboardingAnalyticsPage';
 
 // SISTEMA HEALTH CHECK - Added 07/01/2025
 import HealthCheckDashboard from './pages/admin/HealthCheckDashboard';
@@ -96,8 +97,11 @@ import LegalDocumentVersionForm from './pages/admin/LegalDocumentVersionForm';
 import LegalDocumentEditor from './pages/admin/LegalDocumentEditor';
 import LegalAcceptancesPage from './pages/admin/LegalAcceptancesPage';
 import LegalAnalyticsPage from './pages/admin/LegalAnalyticsPage';
+import LegalTemplatesPage from './pages/admin/LegalTemplatesPage';
 import DocumentManagementPage from './pages/admin/DocumentManagementPage';
 import DocumentTypesPage from './pages/admin/DocumentTypesPage';
+import ExtendedDocumentTypesPage from './pages/admin/ExtendedDocumentTypesPage'; // NUOVO - Document Integration
+import UnifiedDocumentsDashboard from './pages/admin/UnifiedDocumentsDashboard'; // NUOVO - Unified Documents
 import DocumentCategoriesPage from './pages/admin/DocumentCategoriesPage';
 import ApprovalWorkflowsPage from './pages/admin/ApprovalWorkflowsPage';
 import UIConfigPage from './pages/admin/UIConfigPage';
@@ -106,6 +110,7 @@ import DocumentPermissionsPage from './pages/admin/DocumentPermissionsPage';
 import DocumentNotificationsPage from './pages/admin/DocumentNotificationsPage';
 import ContactPage from './pages/ContactPage';  // NUOVO - Pagina Contatti
 import GuaranteesPage from './pages/GuaranteesPage';  // NUOVO - Pagina Garanzie
+import GeocodingToolPage from './pages/admin/GeocodingToolPage';  // NUOVO - Tool Geocoding
 import DocumentFieldsPage from './pages/admin/DocumentFieldsPage';
 import LegalDocumentsIndexPage from './pages/legal/LegalDocumentsIndexPage';
 import PublicLegalDocumentPage from './pages/legal/PublicLegalDocumentPage';
@@ -119,7 +124,6 @@ import { TestCelebrationsPage } from './pages/TestCelebrationsPage';
 
 // SISTEMA AI DUALE - Added 15/01/2025
 import AIDualeDashboard from './pages/admin/AIDualeDashboard';
-import ProfessionCategoriesPage from './pages/admin/ProfessionCategoriesPage';
 import ReportsListPage from './pages/professional/reports/list';
 import NewReportPage from './pages/professional/reports/new';
 import ProfessionalPhrasesPage from './pages/professional/reports/phrases';
@@ -129,6 +133,7 @@ import ProfessionalSettingsPage from './pages/professional/reports/settings';
 import ClientReportsPage from './pages/client/reports/index';
 import ClientReportDetailPage from './pages/client/reports/detail';
 import RequestChat from './pages/requests/RequestChat';
+import RequestForms from './pages/requests/RequestForms';
 
 // SISTEMA REFERRAL - Added 05/10/2025
 import ReferralPage from './pages/ReferralPage';
@@ -136,6 +141,29 @@ import ReferralAdminPage from './pages/admin/ReferralAdminPage';
 
 // SISTEMA MODULI - Added 05/10/2025
 import { ModuleManager } from './pages/admin/ModuleManager';
+
+// SISTEMA SMARTDOCS - Added 24/10/2025
+import SmartDocsDashboard from './pages/admin/SmartDocsDashboard';
+import SmartDocsSettings from './pages/admin/SmartDocsSettings';
+import SmartDocsTestLab from './pages/admin/SmartDocsTestLab';
+import SmartDocsSyncSettings from './pages/admin/SmartDocsSyncSettings';
+import SmartDocsStorageDashboard from './pages/admin/SmartDocsStorageDashboard';
+import SmartDocsSyncMonitor from './pages/admin/SmartDocsSyncMonitor';
+import SmartDocsSystemStatus from './pages/admin/SmartDocsSystemStatus';
+import MyKnowledgeBase from './pages/MyKnowledgeBase';
+import SmartDocsPreferences from './pages/SmartDocsPreferences';
+import MyDocumentsUpload from './pages/MyDocumentsUpload';
+import ProfessionalSmartDocsPage from './pages/professional/MySmartDocsPage';
+import ClientSmartDocsPage from './pages/client/MySmartDocsPage';
+
+// SISTEMA RECENSIONI - Added 15/10/2025
+import ReviewSystemConfigPage from './pages/admin/ReviewSystemConfigPage';
+
+// SISTEMA CUSTOM FORMS - Added 15/01/2025
+import { CustomFormPage } from './pages/CustomFormPage';
+import { CustomFormManager } from './components/custom-forms/CustomFormManager';
+import { ProfessionalCustomFormsPage } from './pages/professional/ProfessionalCustomFormsPage';
+import { CustomFormsPage as ClientCustomFormsPage } from './pages/client/CustomFormsPage';
 
 // Admin Route wrapper component
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
@@ -210,6 +238,9 @@ export default function AppRoutes() {
       <Route path="/requests/:id/chat" element={
         isAuthenticated ? <Layout><RequestChat /></Layout> : <Navigate to="/login" />
       } />
+      <Route path="/requests/:id/forms" element={
+        isAuthenticated ? <Layout><RequestForms /></Layout> : <Navigate to="/login" />
+      } />
       <Route path="/requests/:id/edit" element={
         isAuthenticated ? <Layout><EditRequestPage /></Layout> : <Navigate to="/login" />
       } />
@@ -231,7 +262,10 @@ export default function AppRoutes() {
         isAuthenticated ? <Layout><QuoteDetailPage /></Layout> : <Navigate to="/login" />
       } />
       
-      {/* Admin routes */}
+      {/* Payments routes */}
+      <Route path="/payments" element={
+        isAuthenticated ? <Layout><PaymentsPage /></Layout> : <Navigate to="/login" />
+      } />
       <Route path="/admin" element={
         <AdminRoute>
           <Layout><AdminDashboard /></Layout>
@@ -252,16 +286,12 @@ export default function AppRoutes() {
           <Layout><UsersPage /></Layout>
         </AdminRoute>
       } />
-      <Route path="/admin/categories" element={
+      <Route path="/admin/gestione-servizi" element={
         <AdminRoute>
-          <Layout><CategoriesPage /></Layout>
+          <Layout><TaxonomyPage /></Layout>
         </AdminRoute>
       } />
-      <Route path="/admin/subcategories" element={
-        <AdminRoute>
-          <Layout><SubcategoriesPage /></Layout>
-        </AdminRoute>
-      } />
+      {/* LEGACY: Per compatibilità */}
       <Route path="/admin/taxonomy" element={
         <AdminRoute>
           <Layout><TaxonomyPage /></Layout>
@@ -327,6 +357,50 @@ export default function AppRoutes() {
         </AdminRoute>
       } />
       
+      {/* SISTEMA SMARTDOCS - Added 24/10/2025 (SUPER_ADMIN only) */}
+      <Route path="/admin/smartdocs" element={
+        <SuperAdminRoute>
+          <Layout><SmartDocsDashboard /></Layout>
+        </SuperAdminRoute>
+      } />
+      <Route path="/admin/smartdocs/settings" element={
+        <SuperAdminRoute>
+          <Layout><SmartDocsSettings /></Layout>
+        </SuperAdminRoute>
+      } />
+      <Route path="/admin/smartdocs/test-lab" element={
+        <SuperAdminRoute>
+          <Layout><SmartDocsTestLab /></Layout>
+        </SuperAdminRoute>
+      } />
+      <Route path="/admin/smartdocs/sync-settings" element={
+        <SuperAdminRoute>
+          <Layout><SmartDocsSyncSettings /></Layout>
+        </SuperAdminRoute>
+      } />
+      <Route path="/admin/smartdocs/storage" element={
+        <SuperAdminRoute>
+          <Layout><SmartDocsStorageDashboard /></Layout>
+        </SuperAdminRoute>
+      } />
+      <Route path="/admin/smartdocs/sync-monitor" element={
+        <SuperAdminRoute>
+          <Layout><SmartDocsSyncMonitor /></Layout>
+        </SuperAdminRoute>
+      } />
+      <Route path="/admin/smartdocs/system-status" element={
+        <SuperAdminRoute>
+          <Layout><SmartDocsSystemStatus /></Layout>
+        </SuperAdminRoute>
+      } />
+      
+      {/* SISTEMA RECENSIONI - Added 15/10/2025 (ADMIN e SUPER_ADMIN) */}
+      {/* Versione Avanzata */}
+      <Route path="/admin/reviews-system-config" element={
+        <AdminRoute>
+          <Layout><ReviewSystemConfigPage /></Layout>
+        </AdminRoute>
+      } />
       {/* SISTEMA AUDIT LOG - Added 07/01/2025 (ADMIN e SUPER_ADMIN) */}
       <Route path="/admin/audit" element={
         <AdminRoute>
@@ -334,7 +408,36 @@ export default function AppRoutes() {
         </AdminRoute>
       } />
       
-      {/* SISTEMA HEALTH CHECK - Added 07/01/2025 (ADMIN e SUPER_ADMIN) */}
+      {/* ONBOARDING ANALYTICS - usa audit logs (ADMIN e SUPER_ADMIN) */}
+      <Route path="/admin/onboarding/analytics" element={
+        <AdminRoute>
+          <Layout><OnboardingAnalyticsPage /></Layout>
+        </AdminRoute>
+      } />
+      {/* ONBOARDING MANAGEMENT - configurazione tutorial e checklist (ADMIN e SUPER_ADMIN) */}
+      <Route path="/admin/onboarding/tutorials" element={
+        <AdminRoute>
+          <Layout><OnboardingAnalyticsPage /></Layout>
+        </AdminRoute>
+      } />
+      
+      {/* SISTEMA CUSTOM FORMS - Added 15/01/2025 (ADMIN e SUPER_ADMIN) */}
+      <Route path="/admin/custom-forms" element={
+        <AdminRoute>
+          <Layout><CustomFormManager /></Layout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/custom-forms/new" element={
+        <AdminRoute>
+          <Layout><CustomFormPage /></Layout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/custom-forms/:id" element={
+        <AdminRoute>
+          <Layout><CustomFormPage /></Layout>
+        </AdminRoute>
+      } />
+      
       <Route path="/admin/health" element={
         <AdminRoute>
           <Layout><HealthCheckDashboard /></Layout>
@@ -347,6 +450,18 @@ export default function AppRoutes() {
           <Layout><SystemStatusPage /></Layout>
         </AdminRoute>
       } />
+
+      {/* SYSTEM STATUS PAGE (accessibile a tutti gli utenti autenticati) */}
+      <Route path="/system-status" element={
+        isAuthenticated ? <Layout><SystemStatusPage /></Layout> : <Navigate to="/login" />
+      } />
+      
+      {/* GEOCODING TOOL - Tool per testare geocodifica indirizzi */}
+      <Route path="/admin/geocoding" element={
+        <AdminRoute>
+          <Layout><GeocodingToolPage /></Layout>
+        </AdminRoute>
+      } />
       
       {/* SISTEMA GESTIONE DOCUMENTI CONFIGURABILE - Added 19/01/2025 */}
       <Route path="/admin/document-management" element={
@@ -357,6 +472,16 @@ export default function AppRoutes() {
       <Route path="/admin/document-management/types" element={
         <SuperAdminRoute>
           <Layout><DocumentTypesPage /></Layout>
+        </SuperAdminRoute>
+      } />
+      <Route path="/admin/document-management/types-extended" element={
+        <SuperAdminRoute>
+          <Layout><ExtendedDocumentTypesPage /></Layout>
+        </SuperAdminRoute>
+      } />
+      <Route path="/admin/document-management/unified" element={
+        <SuperAdminRoute>
+          <Layout><UnifiedDocumentsDashboard /></Layout>
         </SuperAdminRoute>
       } />
       <Route path="/admin/document-management/categories" element={
@@ -414,6 +539,11 @@ export default function AppRoutes() {
       <Route path="/admin/legal-documents/editor" element={
         <AdminRoute>
           <Layout><LegalDocumentEditor /></Layout>
+        </AdminRoute>
+      } />
+      <Route path="/admin/legal-documents/templates" element={
+        <AdminRoute>
+          <Layout><LegalTemplatesPage /></Layout>
         </AdminRoute>
       } />
       <Route path="/admin/legal-documents/new" element={
@@ -484,13 +614,6 @@ export default function AppRoutes() {
         </AdminRoute>
       } />
       
-      {/* Profession Categories Management (SUPER_ADMIN only) */}
-      <Route path="/admin/profession-categories" element={
-        <SuperAdminRoute>
-          <Layout><ProfessionCategoriesPage /></Layout>
-        </SuperAdminRoute>
-      } />
-      
       {/* Professional Management routes */}
       <Route path="/admin/professionals" element={
         <AdminRoute>
@@ -547,6 +670,11 @@ export default function AppRoutes() {
       <Route path="/admin/system-settings" element={
         <SuperAdminRoute>
           <Layout><SystemSettingsPage /></Layout>
+        </SuperAdminRoute>
+      } />
+      <Route path="/admin/image-config" element={
+        <SuperAdminRoute>
+          <Layout><ImageConfigPage /></Layout>
         </SuperAdminRoute>
       } />
       {/* TEMP: Test route */}
@@ -621,6 +749,56 @@ export default function AppRoutes() {
           : <Navigate to="/dashboard" />
       } />
       
+      {/* Professional Custom Forms Management */}
+      {/* Professional Custom Forms - Nuova versione */}
+      <Route path="/professional/custom-forms" element={
+        isAuthenticated && (user?.role === 'PROFESSIONAL' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN')
+          ? <Layout><ProfessionalCustomFormsPage /></Layout>
+          : <Navigate to="/dashboard" />
+      } />
+      
+      {/* Professional Custom Forms - Nuovo form */}
+      <Route path="/professional/custom-forms/new" element={
+        isAuthenticated && (user?.role === 'PROFESSIONAL' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN')
+          ? <Layout><CustomFormPage /></Layout>
+          : <Navigate to="/dashboard" />
+      } />
+      
+      {/* Professional Custom Forms - Modifica Form Specifico */}
+      <Route path="/professional/custom-forms/:formId" element={
+        isAuthenticated && (user?.role === 'PROFESSIONAL' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN')
+          ? <Layout><CustomFormPage /></Layout>
+          : <Navigate to="/dashboard" />
+      } />
+      
+      {/* Professional SmartDocs - I Miei Container */}
+      <Route path="/professional/smartdocs" element={
+        isAuthenticated && (user?.role === 'PROFESSIONAL' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN')
+          ? <Layout><ProfessionalSmartDocsPage /></Layout>
+          : <Navigate to="/dashboard" />
+      } />
+      
+      {/* Knowledge Base - Tutti gli utenti */}
+      <Route path="/my-documents" element={
+        isAuthenticated
+          ? <Layout><MyKnowledgeBase /></Layout>
+          : <Navigate to="/login" />
+      } />
+      
+      {/* Upload Documents - Tutti gli utenti */}
+      <Route path="/my-documents/upload" element={
+        isAuthenticated
+          ? <Layout><MyDocumentsUpload /></Layout>
+          : <Navigate to="/login" />
+      } />
+      
+      {/* SmartDocs Preferences - Tutti gli utenti */}
+      <Route path="/settings/smartdocs" element={
+        isAuthenticated
+          ? <Layout><SmartDocsPreferences /></Layout>
+          : <Navigate to="/login" />
+      } />
+      
       {/* Client Legal Documents Dashboard */}
       <Route path="/my-legal-documents" element={
         isAuthenticated && user?.role === 'CLIENT'
@@ -644,6 +822,20 @@ export default function AppRoutes() {
       <Route path="/client/reports/:id" element={
         isAuthenticated && user?.role === 'CLIENT'
           ? <Layout><ClientReportDetailPage /></Layout>
+          : <Navigate to="/dashboard" />
+      } />
+      
+      {/* Client Custom Forms */}
+      <Route path="/client/custom-forms" element={
+        isAuthenticated && user?.role === 'CLIENT'
+          ? <Layout><ClientCustomFormsPage /></Layout>
+          : <Navigate to="/dashboard" />
+      } />
+      
+      {/* Client SmartDocs - I Miei Container */}
+      <Route path="/client/smartdocs" element={
+        isAuthenticated && user?.role === 'CLIENT'
+          ? <Layout><ClientSmartDocsPage /></Layout>
           : <Navigate to="/dashboard" />
       } />
       

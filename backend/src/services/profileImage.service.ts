@@ -130,6 +130,90 @@ export class ProfileImageService {
   }
 
   /**
+   * Salva e ottimizza l'immagine di riconoscimento
+   */
+  async saveRecognitionImage(
+    userId: string,
+    file: Express.Multer.File
+  ): Promise<{ recognitionImageUrl: string }> {
+    try {
+      // Valida l'immagine prima di salvarla
+      await this.validateProfileImage(file);
+
+      // Genera nome unico per il file
+      const timestamp = Date.now();
+      const fileName = `recognition-${userId}-${timestamp}.jpg`;
+      const recognitionPath = path.join(this.profileImagesDir, fileName);
+
+      // Salva l'immagine di riconoscimento ottimizzata (400x400)
+      await sharp(file.buffer)
+        .resize(400, 400, {
+          fit: 'cover',
+          position: 'center'
+        })
+        .jpeg({ 
+          quality: 85, 
+          progressive: true 
+        })
+        .toFile(recognitionPath);
+
+      // URL relativo per accedere all'immagine
+      const recognitionImageUrl = `/uploads/profiles/${fileName}`;
+
+      // Aggiorna il database con il nuovo URL dell'immagine
+      await this.updateUserRecognitionImage(userId, recognitionImageUrl);
+
+      // Se l'utente aveva già un'immagine di riconoscimento, elimina quella vecchia
+      await this.deleteOldRecognitionImage(userId, recognitionImageUrl);
+
+      return {
+        recognitionImageUrl
+      };
+    } catch (error) {
+      console.error('Errore nel salvare l\'immagine di riconoscimento:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Aggiorna l'URL dell'immagine di riconoscimento nel database
+   */
+  private async updateUserRecognitionImage(userId: string, imageUrl: string): Promise<void> {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { recognitionImage: imageUrl }
+    });
+  }
+
+  /**
+   * Elimina la vecchia immagine di riconoscimento se esiste
+   */
+  private async deleteOldRecognitionImage(userId: string, newImageUrl: string): Promise<void> {
+    try {
+      // Recupera l'utente per vedere se aveva già un'immagine di riconoscimento
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { recognitionImage: true }
+      });
+
+      if (user?.recognitionImage && user.recognitionImage !== newImageUrl) {
+        // Estrai il nome del file dall'URL
+        const oldFileName = path.basename(user.recognitionImage);
+        const oldRecognitionPath = path.join(this.profileImagesDir, oldFileName);
+
+        // Elimina il file vecchio
+        try {
+          await fs.unlink(oldRecognitionPath);
+        } catch (err) {
+          console.error('Errore eliminazione vecchia immagine di riconoscimento:', err);
+        }
+      }
+    } catch (error) {
+      console.error('Errore durante eliminazione vecchia immagine di riconoscimento:', error);
+    }
+  }
+
+  /**
    * Elimina la vecchia immagine profilo se esiste
    */
   private async deleteOldProfileImage(userId: string, newImageUrl: string): Promise<void> {

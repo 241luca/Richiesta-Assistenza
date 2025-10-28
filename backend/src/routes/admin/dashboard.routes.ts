@@ -112,16 +112,29 @@ router.get('/', async (req: any, res: any) => {
       }),
       // Recent quotes
       prisma.quote.findMany({
-        take: 5,
+        take: 10,
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
           amount: true,
           status: true,
           createdAt: true,
-          request: {
+          AssistanceRequest: {
             select: {
-              title: true
+              title: true,
+              client: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  fullName: true
+                }
+              }
+            }
+          },
+          User: {
+            select: {
+              firstName: true,
+              lastName: true
             }
           }
         }
@@ -169,14 +182,18 @@ router.get('/', async (req: any, res: any) => {
           status: request.status.toLowerCase(),
           createdAt: request.createdAt.toISOString(),
           clientName: request.client ? 
-            (request.client.fullName || `${request.client.firstName} ${request.client.lastName}`) : null
+            `${request.client.firstName} ${request.client.lastName}` : null
         })),
         recentQuotes: recentQuotes.map(quote => ({
           id: quote.id,
-          requestTitle: quote.request?.title,
+          requestTitle: quote.AssistanceRequest?.title,
           amount: Number(quote.amount),
           status: quote.status.toLowerCase(),
-          createdAt: quote.createdAt.toISOString()
+          createdAt: quote.createdAt.toISOString(),
+          professional: quote.User ? 
+            `${quote.User.firstName} ${quote.User.lastName}` : null,
+          client: quote.AssistanceRequest?.client ? 
+            `${quote.AssistanceRequest.client.firstName} ${quote.AssistanceRequest.client.lastName}` : null
         }))
       }
     };

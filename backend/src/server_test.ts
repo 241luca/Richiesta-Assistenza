@@ -153,9 +153,11 @@ app.get('/ws-test', (_, res) => {
 
 // Base routes
 import authRoutes from './routes/auth.routes';
+import professionalRegistrationRoutes from './routes/professional-registration.routes';
 import securityRoutes from './routes/security.routes'; // AGGIUNTO - Security routes
 import userRoutes from './routes/user.routes';
 import professionalDetailsRoutes from './routes/professional-details.routes';
+import professionalAISettingsRoutes from './routes/professional-ai-settings.routes';
 import categoryRoutes from './routes/category.routes';
 import subcategoryRoutes from './routes/subcategory.routes';
 import publicRoutes from './routes/public.routes';
@@ -288,23 +290,6 @@ try {
   logger.warn('⚠️ Simple backup routes not loaded:', error);
 }
 
-// Optional routes: professional registration and AI settings (may be disabled)
-let professionalRegistrationRoutes: any;
-try {
-  professionalRegistrationRoutes = require('./routes/professional-registration.routes').default;
-  logger.info('✅ Professional registration routes loaded');
-} catch (error) {
-  logger.warn('⚠️ Professional registration routes not loaded:', error);
-}
-
-let professionalAiSettingsRoutes: any;
-try {
-  professionalAiSettingsRoutes = require('./routes/professional-ai-settings.routes').default;
-  logger.info('✅ Professional AI settings routes loaded');
-} catch (error) {
-  logger.warn('⚠️ Professional AI settings routes not loaded:', error);
-}
-
 // ===== REGISTER ALL ROUTES =====
 
 // Public routes (no auth)
@@ -314,9 +299,7 @@ app.use('/api/public/system-settings', publicSystemSettingsRoutes);
 
 // Auth routes with rate limiting
 app.use('/api/auth', authLimiter, authRoutes);
-if (professionalRegistrationRoutes) {
-  app.use('/api/auth', authLimiter, professionalRegistrationRoutes);
-}
+app.use('/api/auth', authLimiter, professionalRegistrationRoutes);
 
 // User routes
 app.use('/api/users', authenticate, userRoutes);
@@ -337,6 +320,7 @@ app.use('/api/payments', authenticate, paymentRoutes);
 
 // Notification routes - ORDINE IMPORTANTE: specific prima di generic
 app.use('/api/notification-templates', authenticate, notificationTemplateRoutes);
+app.use('/api/notifications', authenticate, notificationAdminRoutes); // Admin routes sono già protette internamente
 app.use('/api/notifications', authenticate, notificationRoutes);
 
 // Professional routes
@@ -344,6 +328,7 @@ app.use('/api/professionals', authenticate, professionalRoutes);
 app.use('/api/professionals', authenticate, professionalsRoutes); // NUOVO - endpoint by-subcategory
 app.use('/api/professionals', authenticate, professionalPricingRoutes);
 app.use('/api/professionals', authenticate, professionalSkillsCertRoutes);
+app.use('/api/professionals', authenticate, professionalAISettingsRoutes);
 app.use('/api/professions', professionsRoutes);
 app.use('/api/profession-categories', authenticate, professionCategoriesRoutes);
 
@@ -416,11 +401,10 @@ if (simpleBackupRoutes) {
   app.use('/api/backup', authenticate, simpleBackupRoutes);
 }
 
+// Professional AI Settings routes
+import professionalAiSettingsRoutes from './routes/professional-ai-settings.routes';
 import clientAiSettingsRoutes from './routes/client-ai-settings.routes';
-// Professional AI Settings routes (conditionally mounted if available)
-if (professionalAiSettingsRoutes) {
-  app.use('/api/professionals', authenticate, professionalAiSettingsRoutes);
-}
+app.use('/api/professionals', professionalAiSettingsRoutes);
 app.use('/api/client-settings', clientAiSettingsRoutes);
 
 // Legal Documents routes

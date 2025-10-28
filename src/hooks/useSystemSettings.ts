@@ -18,9 +18,12 @@ export function useSystemSettings() {
         return [];
       }
     },
-    staleTime: 30 * 1000, // Cache per 30 secondi invece di 5 minuti
+    staleTime: 15 * 60 * 1000, // Cache per 15 minuti (aumentato drasticamente)
     retry: false,
-    refetchOnWindowFocus: true // Ricarica quando la finestra ottiene il focus
+    refetchOnWindowFocus: false, // NON ricarica quando la finestra ottiene il focus
+    refetchOnMount: false, // NON ricarica al mount se i dati sono freschi
+    refetchInterval: false, // Disabilita il polling automatico
+    refetchOnReconnect: false // NON ricarica quando si riconnette
   });
 
   // Funzione helper per ottenere un valore di setting
@@ -57,9 +60,12 @@ export function useSystemSettingsMap() {
         return [];
       }
     },
-    staleTime: 30 * 1000, // Cache per 30 secondi invece di 5 minuti
+    staleTime: 15 * 60 * 1000, // Cache per 15 minuti (aumentato drasticamente)
     retry: false,
-    refetchOnWindowFocus: true // Ricarica quando la finestra ottiene il focus
+    refetchOnWindowFocus: false, // NON ricarica quando la finestra ottiene il focus
+    refetchOnMount: false, // NON ricarica al mount se i dati sono freschi
+    refetchInterval: false, // Disabilita il polling automatico
+    refetchOnReconnect: false // NON ricarica quando si riconnette
   });
 
   // Crea una mappa key->value delle impostazioni

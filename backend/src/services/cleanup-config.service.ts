@@ -28,6 +28,7 @@ interface UpdateConfigData {
   preserveStructure?: boolean;
   notifyOnCleanup?: boolean;
   notifyEmails?: string[];
+  backupBaseDir?: string;
   isActive?: boolean;
 }
 
@@ -141,6 +142,9 @@ export async function getCleanupConfig(): Promise<CleanupConfig> {
           notifyOnCleanup: true
         }
       });
+
+      // Inizializza anche le configurazioni di sistema
+      await initializeSystemDefaults();
     }
 
     return config;
@@ -172,6 +176,7 @@ export async function updateCleanupConfig(data: UpdateConfigData): Promise<Clean
         createReadme: true,
         preserveStructure: true,
         notifyOnCleanup: true,
+        backupBaseDir: '/Users/lucamambelli/Desktop/backup-ra',
         ...data
       }
     });
@@ -597,6 +602,139 @@ export async function getCleanupLogs(filters: CleanupLogFilters = {}): Promise<C
 }
 
 // ==========================================
+// INIZIALIZZAZIONE DEFAULT DI SISTEMA
+// ==========================================
+
+async function initializeSystemDefaults(): Promise<void> {
+  try {
+    logger.info('Inizializzazione configurazioni di sistema per cleanup...');
+
+    // Pattern di sistema
+    const systemPatterns = [
+      { pattern: '*.backup-*', description: 'File di backup temporanei', priority: 10 },
+      { pattern: 'fix-*.sh', description: 'Script di fix temporanei', priority: 20 },
+      { pattern: 'test-*.sh', description: 'Script di test', priority: 30 },
+      { pattern: 'check-*.sh', description: 'Script di controllo', priority: 40 },
+      { pattern: 'debug-*.sh', description: 'Script di debug', priority: 50 },
+      { pattern: '*.fixed.ts', description: 'File TypeScript corretti', priority: 60 },
+      { pattern: '*.fixed.tsx', description: 'File React corretti', priority: 70 },
+      { pattern: 'backup-*.sql', description: 'Backup SQL temporanei', priority: 80 },
+      { pattern: '*.mjs', description: 'File JavaScript ES modules', priority: 90 },
+      { pattern: 'BACKUP-*', description: 'Cartelle di backup', priority: 100 }
+    ];
+
+    for (const patternData of systemPatterns) {
+      const existing = await prisma.cleanupPattern.findFirst({
+        where: { pattern: patternData.pattern }
+      });
+      if (!existing) {
+        await prisma.cleanupPattern.create({
+          data: {
+            ...patternData,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        });
+      }
+    }
+
+    // File esclusi di sistema
+    const systemExcludedFiles = [
+      { fileName: '.env', description: 'File di ambiente', criticality: 'critical', reason: 'Contiene chiavi sensibili' },
+      { fileName: '.env.local', description: 'File di ambiente locale', criticality: 'critical', reason: 'Contiene chiavi sensibili' },
+      { fileName: '.env.production', description: 'File di ambiente produzione', criticality: 'critical', reason: 'Contiene chiavi sensibili' },
+      { fileName: '*.log', description: 'File di log', criticality: 'high', reason: 'Contengono informazioni di debug' },
+      { fileName: '*.pid', description: 'File PID processi', criticality: 'normal', reason: 'File di sistema' },
+      { fileName: 'package-lock.json', description: 'Lock file npm', criticality: 'high', reason: 'File di dipendenze importante' },
+      { fileName: 'yarn.lock', description: 'Lock file yarn', criticality: 'high', reason: 'File di dipendenze importante' },
+      { fileName: '*.key', description: 'File di chiavi', criticality: 'critical', reason: 'Contengono chiavi crittografiche' },
+      { fileName: '*.pem', description: 'Certificati PEM', criticality: 'critical', reason: 'Certificati di sicurezza' },
+      { fileName: '*.crt', description: 'Certificati CRT', criticality: 'critical', reason: 'Certificati di sicurezza' }
+    ];
+
+    for (const fileData of systemExcludedFiles) {
+      const existing = await prisma.cleanupExcludeFile.findFirst({
+        where: { fileName: fileData.fileName }
+      });
+      if (!existing) {
+        await prisma.cleanupExcludeFile.create({
+          data: {
+            ...fileData,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        });
+      }
+    }
+
+    // Directory escluse di sistema
+    const systemExcludedDirs = [
+      { directory: 'node_modules', description: 'Dipendenze Node.js', reason: 'Directory molto grande e ricostruibile' },
+      { directory: '.git', description: 'Repository Git', reason: 'Contiene storia del progetto' },
+      { directory: 'dist', description: 'Build output', reason: 'Ricostruibile dal codice sorgente' },
+      { directory: 'build', description: 'Build output', reason: 'Ricostruibile dal codice sorgente' },
+      { directory: '.next', description: 'Next.js build', reason: 'Ricostruibile dal codice sorgente' },
+      { directory: 'CLEANUP-*', description: 'Cartelle di cleanup', reason: 'Contengono file già puliti' },
+      { directory: 'backend/backups', description: 'Backup backend', reason: 'File di backup importanti' },
+      { directory: 'uploads', description: 'File caricati', reason: 'Contengono dati utente importanti' }
+    ];
+
+    for (const dirData of systemExcludedDirs) {
+      const existing = await prisma.cleanupExcludeDirectory.findFirst({
+        where: { directory: dirData.directory }
+      });
+      if (!existing) {
+        await prisma.cleanupExcludeDirectory.create({
+          data: {
+            ...dirData,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        });
+      }
+    }
+
+    logger.info('Configurazioni di sistema inizializzate con successo');
+  } catch (error) {
+    logger.error('Errore nell\'inizializzazione delle configurazioni di sistema:', error);
+    // Non rilancio l'errore per non bloccare l'avvio
+  }
+}
+
+// ==========================================
+// VALIDAZIONE CONFIGURAZIONE
+// ==========================================
+
+export function validateCleanupConfig(config: Partial<CleanupConfig>): string[] {
+  const errors: string[] = [];
+
+  if (config.maxDepth !== undefined && (config.maxDepth < 1 || config.maxDepth > 10)) {
+    errors.push('maxDepth deve essere compreso tra 1 e 10');
+  }
+
+  if (config.bufferSize !== undefined && config.bufferSize < 1024) {
+    errors.push('bufferSize deve essere almeno 1024 byte (1KB)');
+  }
+
+  if (config.timeout !== undefined && config.timeout < 1000) {
+    errors.push('timeout deve essere almeno 1000ms (1 secondo)');
+  }
+
+  if (config.retentionDays !== undefined && config.retentionDays < 1) {
+    errors.push('retentionDays deve essere almeno 1 giorno');
+  }
+
+  if ((config as any).backupBaseDir !== undefined && !(config as any).backupBaseDir.trim()) {
+    errors.push('backupBaseDir non può essere vuoto');
+  }
+
+  return errors;
+}
+
+// ==========================================
 // FUNZIONI DI UTILITÀ PER IL CLEANUP
 // ==========================================
 
@@ -607,31 +745,7 @@ export async function getActivePatterns(): Promise<string[]> {
       orderBy: { priority: 'asc' }
     });
 
-    // Aggiungi i pattern predefiniti che non sono nel database
-    const defaultPatterns = [
-      '*.backup-*',
-      'fix-*.sh',
-      'test-*.sh',
-      'check-*.sh',
-      'debug-*.sh',
-      '*.fixed.ts',
-      '*.fixed.tsx',
-      'backup-*.sql',
-      '*.mjs',
-      'BACKUP-*'
-    ];
-
-    // Verifica quali pattern predefiniti mancano
-    const existingPatterns = patterns.map(p => p.pattern);
-    const missingDefaults = defaultPatterns.filter(p => !existingPatterns.includes(p));
-
-    // Combina pattern dal database con quelli predefiniti mancanti
-    const allPatterns = [
-      ...patterns.map(p => p.pattern),
-      ...missingDefaults
-    ];
-
-    return allPatterns;
+    return patterns.map(p => p.pattern);
   } catch (error) {
     logger.error('Errore nel recupero pattern attivi:', error);
     throw error;
@@ -644,28 +758,7 @@ export async function getActiveExcludedFiles(): Promise<string[]> {
       where: { isActive: true }
     });
 
-    // File sempre esclusi di sistema
-    const systemFiles = [
-      '.env',
-      '.env.local',
-      '.env.production',
-      '*.log',
-      '*.pid',
-      'package-lock.json',
-      'yarn.lock',
-      '*.key',
-      '*.pem',
-      '*.crt'
-    ];
-
-    // Combina file dal database con quelli di sistema
-    const allFiles = [
-      ...files.map(f => f.fileName),
-      ...systemFiles
-    ];
-
-    // Rimuovi duplicati
-    return [...new Set(allFiles)];
+    return files.map(f => f.fileName);
   } catch (error) {
     logger.error('Errore nel recupero file esclusi attivi:', error);
     throw error;
@@ -678,26 +771,7 @@ export async function getActiveExcludedDirectories(): Promise<string[]> {
       where: { isActive: true }
     });
 
-    // Directory sempre escluse di sistema
-    const systemDirs = [
-      'node_modules',
-      '.git',
-      'dist',
-      'build',
-      '.next',
-      'CLEANUP-*',
-      'backend/backups',
-      'uploads'
-    ];
-
-    // Combina directory dal database con quelle di sistema
-    const allDirs = [
-      ...dirs.map(d => d.directory),
-      ...systemDirs
-    ];
-
-    // Rimuovi duplicati
-    return [...new Set(allDirs)];
+    return dirs.map(d => d.directory);
   } catch (error) {
     logger.error('Errore nel recupero directory escluse attive:', error);
     throw error;

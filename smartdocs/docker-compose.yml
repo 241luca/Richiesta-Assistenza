@@ -1,0 +1,186 @@
+version: '3.8'
+
+services:
+  # SmartDocs API Server
+  smartdocs-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: smartdocs-api
+    ports:
+      - "3500:3500"
+    environment:
+      - NODE_ENV=development
+      - PORT=3500
+      # ⚠️ DATABASE SEPARATO - NON tocca DB Richiesta Assistenza
+      - DATABASE_URL=postgresql://smartdocs:smartdocs_secure_pwd@smartdocs-db:5432/smartdocs
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - REDIS_URL=redis://smartdocs-redis:6379
+      # CORS
+      - CORS_ORIGIN=http://localhost:5193,http://localhost:3000,http://localhost:3501
+      # Encryption
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-smartdocs_default_encryption_key_change_me}
+      # Storage
+      - MINIO_ENDPOINT=smartdocs-storage
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=smartdocs
+      - MINIO_SECRET_KEY=smartdocs_minio_password
+      - MINIO_USE_SSL=false
+      - MINIO_BUCKET=documents
+    volumes:
+      - ./src:/app/src:delegated
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+      - smartdocs-uploads:/app/uploads
+      - smartdocs-cache:/app/.cache
+      - /app/node_modules  # Non sovrascrivere node_modules
+    depends_on:
+      smartdocs-db:
+        condition: service_healthy
+      smartdocs-redis:
+        condition: service_started
+    networks:
+      - smartdocs-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3500/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Sync Worker (Background Job Processor)
+  smartdocs-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: smartdocs-worker
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://smartdocs:smartdocs_secure_pwd@smartdocs-db:5432/smartdocs
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - WORKER_POLL_INTERVAL=5000
+    volumes:
+      - ./src:/app/src:delegated
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+      - /app/node_modules
+    command: npm run worker
+    depends_on:
+      smartdocs-db:
+        condition: service_healthy
+    networks:
+      - smartdocs-network
+    restart: unless-stopped
+
+  # Admin UI (Standalone Management Panel)
+  smartdocs-admin:
+    image: node:20-alpine
+    container_name: smartdocs-admin
+    working_dir: /app
+    ports:
+      - "3501:3501"
+    environment:
+      - VITE_API_URL=http://localhost:3500
+    volumes:
+      - ./admin-ui:/app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    networks:
+      - smartdocs-network
+    restart: unless-stopped
+
+  # PostgreSQL con pgvector (DATABASE SEPARATO)
+  smartdocs-db:
+    image: ankane/pgvector:latest
+    container_name: smartdocs-db
+    environment:
+      - POSTGRES_USER=smartdocs
+      - POSTGRES_PASSWORD=smartdocs_secure_pwd
+      - POSTGRES_DB=smartdocs
+    ports:
+      - "5433:5432"  # ⚠️ PORTA DIVERSA da DB principale (5432)
+    volumes:
+      - smartdocs-db-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./scripts/seed-data.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    networks:
+      - smartdocs-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartdocs -d smartdocs"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis (caching e job queue)
+  smartdocs-redis:
+    image: redis:7-alpine
+    container_name: smartdocs-redis
+    command: redis-server --appendonly yes --requirepass smartdocs_redis_pwd
+    ports:
+      - "6380:6379"  # Porta diversa da eventuale Redis esistente
+    volumes:
+      - smartdocs-redis-data:/data
+    networks:
+      - smartdocs-network
+    restart: unless-stopped
+
+  # MinIO (S3-compatible storage locale)
+  smartdocs-storage:
+    image: minio/minio:latest
+    container_name: smartdocs-storage
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # Console
+    environment:
+      - MINIO_ROOT_USER=smartdocs
+      - MINIO_ROOT_PASSWORD=smartdocs_minio_password
+    volumes:
+      - smartdocs-minio-data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - smartdocs-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Qdrant Vector Database (opzionale - alternativa a pgvector)
+  smartdocs-vector:
+    image: qdrant/qdrant:latest
+    container_name: smartdocs-vector
+    ports:
+      - "6333:6333"   # HTTP
+      - "6334:6334"   # gRPC
+    volumes:
+      - smartdocs-vector-data:/qdrant/storage
+    networks:
+      - smartdocs-network
+    restart: unless-stopped
+
+volumes:
+  smartdocs-db-data:
+    driver: local
+  smartdocs-redis-data:
+    driver: local
+  smartdocs-minio-data:
+    driver: local
+  smartdocs-vector-data:
+    driver: local
+  smartdocs-uploads:
+    driver: local
+  smartdocs-cache:
+    driver: local
+
+networks:
+  smartdocs-network:
+    driver: bridge
+    name: smartdocs-network
+
+# ⚠️ NOTA IMPORTANTE:
+# Questo stack è COMPLETAMENTE ISOLATO dal database Richiesta Assistenza
+# Nessun volume condiviso, nessuna network condivisa
+# Comunicazione solo via API REST tra i due sistemi

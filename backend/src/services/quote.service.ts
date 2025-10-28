@@ -423,7 +423,7 @@ class QuoteService {
         include: { 
           AssistanceRequest: { 
             include: { 
-              User_AssistanceRequest_clientIdToUser: true,
+              client: true,
               Category: true,
               Subcategory: true
             }
@@ -485,7 +485,7 @@ class QuoteService {
 
       // Notifica professionista
       try {
-        const clientName = quote.AssistanceRequest.User_AssistanceRequest_clientIdToUser?.fullName || 'Cliente';
+        const clientName = quote.AssistanceRequest.client?.fullName || 'Cliente';
         
         await notificationService.sendToUser({
           userId: quote.professionalId,
@@ -540,7 +540,7 @@ class QuoteService {
       const quote = await prisma.quote.findUnique({
         where: { id: quoteId },
         include: { 
-          AssistanceRequest: { include: { User_AssistanceRequest_clientIdToUser: true } }
+          AssistanceRequest: { include: { client: true } }
         }
       });
 

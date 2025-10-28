@@ -2,6 +2,7 @@ import { AiChatComplete } from "@/components/ai/AiChatComplete";
 import ScheduleIntervention from '../components/professional/ScheduleIntervention';
 import ProposeInterventions from '../components/professional/ProposeInterventions';
 import ScheduledInterventions from '../components/interventions/ScheduledInterventions';
+import { RequestCustomForms } from '../components/custom-forms/RequestCustomForms';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -27,10 +28,11 @@ import {
   DocumentArrowDownIcon,
   SparklesIcon,
   TagIcon,
-  ClipboardDocumentCheckIcon
+  ClipboardDocumentCheckIcon,
+  PhotoIcon
 } from '@heroicons/react/24/outline';
 import { api } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -63,6 +65,7 @@ interface RequestDetail {
     address?: string;
     city?: string;
     province?: string;
+    recognitionImage?: string;
   };
   professionalId?: string;
   professional?: {
@@ -72,6 +75,7 @@ interface RequestDetail {
     email: string;
     phone: string;
     profession?: string;
+    recognitionImage?: string;
     professionData?: {
       workAddress?: string;
       workCity?: string;
@@ -210,6 +214,8 @@ export default function RequestDetailPage() {
   const [assignmentNotes, setAssignmentNotes] = useState<string>('');
   const [showProposeInterventions, setShowProposeInterventions] = useState(false);
   const [suggestedMessage, setSuggestedMessage] = useState<string>('');
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string>('');
 
   useEffect(() => {
     const openChat = searchParams.get('openChat');
@@ -703,6 +709,19 @@ export default function RequestDetailPage() {
             )}
           </div>
 
+          {/* Custom Forms Section */}
+          <RequestCustomForms
+            requestId={request.id}
+            subcategoryId={request.subcategory?.id}
+            isProfessional={isProfessional}
+            isClient={isClient}
+            requestInfo={{
+              requestNumber: request.requestNumber,
+              category: typeof request.category === 'string' ? request.category : request.category?.name,
+              subcategory: request.subcategory?.name
+            }}
+          />
+
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold text-gray-900">
@@ -907,6 +926,25 @@ export default function RequestDetailPage() {
                   </a>
                 </div>
               )}
+              {request.client?.recognitionImage && (
+                <div className="flex items-start">
+                  <PhotoIcon className="h-5 w-5 text-gray-400 mr-3 mt-1" />
+                  <div>
+                    <img 
+                      src={`http://localhost:3200${request.client.recognitionImage}`}
+                      alt="Immagine di riconoscimento del cliente"
+                      className="w-40 h-40 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => {
+                        setSelectedImage(`http://localhost:3200${request.client.recognitionImage}`);
+                        setShowImageModal(true);
+                      }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -953,6 +991,25 @@ export default function RequestDetailPage() {
                     <a href={`tel:${request.professional.phone}`} className="text-blue-600 hover:underline">
                       {request.professional.phone}
                     </a>
+                  </div>
+                )}
+                {request.professional.recognitionImage && (
+                  <div className="flex items-start">
+                    <PhotoIcon className="h-5 w-5 text-gray-400 mr-3 mt-1" />
+                    <div>
+                      <img 
+                          src={`http://localhost:3200${request.professional.recognitionImage}`}
+                          alt="Immagine di riconoscimento del professionista"
+                          className="w-40 h-40 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => {
+                            setSelectedImage(`http://localhost:3200${request.professional.recognitionImage}`);
+                            setShowImageModal(true);
+                          }}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                    </div>
                   </div>
                 )}
               </div>
@@ -1234,6 +1291,29 @@ export default function RequestDetailPage() {
           conversationType={user?.role === 'PROFESSIONAL' ? 'professional_help' : 'client_help'}
           forceOpen={true}
         />
+      )}
+
+      {/* Modal per visualizzare l'immagine a schermo intero */}
+      {showImageModal && selectedImage && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+          onClick={() => setShowImageModal(false)}
+        >
+          <div className="relative max-w-4xl max-h-full p-4">
+            <button
+              onClick={() => setShowImageModal(false)}
+              className="absolute top-2 right-2 text-white hover:text-gray-300 z-10"
+            >
+              <XMarkIcon className="h-8 w-8" />
+            </button>
+            <img
+              src={selectedImage}
+              alt="Immagine di riconoscimento ingrandita"
+              className="max-w-full max-h-full object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

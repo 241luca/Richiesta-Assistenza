@@ -25,10 +25,10 @@ import EnumsTab from '../../components/admin/EnumsTab';
 import ServiceConfigTab from '../../components/admin/ServiceConfigTab';
 
 // Tab per gestire le diverse tabelle
-type TabType = 'enums' | 'professions' | 'service';
+type TabType = 'enums' | 'service';
 
 export default function SystemEnumsPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('professions'); // Iniziamo con professioni
+  const [activeTab, setActiveTab] = useState<TabType>('enums'); // Iniziamo con enums
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -43,19 +43,6 @@ export default function SystemEnumsPage() {
       {/* Tabs */}
       <div className="border-b border-gray-200 mb-6">
         <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab('professions')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'professions'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <div className="flex items-center space-x-2">
-              <BriefcaseIcon className="h-5 w-5" />
-              <span>Professioni</span>
-            </div>
-          </button>
           <button
             onClick={() => setActiveTab('enums')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
@@ -86,7 +73,6 @@ export default function SystemEnumsPage() {
       </div>
 
       {/* Content */}
-      {activeTab === 'professions' && <ProfessionsTab />}
       {activeTab === 'enums' && <EnumsTab />}
       {activeTab === 'service' && <ServiceConfigTab />}
     </div>

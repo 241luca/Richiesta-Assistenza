@@ -11,45 +11,50 @@ const router = Router();
 async function getPendingLegalDocuments(userId: string) {
   try {
     // Ottieni tutti i documenti attivi con la loro versione pubblicata corrente
-    const includePublishedVersion: any = {
-      LegalDocumentVersion: {
-        where: {
-          status: 'PUBLISHED',  // IMPORTANTE: Solo versioni PUBBLICATE
-          effectiveDate: { lte: new Date() },
-          OR: [
-            { expiryDate: null },
-            { expiryDate: { gte: new Date() } }  // Non scadute
-          ]
-        },
-        orderBy: { publishedAt: 'desc' },
-        take: 1,
-        select: {
-          id: true,
-          version: true,
-          status: true,
-          title: true,
-          summary: true,
-          effectiveDate: true,
-          publishedAt: true,
-          expiryDate: true
+    const documents = await prisma.legalDocument.findMany({
+      where: {
+        isActive: true
+      },
+      include: {
+        versions: {
+          where: {
+            status: 'PUBLISHED',  // IMPORTANTE: Solo versioni PUBBLICATE
+            effectiveDate: {
+              lte: new Date()  // Solo versioni già effettive
+            },
+            OR: [
+              { expiryDate: null },
+              { expiryDate: { gte: new Date() } }  // Non scadute
+            ]
+          },
+          orderBy: {
+            publishedAt: 'desc'
+          },
+          take: 1,
+          select: {
+            id: true,
+            version: true,
+            status: true,
+            title: true,
+            summary: true,
+            effectiveDate: true,
+            publishedAt: true,
+            expiryDate: true
+          }
         }
       }
-    };
-
-    const documents = await prisma.legalDocument.findMany({
-      where: { isActive: true },
-      include: includePublishedVersion
     });
 
     // IMPORTANTE: Filtra SOLO i documenti che hanno ALMENO UNA versione PUBBLICATA
     // Se un documento non ha versioni pubblicate, NON deve essere visibile ai clienti
-    const documentsWithVersion = documents.filter(doc => (doc as any).LegalDocumentVersion?.length > 0);
+    const documentsWithVersion = documents.filter((doc: any) => (doc as any).versions?.length > 0);
     
     logger.info(`Dashboard: Found ${documents.length} active documents, ${documentsWithVersion.length} with published versions`);
     
     // Log dettagliato per debug
-    documentsWithVersion.forEach(doc => {
-      const version = (doc as any).LegalDocumentVersion[0];
+    documentsWithVersion.forEach((doc: any) => {
+      const versions = (doc as any).versions || [];
+      const version = versions[0];
       if (version) {
         logger.info(`Document ${doc.displayName}: Version ${version.version}, Status: ${version.status}, PublishedAt: ${version.publishedAt}, EffectiveDate: ${version.effectiveDate}`);
       }
@@ -59,7 +64,8 @@ async function getPendingLegalDocuments(userId: string) {
     const pendingDocuments = [];
     
     for (const doc of documentsWithVersion) {
-      const currentVersion = (doc as any).LegalDocumentVersion[0];
+      const versions = (doc as any).versions || [];
+      const currentVersion = versions[0];
       
       // Verifica se l'utente ha già accettato questa specifica versione
       const acceptance = await prisma.userLegalAcceptance.findFirst({
@@ -112,7 +118,7 @@ router.get('/', async (req: any, res: any) => {
         where: { clientId: userId },
         select: { id: true }
       });
-      const clientRequestIds = clientRequests.map(r => r.id);
+      const clientRequestIds = clientRequests.map((r: any) => r.id);
       // Get statistics for client
       const [
         totalRequests,
@@ -201,7 +207,7 @@ router.get('/', async (req: any, res: any) => {
         take: 5,
         orderBy: { createdAt: 'desc' },
         include: {
-          User_AssistanceRequest_professionalIdToUser: {
+          professional: {
             select: {
               firstName: true,
               lastName: true,
@@ -346,23 +352,23 @@ router.get('/', async (req: any, res: any) => {
           pendingInterventions: pendingInterventions,
           pendingQuotes: pendingQuotes
         },
-        recentRequests: recentRequests.map(request => ({
+        recentRequests: recentRequests.map((request: any) => ({
           id: request.id,
           title: request.title,
           Category: (request as any).Category?.name || 'Non categorizzato',
           status: request.status.toLowerCase(),
           createdAt: request.createdAt.toISOString(),
-          professionalName: (request as any).User_AssistanceRequest_professionalIdToUser ? 
-            ((request as any).User_AssistanceRequest_professionalIdToUser.fullName || `${(request as any).User_AssistanceRequest_professionalIdToUser.firstName} ${(request as any).User_AssistanceRequest_professionalIdToUser.lastName}`) : null,
+          professionalName: (request as any).professional ? 
+            ((request as any).professional.fullName || `${(request as any).professional.firstName} ${(request as any).professional.lastName}`) : null,
           // NUOVO: Aggiungi i dati dell'indirizzo della richiesta
           address: request.address,
           city: request.city,
           province: request.province,
           // NUOVO: Aggiungi l'indirizzo del professionista se assegnato
-          professionalAddress: (request as any).User_AssistanceRequest_professionalIdToUser && (request as any).User_AssistanceRequest_professionalIdToUser.address ? 
-            `${(request as any).User_AssistanceRequest_professionalIdToUser.address}, ${(request as any).User_AssistanceRequest_professionalIdToUser.city} (${(request as any).User_AssistanceRequest_professionalIdToUser.province})` : null
+          professionalAddress: (request as any).professional && (request as any).professional.address ? 
+            `${(request as any).professional.address}, ${(request as any).professional.city} (${(request as any).professional.province})` : null
         })),
-        recentQuotes: recentQuotes.map(quote => ({
+        recentQuotes: recentQuotes.map((quote: any) => ({
           id: quote.id,
           requestTitle: (quote as any).AssistanceRequest?.title,
           amount: Number(quote.amount),
@@ -371,7 +377,7 @@ router.get('/', async (req: any, res: any) => {
           professionalName: (quote as any).User ? 
             (((quote as any).User.fullName) || `${(quote as any).User.firstName} ${(quote as any).User.lastName}`) : null
         })),
-        upcomingAppointments: upcomingAppointments.map(apt => ({
+        upcomingAppointments: upcomingAppointments.map((apt: any) => ({
           id: apt.id,
           requestTitle: apt.title,
           scheduledDate: apt.scheduledDate?.toISOString() || null,
@@ -495,7 +501,7 @@ router.get('/', async (req: any, res: any) => {
         take: 5,
         orderBy: { createdAt: 'desc' },
         include: {
-          User_AssistanceRequest_clientIdToUser: {
+          client: {
             select: {
               firstName: true,
               lastName: true,
@@ -565,27 +571,27 @@ router.get('/', async (req: any, res: any) => {
           averageRating: 0, // Non c'è il campo rating nel database attualmente
           completedJobs
         },
-        recentRequests: recentRequests.map(request => ({
+        recentRequests: recentRequests.map((request: any) => ({
           id: request.id,
           title: request.title,
           Category: (request as any).Category?.name || 'Non categorizzato',
           status: request.status.toLowerCase(),
           createdAt: request.createdAt.toISOString(),
-          clientName: (request as any).User_AssistanceRequest_clientIdToUser ? 
-            ((request as any).User_AssistanceRequest_clientIdToUser.fullName || `${(request as any).User_AssistanceRequest_clientIdToUser.firstName} ${(request as any).User_AssistanceRequest_clientIdToUser.lastName}`) : null,
+          clientName: (request as any).client ? 
+            ((request as any).client.fullName || `${(request as any).client.firstName} ${(request as any).client.lastName}`) : null,
           // NUOVO: Aggiungi i dati dell'indirizzo della richiesta
           address: request.address,
           city: request.city,
           province: request.province
         })),
-        recentQuotes: recentQuotes.map(quote => ({
+        recentQuotes: recentQuotes.map((quote: any) => ({
           id: quote.id,
           requestTitle: (quote as any).AssistanceRequest?.title,
           amount: Number(quote.amount),
           status: quote.status.toLowerCase(),
           createdAt: quote.createdAt.toISOString()
         })),
-        upcomingAppointments: upcomingAppointments.map(apt => ({
+        upcomingAppointments: upcomingAppointments.map((apt: any) => ({
           id: apt.id,
           requestTitle: apt.title,
           scheduledDate: apt.scheduledDate?.toISOString() || null,
@@ -666,7 +672,7 @@ router.get('/', async (req: any, res: any) => {
         take: 5,
         orderBy: { createdAt: 'desc' },
         include: {
-          User_AssistanceRequest_clientIdToUser: {
+          client: {
             select: {
               firstName: true,
               lastName: true,
@@ -737,26 +743,26 @@ router.get('/', async (req: any, res: any) => {
           }
         },
         recentActivity: {
-          recentUsers: recentUsers.map(user => ({
+          recentUsers: recentUsers.map((user: any) => ({
             id: user.id,
             name: user.fullName || `${user.firstName} ${user.lastName}`,
             email: user.email,
             role: user.role,
             createdAt: user.createdAt.toISOString()
           })),
-          recentRequests: recentRequests.map(request => ({
+          recentRequests: recentRequests.map((request: any) => ({
             id: request.id,
             title: request.title,
             status: request.status.toLowerCase(),
             createdAt: request.createdAt.toISOString(),
-            clientName: (request as any).User_AssistanceRequest_clientIdToUser ? 
-              ((request as any).User_AssistanceRequest_clientIdToUser.fullName || `${(request as any).User_AssistanceRequest_clientIdToUser.firstName} ${(request as any).User_AssistanceRequest_clientIdToUser.lastName}`) : null,
+            clientName: (request as any).client ? 
+              ((request as any).client.fullName || `${(request as any).client.firstName} ${(request as any).client.lastName}`) : null,
             // NUOVO: Aggiungi i dati dell'indirizzo
             address: request.address,
             city: request.city,
             province: request.province
           })),
-          recentQuotes: recentQuotes.map(quote => ({
+          recentQuotes: recentQuotes.map((quote: any) => ({
             id: quote.id,
             requestTitle: (quote as any).AssistanceRequest?.title,
             amount: Number(quote.amount),

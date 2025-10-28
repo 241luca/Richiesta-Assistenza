@@ -1,0 +1,97 @@
+MANUALE TECNICO - SISTEMA DI CLIMATIZZAZIONE HVAC
+
+1. DESCRIZIONE COMPONENTI PRINCIPALI
+
+Il sistema di climatizzazione è composto dai seguenti componenti principali:
+
+1.1 Unità Esterna
+L'unità esterna contiene il compressore, la ventola di condensazione e lo scambiatore di calore esterno. Il compressore è responsabile della compressione del gas refrigerante. La ventola di condensazione dissipa il calore verso l'ambiente esterno.
+
+1.2 Unità Interna
+L'unità interna include lo scambiatore di calore interno, la ventola di circolazione dell'aria e il filtro aria. Il filtro aria deve essere pulito ogni 3 mesi per garantire un funzionamento ottimale. La ventola regola il flusso d'aria nell'ambiente.
+
+1.3 Sistema di Controllo
+Il sistema di controllo comprende il termostato programmabile, i sensori di temperatura e il modulo di gestione elettronica. Il termostato permette di impostare la temperatura desiderata. I sensori di temperatura monitorano continuamente le condizioni ambientali.
+
+2. PROCEDURA DI MANUTENZIONE ORDINARIA
+
+2.1 Controllo Mensile
+- Verificare il corretto funzionamento della ventola
+- Controllare il livello del refrigerante
+- Ispezionare le tubazioni per eventuali perdite
+- Verificare che il termostato risponda correttamente
+
+2.2 Manutenzione Trimestrale
+- Pulire il filtro aria con acqua e sapone neutro
+- Controllare il funzionamento del compressore
+- Verificare le connessioni elettriche
+- Ispezionare lo scambiatore di calore per accumulo di polvere
+
+2.3 Manutenzione Annuale
+- Sostituire il filtro aria se danneggiato
+- Controllare la carica del refrigerante e ricaricare se necessario
+- Pulire lo scambiatore di calore esterno
+- Verificare il serraggio dei collegamenti meccanici
+- Testare il sistema di sicurezza
+
+3. DIAGNOSI GUASTI COMUNI
+
+3.1 Il sistema non si avvia
+Possibili cause:
+- Interruttore generale spento - controllare il quadro elettrico
+- Termostato non configurato correttamente - verificare le impostazioni
+- Protezione termica attivata - attendere il raffreddamento del compressore
+
+3.2 Raffreddamento insufficiente
+Possibili cause:
+- Filtro aria ostruito - pulire o sostituire il filtro
+- Basso livello di refrigerante - controllare per perdite e ricaricare
+- Ventola danneggiata - sostituire la ventola
+- Scambiatore di calore sporco - effettuare pulizia approfondita
+
+3.3 Rumore anomalo
+Possibili cause:
+- Ventola sbilanciata - bilanciare o sostituire
+- Compressore usurato - valutare la sostituzione
+- Supporti antivibranti danneggiati - sostituire i supporti
+
+4. SPECIFICHE TECNICHE
+
+Potenza refrigerante: 3.5 kW
+Alimentazione elettrica: 230V 50Hz
+Consumo energetico: 1.2 kW
+Classe energetica: A+++
+Gas refrigerante: R32
+Pressione esercizio: 18 bar
+Range temperatura: -10°C / +45°C
+Livello sonoro: 45 dB(A)
+Dimensioni unità esterna: 800x600x300 mm
+Peso unità esterna: 35 kg
+
+5. NORME DI SICUREZZA
+
+ATTENZIONE: Prima di effettuare qualsiasi intervento, scollegare l'alimentazione elettrica.
+
+- Indossare dispositivi di protezione individuale durante la manutenzione
+- Non utilizzare il sistema se si rilevano perdite di refrigerante
+- Mantenere libere le griglie di ventilazione
+- Non ostruire il flusso d'aria dell'unità esterna
+- In caso di malfunzionamento, contattare un tecnico autorizzato
+- Il refrigerante R32 richiede gestione specializzata
+
+6. CICLO DI FUNZIONAMENTO
+
+Il ciclo frigorifero si basa sul principio di compressione ed espansione del gas refrigerante. Il compressore comprime il gas che, diventando liquido, cede calore allo scambiatore esterno. Il liquido attraversa la valvola di espansione e, evaporando, assorbe calore dall'ambiente interno attraverso lo scambiatore interno. La ventola di circolazione distribuisce l'aria raffreddata nell'ambiente.
+
+Il sistema di controllo regola la velocità del compressore in base alla differenza tra temperatura rilevata e temperatura impostata. Quando la temperatura ambiente si avvicina a quella desiderata, il compressore rallenta per ottimizzare i consumi.
+
+7. RISOLUZIONE PROBLEMI AVANZATA
+
+Se il sistema presenta codici di errore sul display del termostato:
+- E1: Errore sensore temperatura ambiente - verificare il cablaggio del sensore
+- E2: Errore sensore temperatura evaporatore - controllare il sensore
+- E3: Protezione antigelo attivata - verificare il flusso d'aria
+- E4: Pressione refrigerante anomala - controllare per perdite
+- E5: Sovraccarico compressore - verificare la ventilazione dell'unità esterna
+
+Per ogni codice di errore, consultare il manuale tecnico specifico o contattare il servizio assistenza.

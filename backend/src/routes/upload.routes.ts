@@ -132,6 +132,55 @@ router.post('/profile-image',
 );
 
 /**
+ * Carica immagine di riconoscimento
+ * POST /api/upload/recognition-image
+ */
+router.post('/recognition-image', 
+  authenticate, 
+  profileImageUpload.single('image'), 
+  async (req: any, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json(
+          ResponseFormatter.error('Nessun file caricato', 'NO_FILE')
+        );
+      }
+
+      const result = await profileImageService.saveRecognitionImage(
+        req.user.id,
+        req.file
+      );
+
+      logger.info(`Recognition image uploaded for user ${req.user.id}`);
+
+      return res.json(ResponseFormatter.success({
+        recognitionImageUrl: result.recognitionImageUrl,
+        message: 'Immagine di riconoscimento caricata con successo'
+      }));
+
+    } catch (error: any) {
+      logger.error('Recognition image upload error:', error);
+      
+      // Gestisci errori di validazione
+      if (error.message.includes('Formato non valido') || 
+          error.message.includes('troppo grande') || 
+          error.message.includes('troppo piccola')) {
+        return res.status(400).json(
+          ResponseFormatter.error(error.message, 'VALIDATION_ERROR')
+        );
+      }
+      
+      return res.status(500).json(
+        ResponseFormatter.error(
+          'Errore nel caricamento dell\'immagine di riconoscimento',
+          'UPLOAD_ERROR'
+        )
+      );
+    }
+  }
+);
+
+/**
  * Ottieni foto profilo utente
  * GET /api/upload/profile-image/:userId
  */

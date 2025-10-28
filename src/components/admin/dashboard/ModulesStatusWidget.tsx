@@ -22,7 +22,7 @@ export const ModulesStatusWidget: React.FC = () => {
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900">
-          🔧 Stato Moduli
+          🔧 Stato Applicazioni
         </h3>
         <Link
           to="/admin/modules"
@@ -35,7 +35,7 @@ export const ModulesStatusWidget: React.FC = () => {
       {critical && critical.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
           <p className="text-red-800 font-semibold mb-2">
-            ⚠️ Attenzione: {critical.length} moduli critici disabilitati
+            ⚠️ Attenzione: {critical.length} applicazioni critiche disabilitate
           </p>
           <ul className="text-sm text-red-700 space-y-1">
             {critical.map((m: any) => (
@@ -62,7 +62,7 @@ export const ModulesStatusWidget: React.FC = () => {
 
       {disabled && disabled.length > 0 && (
         <div className="mt-4 pt-4 border-t">
-          <p className="text-sm text-gray-600 mb-2">Moduli disattivi:</p>
+          <p className="text-sm text-gray-600 mb-2">Applicazioni disattive:</p>
           <div className="flex flex-wrap gap-2">
             {disabled.slice(0, 5).map((m: any) => (
               <span
@@ -74,7 +74,7 @@ export const ModulesStatusWidget: React.FC = () => {
             ))}
             {disabled.length > 5 && (
               <span className="text-xs text-gray-500">
-                +{disabled.length - 5} altri
+                +{disabled.length - 5} altre
               </span>
             )}
           </div>

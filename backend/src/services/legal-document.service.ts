@@ -297,7 +297,7 @@ export class LegalDocumentService {
       const version = await prisma.legalDocumentVersion.findUnique({
         where: { id: versionId },
         include: {
-          document: true
+          LegalDocument: true
         }
       });
 
@@ -362,7 +362,7 @@ export class LegalDocumentService {
       // Notifica gli utenti se richiesto (default: true)
       const shouldNotify = options?.notifyUsers !== false;
       if (shouldNotify) {
-        await this.notifyUsersNewVersion(version.document, result);
+        await this.notifyUsersNewVersion(version.LegalDocument, result);
       }
 
       logger.info(`Legal document version published: ${versionId}`);
@@ -392,7 +392,7 @@ export class LegalDocumentService {
       const version = await prisma.legalDocumentVersion.findUnique({
         where: { id: data.versionId },
         include: {
-          document: true
+          LegalDocument: true
         }
       });
 
@@ -436,7 +436,7 @@ export class LegalDocumentService {
         entityId: acceptance.id,
         userId: data.userId,
         newValues: {
-          documentType: version.document.type,
+          documentType: version.LegalDocument.type,
           documentVersion: version.version,
           method: data.method
         },
@@ -452,14 +452,14 @@ export class LegalDocumentService {
         userId: data.userId,
         type: 'LEGAL_ACCEPTANCE',
         title: 'Documento accettato',
-        message: `Hai accettato ${version.document.displayName} (versione ${version.version})`,
+        message: `Hai accettato ${version.LegalDocument.displayName} (versione ${version.version})`,
         priority: 'normal',
         data: {
           documentId: data.documentId,
           versionId: data.versionId,
           acceptanceId: acceptance.id,
-          documentType: version.document.type,
-          documentName: version.document.displayName,
+          documentType: version.LegalDocument.type,
+          documentName: version.LegalDocument.displayName,
           version: version.version
         },
         channels: ['websocket'] // Solo notifica in-app per le conferme
@@ -482,8 +482,8 @@ export class LegalDocumentService {
       const acceptances = await prisma.userLegalAcceptance.findMany({
         where: { userId },
         include: {
-          document: true,
-          version: {
+          LegalDocument: true,
+          LegalDocumentVersion: {
             select: {
               id: true,
               version: true,
@@ -634,8 +634,8 @@ export class LegalDocumentService {
       const acceptances = await prisma.userLegalAcceptance.findMany({
         where: { userId },
         include: {
-          document: true,
-          version: true
+          LegalDocument: true,
+          LegalDocumentVersion: true
         }
       });
 
@@ -643,9 +643,9 @@ export class LegalDocumentService {
         userId,
         exportDate: new Date(),
         acceptances: acceptances.map(acc => ({
-          documentType: acc.document.type,
-          documentName: acc.document.displayName,
-          version: acc.version.version,
+          documentType: acc.LegalDocument.type,
+          documentName: acc.LegalDocument.displayName,
+          version: acc.LegalDocumentVersion.version,
           acceptedAt: acc.acceptedAt,
           method: acc.method,
           ipAddress: acc.ipAddress,

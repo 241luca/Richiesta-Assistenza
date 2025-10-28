@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { io, Socket } from 'socket.io-client';
 import { api } from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import MessageItem from './MessageItem';
 import TypingIndicator from './TypingIndicator';
 import ChatHeader from './ChatHeader';

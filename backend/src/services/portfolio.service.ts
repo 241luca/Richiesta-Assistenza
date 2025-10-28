@@ -39,15 +39,20 @@ class PortfolioService {
    */
   async createPortfolio(data: CreatePortfolioData) {
     try {
+      const { requestId, ...rest } = data;
+
       const portfolio = await prisma.portfolio.create({
         data: {
-          ...data,
+          ...rest,
+          ...(requestId
+            ? { AssistanceRequest: { connect: { id: requestId } } }
+            : {}),
           isPublic: true,
           viewCount: 0
         },
         include: {
-          category: true,
-          professional: {
+          Category: true,
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -56,7 +61,7 @@ class PortfolioService {
               avatar: true
             }
           },
-          request: true
+          AssistanceRequest: true
         }
       });
 
@@ -85,8 +90,8 @@ class PortfolioService {
       const portfolios = await prisma.portfolio.findMany({
         where,
         include: {
-          category: true,
-          professional: {
+          Category: true,
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -114,8 +119,8 @@ class PortfolioService {
       const portfolio = await prisma.portfolio.findUnique({
         where: { id },
         include: {
-          category: true,
-          professional: {
+          Category: true,
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -127,7 +132,7 @@ class PortfolioService {
               email: true
             }
           },
-          request: {
+          AssistanceRequest: {
             include: {
               category: true,
               subcategory: true
@@ -183,8 +188,8 @@ class PortfolioService {
         where: { id },
         data,
         include: {
-          category: true,
-          professional: {
+          Category: true,
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -244,8 +249,8 @@ class PortfolioService {
           isPublic: true
         },
         include: {
-          category: true,
-          professional: {
+          Category: true,
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -306,8 +311,8 @@ class PortfolioService {
       const portfolios = await prisma.portfolio.findMany({
         where,
         include: {
-          category: true,
-          professional: {
+          Category: true,
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -338,8 +343,8 @@ class PortfolioService {
           isPublic: true
         },
         include: {
-          category: true,
-          professional: {
+          Category: true,
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -370,8 +375,8 @@ class PortfolioService {
           isPublic: true
         },
         include: {
-          category: true,
-          professional: {
+          Category: true,
+          User: {
             select: {
               id: true,
               firstName: true,

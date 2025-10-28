@@ -19,6 +19,7 @@ export interface WorkAddress {
   postalCode?: string;
   latitude?: number;
   longitude?: number;
+  useResidenceAsWorkAddress?: boolean;
 }
 
 // Interfacce base senza dipendenze da Prisma

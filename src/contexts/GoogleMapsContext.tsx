@@ -14,6 +14,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { APIProvider, APILoadingStatus, useApiLoadingStatus } from '@vis.gl/react-google-maps';
 import api from '../services/api';
+import { useAuth } from '../hooks/useAuth';
 
 interface GoogleMapsContextType {
   isLoaded: boolean;
@@ -61,9 +62,16 @@ export function GoogleMapsProvider({ children }: GoogleMapsProviderProps) {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<Error | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const { isAuthenticated } = useAuth();
 
   // Carica la chiave API esclusivamente dal backend (DB-only, nessun fallback ENV)
   useEffect(() => {
+    // Solo se l'utente è autenticato, carica la chiave API
+    if (!isAuthenticated) {
+      console.log('🔒 Utente non autenticato, skip caricamento API key');
+      return;
+    }
+
     const fetchApiKey = async () => {
       try {
         console.log('🔑 Caricamento API key dal backend...');
@@ -87,7 +95,7 @@ export function GoogleMapsProvider({ children }: GoogleMapsProviderProps) {
     };
 
     fetchApiKey();
-  }, []);
+  }, [isAuthenticated]);
 
   const handleStatusChange = (status: APILoadingStatus) => {
     setIsLoaded(status === APILoadingStatus.LOADED);
@@ -96,10 +104,10 @@ export function GoogleMapsProvider({ children }: GoogleMapsProviderProps) {
     }
   };
 
-  // Se non abbiamo la chiave, non blocchiamo l'app: rendiamo i children senza APIProvider
-  if (!apiKey) {
+  // Se non siamo autenticati o non abbiamo la chiave, renderizziamo i children senza APIProvider
+  if (!isAuthenticated || !apiKey) {
     return (
-      <GoogleMapsContext.Provider value={{ isLoaded: false, loadError, apiKey }}>
+      <GoogleMapsContext.Provider value={{ isLoaded: false, loadError, apiKey: null }}>
         {children}
       </GoogleMapsContext.Provider>
     );

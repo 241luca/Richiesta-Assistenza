@@ -20,7 +20,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { apiClient as api } from '@/services/api';
 import CategorySelector from '@/components/categories/CategorySelector';
-import AddressAutocomplete from '@/components/address/AddressAutocomplete';
+import AddressGeocoding from '@/components/address/AddressGeocoding';
 
 // Schema di validazione
 const requestSchema = z.object({
@@ -81,13 +81,20 @@ export default function CreateRequestForClient() {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('');
   const [assignToProfessional, setAssignToProfessional] = useState(false);
-  const [addressData, setAddressData] = useState({
+  const [addressData, setAddressData] = useState<{
+    address: string;
+    city: string;
+    province: string;
+    postalCode: string;
+    latitude?: number;
+    longitude?: number;
+  }>({
     address: '',
     city: '',
     province: '',
     postalCode: '',
-    latitude: undefined as number | undefined,
-    longitude: undefined as number | undefined,
+    latitude: undefined,
+    longitude: undefined,
   });
 
   const {
@@ -120,28 +127,7 @@ export default function CreateRequestForClient() {
 
   const professionals = Array.isArray(professionalsResponse) ? professionalsResponse : [];
 
-  // Estrae campi utili dai dettagli di Google Places
-  const parseAddressDetails = (details: any) => {
-    try {
-      const comps: any[] = details?.address_components || [];
-      const findType = (t: string) => comps.find((c) => c.types?.includes(t));
-      const city =
-        findType('locality')?.long_name ||
-        findType('administrative_area_level_3')?.long_name ||
-        findType('sublocality')?.long_name ||
-        '';
-      const province =
-        findType('administrative_area_level_2')?.short_name ||
-        findType('administrative_area_level_1')?.short_name ||
-        '';
-      const postalCode = findType('postal_code')?.long_name || '';
-      const latitude = details?.geometry?.location?.lat?.();
-      const longitude = details?.geometry?.location?.lng?.();
-      return { city, province, postalCode, latitude, longitude };
-    } catch (e) {
-      return { city: '', province: '', postalCode: '', latitude: undefined, longitude: undefined };
-    }
-  };
+  // 🗑️ parseAddressDetails rimossa - non più necessaria con AddressGeocoding
 
   // Mutation per creare la richiesta
   const createRequestMutation = useMutation({
@@ -267,23 +253,22 @@ export default function CreateRequestForClient() {
     }
   };
 
-  const handleAddressChange = (value: string, details?: any) => {
-    const parsed = parseAddressDetails(details);
-    const data = {
-      address: value,
-      city: parsed.city || addressData.city,
-      province: parsed.province || addressData.province,
-      postalCode: parsed.postalCode || addressData.postalCode,
-      latitude: parsed.latitude,
-      longitude: parsed.longitude,
-    };
+  // 🔧 Aggiornato per AddressGeocoding - riceve un oggetto completo invece di (value, details)
+  const handleAddressChange = (data: {
+    address: string;
+    city: string;
+    province: string;
+    postalCode: string;
+    latitude?: number;
+    longitude?: number;
+  }) => {
     setAddressData(data);
     setValue('address', data.address);
     setValue('city', data.city);
     setValue('province', data.province);
     setValue('postalCode', data.postalCode);
-    if (data.latitude !== undefined) setValue('latitude', data.latitude as number);
-    if (data.longitude !== undefined) setValue('longitude', data.longitude as number);
+    if (data.latitude !== undefined) setValue('latitude', data.latitude);
+    if (data.longitude !== undefined) setValue('longitude', data.longitude);
   };
 
   const handleCategoryChange = (selection: { category?: string; subcategory?: string }) => {
@@ -735,11 +720,15 @@ export default function CreateRequestForClient() {
             </div>
             
             <div className="p-6">
-              <AddressAutocomplete
-                value={addressData.address}
+              <AddressGeocoding
+                value={addressData}
                 onChange={handleAddressChange}
-                label="Indirizzo completo"
-                error={errors.address?.message}
+                errors={{
+                  address: errors.address,
+                  city: errors.city,
+                  province: errors.province,
+                  postalCode: errors.postalCode
+                }}
               />
             </div>
           </div>

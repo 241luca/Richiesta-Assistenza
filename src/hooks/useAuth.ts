@@ -16,6 +16,7 @@ interface User {
   lastName: string;
   role: string;
   avatar?: string;
+  profileImage?: string;
 }
 
 interface LoginData {
@@ -87,7 +88,11 @@ export const useAuth = () => {
     },
     enabled: !!token, // CORRETTO: Esegue la query SOLO se c'è un token
     retry: false,
-    staleTime: 5 * 60 * 1000 // 5 minuti
+    staleTime: 15 * 60 * 1000, // 15 minuti (aumentato)
+    refetchOnWindowFocus: false, // Non ricarica quando la finestra torna in focus
+    refetchOnMount: false, // Non ricarica al mount se i dati sono freschi
+    refetchInterval: false, // Disabilita il polling automatico
+    refetchOnReconnect: false // Non ricarica quando si riconnette
   });
 
   // Mutation per il login
@@ -160,13 +165,19 @@ export const useAuth = () => {
   // Mutation per il logout
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.auth.logout();
-      return response.data;
+      try {
+        const response = await api.auth.logout();
+        return response.data;
+      } catch (error) {
+        // Ignora errori di logout (es. token già scaduto)
+        return { success: true };
+      }
     },
     onSuccess: (responseData) => {
-      // Pulisci storage
+      // Pulisci storage PRIMA di tutto
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
       
       // Pulisci cache
       queryClient.clear();
@@ -174,15 +185,18 @@ export const useAuth = () => {
       // AGGIORNATO: Usa il messaggio dal ResponseFormatter
       const message = responseData?.message || 'Logout effettuato';
       toast.success(message);
-      navigate('/login');
+      
+      // Usa window.location invece di navigate per forzare un reload completo
+      window.location.href = '/login';
     },
     onError: (error) => {
       console.error('Logout error:', error);
       // Logout anche in caso di errore
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
       queryClient.clear();
-      navigate('/login');
+      window.location.href = '/login';
     }
   });
 

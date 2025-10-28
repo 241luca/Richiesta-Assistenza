@@ -1,4 +1,5 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@prisma/client';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function seedLegalConfig(prisma: PrismaClient) {
   console.log('📄 SEEDING SISTEMA DOCUMENTI LEGALI...\n')
@@ -118,7 +119,7 @@ export async function seedLegalConfig(prisma: PrismaClient) {
       await prisma.documentTypeConfig.upsert({
         where: { code: docType.code },
         update: docType,
-        create: docType
+        create: { ...docType, id: uuidv4(), updatedAt: new Date() }
       })
       console.log(`✅ ${docType.displayName}`)
     }
@@ -160,7 +161,7 @@ export async function seedLegalConfig(prisma: PrismaClient) {
       await prisma.documentCategory.upsert({
         where: { code: category.code },
         update: category,
-        create: category
+        create: { ...category, id: uuidv4(), updatedAt: new Date() }
       })
       console.log(`✅ ${category.name}`)
     }
@@ -247,7 +248,7 @@ export async function seedLegalConfig(prisma: PrismaClient) {
       await prisma.documentSystemConfig.upsert({
         where: { key: config.key },
         update: config,
-        create: config
+        create: { ...config, id: uuidv4(), updatedAt: new Date() }
       })
       console.log(`✅ ${config.key}`)
     }
@@ -336,16 +337,175 @@ export async function seedLegalConfig(prisma: PrismaClient) {
             }
           },
           update: permission,
-          create: permission
+          create: { ...permission, id: uuidv4(), updatedAt: new Date() }
         })
         console.log(`✅ Permessi ${permission.role}`)
       } catch (error) {
         await prisma.documentPermission.create({
-          data: permission
+          data: { ...permission, id: uuidv4(), updatedAt: new Date() }
         }).catch(() => {
           console.log(`✅ Permessi ${permission.role} (già esistenti)`)
         })
       }
+    }
+
+    // 5. LEGAL DOCUMENTS (ACTUAL DOCUMENTS WITH PUBLISHED VERSIONS)
+    console.log('\n📑 Creazione documenti legali di sistema...')
+    
+    // Get SUPER_ADMIN user
+    const adminUser = await prisma.user.findFirst({
+      where: { 
+        role: 'SUPER_ADMIN',
+        email: 'admin@assistenza.it'
+      }
+    })
+
+    if (!adminUser) {
+      console.log('⚠️ SUPER_ADMIN non trovato - skip creazione documenti')
+    } else {
+      // PRIVACY POLICY
+      const privacyDoc = await prisma.legalDocument.upsert({
+        where: { 
+          type_internalName: { 
+            type: 'PRIVACY_POLICY', 
+            internalName: 'privacy-policy-2025' 
+          } 
+        },
+        update: {},
+        create: {
+          id: `privacy-${Date.now()}`,
+          type: 'PRIVACY_POLICY',
+          internalName: 'privacy-policy-2025',
+          displayName: 'Informativa sulla Privacy e Protezione dei Dati',
+          description: 'Informativa completa sul trattamento dei dati personali ai sensi del GDPR e normativa italiana',
+          isActive: true,
+          isRequired: true,
+          sortOrder: 1,
+          createdBy: adminUser.id,
+          updatedAt: new Date()
+        }
+      })
+
+      await prisma.legalDocumentVersion.upsert({
+        where: {
+          documentId_version: {
+            documentId: privacyDoc.id,
+            version: '1.0.0'
+          }
+        },
+        update: {},
+        create: {
+          id: `privacy-v1-${Date.now()}`,
+          documentId: privacyDoc.id,
+          version: '1.0.0',
+          title: 'Informativa sulla Privacy - Versione 1.0',
+          content: '<h1>Informativa sulla Privacy e Protezione dei Dati Personali</h1><p>Contenuto da personalizzare...</p>',
+          status: 'PUBLISHED',
+          requiresAccept: true,
+          effectiveDate: new Date(),
+          createdBy: adminUser.id,
+          updatedAt: new Date(),
+          publishedAt: new Date(),
+          publishedBy: adminUser.id
+        }
+      })
+      console.log('✅ Privacy Policy creata')
+
+      // TERMS OF SERVICE
+      const termsDoc = await prisma.legalDocument.upsert({
+        where: { 
+          type_internalName: { 
+            type: 'TERMS_SERVICE', 
+            internalName: 'terms-service-2025' 
+          } 
+        },
+        update: {},
+        create: {
+          id: `terms-${Date.now()}`,
+          type: 'TERMS_SERVICE',
+          internalName: 'terms-service-2025',
+          displayName: 'Termini e Condizioni di Servizio',
+          description: 'Termini e condizioni per l\'utilizzo della piattaforma di assistenza professionale',
+          isActive: true,
+          isRequired: true,
+          sortOrder: 2,
+          createdBy: adminUser.id,
+          updatedAt: new Date()
+        }
+      })
+
+      await prisma.legalDocumentVersion.upsert({
+        where: {
+          documentId_version: {
+            documentId: termsDoc.id,
+            version: '1.0.0'
+          }
+        },
+        update: {},
+        create: {
+          id: `terms-v1-${Date.now()}`,
+          documentId: termsDoc.id,
+          version: '1.0.0',
+          title: 'Termini e Condizioni - Versione 1.0',
+          content: '<h1>Termini e Condizioni di Servizio</h1><p>Contenuto da personalizzare...</p>',
+          status: 'PUBLISHED',
+          requiresAccept: true,
+          effectiveDate: new Date(),
+          createdBy: adminUser.id,
+          updatedAt: new Date(),
+          publishedAt: new Date(),
+          publishedBy: adminUser.id
+        }
+      })
+      console.log('✅ Terms of Service creati')
+
+      // COOKIE POLICY
+      const cookieDoc = await prisma.legalDocument.upsert({
+        where: { 
+          type_internalName: { 
+            type: 'COOKIE_POLICY', 
+            internalName: 'cookie-policy-2025' 
+          } 
+        },
+        update: {},
+        create: {
+          id: `cookie-${Date.now()}`,
+          type: 'COOKIE_POLICY',
+          internalName: 'cookie-policy-2025',
+          displayName: 'Cookie Policy',
+          description: 'Informativa sull\'utilizzo dei cookie e tecnologie di tracciamento',
+          isActive: true,
+          isRequired: true,
+          sortOrder: 3,
+          createdBy: adminUser.id,
+          updatedAt: new Date()
+        }
+      })
+
+      await prisma.legalDocumentVersion.upsert({
+        where: {
+          documentId_version: {
+            documentId: cookieDoc.id,
+            version: '1.0.0'
+          }
+        },
+        update: {},
+        create: {
+          id: `cookie-v1-${Date.now()}`,
+          documentId: cookieDoc.id,
+          version: '1.0.0',
+          title: 'Cookie Policy - Versione 1.0',
+          content: '<h1>Cookie Policy</h1><p>Contenuto da personalizzare...</p>',
+          status: 'PUBLISHED',
+          requiresAccept: true,
+          effectiveDate: new Date(),
+          createdBy: adminUser.id,
+          updatedAt: new Date(),
+          publishedAt: new Date(),
+          publishedBy: adminUser.id
+        }
+      })
+      console.log('✅ Cookie Policy creata')
     }
 
     // REPORT FINALE
@@ -353,7 +513,9 @@ export async function seedLegalConfig(prisma: PrismaClient) {
       documentTypes: await prisma.documentTypeConfig.count(),
       categories: await prisma.documentCategory.count(),
       systemConfigs: await prisma.documentSystemConfig.count(),
-      permissions: await prisma.documentPermission.count()
+      permissions: await prisma.documentPermission.count(),
+      legalDocuments: await prisma.legalDocument.count(),
+      documentVersions: await prisma.legalDocumentVersion.count()
     }
 
     console.log(`
@@ -363,6 +525,8 @@ export async function seedLegalConfig(prisma: PrismaClient) {
 - Categorie: ${totals.categories}
 - Configurazioni: ${totals.systemConfigs}
 - Permessi: ${totals.permissions}
+- Documenti legali: ${totals.legalDocuments}
+- Versioni pubblicate: ${totals.documentVersions}
 ===========================================
 `)
 

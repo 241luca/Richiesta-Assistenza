@@ -12,7 +12,7 @@ import {
   UserIcon
 } from '@heroicons/react/24/outline';
 import { api } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import toast from 'react-hot-toast';

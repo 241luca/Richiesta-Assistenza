@@ -59,6 +59,99 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 /**
+ * PUT /api/professions/user/:userId
+ * Aggiorna la professione di un utente (solo admin)
+ * ⚠️ DEVE ESSERE PRIMA DI GET /:id PER ROUTING CORRETTO!
+ */
+router.put('/user/:userId', authenticate, async (req: any, res: Response) => {
+  try {
+    // Verifica permessi admin
+    if (!isAdmin(req)) {
+      return res.status(403).json(ResponseFormatter.error(
+        'Accesso negato. Solo gli amministratori possono modificare la professione degli utenti.',
+        'FORBIDDEN'
+      ));
+    }
+
+    const { userId } = req.params;
+    const { professionId } = req.body;
+    
+    logger.info(`📝 Updating profession for user ${userId}`);
+    logger.info(`   New professionId: ${professionId}`);
+
+    // Verifica che l'utente esista
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(404).json(ResponseFormatter.error(
+        'User not found',
+        'USER_NOT_FOUND'
+      ));
+    }
+
+    // Verifica che la professione esista (se specificata)
+    if (professionId) {
+      const profession = await prisma.profession.findUnique({
+        where: { id: professionId }
+      });
+
+      if (!profession) {
+        return res.status(404).json(ResponseFormatter.error(
+          'Profession not found',
+          'PROFESSION_NOT_FOUND'
+        ));
+      }
+    }
+
+    // Aggiorna l'utente
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        professionId,
+        updatedAt: new Date()
+      },
+      include: {
+        Profession: true
+      }
+    });
+    
+    logger.info(`✅ User updated successfully:`);
+    logger.info(`   ProfessionId: ${updatedUser.professionId}`);
+    logger.info(`   Profession: ${updatedUser.Profession?.name || 'none'}`);
+
+    if (professionId && user.role === 'PROFESSIONAL') {
+      logger.info(`✅ Profession set for professional ${userId}`);
+      
+      const professionCategories = await prisma.professionCategory.findMany({
+        where: {
+          professionId: professionId,
+          isActive: true
+        },
+        include: {
+          Category: true
+        }
+      });
+      
+      logger.info(`   This profession has ${professionCategories.length} associated categories`);
+    }
+
+    return res.json(ResponseFormatter.success(
+      updatedUser,
+      'User profession updated successfully'
+    ));
+  } catch (error: any) {
+    logger.error('Error updating user profession:', error);
+    return res.status(500).json(ResponseFormatter.error(
+      'Failed to update user profession',
+      'UPDATE_ERROR',
+      error.message
+    ));
+  }
+});
+
+/**
  * GET /api/professions/:id
  * Ottiene una singola professione
  */
@@ -295,108 +388,6 @@ router.delete('/:id', authenticate, async (req: any, res: Response) => {
     return res.status(500).json(ResponseFormatter.error(
       'Failed to delete profession',
       'DELETE_ERROR',
-      error.message
-    ));
-  }
-});
-
-/**
- * PUT /api/professions/user/:userId
- * Aggiorna la professione di un utente E associa automaticamente le categorie (solo admin)
- */
-router.put('/user/:userId', authenticate, async (req: any, res: Response) => {
-  try {
-    // Verifica permessi admin
-    if (!isAdmin(req)) {
-      return res.status(403).json(ResponseFormatter.error(
-        'Accesso negato. Solo gli amministratori possono modificare la professione degli utenti.',
-        'FORBIDDEN'
-      ));
-    }
-
-    const { userId } = req.params;
-    const { professionId } = req.body;
-    
-    logger.info(`📝 Updating profession for user ${userId}`);
-    logger.info(`   New professionId: ${professionId}`);
-
-    // Verifica che l'utente esista
-    const user = await prisma.user.findUnique({
-      where: { id: userId }
-    });
-
-    if (!user) {
-      return res.status(404).json(ResponseFormatter.error(
-        'User not found',
-        'USER_NOT_FOUND'
-      ));
-    }
-
-    // Verifica che la professione esista (se specificata)
-    if (professionId) {
-      const profession = await prisma.profession.findUnique({
-        where: { id: professionId }
-      });
-
-      if (!profession) {
-        return res.status(404).json(ResponseFormatter.error(
-          'Profession not found',
-          'PROFESSION_NOT_FOUND'
-        ));
-      }
-    }
-
-    // Aggiorna l'utente
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        professionId,
-        updatedAt: new Date()
-      },
-      include: {
-        Profession: true
-      }
-    });
-    
-    logger.info(`✅ User updated successfully:`);
-    logger.info(`   ProfessionId: ${updatedUser.professionId}`);
-    logger.info(`   Profession: ${updatedUser.Profession?.name || 'none'}`);
-
-    // NOTA: Le categorie associate alla professione sono già definite nella tabella ProfessionCategory
-    // Non associamo automaticamente le sottocategorie - saranno selezionate manualmente
-    // dall'admin o dal professionista stesso
-    if (professionId && user.role === 'PROFESSIONAL') {
-      logger.info(`✅ Profession set for professional ${userId}`);
-      logger.info(`   The categories for this profession are defined in ProfessionCategory table`);
-      logger.info(`   Subcategories must be manually selected by admin or professional`);
-      
-      // Opzionale: possiamo restituire le categorie associate per informazione
-      const professionCategories = await prisma.professionCategory.findMany({
-        where: {
-          professionId: professionId,
-          isActive: true
-        },
-        include: {
-          Category: true
-        } as any
-      });
-      
-      logger.info(`   This profession has ${professionCategories.length} associated categories:`);
-      professionCategories.forEach(pc => {
-        const cat = (pc as any).Category || (pc as any).category;
-        logger.info(`     - ${cat?.name || 'unknown'}`);
-      });
-    }
-
-    return res.json(ResponseFormatter.success(
-      updatedUser,
-      'User profession updated successfully'
-    ));
-  } catch (error: any) {
-    logger.error('Error updating user profession:', error);
-    return res.status(500).json(ResponseFormatter.error(
-      'Failed to update user profession',
-      'UPDATE_ERROR',
       error.message
     ));
   }

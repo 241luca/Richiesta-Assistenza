@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CloudArrowUpIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { api } from '@/services/api';
 import toast from 'react-hot-toast';
+import { useImageModule } from '../../hooks/useImageModule';
 
 interface ImageUploadProps {
   currentValue: string;
@@ -20,6 +21,12 @@ export default function ImageUpload({
   const [preview, setPreview] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [manualUrl, setManualUrl] = useState(currentValue || '');
+  
+  const { 
+    isImageModuleEnabled, 
+    maxFileSize, 
+    allowedFormats 
+  } = useImageModule();
 
   // Sincronizza con il valore corrente
   React.useEffect(() => {
@@ -27,15 +34,24 @@ export default function ImageUpload({
   }, [currentValue]);
 
   const handleFile = async (file: File) => {
-    // Validazione
-    if (!file.type.startsWith('image/')) {
-      toast.error('Per favore seleziona un file immagine');
+    // Controlla se il modulo è abilitato
+    if (!isImageModuleEnabled) {
+      toast.error('Il modulo gestione immagini è disabilitato');
       return;
     }
 
-    // Max 5MB
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Il file deve essere più piccolo di 5MB');
+    // Validazione formato usando le impostazioni del modulo
+    const validTypes = allowedFormats.map(format => `image/${format === 'jpg' ? 'jpeg' : format}`);
+    if (!validTypes.includes(file.type)) {
+      const formatsText = allowedFormats.join(', ').toUpperCase();
+      toast.error(`Formato non supportato. Usa ${formatsText}`);
+      return;
+    }
+
+    // Validazione dimensione usando le impostazioni del modulo
+    if (file.size > maxFileSize) {
+      const maxSizeMB = Math.round(maxFileSize / (1024 * 1024));
+      toast.error(`Il file deve essere più piccolo di ${maxSizeMB}MB`);
       return;
     }
 
@@ -194,9 +210,9 @@ export default function ImageUpload({
                 <input
                   type="file"
                   className="sr-only"
-                  accept={accept}
+                  accept={allowedFormats.map(format => `image/${format === 'jpg' ? 'jpeg' : format}`).join(',')}
                   onChange={handleChange}
-                  disabled={isUploading}
+                  disabled={isUploading || !isImageModuleEnabled}
                 />
               </label>
             </>
@@ -211,9 +227,15 @@ export default function ImageUpload({
             </div>
           )}
         </div>
-        <p className="mt-2 text-xs text-gray-500">
-          PNG, JPG, SVG fino a 5MB
-        </p>
+        {!isImageModuleEnabled ? (
+          <p className="mt-2 text-xs text-red-500">
+            Modulo gestione immagini disabilitato
+          </p>
+        ) : (
+          <p className="mt-2 text-xs text-gray-500">
+            {allowedFormats.join(', ').toUpperCase()} fino a {Math.round(maxFileSize / (1024 * 1024))}MB
+          </p>
+        )}
       </div>
     </div>
   );

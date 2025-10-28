@@ -277,19 +277,19 @@ export default function ClientLegalDocuments() {
                         <DocumentTextIcon className="h-5 w-5 text-gray-400 mr-3" />
                         <div>
                           <div className="text-sm font-medium text-gray-900">
-                            {acceptance.document.displayName}
+                            {acceptance.document?.displayName || 'N/A'}
                           </div>
                           <div className="text-xs text-gray-500">
-                            {acceptance.document.type}
+                            {acceptance.document?.type || 'N/A'}
                           </div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      v{acceptance.version.version}
+                      v{acceptance.version?.version || 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {format(new Date(acceptance.acceptedAt), 'dd/MM/yyyy HH:mm', { locale: it })}
+                      {acceptance.acceptedAt ? format(new Date(acceptance.acceptedAt), 'dd/MM/yyyy HH:mm', { locale: it }) : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {acceptance.isActive ? (

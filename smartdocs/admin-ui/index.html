@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartDocs Admin</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50">
+    <!-- Debug Info -->
+    <div id="debug-banner" class="bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-sm text-yellow-800 hidden">
+        <strong>Debug:</strong> <span id="debug-message"></span>
+    </div>
+    <div id="app"></div>
+    
+    <script>
+        // Declare API constants globally
+        console.log('[SmartDocs] Inline script starting...');
+        
+        window.API_BASE = 'http://localhost:3500/api';
+        window.API_HEALTH = 'http://localhost:3500/health';
+        
+        // Test immediate connection
+        fetch(window.API_HEALTH)
+            .then(r => r.json())
+            .then(data => console.log('✓ API Connected:', data.services))
+            .catch(err => console.error('✗ API Connection failed:', err));
+    </script>
+    <script src="/src/main.js"></script>
+</body>
+</html>

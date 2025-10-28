@@ -81,7 +81,7 @@ router.get('/',
               email: true
             }
           },
-          LegalDocumentVersion: includeVersions === 'true' ? {
+          versions: includeVersions === 'true' ? {
             orderBy: {
               createdAt: 'desc'
             },
@@ -96,7 +96,7 @@ router.get('/',
           } : false,
           _count: {
             select: {
-              LegalDocumentVersion: true,
+              versions: true,
               UserLegalAcceptance: true
             }
           }
@@ -150,7 +150,7 @@ router.get('/acceptances',
       
       const acceptances = await prisma.userLegalAcceptance.findMany({
         include: {
-          user: {
+          User: {
             select: {
               id: true,
               email: true,
@@ -160,7 +160,7 @@ router.get('/acceptances',
               role: true
             }
           },
-          document: {
+          LegalDocument: {
             select: {
               id: true,
               type: true,
@@ -168,7 +168,7 @@ router.get('/acceptances',
               description: true
             }
           },
-          version: includeVersions === 'true' ? {
+          LegalDocumentVersion: includeVersions === 'true' ? {
             select: {
               id: true,
               version: true,
@@ -300,7 +300,7 @@ router.get('/analytics',
       const allActiveDocuments = await prisma.legalDocument.findMany({
         where: { isActive: true },
         include: {
-          versions: {
+          LegalDocumentVersion: {
             where: {
               status: 'PUBLISHED',
               effectiveDate: { lte: new Date() }
@@ -311,7 +311,7 @@ router.get('/analytics',
         }
       });
       
-      const documentsWithVersions = allActiveDocuments.filter(d => d.versions.length > 0);
+      const documentsWithVersions = allActiveDocuments.filter(d => (d as any).LegalDocumentVersion?.length > 0);
       let usersWithPending = 0;
       
       // Calcola utenti con documenti pendenti (campione)
@@ -323,11 +323,12 @@ router.get('/analytics',
       for (const user of sampleUsers) {
         let hasPending = false;
         for (const doc of documentsWithVersions) {
+          const versions = (doc as any).LegalDocumentVersion || [];
           const acceptance = await prisma.userLegalAcceptance.findFirst({
             where: {
               userId: user.id,
               documentId: doc.id,
-              versionId: doc.versions[0].id
+              versionId: versions[0]?.id
             }
           });
           if (!acceptance) {
@@ -567,7 +568,7 @@ router.get('/:id',
         where: { id: req.params.id },
         include: ({
           User: true,
-          LegalDocumentVersion: {
+          versions: {
             orderBy: {
               createdAt: 'desc'
             },
@@ -629,7 +630,27 @@ router.get('/:id',
       const document = (() => {
         const d: any = documentRaw;
         const creator = d.User ?? d.creator ?? null;
-        const versions = d.LegalDocumentVersion ?? d.versions ?? [];
+        const versionsRaw = d.LegalDocumentVersion ?? d.versions ?? [];
+        
+        // Normalize version fields
+        const versions = versionsRaw.map((v: any) => {
+          const versionCreator = v.User_LegalDocumentVersion_createdByToUser ?? v.creator ?? null;
+          const approver = v.User_LegalDocumentVersion_approvedByToUser ?? v.approver ?? null;
+          const publisher = v.User_LegalDocumentVersion_publishedByToUser ?? v.publisher ?? null;
+          const acceptanceCount = v._count?.UserLegalAcceptance ?? v._count?.acceptances ?? 0;
+          
+          const rest = { ...v };
+          delete (rest as any).User_LegalDocumentVersion_createdByToUser;
+          delete (rest as any).User_LegalDocumentVersion_approvedByToUser;
+          delete (rest as any).User_LegalDocumentVersion_publishedByToUser;
+          if (rest._count) {
+            delete (rest._count as any).UserLegalAcceptance;
+            rest._count.acceptances = acceptanceCount;
+          }
+          
+          return { ...rest, creator: versionCreator, approver, publisher };
+        });
+        
         const acceptances = d.UserLegalAcceptance ?? d.acceptances ?? [];
         // Normalize acceptance nested user key
         const acceptancesNorm = acceptances.map((a: any) => {
@@ -680,7 +701,7 @@ router.get('/:id/versions/:versionId',
           documentId: id
         },
         include: {
-          document: true,
+          LegalDocument: true,
           User_LegalDocumentVersion_createdByToUser: {
             select: {
               id: true,
@@ -837,7 +858,7 @@ router.put('/:id/versions/:versionId',
           updatedAt: new Date()
         },
         include: {
-          document: true
+          LegalDocument: true
         }
       });
 
@@ -873,7 +894,7 @@ router.put('/versions/:versionId/approve',
           approvedBy: req.user.id
         },
         include: {
-          document: true,
+          LegalDocument: true,
           User_LegalDocumentVersion_approvedByToUser: {
             select: {
               id: true,
@@ -916,7 +937,7 @@ router.put('/versions/:versionId/reject',
           archivedBy: req.user.id
         },
         include: {
-          document: true
+          LegalDocument: true
         }
       });
 
@@ -967,7 +988,7 @@ router.put('/versions/:versionId/unpublish',
           updatedAt: new Date()
         },
         include: {
-          document: true
+          LegalDocument: true
         }
       });
 
@@ -1108,7 +1129,7 @@ router.get('/acceptances/report',
       const acceptances = await prisma.userLegalAcceptance.findMany({
         where,
         include: {
-          user: {
+          User: {
             select: {
               id: true,
               fullName: true,
@@ -1116,14 +1137,14 @@ router.get('/acceptances/report',
               role: true
             }
           },
-          document: {
+          LegalDocument: {
             select: {
               id: true,
               type: true,
               displayName: true
             }
           },
-          version: {
+          LegalDocumentVersion: {
             select: {
               id: true,
               version: true,

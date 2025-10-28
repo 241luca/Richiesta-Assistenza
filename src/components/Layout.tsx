@@ -12,6 +12,7 @@ import {
   TagIcon,
   ChartBarIcon,
   ClipboardDocumentListIcon,
+  ClipboardDocumentCheckIcon,
   BuildingOfficeIcon,
   KeyIcon,
   BeakerIcon,
@@ -33,9 +34,17 @@ import {
   UsersIcon,
   BanknotesIcon,
   GlobeAltIcon,
-  GiftIcon
+  GiftIcon,
+  StarIcon,
+  Squares2X2Icon,
+  PhotoIcon,
+  PlusIcon,
+  ListBulletIcon,
+  TableCellsIcon,
+  DocumentMagnifyingGlassIcon,
+  ArrowUpTrayIcon as Upload,
+  ChartBarSquareIcon as ActivityIcon
 } from '@heroicons/react/24/outline';
-import { Squares2X2Icon } from '@heroicons/react/24/outline';
 import { BellIcon as BellIconSolid } from '@heroicons/react/24/solid';
 // CAMBIATO: Ora usa il hook invece del context
 import { useAuth } from '../hooks/useAuth';
@@ -70,6 +79,33 @@ export default function Layout({ children }: LayoutProps) {
   const { user, logout } = useAuth();
   const { siteName, siteLogo, siteClaim } = useSystemSettings();
   const [showInfoPanel, setShowInfoPanel] = React.useState(false);
+  
+  // 🔧 Riferimento al container del menu per salvare/ripristinare lo scroll
+  const navRef = React.useRef<HTMLElement>(null);
+  
+  // 🔧 Salva la posizione di scroll quando cambia
+  React.useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    
+    const handleScroll = () => {
+      sessionStorage.setItem('sidebar-scroll', String(nav.scrollTop));
+    };
+    
+    nav.addEventListener('scroll', handleScroll);
+    return () => nav.removeEventListener('scroll', handleScroll);
+  }, []);
+  
+  // 🔧 Ripristina la posizione di scroll quando il componente si monta o cambia la rotta
+  React.useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    
+    const savedScroll = sessionStorage.getItem('sidebar-scroll');
+    if (savedScroll) {
+      nav.scrollTop = parseInt(savedScroll, 10);
+    }
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     try {
@@ -106,30 +142,36 @@ export default function Layout({ children }: LayoutProps) {
           
           // Gestione Utenti
           { name: 'Gestione Professionisti', href: '/admin/professionals', icon: UserGroupIcon },
-          { name: 'Gestione Professioni-Categorie', href: '/admin/profession-categories', icon: TagIcon },
-          { name: 'Categorie', href: '/admin/categories', icon: BuildingOfficeIcon },
-          { name: 'Sottocategorie', href: '/admin/subcategories', icon: TagIcon },
-          { name: 'Tassonomia', href: '/admin/taxonomy', icon: Squares2X2Icon, isNew: true },
+          { name: 'Gestione Servizi', href: '/admin/gestione-servizi', icon: Squares2X2Icon, isNew: true },
           { name: 'Utenti', href: '/admin/users', icon: UserGroupIcon },
           
           { type: 'separator' },
           
           // Sistemi Core
-          { name: 'Gestione Moduli', href: '/admin/modules', icon: CpuChipIcon, isNew: true },
+          { name: 'Gestione Applicazioni', href: '/admin/modules', icon: CpuChipIcon, isNew: true },
+          { name: 'Moduli', href: '/admin/custom-forms', icon: ClipboardDocumentCheckIcon, isNew: true },
           { name: 'API Keys', href: '/admin/api-keys', icon: KeyIcon },
-          { name: 'Audit Log', href: '/admin/audit', icon: ShieldCheckIcon, isNew: true },
+          { name: 'SmartDocs', href: '/admin/smartdocs', icon: DocumentMagnifyingGlassIcon, isNew: true },
+          { name: 'SmartDocs Sync Settings', href: '/admin/smartdocs/sync-settings', icon: Cog6ToothIcon, isNew: true },
+          { name: 'SmartDocs Storage', href: '/admin/smartdocs/storage', icon: ServerIcon, isNew: true },
+          { name: 'SmartDocs Sync Monitor', href: '/admin/smartdocs/sync-monitor', icon: ActivityIcon, isNew: true },
+          { name: 'SmartDocs System Status', href: '/admin/smartdocs/system-status', icon: ServerIcon, isNew: true },
+          { name: 'Onboarding Analytics', href: '/admin/onboarding/analytics', icon: ChartBarIcon, isNew: true },
           { name: 'Sistema Notifiche', href: '/admin/notifications', icon: BellIconSolid },
           { name: 'Sistema Backup', href: '/admin/backup', icon: ServerIcon, isNew: true },
           { name: 'AI Duale WhatsApp', href: '/admin/ai-duale', icon: CpuChipIcon, isNew: true },
           { name: 'Sistema Referral', href: '/referrals', icon: GiftIcon, isNew: true },
           { name: 'Referral Admin', href: '/admin/referrals', icon: GiftIcon, isNew: true },
-          
+          { name: 'Sistema Recensioni Avanzate', href: '/admin/reviews-system-config', icon: StarIcon, isNew: true },
+
           { type: 'separator' },
           
           // Documenti
           { name: 'Gestione Documenti', href: '/admin/legal-documents', icon: DocumentTextIcon },
           { name: 'Editor Documenti', href: '/admin/legal-documents/editor', icon: DocumentTextIcon, isNew: true },
           { name: 'Tabelle Documenti', href: '/admin/document-management', icon: AdjustmentsHorizontalIcon, isNew: true },
+          { name: 'Tipi Documento Estesi', href: '/admin/document-management/types-extended', icon: TagIcon, isNew: true },
+          { name: 'Dashboard Documenti', href: '/admin/document-management/unified', icon: TableCellsIcon, isNew: true },
           
           { type: 'separator' },
           
@@ -137,6 +179,7 @@ export default function Layout({ children }: LayoutProps) {
           { name: 'Tabelle Sistema', href: '/admin/system-enums', icon: SwatchIcon },
           { name: 'Impostazioni', href: '/admin/settings', icon: Cog6ToothIcon },
           { name: 'Impostazioni Sistema', href: '/admin/system-settings', icon: AdjustmentsHorizontalIcon },
+          { name: 'Configurazione Immagini', href: '/admin/image-config', icon: PhotoIcon, isNew: true },
           { name: 'Sistema AI', href: '/admin/ai', icon: SparklesIcon },
           { name: 'WhatsApp', href: '/admin/whatsapp', icon: ChatBubbleBottomCenterTextIcon, isNew: true },
           { name: 'WhatsApp Contatti', href: '/admin/whatsapp/contacts', icon: UsersIcon, isNew: true },
@@ -146,6 +189,7 @@ export default function Layout({ children }: LayoutProps) {
           
           // Tools e Utility
           { name: 'Script Manager', href: '/admin/scripts', icon: CommandLineIcon, isNew: true },
+          { name: 'Audit Log', href: '/admin/audit', icon: ShieldCheckIcon, isNew: true },
           { name: 'Health Check', href: '/admin/health', icon: HeartIcon, isNew: true },
           { name: 'System Status', href: '/admin/system-status', icon: ServerIcon, isNew: true },
           { name: 'Test Sistema', href: '/admin/test', icon: BeakerIcon },
@@ -160,9 +204,9 @@ export default function Layout({ children }: LayoutProps) {
         return [
           ...baseItems,
           { name: 'Dashboard Admin', href: '/admin', icon: ChartBarIcon },
-          { name: 'Referral Admin', href: '/admin/referrals', icon: GiftIcon, isNew: true },
-          { name: 'Gestione Moduli', href: '/admin/modules', icon: CpuChipIcon, isNew: true },
           { name: 'Audit Log', href: '/admin/audit', icon: ShieldCheckIcon, isNew: true },
+          { name: 'Onboarding Tutorial', href: '/admin/onboarding/tutorials', icon: AcademicCapIcon, isNew: true },
+          { name: 'Onboarding Analytics', href: '/admin/onboarding/analytics', icon: ChartBarIcon, isNew: true },
           { name: 'Test Sistema', href: '/admin/test', icon: BeakerIcon },
           { name: 'Utenti', href: '/admin/users', icon: UserGroupIcon },
           { name: 'Richieste', href: '/requests', icon: DocumentTextIcon },
@@ -172,14 +216,17 @@ export default function Layout({ children }: LayoutProps) {
           { name: 'WhatsApp', href: '/admin/whatsapp', icon: ChatBubbleBottomCenterTextIcon, isNew: true },
           { name: 'WhatsApp Contatti', href: '/admin/whatsapp/contacts', icon: UsersIcon, isNew: true },
           { name: 'WhatsApp Messaggi', href: '/admin/whatsapp/messages', icon: ChatBubbleLeftRightIcon, isNew: true },
-          { name: 'Preventivi', href: '/quotes', icon: CurrencyDollarIcon },
-          { name: 'Categorie', href: '/admin/categories', icon: BuildingOfficeIcon },
-          { name: 'Sottocategorie', href: '/admin/subcategories', icon: TagIcon },
-          { name: 'Tassonomia', href: '/admin/taxonomy', icon: Squares2X2Icon, isNew: true },
+          { name: 'Gestione Servizi', href: '/admin/gestione-servizi', icon: Squares2X2Icon, isNew: true },
+          { name: 'Moduli', href: '/admin/custom-forms', icon: ClipboardDocumentCheckIcon, isNew: true },
+          { name: 'SmartDocs', href: '/admin/smartdocs', icon: DocumentMagnifyingGlassIcon, isNew: true },
+          { name: 'SmartDocs Settings', href: '/admin/smartdocs/sync-settings', icon: Cog6ToothIcon, isNew: true },
+          { name: 'SmartDocs Monitor', href: '/admin/smartdocs/sync-monitor', icon: ActivityIcon, isNew: true },
           { name: 'Sistema AI', href: '/admin/ai', icon: SparklesIcon },
+          { name: 'Sistema Recensioni Avanzate', href: '/admin/reviews-system-config', icon: StarIcon, isNew: true },
           { name: 'Gestione Professionisti', href: '/admin/professionals', icon: UserGroupIcon },
           { name: 'Health Check', href: '/admin/health', icon: HeartIcon, isNew: true },
           { name: 'System Status', href: '/admin/system-status', icon: ServerIcon, isNew: true },
+          { name: 'Configurazione Immagini', href: '/admin/image-config', icon: PhotoIcon, isNew: true },
           { name: 'Impostazioni', href: '/admin/settings', icon: Cog6ToothIcon },
           { name: 'Profilo', href: '/profile', icon: UserCircleIcon },
         ];
@@ -195,13 +242,18 @@ export default function Layout({ children }: LayoutProps) {
         }
         
         professionalItems.push(
-          { name: 'Rapporti Intervento', href: '/professional/reports', icon: ClipboardDocumentListIcon, isNew: true }
+          { name: 'Rapporti Intervento', href: '/professional/reports', icon: ClipboardDocumentListIcon, isNew: true },
+          { name: 'Moduli', href: '/professional/custom-forms', icon: ClipboardDocumentCheckIcon, isNew: true }
         );
         
         professionalItems.push(
           { name: 'Le mie Richieste', href: '/requests', icon: DocumentTextIcon },
           { name: 'I miei Preventivi', href: '/quotes', icon: CurrencyDollarIcon, tourId: 'my-quotes' },
           { name: 'Documenti Legali', href: '/professional/legal-documents', icon: ShieldCheckIcon, isNew: true },
+          { name: 'I miei Container', href: '/professional/smartdocs', icon: DocumentMagnifyingGlassIcon, isNew: true },
+          { name: 'Knowledge Base', href: '/my-documents', icon: DocumentMagnifyingGlassIcon, isNew: true },
+          { name: 'Carica Documenti', href: '/my-documents/upload', icon: Upload, isNew: true },
+          { name: 'Preferenze SmartDocs', href: '/settings/smartdocs', icon: Cog6ToothIcon, isNew: true },
           { name: 'Competenze', href: '/professional/skills', icon: TagIcon },
           { name: 'Calendario', href: '/professional/calendar', icon: ClipboardDocumentListIcon, tourId: 'calendar' },
           { name: 'Profilo e Indirizzi', href: '/profile', icon: UserCircleIcon }
@@ -214,7 +266,12 @@ export default function Layout({ children }: LayoutProps) {
           { name: 'Le mie Richieste', href: '/requests', icon: DocumentTextIcon },
           { name: 'Preventivi Ricevuti', href: '/quotes', icon: CurrencyDollarIcon },
           { name: 'Documenti Legali', href: '/my-legal-documents', icon: ShieldCheckIcon, isNew: true },
+          { name: 'I miei Container', href: '/client/smartdocs', icon: DocumentMagnifyingGlassIcon, isNew: true },
+          { name: 'Knowledge Base', href: '/my-documents', icon: DocumentMagnifyingGlassIcon, isNew: true },
+          { name: 'Carica Documenti', href: '/my-documents/upload', icon: Upload, isNew: true },
+          { name: 'Preferenze SmartDocs', href: '/settings/smartdocs', icon: Cog6ToothIcon, isNew: true },
           { name: 'Rapporti Intervento', href: '/client/reports', icon: DocumentTextIcon, isNew: true },
+          { name: 'Moduli Ricevuti', href: '/client/custom-forms', icon: ClipboardDocumentCheckIcon, isNew: true },
           { name: 'Nuova Richiesta', href: '/requests/new', icon: ClipboardDocumentListIcon },
           { name: 'Profilo', href: '/profile', icon: UserCircleIcon },
         ];
@@ -256,7 +313,7 @@ export default function Layout({ children }: LayoutProps) {
           </div>
 
           {/* Navigation - Ora con più spazio */}
-          <nav className="flex-1 space-y-1 px-2 py-4 overflow-y-auto">
+          <nav ref={navRef} className="flex-1 space-y-1 px-2 py-4 overflow-y-auto">
             {navigationItems.map((item, index) => {
               // Se è un separatore, renderizza una linea
               if (isSeparator(item)) {

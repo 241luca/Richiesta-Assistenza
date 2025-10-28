@@ -34,7 +34,7 @@ class PDFService {
           User: true,
           AssistanceRequest: {
             include: {
-              User_AssistanceRequest_clientIdToUser: true,
+              client: true,
               Category: true,
               Subcategory: true
             }
@@ -321,8 +321,8 @@ class PDFService {
       const rawRequest = await prisma.assistanceRequest.findUnique({
         where: { id: requestId },
         include: {
-          User_AssistanceRequest_clientIdToUser: true,
-          User_AssistanceRequest_professionalIdToUser: true,
+          client: true,
+          professional: true,
           Category: true,
           Subcategory: true,
           RequestAttachment: true

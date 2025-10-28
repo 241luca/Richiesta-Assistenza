@@ -132,11 +132,11 @@ router.get('/legal/all', async (req, res) => {
       documentTypes.map(async (type) => {
         const legalDoc = await prisma.legalDocument.findFirst({
           where: {
-            type: type.code,
+            type: type.code as any,
             isActive: true
           },
           include: {
-            versions: {
+            LegalDocumentVersion: {
               where: {
                 status: 'PUBLISHED',
                 effectiveDate: {
@@ -151,12 +151,13 @@ router.get('/legal/all', async (req, res) => {
           }
         });
 
+        const versions = (legalDoc as any)?.LegalDocumentVersion || [];
         return {
           ...type,
           type: type.code,
-          hasPublishedVersion: legalDoc && legalDoc.versions.length > 0,
-          currentVersion: legalDoc?.versions[0] || null,
-          lastUpdated: legalDoc?.versions[0]?.publishedAt || null
+          hasPublishedVersion: legalDoc && versions.length > 0,
+          currentVersion: versions[0] || null,
+          lastUpdated: versions[0]?.publishedAt || null
         };
       })
     );
@@ -173,10 +174,13 @@ router.get('/legal/all', async (req, res) => {
 /**
  * GET /api/public/legal/:type
  * Ottieni un documento legale pubblico specifico
+ * Query params:
+ *  - version: (opzionale) numero versione specifica da visualizzare (es: 1.0.0)
  */
 router.get('/legal/:type', async (req, res) => {
   try {
     const { type } = req.params;
+    const { version: requestedVersion } = req.query;
     
     // Mappa i parametri URL ai tipi corretti del database
     const typeMapping: Record<string, string> = {
@@ -191,20 +195,28 @@ router.get('/legal/:type', async (req, res) => {
     
     const documentType = typeMapping[type.toLowerCase()] || type.toUpperCase().replace(/-/g, '_');
 
+    // Costruisci la query per le versioni
+    const versionWhere: any = {
+      status: 'PUBLISHED',
+      effectiveDate: {
+        lte: new Date()
+      }
+    };
+    
+    // Se è richiesta una versione specifica, filtra per quella
+    if (requestedVersion) {
+      versionWhere.version = requestedVersion as string;
+    }
+
     // Cerca il documento
     const document = await prisma.legalDocument.findFirst({
       where: {
-        type: documentType,
+        type: documentType as any,
         isActive: true
       },
       include: {
-        versions: {
-          where: {
-            status: 'PUBLISHED',
-            effectiveDate: {
-              lte: new Date()
-            }
-          },
+        LegalDocumentVersion: {
+          where: versionWhere,
           orderBy: {
             publishedAt: 'desc'
           },
@@ -213,8 +225,10 @@ router.get('/legal/:type', async (req, res) => {
       }
     });
 
+    const versions = (document as any)?.LegalDocumentVersion || [];
+
     // Se non esiste documento nel DB, crea uno di default con HTML
-    if (!document || document.versions.length === 0) {
+    if (!document || versions.length === 0) {
       const defaultDocuments: Record<string, any> = {
         'PRIVACY_POLICY': {
           type: 'PRIVACY_POLICY',
@@ -477,7 +491,7 @@ router.get('/legal/:type', async (req, res) => {
       }));
     }
 
-    const currentVersion = document.versions[0];
+    const currentVersion = versions[0];
 
     return res.json(ResponseFormatter.success({
       id: document.id,

@@ -125,13 +125,17 @@ model AssistanceRequest {
   travelDistanceText                          String?
   travelDuration                              Int?
   travelDurationText                          String?
+  requestNumber                               Int                     @unique @default(autoincrement())
+  selectedCustomFormId                        String?
   AiConversation                              AiConversation[]
-  User_AssistanceRequest_assignedByToUser     User?                   @relation("AssistanceRequest_assignedByToUser", fields: [assignedBy], references: [id])
+  assignedByUser                              User?                   @relation("AssistanceRequest_assignedByToUser", fields: [assignedBy], references: [id], map: "User_AssistanceRequest_assignedByToUser")
   Category                                    Category                @relation(fields: [categoryId], references: [id])
-  User_AssistanceRequest_clientIdToUser       User                    @relation("AssistanceRequest_clientIdToUser", fields: [clientId], references: [id])
-  User_AssistanceRequest_professionalIdToUser User?                   @relation("AssistanceRequest_professionalIdToUser", fields: [professionalId], references: [id])
+  client                                      User                    @relation("AssistanceRequest_clientIdToUser", fields: [clientId], references: [id], map: "User_AssistanceRequest_clientIdToUser")
+  professional                                User?                   @relation("AssistanceRequest_professionalIdToUser", fields: [professionalId], references: [id], map: "User_AssistanceRequest_professionalIdToUser")
+  CustomForm                                  CustomForm?             @relation(fields: [selectedCustomFormId], references: [id])
   Subcategory                                 Subcategory?            @relation(fields: [subcategoryId], references: [id])
   Complaint                                   Complaint[]
+  CustomFormUsageLog                          CustomFormUsageLog[]
   InterventionReport                          InterventionReport[]
   Invoice                                     Invoice[]
   Message                                     Message[]
@@ -140,6 +144,7 @@ model AssistanceRequest {
   Quote                                       Quote[]
   RequestAttachment                           RequestAttachment[]
   RequestChatMessage                          RequestChatMessage[]
+  RequestCustomForm                           RequestCustomForm[]
   RequestUpdate                               RequestUpdate[]
   Review                                      Review?
   ScheduledIntervention                       ScheduledIntervention[]
@@ -704,6 +709,203 @@ model CreditNote {
   @@index([originalInvoiceId])
 }
 
+model CrmContact {
+  id          String           @id
+  email       String?          @unique
+  phoneNumber String?          @unique
+  name        String?
+  source      CrmSource
+  status      CrmContactStatus @default(INVITED)
+  referrerId  String?
+  referralId  String?
+  userId      String?
+  notes       String?
+  metadata    Json?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime
+
+  @@index([email])
+  @@index([phoneNumber])
+  @@index([referralId])
+  @@index([source, status])
+}
+
+model CustomForm {
+  id                                   String                         @id
+  subcategoryId                        String
+  professionalId                       String?
+  name                                 String
+  description                          String?
+  displayType                          CustomFormDisplayType          @default(STANDARD)
+  isDefault                            Boolean                        @default(false)
+  isPublished                          Boolean                        @default(true)
+  isTemplate                           Boolean                        @default(false)
+  isDefaultTemplate                    Boolean                        @default(false)
+  createdBy                            String
+  approvedBy                           String?
+  approvedAt                           DateTime?
+  version                              Int                            @default(1)
+  layout                               Json?
+  settings                             Json?
+  usageCount                           Int                            @default(0)
+  lastUsedAt                           DateTime?
+  createdAt                            DateTime                       @default(now())
+  updatedAt                            DateTime
+  isDocumentTemplate                   Boolean                        @default(false)
+  documentTypeId                       String?                        @unique
+  documentSettings                     Json?
+  enableVersioning                     Boolean                        @default(true)
+  approvalWorkflow                     Json?
+  signatureRequired                    Boolean                        @default(false)
+  retentionPolicy                      Json?
+  AssistanceRequest                    AssistanceRequest[]
+  User_CustomForm_approvedByToUser     User?                          @relation("CustomForm_approvedByToUser", fields: [approvedBy], references: [id])
+  User_CustomForm_createdByToUser      User                           @relation("CustomForm_createdByToUser", fields: [createdBy], references: [id])
+  DocumentTypeConfig                   DocumentTypeConfig?            @relation(fields: [documentTypeId], references: [id])
+  User_CustomForm_professionalIdToUser User?                          @relation("CustomForm_professionalIdToUser", fields: [professionalId], references: [id], onDelete: Cascade)
+  Subcategory                          Subcategory                    @relation(fields: [subcategoryId], references: [id])
+  CustomFormCommission                 CustomFormCommission[]
+  CustomFormField                      CustomFormField[]
+  CustomFormUsageLog                   CustomFormUsageLog[]
+  DocumentFormTemplate                 DocumentFormTemplate[]
+  LegalDocument                        LegalDocument[]
+  RequestCustomForm                    RequestCustomForm[]
+  documentCategories                   CustomFormDocumentCategory[]   // ✅ NUOVA RELAZIONE Many-to-Many
+
+  @@unique([subcategoryId, professionalId, version])
+  @@index([createdBy])
+  @@index([isDefault, isPublished])
+  @@index([isTemplate, isDefaultTemplate])
+  @@index([professionalId])
+  @@index([subcategoryId])
+  @@index([subcategoryId, isDefaultTemplate])
+  @@index([subcategoryId, isTemplate])
+}
+
+model CustomFormCommission {
+  id                                             String                       @id
+  professionalId                                 String
+  subcategoryId                                  String
+  title                                          String
+  description                                    String
+  requirements                                   Json?
+  exampleForm                                    String?
+  status                                         CustomFormCommissionStatus   @default(PENDING)
+  priority                                       CustomFormCommissionPriority @default(MEDIUM)
+  assignedTo                                     String?
+  assignedAt                                     DateTime?
+  startedAt                                      DateTime?
+  completedAt                                    DateTime?
+  rejectedAt                                     DateTime?
+  rejectionReason                                String?
+  resultFormId                                   String?
+  notes                                          String?
+  deadline                                       DateTime?
+  estimatedHours                                 Int?
+  actualHours                                    Float?
+  createdAt                                      DateTime                     @default(now())
+  updatedAt                                      DateTime
+  User_CustomFormCommission_assignedToToUser     User?                        @relation("CustomFormCommission_assignedToToUser", fields: [assignedTo], references: [id])
+  User_CustomFormCommission_professionalIdToUser User                         @relation("CustomFormCommission_professionalIdToUser", fields: [professionalId], references: [id], onDelete: Cascade)
+  CustomForm                                     CustomForm?                  @relation(fields: [resultFormId], references: [id])
+  Subcategory                                    Subcategory                  @relation(fields: [subcategoryId], references: [id])
+
+  @@index([assignedTo])
+  @@index([professionalId, status])
+  @@index([status, priority])
+  @@index([subcategoryId])
+}
+
+model CustomFormField {
+  id                        String                      @id
+  customFormId              String
+  code                      String
+  label                     String
+  placeholder               String?
+  helpText                  String?
+  fieldType                 CustomFormFieldType
+  displayOrder              Int                         @default(100)
+  isRequired                Boolean                     @default(false)
+  isReadonly                Boolean                     @default(false)
+  isHidden                  Boolean                     @default(false)
+  columnSpan                Int                         @default(12)
+  rowNumber                 Int                         @default(1)
+  groupName                 String?
+  sectionCode               String?
+  config                    Json?
+  validationRules           Json?
+  defaultValue              String?
+  possibleValues            Json?
+  dependencies              Json?
+  showIf                    Json?
+  requiredIf                Json?
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime
+  CustomForm                CustomForm                  @relation(fields: [customFormId], references: [id], onDelete: Cascade)
+  RequestCustomFormResponse RequestCustomFormResponse[]
+
+  @@unique([customFormId, code])
+  @@index([customFormId, displayOrder])
+  @@index([fieldType])
+}
+
+model CustomFormUsageLog {
+  id                                           String            @id
+  customFormId                                 String
+  requestId                                    String
+  clientId                                     String
+  professionalId                               String
+  formDataSubmitted                            Json?
+  submittedAt                                  DateTime
+  ipAddress                                    String?
+  userAgent                                    String?
+  createdAt                                    DateTime          @default(now())
+  User_CustomFormUsageLog_clientIdToUser       User              @relation("CustomFormUsageLog_clientIdToUser", fields: [clientId], references: [id])
+  CustomForm                                   CustomForm        @relation(fields: [customFormId], references: [id])
+  User_CustomFormUsageLog_professionalIdToUser User              @relation("CustomFormUsageLog_professionalIdToUser", fields: [professionalId], references: [id])
+  AssistanceRequest                            AssistanceRequest @relation(fields: [requestId], references: [id])
+
+  @@index([customFormId])
+  @@index([requestId])
+  @@index([submittedAt])
+}
+
+model CustomFormValidationRule {
+  id           String   @id
+  code         String   @unique
+  name         String
+  description  String?
+  type         String
+  pattern      String?
+  minLength    Int?
+  maxLength    Int?
+  minValue     Float?
+  maxValue     Float?
+  errorMessage String
+  isSystem     Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
+
+  @@index([isActive])
+}
+
+// ✅ NUOVA TABELLA Many-to-Many per relazione CustomForm <-> DocumentCategory
+model CustomFormDocumentCategory {
+  id                 String           @id @default(uuid())
+  customFormId       String
+  documentCategoryId String
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  
+  customForm         CustomForm       @relation(fields: [customFormId], references: [id], onDelete: Cascade)
+  documentCategory   DocumentCategory @relation(fields: [documentCategoryId], references: [id], onDelete: Cascade)
+  
+  @@unique([customFormId, documentCategoryId])
+  @@index([customFormId])
+  @@index([documentCategoryId])
+}
+
 model DepositRule {
   id               String    @id
   name             String
@@ -724,19 +926,20 @@ model DepositRule {
 }
 
 model DocumentCategory {
-  id                     String             @id
-  code                   String             @unique
-  name                   String
-  description            String?
-  icon                   String?
-  color                  String?
-  parentId               String?
-  sortOrder              Int                @default(0)
-  isActive               Boolean            @default(true)
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime
-  DocumentCategory       DocumentCategory?  @relation("DocumentCategoryToDocumentCategory", fields: [parentId], references: [id])
-  other_DocumentCategory DocumentCategory[] @relation("DocumentCategoryToDocumentCategory")
+  id                        String                         @id
+  code                      String                         @unique
+  name                      String
+  description               String?
+  icon                      String?
+  color                     String?
+  parentId                  String?
+  sortOrder                 Int                            @default(0)
+  isActive                  Boolean                        @default(true)
+  createdAt                 DateTime                       @default(now())
+  updatedAt                 DateTime
+  DocumentCategory          DocumentCategory?              @relation("DocumentCategoryToDocumentCategory", fields: [parentId], references: [id])
+  other_DocumentCategory    DocumentCategory[]             @relation("DocumentCategoryToDocumentCategory")
+  customFormCategories      CustomFormDocumentCategory[]   // ✅ NUOVA RELAZIONE Many-to-Many
 
   @@index([isActive])
   @@index([parentId])
@@ -779,6 +982,20 @@ model DocumentCustomField {
   @@unique([documentType, fieldName])
   @@index([documentType])
   @@index([isActive])
+}
+
+model DocumentFormTemplate {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()"))
+  documentTypeId     String
+  formId             String
+  isDefault          Boolean            @default(false)
+  createdAt          DateTime           @default(now()) @db.Timestamp(6)
+  DocumentTypeConfig DocumentTypeConfig @relation(fields: [documentTypeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  CustomForm         CustomForm         @relation(fields: [formId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([documentTypeId, formId])
+  @@index([documentTypeId])
+  @@index([formId])
 }
 
 model DocumentNotificationTemplate {
@@ -862,34 +1079,41 @@ model DocumentTemplate {
 }
 
 model DocumentTypeConfig {
-  id                String          @id
-  code              String          @unique
-  name              String
-  displayName       String
-  description       String?
-  icon              String?
-  color             String?
-  category          String?
-  sortOrder         Int             @default(0)
-  isSystem          Boolean         @default(false)
-  isActive          Boolean         @default(true)
-  isRequired        Boolean         @default(false)
-  requiresApproval  Boolean         @default(true)
-  requiresSignature Boolean         @default(false)
-  notifyOnCreate    Boolean         @default(true)
-  notifyOnUpdate    Boolean         @default(true)
-  notifyOnExpiry    Boolean         @default(true)
-  expiryDays        Int?
-  defaultTemplate   String?
-  variables         Json?
-  workflowSteps     Json?
-  approverRoles     String[]
-  publisherRoles    String[]
-  metadata          Json?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime
-  createdBy         String?
-  LegalDocument     LegalDocument[]
+  id                   String                 @id
+  code                 String                 @unique
+  name                 String
+  displayName          String
+  description          String?
+  icon                 String?
+  color                String?
+  category             String?
+  sortOrder            Int                    @default(0)
+  isSystem             Boolean                @default(false)
+  isActive             Boolean                @default(true)
+  isRequired           Boolean                @default(false)
+  requiresApproval     Boolean                @default(true)
+  requiresSignature    Boolean                @default(false)
+  notifyOnCreate       Boolean                @default(true)
+  notifyOnUpdate       Boolean                @default(true)
+  notifyOnExpiry       Boolean                @default(true)
+  expiryDays           Int?
+  defaultTemplate      String?
+  variables            Json?
+  workflowSteps        Json?
+  approverRoles        String[]
+  publisherRoles       String[]
+  metadata             Json?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime
+  createdBy            String?
+  formTemplateId       String?                @unique
+  allowCustomForms     Boolean                @default(true)
+  enableVersioning     Boolean                @default(true)
+  maxVersions          Int?
+  customFields         Json?
+  CustomForm           CustomForm?
+  DocumentFormTemplate DocumentFormTemplate[]
+  LegalDocument        LegalDocument[]
 
   @@index([category])
   @@index([isActive])
@@ -1449,9 +1673,13 @@ model LegalDocument {
   createdAt            DateTime               @default(now())
   updatedAt            DateTime
   createdBy            String
+  formTemplateId       String?                @unique
+  enableCustomContent  Boolean                @default(false)
+  customFormId         String?
   User                 User                   @relation(fields: [createdBy], references: [id])
+  CustomForm           CustomForm?            @relation(fields: [customFormId], references: [id])
   DocumentTypeConfig   DocumentTypeConfig?    @relation(fields: [typeConfigId], references: [id])
-  LegalDocumentVersion LegalDocumentVersion[]
+  versions             LegalDocumentVersion[] @relation(map: "LegalDocumentVersion")
   UserLegalAcceptance  UserLegalAcceptance[]
 
   @@unique([type, internalName])
@@ -1632,6 +1860,25 @@ model NotificationChannel {
   @@index([isActive])
 }
 
+model NotificationDelivery {
+  id             String    @id
+  notificationId String
+  channel        String
+  status         String
+  messageId      String?
+  deliveredAt    DateTime?
+  failedAt       DateTime?
+  error          String?
+  attempts       Int       @default(0)
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime
+
+  @@index([channel])
+  @@index([notificationId])
+  @@index([status])
+}
+
 model NotificationEvent {
   id                   String               @id
   code                 String               @unique
@@ -1785,6 +2032,55 @@ model OldPayment {
   @@index([stripePaymentId])
   @@index([transactionId])
   @@index([userId])
+}
+
+model OnboardingStep {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()"))
+  templateId         String
+  role               Role
+  target             String
+  content            String
+  placement          String?
+  order              Int                @default(0)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime
+  OnboardingTemplate OnboardingTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId, role, order])
+}
+
+model OnboardingTask {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()"))
+  templateId         String
+  role               Role
+  key                String
+  label              String
+  description        String?
+  order              Int                @default(0)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime
+  OnboardingTemplate OnboardingTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId, role, order])
+}
+
+model OnboardingTemplate {
+  id             String                   @id @default(dbgenerated("gen_random_uuid()"))
+  name           String
+  description    String?
+  environment    OnboardingEnvironment    @default(DEVELOPMENT)
+  status         OnboardingTemplateStatus @default(DRAFT)
+  isDefault      Boolean                  @default(false)
+  createdBy      String?
+  approvedBy     String?
+  publishedAt    DateTime?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime
+  OnboardingStep OnboardingStep[]
+  OnboardingTask OnboardingTask[]
+
+  @@index([environment, isDefault])
+  @@index([status])
 }
 
 model Payment {
@@ -2023,6 +2319,34 @@ model ProfessionalAiSettings {
   User             User        @relation(fields: [professionalId], references: [id], onDelete: Cascade, map: "ProfessionalAiSettings_userId_fkey")
 
   @@unique([professionalId, subcategoryId], map: "ProfessionalAiSettings_userId_subcategoryId_key")
+}
+
+model ProfessionalBadge {
+  id                          String                        @id
+  name                        String
+  description                 String
+  icon                        String
+  color                       String
+  criteria                    Json
+  isAutomatic                 Boolean                       @default(true)
+  isActive                    Boolean                       @default(true)
+  priority                    Int                           @default(0)
+  createdAt                   DateTime                      @default(now())
+  updatedAt                   DateTime
+  ProfessionalBadgeAssignment ProfessionalBadgeAssignment[]
+}
+
+model ProfessionalBadgeAssignment {
+  id                String            @id
+  professionalId    String
+  badgeId           String
+  earnedAt          DateTime          @default(now())
+  validUntil        DateTime?
+  ProfessionalBadge ProfessionalBadge @relation(fields: [badgeId], references: [id])
+  User              User              @relation(fields: [professionalId], references: [id])
+
+  @@unique([professionalId, badgeId])
+  @@index([professionalId])
 }
 
 model ProfessionalCertification {
@@ -2359,6 +2683,25 @@ model ProfessionalWhatsAppDetectionOverride {
   @@index([whatsappId])
 }
 
+model PushSubscription {
+  id             String    @id
+  userId         String
+  endpoint       String
+  keys           Json
+  deviceType     String?
+  deviceName     String?
+  browser        String?
+  isActive       Boolean   @default(true)
+  lastUsedAt     DateTime?
+  unsubscribedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime
+
+  @@index([endpoint])
+  @@index([isActive])
+  @@index([userId])
+}
+
 model Quote {
   id                String            @id
   requestId         String
@@ -2472,25 +2815,25 @@ model Referral {
 }
 
 model Refund {
-  id             String    @id
+  id             String        @id
   paymentId      String
   amount         Float
-  reason         String?
-  stripeRefundId String?   @unique
+  stripeRefundId String?       @unique
   processedAt    DateTime?
   failedAt       DateTime?
   notes          String?
-  createdAt      DateTime  @default(now())
+  createdAt      DateTime      @default(now())
   updatedAt      DateTime
   createdBy      String?
   completedAt    DateTime?
-  currency       String    @default("EUR")
+  currency       String        @default("EUR")
   failureReason  String?
   metadata       Json?
-  requestedAt    DateTime  @default(now())
-  status         String    @default("PENDING")
-  User           User?     @relation(fields: [createdBy], references: [id])
-  Payment        Payment   @relation(fields: [paymentId], references: [id])
+  requestedAt    DateTime      @default(now())
+  reason         RefundReason?
+  status         RefundStatus  @default(PENDING)
+  User           User?         @relation(fields: [createdBy], references: [id])
+  Payment        Payment       @relation(fields: [paymentId], references: [id])
 
   @@index([paymentId])
   @@index([status])
@@ -2541,6 +2884,45 @@ model RequestChatMessage {
   @@index([userId])
 }
 
+model RequestCustomForm {
+  id                        String                      @id
+  requestId                 String
+  customFormId              String
+  submittedAt               DateTime?
+  isCompleted               Boolean                     @default(false)
+  submittedBy               String?
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime
+  isVerifiedByProfessional  Boolean                     @default(false)
+  CustomForm                CustomForm                  @relation(fields: [customFormId], references: [id])
+  AssistanceRequest         AssistanceRequest           @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  User                      User?                       @relation(fields: [submittedBy], references: [id])
+  RequestCustomFormResponse RequestCustomFormResponse[]
+
+  @@unique([requestId, customFormId])
+  @@index([customFormId])
+  @@index([requestId])
+  @@index([submittedBy])
+}
+
+model RequestCustomFormResponse {
+  id                  String              @id
+  requestCustomFormId String
+  fieldId             String
+  fieldName           String
+  fieldType           CustomFormFieldType
+  value               String?
+  valueJson           Json?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime
+  CustomFormField     CustomFormField     @relation(fields: [fieldId], references: [id])
+  RequestCustomForm   RequestCustomForm   @relation(fields: [requestCustomFormId], references: [id], onDelete: Cascade)
+
+  @@unique([requestCustomFormId, fieldId])
+  @@index([fieldId])
+  @@index([requestCustomFormId])
+}
+
 model RequestUpdate {
   id                String            @id
   requestId         String
@@ -2577,6 +2959,92 @@ model Review {
   @@index([rating])
 }
 
+model ReviewAnalytics {
+  id                     String   @id
+  date                   DateTime @unique @db.Date
+  totalReviews           Int      @default(0)
+  averageRating          Float    @default(0)
+  reviewsPerProfessional Float    @default(0)
+  reviewRate             Float    @default(0)
+  stars1Count            Int      @default(0)
+  stars2Count            Int      @default(0)
+  stars3Count            Int      @default(0)
+  stars4Count            Int      @default(0)
+  stars5Count            Int      @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime
+
+  @@index([date])
+}
+
+model ReviewExclusion {
+  id                                    String              @id
+  userId                                String
+  type                                  ReviewExclusionType
+  reason                                String
+  excludedBy                            String
+  isTemporary                           Boolean             @default(false)
+  expiresAt                             DateTime?
+  isActive                              Boolean             @default(true)
+  notes                                 String?
+  createdAt                             DateTime            @default(now())
+  updatedAt                             DateTime
+  User_ReviewExclusion_excludedByToUser User                @relation("ReviewExclusion_excludedByToUser", fields: [excludedBy], references: [id])
+  User_ReviewExclusion_userIdToUser     User                @relation("ReviewExclusion_userIdToUser", fields: [userId], references: [id])
+
+  @@index([isActive])
+  @@index([type])
+  @@index([userId])
+}
+
+model ReviewResponseTemplate {
+  id             String   @id
+  professionalId String?
+  name           String
+  category       String
+  template       String
+  isGlobal       Boolean  @default(false)
+  usageCount     Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
+  User           User?    @relation(fields: [professionalId], references: [id])
+
+  @@index([category])
+  @@index([professionalId])
+}
+
+model ReviewSystemConfig {
+  id                         String   @id
+  isEnabled                  Boolean  @default(true)
+  anonymousReviews           Boolean  @default(false)
+  showLastNameInitial        Boolean  @default(true)
+  requireComment             Boolean  @default(false)
+  minCommentLength           Int      @default(10)
+  maxCommentLength           Int      @default(1000)
+  maxDaysToReview            Int      @default(30)
+  autoModeration             Boolean  @default(true)
+  publicReviews              Boolean  @default(true)
+  bannedWords                String[] @default([])
+  contentFilter              Boolean  @default(true)
+  requireManualApproval      Boolean  @default(false)
+  autoApproveThreshold       Int      @default(3)
+  notifyAdminForLowRatings   Boolean  @default(true)
+  lowRatingThreshold         Int      @default(2)
+  showStarsInName            Boolean  @default(true)
+  minReviewsToShowAverage    Int      @default(3)
+  defaultSortOrder           String   @default("recent")
+  reviewsPerPage             Int      @default(10)
+  enableBadges               Boolean  @default(true)
+  topRatedThreshold          Float    @default(4.5)
+  enableLoyaltyPoints        Boolean  @default(false)
+  pointsPerReview            Int      @default(10)
+  notifyProfessionalOnReview Boolean  @default(true)
+  remindClientAfterDays      Int      @default(3)
+  notifyAdminOnProblematic   Boolean  @default(true)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime
+}
+
 model ScheduledIntervention {
   id                                              String            @id
   requestId                                       String
@@ -2604,6 +3072,28 @@ model ScheduledIntervention {
   @@index([proposedDate, status])
   @@index([requestId])
   @@index([status])
+}
+
+model ScheduledNotification {
+  id          String    @id
+  userId      String
+  type        String
+  priority    String    @default("NORMAL")
+  title       String
+  message     String
+  data        Json?
+  channels    String[]  @default([])
+  scheduledAt DateTime
+  processedAt DateTime?
+  status      String    @default("SCHEDULED")
+  attempts    Int       @default(0)
+  error       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime
+
+  @@index([scheduledAt])
+  @@index([status])
+  @@index([userId])
 }
 
 model ScriptConfiguration {
@@ -2697,6 +3187,8 @@ model Subcategory {
   updatedAt                   DateTime
   AssistanceRequest           AssistanceRequest[]
   ClientAiSettings            ClientAiSettings[]
+  CustomForm                  CustomForm[]
+  CustomFormCommission        CustomFormCommission[]
   InterventionReportTemplate  InterventionReportTemplate[]
   KbDocument                  KbDocument[]
   KnowledgeBase               KnowledgeBase[]
@@ -2730,7 +3222,7 @@ model SubcategoryAiSettings {
   isActive                    Boolean                       @default(true)
   metadata                    Json?
   createdAt                   DateTime                      @default(now())
-  updatedAt                   DateTime                      @updatedAt
+  updatedAt                   DateTime
   AiConversation              AiConversation[]
   ProfessionalAiCustomization ProfessionalAiCustomization[]
   Subcategory                 Subcategory                   @relation(fields: [subcategoryId], references: [id])
@@ -2923,6 +3415,9 @@ model User {
   verificationNotes                                                            String?
   verifiedAt                                                                   DateTime?
   referralCode                                                                 String?                       @unique
+  avatarSize                                                                   String?                       @default("md")
+  recognitionImage                                                             String?
+  isRecognitionImageRequired                                                   Boolean?                      @default(true)
   AiConversation                                                               AiConversation[]
   ApiKey                                                                       ApiKey[]
   AssistanceRequest_AssistanceRequest_assignedByToUser                         AssistanceRequest[]           @relation("AssistanceRequest_assignedByToUser")
@@ -2939,6 +3434,13 @@ model User {
   CommissionRule                                                               CommissionRule[]
   Complaint                                                                    Complaint[]
   ComplaintDraft                                                               ComplaintDraft[]
+  CustomForm_CustomForm_approvedByToUser                                       CustomForm[]                  @relation("CustomForm_approvedByToUser")
+  CustomForm_CustomForm_createdByToUser                                        CustomForm[]                  @relation("CustomForm_createdByToUser")
+  CustomForm_CustomForm_professionalIdToUser                                   CustomForm[]                  @relation("CustomForm_professionalIdToUser")
+  CustomFormCommission_CustomFormCommission_assignedToToUser                   CustomFormCommission[]        @relation("CustomFormCommission_assignedToToUser")
+  CustomFormCommission_CustomFormCommission_professionalIdToUser               CustomFormCommission[]        @relation("CustomFormCommission_professionalIdToUser")
+  CustomFormUsageLog_CustomFormUsageLog_clientIdToUser                         CustomFormUsageLog[]          @relation("CustomFormUsageLog_clientIdToUser")
+  CustomFormUsageLog_CustomFormUsageLog_professionalIdToUser                   CustomFormUsageLog[]          @relation("CustomFormUsageLog_professionalIdToUser")
   DocumentTemplate                                                             DocumentTemplate[]
   GoogleCalendarToken                                                          GoogleCalendarToken?
   InterventionReport_InterventionReport_clientIdToUser                         InterventionReport[]          @relation("InterventionReport_clientIdToUser")
@@ -2976,6 +3478,7 @@ model User {
   Portfolio                                                                    Portfolio[]
   ProfessionalAiCustomization                                                  ProfessionalAiCustomization[]
   ProfessionalAiSettings                                                       ProfessionalAiSettings[]
+  ProfessionalBadgeAssignment                                                  ProfessionalBadgeAssignment[]
   ProfessionalCertification                                                    ProfessionalCertification[]
   ProfessionalMaterial                                                         ProfessionalMaterial[]
   ProfessionalPaymentSettings_ProfessionalPaymentSettings_professionalIdToUser ProfessionalPaymentSettings?  @relation("ProfessionalPaymentSettings_professionalIdToUser")
@@ -2996,9 +3499,13 @@ model User {
   Refund                                                                       Refund[]
   RequestAttachment                                                            RequestAttachment[]
   RequestChatMessage                                                           RequestChatMessage[]
+  RequestCustomForm                                                            RequestCustomForm[]
   RequestUpdate                                                                RequestUpdate[]
   Review_Review_clientIdToUser                                                 Review[]                      @relation("Review_clientIdToUser")
   Review_Review_professionalIdToUser                                           Review[]                      @relation("Review_professionalIdToUser")
+  ReviewExclusion_ReviewExclusion_excludedByToUser                             ReviewExclusion[]             @relation("ReviewExclusion_excludedByToUser")
+  ReviewExclusion_ReviewExclusion_userIdToUser                                 ReviewExclusion[]             @relation("ReviewExclusion_userIdToUser")
+  ReviewResponseTemplate                                                       ReviewResponseTemplate[]
   ScheduledIntervention_ScheduledIntervention_createdByToUser                  ScheduledIntervention[]       @relation("ScheduledIntervention_createdByToUser")
   ScheduledIntervention_ScheduledIntervention_professionalIdToUser             ScheduledIntervention[]       @relation("ScheduledIntervention_professionalIdToUser")
   ScriptExecution                                                              ScriptExecution[]
@@ -3010,6 +3517,14 @@ model User {
   WhatsAppContact_WhatsAppContact_professionalIdToUser                         WhatsAppContact[]             @relation("WhatsAppContact_professionalIdToUser")
   WhatsAppContact_WhatsAppContact_userIdToUser                                 WhatsAppContact[]             @relation("WhatsAppContact_userIdToUser")
   WhatsAppMessage                                                              WhatsAppMessage[]
+  // Document Management System Relations
+  DocumentContainersOwned                                                      DocumentContainer[]           @relation("ContainerOwner")
+  DocumentContainerLinksAdded                                                  DocumentContainerLink[]
+  DocumentContainerSharesSharedWith                                            DocumentContainerShare[]      @relation("SharedWithUser")
+  DocumentContainerSharesSharedBy                                              DocumentContainerShare[]      @relation("SharedByUser")
+  DocumentSharesSharedWith                                                     DocumentShare[]               @relation("DocumentSharedWithUser")
+  DocumentSharesSharedBy                                                       DocumentShare[]               @relation("DocumentSharedByUser")
+  StorageConfigs                                                               StorageConfig[]
 
   @@index([createdAt])
   @@index([email])
@@ -3196,46 +3711,6 @@ model WhatsAppSession {
   @@index([sessionName])
 }
 
-// === CRM UNIFICATO PER CONTATTI MULTICANALE ===
-// Gestisce lead/prospect provenienti da referral, WhatsApp e web
-
-enum CrmSource {
-  REFERRAL
-  WHATSAPP
-  WEB
-}
-
-enum CrmContactStatus {
-  INVITED
-  REGISTERED
-  CONVERTED
-  ARCHIVED
-}
-
-model CrmContact {
-  id          String            @id
-  email       String?           @unique
-  phoneNumber String?           @unique
-  name        String?
-  source      CrmSource
-  status      CrmContactStatus  @default(INVITED)
-
-  // Collegamenti opzionali
-  referrerId  String?
-  referralId  String?
-  userId      String?
-
-  notes       String?
-  metadata    Json?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime
-
-  @@index([source, status])
-  @@index([email])
-  @@index([phoneNumber])
-  @@index([referralId])
-}
-
 enum AcceptanceMethod {
   EXPLICIT_CLICK
   IMPLICIT_SCROLL
@@ -3366,6 +3841,60 @@ enum ContactType {
   PROFESSIONAL
   TRUSTED
   BLOCKED
+}
+
+enum CrmContactStatus {
+  INVITED
+  REGISTERED
+  CONVERTED
+  ARCHIVED
+}
+
+enum CrmSource {
+  REFERRAL
+  WHATSAPP
+  WEB
+}
+
+enum CustomFormCommissionPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum CustomFormCommissionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+enum CustomFormDisplayType {
+  SIMPLE
+  STANDARD
+  ADVANCED
+}
+
+enum CustomFormFieldType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  DATE
+  DATETIME
+  CHECKBOX
+  RADIO
+  SELECT
+  MULTISELECT
+  FILE
+  FILE_IMAGE
+  SIGNATURE
+  SLIDER
+  RATING
+  TAGS
+  AUTOCOMPLETE
+  LOCATION
+  HIDDEN
 }
 
 enum DetailLevel {
@@ -3509,6 +4038,18 @@ enum OldPaymentType {
   PARTIAL_PAYMENT
 }
 
+enum OnboardingEnvironment {
+  DEVELOPMENT
+  STAGING
+  PRODUCTION
+}
+
+enum OnboardingTemplateStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 enum PaymentMethod {
   STRIPE
   PAYPAL
@@ -3584,6 +4125,22 @@ enum ReferralStatus {
   EXPIRED
 }
 
+enum RefundReason {
+  DUPLICATE
+  FRAUDULENT
+  REQUESTED_BY_CUSTOMER
+  SERVICE_NOT_PROVIDED
+  OTHER
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
 enum RequestStatus {
   PENDING
   ASSIGNED
@@ -3606,6 +4163,34 @@ enum RestoreStatus {
   FAILED
   CANCELLED
   ROLLED_BACK
+}
+
+enum ReviewBadgeType {
+  TOP_RATED
+  VERIFIED_PRO
+  QUICK_RESPONDER
+  EXPERT
+  CUSTOMER_FAVORITE
+  RISING_STAR
+}
+
+enum ReviewExclusionType {
+  CLIENT
+  PROFESSIONAL
+  BOTH
+}
+
+enum ReviewResponseStatus {
+  DRAFT
+  PUBLISHED
+  EDITED
+  DELETED
+}
+
+enum ReviewVoteType {
+  HELPFUL
+  NOT_HELPFUL
+  INAPPROPRIATE
 }
 
 enum Role {
@@ -3660,4 +4245,444 @@ enum WhatsAppStatus {
   ACTIVE
   SUSPENDED
   DELETED
+}
+
+// ============================================================================
+// DOCUMENT MANAGEMENT SYSTEM - Containers & Hierarchy
+// ============================================================================
+
+/// Container principale per organizzare documenti in struttura gerarchica
+/// Esempi: "Manuale Qualità", "Documentazione Casa", "Archivio Preventivi"
+model DocumentContainer {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  icon        String?  // Icona per UI
+  color       String?  // Colore per UI
+  
+  // Ownership e tipologia
+  ownerId     String
+  ownerType   ContainerOwnerType  // CLIENT, PROFESSIONAL, COMPANY, SYSTEM
+  
+  // Template settings
+  isTemplate  Boolean  @default(false)  // Se true, può essere clonato
+  templateName String?  // Nome del template se isTemplate=true
+  
+  // Visibility & Permissions
+  isPublic    Boolean  @default(false)  // Visibile pubblicamente
+  isShared    Boolean  @default(false)  // Condiviso con altri utenti
+  
+  // 🆕 AI AGENT FIELDS
+  aiEnabled       Boolean  @default(false)
+  aiModel         String?  @default("gpt-4")
+  aiPrompt        String?  @db.Text  // Prompt del container
+  aiObjective     String?  // "catalog", "rag", "extract", "summarize"
+  
+  // RAG Configuration
+  ragEnabled      Boolean  @default(false)
+  ragChunkSize    Int?     @default(1000)
+  ragOverlap      Int?     @default(200)
+  ragModel        String?  @default("text-embedding-ada-002")
+  
+  // Auto-processing rules
+  autoProcess     Boolean  @default(true)
+  autoClassify    Boolean  @default(true)
+  autoExtract     Boolean  @default(true)
+  autoNotify      Boolean  @default(false)
+  
+  // AI Processing Results
+  processedDocs   Int      @default(0)
+  lastProcessed   DateTime?
+  
+  // 🆕 STORAGE CONFIGURATION (Granular per Container)
+  storageProvider   StorageProvider  @default(LOCAL)  // LOCAL, S3, AZURE, GCS, DROPBOX, etc.
+  storageConfigId   String?  // ID configurazione storage specifica
+  storagePath       String?  // Path/bucket name
+  storageRegion     String?  // es. "eu-west-1"
+  storageClass      String?  @default("STANDARD")  // STANDARD, GLACIER, etc.
+  
+  // Storage options
+  enableVersioning  Boolean  @default(false)  // Versionamento S3
+  enableEncryption  Boolean  @default(true)   // Encryption at rest
+  encryptionKey     String?  // KMS key ID
+  
+  // Lifecycle & Backup
+  lifecycleRules    Json?    // Regole lifecycle S3
+  backupEnabled     Boolean  @default(false)
+  backupProvider    StorageProvider?
+  backupConfigId    String?
+  
+  // Quotas & Limits
+  maxStorageGB      Int?     // Limite storage per container
+  currentStorageGB  Float    @default(0)
+  
+  // Metadata
+  metadata    Json?    // Dati custom aggiuntivi
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  owner       User     @relation("ContainerOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  sections    DocumentSection[]
+  documents   DocumentContainerLink[]  // Many-to-Many con Document
+  shares      DocumentContainerShare[]  // Condivisioni
+  embeddings  DocumentEmbedding[]  // AI Embeddings per RAG
+  extractions DocumentExtraction[]  // Estrazioni AI
+  classifications DocumentClassification[]  // Classificazioni AI
+  storageConfig   StorageConfig?  @relation(fields: [storageConfigId], references: [id])
+  backupConfig    StorageConfig?  @relation("BackupConfig", fields: [backupConfigId], references: [id])
+  
+  @@index([ownerId])
+  @@index([ownerType])
+  @@index([isTemplate])
+  @@index([createdAt])
+  @@index([storageProvider])
+  @@index([storageConfigId])
+}
+
+/// Sezioni gerarchiche all'interno di un Container (Capitoli, Sottocapitoli, Paragrafi)
+model DocumentSection {
+  id           String   @id @default(uuid())
+  title        String
+  description  String?
+  icon         String?
+  
+  // Appartenenza
+  containerId  String
+  container    DocumentContainer @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  
+  // Gerarchia (max 3 livelli: 1=Capitolo, 2=Sottocapitolo, 3=Paragrafo)
+  parentId     String?
+  parent       DocumentSection?  @relation("SectionHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children     DocumentSection[] @relation("SectionHierarchy")
+  
+  level        Int      @default(1)  // 1, 2, o 3
+  order        Int      @default(0)  // Ordinamento all'interno del livello
+  
+  // Numerazione automatica (es. "1.2.3")
+  number       String?  // Calcolato: "1", "1.1", "1.2.3"
+  
+  // Metadata
+  metadata     Json?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  documents    DocumentSectionLink[]  // Many-to-Many con Document
+  
+  @@index([containerId])
+  @@index([parentId])
+  @@index([level])
+  @@index([order])
+}
+
+/// Link Many-to-Many tra Document e Container
+/// Un documento può essere in più container contemporaneamente
+model DocumentContainerLink {
+  id          String   @id @default(uuid())
+  
+  containerId String
+  container   DocumentContainer @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  
+  // Riferimento generico a qualsiasi tipo di documento
+  documentType String  // "LEGAL", "FORM_BASED", "ASSISTANCE_REQUEST", "QUOTE", "INTERVENTION_REPORT"
+  documentId   String  // ID del documento (LegalDocument, CustomForm, AssistanceRequest, etc.)
+  
+  // Ordinamento nel container
+  order       Int      @default(0)
+  
+  // Metadata specifici per questo link
+  customTitle String?  // Titolo custom per questo container
+  notes       String?  // Note specifiche
+  
+  addedAt     DateTime @default(now())
+  addedBy     String
+  addedByUser User     @relation(fields: [addedBy], references: [id])
+  
+  @@unique([containerId, documentType, documentId])
+  @@index([containerId])
+  @@index([documentType, documentId])
+  @@index([addedBy])
+}
+
+/// Link Many-to-Many tra Document e Section
+/// Un documento può essere in più sezioni contemporaneamente
+model DocumentSectionLink {
+  id         String   @id @default(uuid())
+  
+  sectionId  String
+  section    DocumentSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  
+  // Riferimento generico a qualsiasi tipo di documento
+  documentType String  // "LEGAL", "FORM_BASED", "ASSISTANCE_REQUEST", "QUOTE", "INTERVENTION_REPORT"
+  documentId   String
+  
+  // Ordinamento nella sezione
+  order      Int      @default(0)
+  
+  addedAt    DateTime @default(now())
+  
+  @@unique([sectionId, documentType, documentId])
+  @@index([sectionId])
+  @@index([documentType, documentId])
+}
+
+/// Condivisione di Container con altri utenti
+/// Esempio: Condivido "Cartella Clinica" con il medico di base
+model DocumentContainerShare {
+  id          String   @id @default(uuid())
+  
+  containerId String
+  container   DocumentContainer @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  
+  // Condiviso con
+  sharedWithId String
+  sharedWith   User     @relation("SharedWithUser", fields: [sharedWithId], references: [id], onDelete: Cascade)
+  
+  // Condiviso da
+  sharedById   String
+  sharedBy     User     @relation("SharedByUser", fields: [sharedById], references: [id])
+  
+  // Permessi
+  canView     Boolean  @default(true)
+  canEdit     Boolean  @default(false)
+  canShare    Boolean  @default(false)
+  canDelete   Boolean  @default(false)
+  
+  // Scadenza condivisione (opzionale)
+  expiresAt   DateTime?
+  
+  // Notifiche
+  notifyOnUpdate Boolean @default(false)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([containerId, sharedWithId])
+  @@index([containerId])
+  @@index([sharedWithId])
+  @@index([sharedById])
+}
+
+/// Condivisione singola di un documento specifico
+/// Esempio: Condivido solo "Referto analisi" con il medico
+model DocumentShare {
+  id           String   @id @default(uuid())
+  
+  // Documento condiviso
+  documentType String   // "LEGAL", "FORM_BASED", etc.
+  documentId   String
+  
+  // Condiviso con
+  sharedWithId String
+  sharedWith   User     @relation("DocumentSharedWithUser", fields: [sharedWithId], references: [id], onDelete: Cascade)
+  
+  // Condiviso da
+  sharedById   String
+  sharedBy     User     @relation("DocumentSharedByUser", fields: [sharedById], references: [id])
+  
+  // Permessi
+  canView      Boolean  @default(true)
+  canDownload  Boolean  @default(true)
+  canPrint     Boolean  @default(true)
+  
+  // Scadenza
+  expiresAt    DateTime?
+  
+  // Tracking
+  viewCount    Int      @default(0)
+  lastViewedAt DateTime?
+  
+  createdAt    DateTime @default(now())
+  
+  @@unique([documentType, documentId, sharedWithId])
+  @@index([sharedWithId])
+  @@index([sharedById])
+  @@index([documentType, documentId])
+}
+
+enum ContainerOwnerType {
+  CLIENT        // Cliente privato
+  PROFESSIONAL  // Professionista
+  COMPANY       // Azienda
+  SYSTEM        // Sistema (template predefiniti)
+}
+
+enum StorageProvider {
+  LOCAL         // Storage locale server
+  S3            // Amazon S3
+  S3_COMPATIBLE // MinIO, DigitalOcean Spaces, etc.
+  AZURE         // Azure Blob Storage
+  GCS           // Google Cloud Storage
+  DROPBOX       // Dropbox Business
+  GDRIVE        // Google Drive
+  ONEDRIVE      // Microsoft OneDrive
+  BACKBLAZE     // Backblaze B2
+  WASABI        // Wasabi Hot Storage
+}
+
+// ============================================================================
+// STORAGE CONFIGURATIONS - Multi-provider support
+// ============================================================================
+
+/// Configurazione storage per provider specifico
+/// Permette a ogni utente/azienda di usare il proprio storage
+model StorageConfig {
+  id            String   @id @default(uuid())
+  name          String   // "S3 Aziendale", "Google Drive Personale"
+  
+  provider      StorageProvider
+  
+  // Owner della configurazione
+  ownerId       String?
+  ownerType     String?  // "USER", "COMPANY", "SYSTEM"
+  
+  // Credentials (ENCRYPTED)
+  credentials   Json     // Provider-specific credentials
+  
+  // Provider-specific settings
+  bucket        String?  // S3/GCS bucket name
+  container     String?  // Azure container name
+  region        String?  // AWS region, Azure region
+  endpoint      String?  // Custom endpoint per S3-compatible
+  
+  // Path settings
+  basePath      String?  @default("/documents")  // Base path nel storage
+  
+  // Features
+  enableVersioning Boolean @default(false)
+  enableEncryption Boolean @default(true)
+  encryptionType   String? @default("AES256")  // AES256, aws:kms
+  kmsKeyId         String?  // KMS Key ID se encryption type = aws:kms
+  
+  // Storage class (S3)
+  defaultStorageClass String? @default("STANDARD")  // STANDARD, INTELLIGENT_TIERING, GLACIER
+  
+  // Lifecycle rules
+  lifecycleRules      Json?
+  
+  // Access control
+  isPublic      Boolean  @default(false)
+  corsEnabled   Boolean  @default(false)
+  corsOrigins   String[]
+  
+  // Quotas
+  maxStorageGB  Int?     // Limite storage
+  currentUsageGB Float   @default(0)
+  
+  // Status
+  isActive      Boolean  @default(true)
+  lastTested    DateTime?
+  lastError     String?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  owner         User?    @relation(fields: [ownerId], references: [id])
+  containers    DocumentContainer[]
+  backupContainers DocumentContainer[] @relation("BackupConfig")
+  
+  @@index([ownerId])
+  @@index([provider])
+  @@index([isActive])
+}
+
+// ============================================================================
+// AI PROCESSING - Embeddings, Extractions, Classifications
+// ============================================================================
+
+/// Embeddings per RAG (Retrieval Augmented Generation)
+/// Permette Q&A semantico sui documenti del container
+model DocumentEmbedding {
+  id            String   @id @default(uuid())
+  
+  containerId   String
+  container     DocumentContainer @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  
+  // Documento sorgente
+  documentType  String   // "LEGAL", "FORM_BASED", etc.
+  documentId    String
+  
+  // Chunk info
+  chunkIndex    Int
+  chunkText     String   @db.Text
+  embedding     Float[]  // Vector embedding (1536 dimensions per ada-002)
+  
+  // Metadata
+  metadata      Json?    // Page number, section, etc.
+  tokenCount    Int?
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([containerId])
+  @@index([documentType, documentId])
+  @@index([containerId, chunkIndex])
+}
+
+/// Estrazioni automatiche AI da documenti
+/// Es: date, importi, nomi, scadenze, etc.
+model DocumentExtraction {
+  id            String   @id @default(uuid())
+  
+  containerId   String
+  container     DocumentContainer @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  
+  documentType  String
+  documentId    String
+  
+  // Tipo estrazione
+  extractionType String  // "entities", "dates", "amounts", "contacts", "deadlines"
+  extractedData  Json    // Dati estratti strutturati
+  
+  // AI metadata
+  model         String?  // Modello AI usato
+  confidence    Float    // 0.0 - 1.0
+  reasoning     String?  @db.Text  // Spiegazione AI
+  
+  // User feedback
+  verified      Boolean? @default(false)
+  correctedData Json?    // Dati corretti dall'utente
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([containerId])
+  @@index([extractionType])
+  @@index([documentType, documentId])
+}
+
+/// Classificazioni automatiche AI
+/// Suggerimenti su dove posizionare il documento
+model DocumentClassification {
+  id            String   @id @default(uuid())
+  
+  containerId   String
+  container     DocumentContainer @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  
+  documentType  String
+  documentId    String
+  
+  // AI suggestions
+  suggestedSection    String?  // Sezione suggerita
+  suggestedCategory   String?  // Categoria
+  suggestedTags       String[] // Tags suggeriti
+  suggestedTitle      String?  // Titolo suggerito
+  
+  // AI metadata
+  model               String?
+  confidence          Float
+  reasoning           String?  @db.Text
+  
+  // User feedback
+  accepted            Boolean? @default(false)
+  correctedSection    String?
+  correctedTags       String[]
+  
+  createdAt           DateTime @default(now())
+  
+  @@index([containerId])
+  @@index([documentType, documentId])
 }

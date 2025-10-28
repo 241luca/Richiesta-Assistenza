@@ -270,72 +270,8 @@ export default function LegalDocumentVersionForm() {
     }));
   };
 
-  // Template per i documenti
-  const getTemplate = (type: string) => {
-    const templates: Record<string, string> = {
-      PRIVACY_POLICY: `
-<h1>Informativa sulla Privacy</h1>
-<p><em>Ai sensi del Regolamento UE 2016/679 (GDPR)</em></p>
-<p>Ultimo aggiornamento: ${new Date().toLocaleDateString('it-IT')}</p>
-
-<h2>1. Titolare del Trattamento</h2>
-<p>Il Titolare del trattamento dei dati personali è <strong>[Nome Azienda]</strong>, con sede legale in [Indirizzo].</p>
-
-<h2>2. Tipologie di Dati Raccolti</h2>
-<p>Raccogliamo le seguenti categorie di dati personali:</p>
-<ul>
-  <li>Dati anagrafici (nome, cognome, data di nascita)</li>
-  <li>Dati di contatto (email, telefono)</li>
-  <li>Dati di navigazione (IP, browser)</li>
-</ul>
-
-<h2>3. Diritti dell'Interessato</h2>
-<p>Lei ha diritto di:</p>
-<ul>
-  <li>Accedere ai suoi dati personali</li>
-  <li>Rettificare dati inesatti</li>
-  <li>Cancellare i dati</li>
-  <li>Opporsi al trattamento</li>
-</ul>`,
-      TERMS_SERVICE: `
-<h1>Termini e Condizioni di Servizio</h1>
-<p>Ultimo aggiornamento: ${new Date().toLocaleDateString('it-IT')}</p>
-
-<h2>1. Accettazione dei Termini</h2>
-<p>Utilizzando questo servizio, l'utente accetta di essere vincolato dai presenti Termini e Condizioni.</p>
-
-<h2>2. Descrizione del Servizio</h2>
-<p>Il nostro servizio consiste in una piattaforma di collegamento tra clienti e professionisti.</p>
-
-<h2>3. Obblighi dell'Utente</h2>
-<p>L'utente si impegna a fornire informazioni veritiere e accurate.</p>`,
-      COOKIE_POLICY: `
-<h1>Cookie Policy</h1>
-<p>Ultimo aggiornamento: ${new Date().toLocaleDateString('it-IT')}</p>
-
-<h2>1. Cosa sono i Cookie</h2>
-<p>I cookie sono piccoli file di testo che vengono memorizzati sul tuo dispositivo.</p>
-
-<h2>2. Tipologie di Cookie</h2>
-<ul>
-  <li>Cookie Necessari</li>
-  <li>Cookie Analitici</li>
-  <li>Cookie di Marketing</li>
-</ul>`
-    };
-    
-    return templates[type] || '';
-  };
-
-  const applyTemplate = () => {
-    if (document?.type) {
-      const template = getTemplate(document.type);
-      if (template) {
-        setFormData(prev => ({ ...prev, content: template }));
-        toast.success('Template applicato!');
-      }
-    }
-  };
+  // Template functions removed - use template management page
+  // Content is pre-loaded from previous version automatically
 
   // Se sta caricando, mostra loading
   if (documentLoading || versionLoading || isLoadingKey) {
@@ -523,17 +459,7 @@ export default function LegalDocumentVersionForm() {
               <h2 className="text-lg font-semibold text-gray-900">
                 Contenuto Documento
               </h2>
-              <div className="flex space-x-2">
-                {document?.type && (
-                  <button
-                    type="button"
-                    onClick={applyTemplate}
-                    className="px-3 py-1 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700"
-                  >
-                    Applica Template {document.type.replace('_', ' ')}
-                  </button>
-                )}
-              </div>
+              {/* Template button removed - content pre-loaded from previous version */}
             </div>
 
             <div className="space-y-4">

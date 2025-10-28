@@ -94,8 +94,8 @@ router.get(
               province: true
             }
           },
-          category: true,
-          subcategory: true
+          Category: true,
+          Subcategory: true
         },
         orderBy: [
           { priority: 'desc' }, // Prima le urgenti
@@ -207,9 +207,9 @@ router.get(
               province: true
             }
           },
-          category: true,
-          subcategory: true,
-          quotes: {
+          Category: true,
+          Subcategory: true,
+          Quote: {
             select: {
               id: true,
               status: true
@@ -288,8 +288,8 @@ router.post(
       const request = await prisma.assistanceRequest.findUnique({
         where: { id: requestId },
         include: {
-          category: true,
-          subcategory: true
+          Category: true,
+          Subcategory: true
         }
       });
 
@@ -355,8 +355,8 @@ router.post(
               phone: true
             }
           },
-          category: true,
-          subcategory: true
+          Category: true,
+          Subcategory: true
         }
       });
 
@@ -365,9 +365,9 @@ router.post(
         data: {
           recipientId: request.clientId!,
           title: 'Richiesta assegnata',
-          message: `La tua richiesta "${request.title}" è stata presa in carico da ${professional.fullName}`,
+          content: `La tua richiesta "${request.title}" è stata presa in carico da ${professional.fullName}`,
           type: 'REQUEST_ASSIGNED',
-          relatedId: requestId,
+          entityId: requestId,
           isRead: false
         }
       });

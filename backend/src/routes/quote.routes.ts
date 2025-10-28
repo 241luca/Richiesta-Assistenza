@@ -92,7 +92,8 @@ router.get(
       }
 
       if (user.role === 'CLIENT') {
-        where.request = {
+        // Fix: Use requestId to filter by client instead of request relation
+        where.AssistanceRequest = {
           is: { clientId: user.id },
         };
         where.status = where.status || { not: QuoteStatus.DRAFT };
@@ -129,7 +130,7 @@ router.get(
           },
           AssistanceRequest: {
             include: {
-              User_AssistanceRequest_clientIdToUser: {
+              client: {
                 select: {
                   id: true,
                   firstName: true,
@@ -176,7 +177,7 @@ router.get(
           totalAmount,
           request: {
             ...assistanceRequest,
-            client: assistanceRequest.User_AssistanceRequest_clientIdToUser
+            client: assistanceRequest.client
           },
           professional: (quote as any).User,
           items: items.map((item: any) => ({
@@ -272,7 +273,7 @@ router.post(
 
       const request = await prisma.assistanceRequest.findUnique({
         where: { id: requestId },
-        include: { User_AssistanceRequest_clientIdToUser: true },
+        include: { client: true },
       });
 
       if (!request) {
@@ -342,7 +343,7 @@ router.get(
           QuoteItem: { orderBy: { order: 'asc' } },
           AssistanceRequest: {
             include: {
-              User_AssistanceRequest_clientIdToUser: true,
+              client: true,
               Category: true,
               Subcategory: true,
             },
@@ -402,11 +403,11 @@ router.get(
           : null,
         request: {
           ...(quote as any).AssistanceRequest,
-          client: (quote as any).AssistanceRequest?.User_AssistanceRequest_clientIdToUser || null,
+          client: (quote as any).AssistanceRequest?.client || null,
         },
         AssistanceRequest: {
           ...(quote as any).AssistanceRequest,
-          client: (quote as any).AssistanceRequest?.User_AssistanceRequest_clientIdToUser || null,
+          client: (quote as any).AssistanceRequest?.client || null,
         },
         professional: (quote as any).User,
         items: items.map((item: any) => ({
@@ -729,7 +730,7 @@ router.get(
       const revisions = await prisma.quoteRevision.findMany({
         where: { quoteId: id },
         include: {
-          user: {
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -787,7 +788,7 @@ router.post(
         include: {
           AssistanceRequest: {
             include: {
-              User_AssistanceRequest_clientIdToUser: true,
+              client: true,
             },
           },
           User: true,
@@ -833,7 +834,7 @@ router.post(
           include: {
             AssistanceRequest: {
               include: {
-                User_AssistanceRequest_clientIdToUser: true,
+                client: true,
               },
             },
             User: true,
@@ -865,7 +866,7 @@ router.post(
         await notificationService.sendToUser({
           userId: quote.professionalId,
           title: '✅ Preventivo Accettato!',
-          message: `Il tuo preventivo di €${quote.amount} è stato accettato da ${quote.AssistanceRequest.User_AssistanceRequest_clientIdToUser.firstName}`,
+          message: `Il tuo preventivo di €${quote.amount} è stato accettato da ${quote.AssistanceRequest.client.firstName}`,
           type: 'quote_accepted',
           data: { relatedId: id, relatedType: 'quote' },
         });
@@ -926,7 +927,7 @@ router.post(
         include: {
           AssistanceRequest: {
             include: {
-              User_AssistanceRequest_clientIdToUser: true,
+              client: true,
             },
           },
           User: true,
@@ -972,7 +973,7 @@ router.post(
         include: {
           AssistanceRequest: {
             include: {
-              User_AssistanceRequest_clientIdToUser: true,
+              client: true,
             },
           },
           User: true,
@@ -1032,7 +1033,7 @@ router.get('/:id/pdf', authenticate, async (req: AuthRequest, res: Response) => 
       include: {
         AssistanceRequest: {
           include: {
-            User_AssistanceRequest_clientIdToUser: true,
+            client: true,
           },
         },
         User: true,
