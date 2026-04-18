@@ -2,9 +2,10 @@ import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
 import toast from 'react-hot-toast';
 
-// API Base URL - Port 3200 for backend
-// Usa l'hostname corrente quando non siamo in localhost
-const API_BASE_URL = import.meta.env.VITE_API_URL || 
+// API Base URL - calcolata dinamicamente dall'hostname corrente
+// In questo modo funziona sia in locale (localhost:3200) sia in produzione (stesso host, porta 3200)
+// Può essere sovrascritta via variabile d'ambiente VITE_API_URL
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 
   (window.location.hostname === 'localhost' 
     ? 'http://localhost:3200'
     : `http://${window.location.hostname}:3200`);
@@ -144,7 +145,7 @@ export const initializeSocket = (token: string): Socket => {
   });
 
   socket.on('connect', () => {
-    console.log('WebSocket connected to port 3200');
+    console.log('WebSocket connesso al backend');
   });
 
   socket.on('disconnect', () => {

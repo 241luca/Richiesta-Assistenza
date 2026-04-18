@@ -1,4 +1,4 @@
-import api, { apiClient } from './api';
+import api, { apiClient, API_BASE_URL } from './api';
 
 export type ReferralCode = {
   code: string;
@@ -88,7 +88,7 @@ export const referralService = {
    * Genera un link trackabile per il codice referral.
    */
   generateTrackableLink(code: string) {
-    const base = import.meta.env.VITE_API_URL || 'http://localhost:3200';
+    const base = API_BASE_URL;
     return `${base}/api/referrals/track/${code}`;
   },
 };

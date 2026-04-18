@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, API_BASE_URL } from './api';
 
 /**
  * 🎯 REFERRAL API SERVICE
@@ -50,7 +50,7 @@ export const cleanupExpiredReferrals = async () => {
 
 // 🔗 Genera link trackabile
 export const generateTrackableLink = (code: string) => {
-  return `${import.meta.env.VITE_API_URL || 'http://localhost:3200'}/api/referrals/track/${code}`;
+  return `${API_BASE_URL}/api/referrals/track/${code}`;
 };
 
 export default {

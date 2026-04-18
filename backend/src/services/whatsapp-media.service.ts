@@ -5,13 +5,13 @@
  * Usa il sistema di notifiche e audit log esistente
  */
 
-import { wppConnectService } from './wppconnect.service';
+// import { wppConnectService } from './wppconnect.service'; // RIMOSSO
 import { prisma } from '../config/database';
 import logger from '../utils/logger';
 import { whatsAppValidation } from './whatsapp-validation.service';
 import { whatsAppErrorHandler, WhatsAppErrorType } from './whatsapp-error-handler.service';
 import { NotificationService } from './notification.service'; // Sistema notifiche esistente
-import { auditService } from './auditLog.service'; // Sistema audit esistente
+import { auditLogService } from './auditLog.service'; // Sistema audit esistente
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import sharp from 'sharp';
@@ -69,20 +69,17 @@ export class WhatsAppMediaService {
     try {
       await fs.mkdir(this.UPLOAD_DIR, { recursive: true });
       logger.info(`📁 Directory upload creata/verificata: ${this.UPLOAD_DIR}`);
-    } catch (error) {
-      logger.error('Errore creazione directory upload:', error);
+    } catch (error: unknown) {
+      logger.error('Errore creazione directory upload:', error instanceof Error ? error.message : String(error));
     }
   }
   
   /**
    * Ottieni client WPPConnect
+   * NOTA: WPPConnect è temporaneamente disabilitato.
    */
   private async getWppClient(): Promise<any> {
-    const status = await wppConnectService.getConnectionStatus();
-    if (!status.connected) {
-      throw new Error('WhatsApp non connesso. Scansiona il QR Code prima.');
-    }
-    return (wppConnectService as any).client;
+    throw new Error('WPPConnect disabilitato. Riabilitare il servizio per usare le funzioni media WhatsApp.');
   }
   
   /**
@@ -107,7 +104,7 @@ export class WhatsAppMediaService {
   /**
    * Determina MIME type
    */
-  private async getMimeType(filePath: string): string {
+  private async getMimeType(filePath: string): Promise<string> {
     const ext = path.extname(filePath).toLowerCase();
     const mimeTypes: Record<string, string> = {
       '.jpg': 'image/jpeg',
@@ -160,8 +157,8 @@ export class WhatsAppMediaService {
       logger.info(`✅ Immagine compressa: ${outputPath}`);
       return outputPath;
       
-    } catch (error) {
-      logger.error('Errore compressione immagine:', error);
+    } catch (error: unknown) {
+      logger.error('Errore compressione immagine:', error instanceof Error ? error.message : String(error));
       return imagePath; // Ritorna originale se fallisce
     }
   }
@@ -171,7 +168,7 @@ export class WhatsAppMediaService {
    */
   private async saveMediaMessage(data: any): Promise<void> {
     try {
-      await prisma.whatsAppMessage.create({
+      await (prisma.whatsAppMessage.create as any)({
         data: {
           messageId: data.messageId,
           phoneNumber: data.phoneNumber,
@@ -196,8 +193,8 @@ export class WhatsAppMediaService {
       });
       
       // Log nell'audit
-      await auditService.log({
-        action: `WHATSAPP_MEDIA_${data.type.toUpperCase()}_SENT`,
+      await auditLogService.log({
+        action: `WHATSAPP_MEDIA_${data.type.toUpperCase()}_SENT` as any,
         entityType: 'WhatsAppMessage',
         entityId: data.messageId,
         userId: null, // Sistema
@@ -210,10 +207,10 @@ export class WhatsAppMediaService {
         success: true,
         severity: 'INFO',
         category: 'BUSINESS'
-      });
+      } as any);
       
-    } catch (error) {
-      logger.error('Errore salvataggio messaggio media:', error);
+    } catch (error: unknown) {
+      logger.error('Errore salvataggio messaggio media:', error instanceof Error ? error.message : String(error));
     }
   }
   
@@ -298,7 +295,7 @@ export class WhatsAppMediaService {
       };
       
     } catch (error: any) {
-      logger.error(`❌ Errore invio immagine:`, error);
+      logger.error(`❌ Errore invio immagine:`, error instanceof Error ? error.message : String(error));
       const whatsAppError = await whatsAppErrorHandler.handleError(error, 'sendImage');
       throw whatsAppError;
     }
@@ -376,7 +373,7 @@ export class WhatsAppMediaService {
       };
       
     } catch (error: any) {
-      logger.error(`❌ Errore invio documento:`, error);
+      logger.error(`❌ Errore invio documento:`, error instanceof Error ? error.message : String(error));
       const whatsAppError = await whatsAppErrorHandler.handleError(error, 'sendDocument');
       throw whatsAppError;
     }
@@ -441,7 +438,7 @@ export class WhatsAppMediaService {
       };
       
     } catch (error: any) {
-      logger.error(`❌ Errore invio audio:`, error);
+      logger.error(`❌ Errore invio audio:`, error instanceof Error ? error.message : String(error));
       const whatsAppError = await whatsAppErrorHandler.handleError(error, 'sendAudio');
       throw whatsAppError;
     }
@@ -503,7 +500,7 @@ export class WhatsAppMediaService {
       };
       
     } catch (error: any) {
-      logger.error(`❌ Errore invio posizione:`, error);
+      logger.error(`❌ Errore invio posizione:`, error instanceof Error ? error.message : String(error));
       const whatsAppError = await whatsAppErrorHandler.handleError(error, 'sendLocation');
       throw whatsAppError;
     }
@@ -572,7 +569,7 @@ export class WhatsAppMediaService {
       };
       
     } catch (error: any) {
-      logger.error(`❌ Errore invio video:`, error);
+      logger.error(`❌ Errore invio video:`, error instanceof Error ? error.message : String(error));
       const whatsAppError = await whatsAppErrorHandler.handleError(error, 'sendVideo');
       throw whatsAppError;
     }
@@ -617,20 +614,20 @@ export class WhatsAppMediaService {
       logger.info(`✅ Media scaricato: ${filePath}`);
       
       // Audit log
-      await auditService.log({
-        action: 'WHATSAPP_MEDIA_DOWNLOADED',
+      await auditLogService.log({
+        action: 'WHATSAPP_MEDIA_DOWNLOADED' as any,
         entityType: 'WhatsAppMessage',
         entityId: messageId,
         metadata: { filePath, type: message.type },
         success: true,
         severity: 'INFO',
         category: 'BUSINESS'
-      });
+      } as any);
       
       return filePath;
       
     } catch (error: any) {
-      logger.error(`❌ Errore download media:`, error);
+      logger.error(`❌ Errore download media:`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

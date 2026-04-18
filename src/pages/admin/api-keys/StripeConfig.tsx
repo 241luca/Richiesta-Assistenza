@@ -9,7 +9,7 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
-import { api } from '../../../services/api';
+import { api, API_BASE_URL } from '../../../services/api';
 import toast from 'react-hot-toast';
 import ApiKeysLayout from './ApiKeysLayout';
 
@@ -310,7 +310,7 @@ export default function StripeConfig() {
               <p className="text-sm text-yellow-800">
                 <strong>Webhook URL da configurare in Stripe:</strong><br />
                 <code className="bg-white px-2 py-1 rounded">
-                  {window.location.origin.replace(':5193', ':3200')}/api/payments/stripe-webhook
+                  {API_BASE_URL}/api/payments/stripe-webhook
                 </code>
               </p>
             </div>

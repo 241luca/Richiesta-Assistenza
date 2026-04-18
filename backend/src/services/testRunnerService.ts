@@ -5,6 +5,9 @@ import * as path from 'path';
 import prisma from '../config/database';
 import { apiKeyService } from './apiKey.service';
 
+// URL base del backend — usa variabile d'ambiente, mai hardcoded
+const BACKEND_BASE_URL = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3200}`;
+
 const execAsync = promisify(exec);
 
 export interface TestResult {
@@ -207,10 +210,10 @@ export class TestRunnerService {
         Category: '🗄️ Database e Dati',
         status: 'error',
         message: 'Impossibile connettersi al database',
-        details: error.message,
+        details: error instanceof Error ? error.message : String(error),
         executionTime: Date.now() - this.startTime,
         timestamp: new Date(),
-        suggestion: this.getSuggestion('database', error.message),
+        suggestion: this.getSuggestion('database', error instanceof Error ? error.message : String(error)),
         severity: 'critical'
       });
     }
@@ -255,10 +258,10 @@ export class TestRunnerService {
         Category: '🗄️ Database e Dati',
         status: 'error',
         message: 'Errore nella verifica delle tabelle',
-        details: error.message,
+        details: error instanceof Error ? error.message : String(error),
         executionTime: Date.now() - this.startTime,
         timestamp: new Date(),
-        suggestion: this.getSuggestion('database-tables', error.message),
+        suggestion: this.getSuggestion('database-tables', error instanceof Error ? error.message : String(error)),
         severity: 'high'
       });
     }
@@ -304,7 +307,7 @@ export class TestRunnerService {
 
     // Test endpoint login
     try {
-      const response = await fetch('http://localhost:3000/api/auth/login', {
+      const response = await fetch(`${BACKEND_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -340,10 +343,10 @@ export class TestRunnerService {
         Category: '🔐 Autenticazione e Sicurezza',
         status: 'error',
         message: 'Test login fallito',
-        details: error.message,
+        details: error instanceof Error ? error.message : String(error),
         executionTime: Date.now() - this.startTime,
         timestamp: new Date(),
-        suggestion: this.getSuggestion('auth-login', error.message),
+        suggestion: this.getSuggestion('auth-login', error instanceof Error ? error.message : String(error)),
         severity: 'high'
       });
     }
@@ -393,7 +396,7 @@ export class TestRunnerService {
           continue;
         }
 
-        const response = await fetch(`http://localhost:3000${endpoint.url}`, {
+        const response = await fetch(`${BACKEND_BASE_URL}${endpoint.url}`, {
           method: endpoint.method,
           headers
         });
@@ -425,10 +428,10 @@ export class TestRunnerService {
           Category: '🌐 API e Endpoint',
           status: 'error',
           message: `Endpoint ${endpoint.url} non raggiungibile`,
-          details: error.message,
+          details: error instanceof Error ? error.message : String(error),
           executionTime: Date.now() - this.startTime,
           timestamp: new Date(),
-          suggestion: this.getSuggestion('api', error.message),
+          suggestion: this.getSuggestion('api', error instanceof Error ? error.message : String(error)),
           severity: 'high'
         });
       }
@@ -457,7 +460,7 @@ export class TestRunnerService {
           include: { QuoteItem: true }
         });
 
-        if (sampleQuote && sampleQuote.items.length > 0) {
+        if (sampleQuote && (sampleQuote as any).QuoteItem.length > 0) {
           this.addTestResult({
             name: 'Struttura Preventivi',
             Category: '💰 Sistema Preventivi',
@@ -485,10 +488,10 @@ export class TestRunnerService {
         Category: '💰 Sistema Preventivi',
         status: 'error',
         message: 'Errore nel test dei preventivi',
-        details: error.message,
+        details: error instanceof Error ? error.message : String(error),
         executionTime: Date.now() - this.startTime,
         timestamp: new Date(),
-        suggestion: this.getSuggestion('quotes', error.message),
+        suggestion: this.getSuggestion('quotes', error instanceof Error ? error.message : String(error)),
         severity: 'medium'
       });
     }
@@ -500,7 +503,7 @@ export class TestRunnerService {
 
     try {
       const categories = await prisma.category.count();
-      const subcategories = await prisma.professionalSubcategory.count();
+      const subcategories = await prisma.subcategory.count();
 
       this.addTestResult({
         name: 'Categorie e Sottocategorie',
@@ -518,10 +521,10 @@ export class TestRunnerService {
         Category: '📂 Categorie e Sottocategorie',
         status: 'error',
         message: 'Errore nel test delle sottocategorie',
-        details: error.message,
+        details: error instanceof Error ? error.message : String(error),
         executionTime: Date.now() - this.startTime,
         timestamp: new Date(),
-        suggestion: this.getSuggestion('subcategories', error.message),
+        suggestion: this.getSuggestion('subcategories', error instanceof Error ? error.message : String(error)),
         severity: 'medium'
       });
     }
@@ -578,7 +581,7 @@ export class TestRunnerService {
 
     // Test headers di sicurezza
     try {
-      const response = await fetch('http://localhost:3000/api/health');
+      const response = await fetch(`${BACKEND_BASE_URL}/api/health`);
       const headers = response.headers;
 
       const securityHeaders = [
@@ -617,10 +620,10 @@ export class TestRunnerService {
         Category: '🛡️ Sicurezza Avanzata',
         status: 'error',
         message: 'Impossibile verificare gli header di sicurezza',
-        details: error.message,
+        details: error instanceof Error ? error.message : String(error),
         executionTime: Date.now() - this.startTime,
         timestamp: new Date(),
-        suggestion: this.getSuggestion('security', error.message),
+        suggestion: this.getSuggestion('security', error instanceof Error ? error.message : String(error)),
         severity: 'medium'
       });
     }
@@ -633,7 +636,7 @@ export class TestRunnerService {
     // Test tempo di risposta API
     try {
       const start = Date.now();
-      await fetch('http://localhost:3000/api/health');
+      await fetch(`${BACKEND_BASE_URL}/api/health`);
       const responseTime = Date.now() - start;
 
       if (responseTime < 100) {
@@ -732,7 +735,7 @@ export class TestRunnerService {
           Category: '🧪 Altri Test',
           status: 'error',
           message: `Script ${script} fallito`,
-          details: error.message.slice(0, 200),
+          details: error instanceof Error ? error.message : String(error).slice(0, 200),
           executionTime: Date.now() - this.startTime,
           timestamp: new Date(),
           suggestion: `Verifica lo script ${script} per errori di sintassi o dipendenze mancanti`,
@@ -841,7 +844,7 @@ export class TestRunnerService {
                  result.status === 'warning' ? '⚠️' :
                  result.status === 'error' ? '❌' : '📝';
     
-    console.log(`${icon} ${result.category} - ${result.name}: ${result.message}`);
+    console.log(`${icon} ${result.Category} - ${result.name}: ${result.message}`);
     
     if (result.suggestion) {
       console.log(`   💡 Suggerimento: ${result.suggestion}`);
@@ -858,8 +861,8 @@ export class TestRunnerService {
     const criticalIssues: string[] = [];
 
     for (const result of this.testResults) {
-      if (!categories[result.category]) {
-        categories[result.category] = {
+      if (!categories[result.Category]) {
+        categories[result.Category] = {
           tests: [],
           passed: 0,
           failed: 0,
@@ -867,14 +870,14 @@ export class TestRunnerService {
         };
       }
 
-      categories[result.category].tests.push(result);
+      categories[result.Category].tests.push(result);
 
       if (result.status === 'success') {
-        categories[result.category].passed++;
+        categories[result.Category].passed++;
       } else if (result.status === 'warning') {
-        categories[result.category].warnings++;
+        categories[result.Category].warnings++;
       } else {
-        categories[result.category].failed++;
+        categories[result.Category].failed++;
       }
 
       // Raccogli suggerimenti
@@ -959,7 +962,7 @@ export class TestRunnerService {
         await this.runPerformanceTests();
         break;
       default:
-        console.log(`Categoria ${category} non riconosciuta`);
+        console.log(`Categoria ${Category} non riconosciuta`);
     }
 
     return this.generateReport();

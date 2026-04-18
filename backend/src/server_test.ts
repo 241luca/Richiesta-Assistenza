@@ -153,11 +153,11 @@ app.get('/ws-test', (_, res) => {
 
 // Base routes
 import authRoutes from './routes/auth.routes';
-import professionalRegistrationRoutes from './routes/professional-registration.routes';
+// import professionalRegistrationRoutes from './routes/professional-registration.routes'; // File doesn't exist
 import securityRoutes from './routes/security.routes'; // AGGIUNTO - Security routes
 import userRoutes from './routes/user.routes';
 import professionalDetailsRoutes from './routes/professional-details.routes';
-import professionalAISettingsRoutes from './routes/professional-ai-settings.routes';
+// import professionalAISettingsRoutes from './routes/professional-ai-settings.routes'; // File doesn't exist
 import categoryRoutes from './routes/category.routes';
 import subcategoryRoutes from './routes/subcategory.routes';
 import publicRoutes from './routes/public.routes';
@@ -258,35 +258,35 @@ let simpleBackupRoutes: any;
 try {
   auditRoutes = require('./routes/audit.routes').default;
   logger.info('✅ Audit routes loaded');
-} catch (error) {
+} catch (error: unknown) {
   logger.warn('⚠️ Audit routes not loaded:', error);
 }
 
 try {
   healthCheckRoutes = require('./routes/admin/health-check.routes').default;
   logger.info('✅ Health check routes loaded');
-} catch (error) {
+} catch (error: unknown) {
   logger.warn('⚠️ Health check routes not loaded:', error);
 }
 
 try {
   cleanupConfigRoutes = require('./routes/cleanup-config.routes').default;
   logger.info('✅ Cleanup config routes loaded');
-} catch (error) {
+} catch (error: unknown) {
   logger.warn('⚠️ Cleanup config routes not loaded:', error);
 }
 
 try {
   scheduledInterventionsRoutes = require('./routes/scheduledInterventions').default;
   logger.info('✅ Scheduled interventions routes loaded');
-} catch (error) {
+} catch (error: unknown) {
   logger.warn('⚠️ Scheduled interventions routes not loaded:', error);
 }
 
 try {
   simpleBackupRoutes = require('./routes/simple-backup.routes').default;
   logger.info('✅ Simple backup routes loaded');
-} catch (error) {
+} catch (error: unknown) {
   logger.warn('⚠️ Simple backup routes not loaded:', error);
 }
 
@@ -299,7 +299,7 @@ app.use('/api/public/system-settings', publicSystemSettingsRoutes);
 
 // Auth routes with rate limiting
 app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/auth', authLimiter, professionalRegistrationRoutes);
+// app.use('/api/auth', authLimiter, professionalRegistrationRoutes); // File doesn't exist
 
 // User routes
 app.use('/api/users', authenticate, userRoutes);
@@ -328,7 +328,7 @@ app.use('/api/professionals', authenticate, professionalRoutes);
 app.use('/api/professionals', authenticate, professionalsRoutes); // NUOVO - endpoint by-subcategory
 app.use('/api/professionals', authenticate, professionalPricingRoutes);
 app.use('/api/professionals', authenticate, professionalSkillsCertRoutes);
-app.use('/api/professionals', authenticate, professionalAISettingsRoutes);
+// app.use('/api/professionals', authenticate, professionalAISettingsRoutes); // File doesn't exist
 app.use('/api/professions', professionsRoutes);
 app.use('/api/profession-categories', authenticate, professionCategoriesRoutes);
 
@@ -493,17 +493,15 @@ httpServer.listen(PORT, () => {
   logger.info(`📡 WebSocket server ready`);
   logger.info(`🔗 Accepting connections from frontend at http://localhost:5193`);
   
-  // Inizializza WPPConnect direttamente (non blocca il server se fallisce)
-  (async () => {
-    try {
-      const { wppConnectService } = require('./services/wppconnect.service');
-      await wppConnectService.initialize();
-      logger.info('📱 WPPConnect pronto - vai su /admin/whatsapp per il QR Code');
-    } catch (error) {
-      logger.warn('⚠️ WPPConnect non connesso - scansiona il QR dalla dashboard');
-      // Non blocchiamo il server se WhatsApp fallisce
-    }
-  })();
+  // WPPConnect disabilitato — da riabilitare quando il servizio sarà ripristinato
+  // (async () => {
+  //   try {
+  //     const { wppConnectService } = require('./services/wppconnect.service');
+  //     await wppConnectService.initialize();
+  //   } catch (error: unknown) {
+  //     logger.warn('⚠️ WPPConnect non connesso');
+  //   }
+  // })();
 });
 
 // Graceful shutdown

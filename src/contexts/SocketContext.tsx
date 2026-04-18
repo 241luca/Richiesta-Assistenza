@@ -7,6 +7,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { io, Socket } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
+import { API_BASE_URL } from '../services/api';
 
 interface SocketContextType {
   socket: Socket | null;
@@ -47,7 +48,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const socketRef = useRef<Socket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Inizializza la connessione socket
   useEffect(() => {
@@ -76,7 +77,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     // Crea nuova connessione
     console.log('🔌 Initializing WebSocket connection with token...');
     
-    const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:3200', {
+    const newSocket = io(API_BASE_URL, {
       transports: ['websocket', 'polling'],
       auth: {
         token: token

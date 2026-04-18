@@ -13,6 +13,7 @@ import {
   ChevronRightIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../hooks/useAuth';
+import { API_BASE_URL } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/card';
 import { toast } from 'react-hot-toast';
@@ -78,7 +79,7 @@ const AdminTestPage: React.FC = () => {
   const fetchSystemHealth = async () => {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:3200/api/test/health', {
+      const response = await fetch(`${API_BASE_URL}/api/test/health`, {
         credentials: 'include',
         headers: {
           'Authorization': token ? `Bearer ${token}` : ''
@@ -100,8 +101,8 @@ const AdminTestPage: React.FC = () => {
     
     try {
       const endpoint = category === 'all' 
-        ? 'http://localhost:3200/api/test/run' 
-        : `http://localhost:3200/api/test/run/${category}`;
+        ? `${API_BASE_URL}/api/test/run` 
+        : `${API_BASE_URL}/api/test/run/${category}`;
       
       const token = localStorage.getItem('accessToken');
       const response = await fetch(endpoint, {

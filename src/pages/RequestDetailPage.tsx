@@ -31,7 +31,7 @@ import {
   ClipboardDocumentCheckIcon,
   PhotoIcon
 } from '@heroicons/react/24/outline';
-import { api } from '../services/api';
+import { api, API_BASE_URL } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -462,8 +462,8 @@ export default function RequestDetailPage() {
     );
   }
 
-  const statusData = statusConfig[request.status] || statusConfig[request.status?.toLowerCase()] || statusConfig['pending'];
-  const priorityData = priorityConfig[request.priority] || priorityConfig[request.priority?.toLowerCase()] || priorityConfig['medium'];
+  const statusData = (statusConfig as any)[request.status] || (statusConfig as any)[request.status?.toLowerCase()] || statusConfig['pending'];
+  const priorityData = (priorityConfig as any)[request.priority] || (priorityConfig as any)[request.priority?.toLowerCase()] || priorityConfig['medium'];
   const StatusIcon = statusData.icon;
   
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
@@ -931,11 +931,11 @@ export default function RequestDetailPage() {
                   <PhotoIcon className="h-5 w-5 text-gray-400 mr-3 mt-1" />
                   <div>
                     <img 
-                      src={`http://localhost:3200${request.client.recognitionImage}`}
+                      src={`${API_BASE_URL}${request.client.recognitionImage}`}
                       alt="Immagine di riconoscimento del cliente"
                       className="w-40 h-40 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
                       onClick={() => {
-                        setSelectedImage(`http://localhost:3200${request.client.recognitionImage}`);
+                        setSelectedImage(`${API_BASE_URL}${request.client.recognitionImage}`);
                         setShowImageModal(true);
                       }}
                       onError={(e) => {
@@ -998,11 +998,11 @@ export default function RequestDetailPage() {
                     <PhotoIcon className="h-5 w-5 text-gray-400 mr-3 mt-1" />
                     <div>
                       <img 
-                          src={`http://localhost:3200${request.professional.recognitionImage}`}
+                          src={`${API_BASE_URL}${request.professional.recognitionImage}`}
                           alt="Immagine di riconoscimento del professionista"
                           className="w-40 h-40 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
                           onClick={() => {
-                            setSelectedImage(`http://localhost:3200${request.professional.recognitionImage}`);
+                            setSelectedImage(`${API_BASE_URL}${request.professional.recognitionImage}`);
                             setShowImageModal(true);
                           }}
                           onError={(e) => {

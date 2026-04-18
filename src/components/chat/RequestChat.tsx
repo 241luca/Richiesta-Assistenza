@@ -4,7 +4,7 @@ import { PaperAirplaneIcon, PaperClipIcon, PhotoIcon, DocumentIcon, XMarkIcon } 
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { io, Socket } from 'socket.io-client';
-import { api } from '../../services/api';
+import { api, API_BASE_URL } from '../../services/api';
 import { useAuth } from '../../hooks/useAuth';
 import MessageItem from './MessageItem';
 import TypingIndicator from './TypingIndicator';
@@ -63,7 +63,7 @@ const RequestChat: React.FC<RequestChatProps> = ({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [editingMessage, setEditingMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const typingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Imposta il messaggio suggerito quando viene passato
   useEffect(() => {
@@ -154,7 +154,7 @@ const RequestChat: React.FC<RequestChatProps> = ({
   useEffect(() => {
     if (!user?.token) return;
 
-    const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:3200', {
+    const newSocket = io(API_BASE_URL, {
       auth: {
         token: user.token
       },
@@ -344,7 +344,7 @@ const RequestChat: React.FC<RequestChatProps> = ({
           isActive={false}
         />
         <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
-          {messages.map((msg) => (
+          {messages.map((msg: any) => (
             <MessageItem
               key={msg.id}
               message={msg}
@@ -392,7 +392,7 @@ const RequestChat: React.FC<RequestChatProps> = ({
           </div>
         ) : (
           <>
-            {messages.map((msg) => (
+            {messages.map((msg: any) => (
               <MessageItem
                 key={msg.id}
                 message={msg}

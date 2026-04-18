@@ -38,10 +38,35 @@ const httpServer = createServer(app);
 // Register Redis in Express app per health check
 app.set('redis', redis);
 
+// Costruisce la lista delle origini permesse dalle variabili d'ambiente
+function getAllowedOrigins(): string[] {
+  const origins: string[] = [];
+
+  // Origini da variabili d'ambiente (le uniche autorizzate in produzione)
+  if (process.env.FRONTEND_URL) origins.push(process.env.FRONTEND_URL);
+  if (process.env.ALLOWED_ORIGINS) {
+    process.env.ALLOWED_ORIGINS.split(',').forEach(o => {
+      const trimmed = o.trim();
+      if (trimmed) origins.push(trimmed);
+    });
+  }
+
+  // Solo in sviluppo locale aggiungiamo localhost
+  if (process.env.NODE_ENV !== 'production') {
+    origins.push('http://localhost:5193');
+    origins.push('http://localhost:5173');
+    origins.push('http://127.0.0.1:5193');
+    origins.push('http://127.0.0.1:5173');
+  }
+
+  // Rimuovi duplicati e valori vuoti
+  return [...new Set(origins.filter(Boolean))];
+}
+
 // Initialize Socket.io
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5193',
+    origin: getAllowedOrigins(),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
   },
@@ -62,19 +87,14 @@ logger.info('🔌 WebSocket server initialized with authentication and handlers'
 // CORS configuration
 app.use(cors({
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-    const allowedOrigins = [
-      'http://localhost:5193',
-      'http://127.0.0.1:5193',
-      'http://localhost:5173',
-      'http://127.0.0.1:5173'
-    ];
+    const allowedOrigins = getAllowedOrigins();
     
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      console.warn('CORS blocked origin:', origin);
+      logger.warn('CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -179,7 +199,7 @@ app.get('/ws-test', (_req, res) => {
           const token = tokenInput.value || '';
           if (socket) { socket.disconnect(); socket = null; }
           statusEl.textContent = 'Connecting...';
-          socket = io('http://localhost:3200', {
+          socket = io(window.location.origin, {
             transports: ['websocket', 'polling'],
             auth: token ? { token } : undefined,
             reconnection: true,
@@ -564,7 +584,7 @@ if (process.env.NODE_ENV !== 'test') {
     console.log('🚀 RICHIESTA ASSISTENZA BACKEND STARTED');
     console.log('===========================================');
     console.log(`📡 Server: http://localhost:${PORT}`);
-    console.log(`🔗 Frontend: http://localhost:5193`);
+    console.log(`🔗 Frontend: ${process.env.FRONTEND_URL || 'http://localhost:5193'}`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`📊 Health check: http://localhost:${PORT}/health`);
     console.log(`🧪 WebSocket test: http://localhost:${PORT}/ws-test`);
@@ -589,7 +609,7 @@ if (process.env.NODE_ENV !== 'test') {
   
   logger.info(`🚀 Server fully operational on port ${PORT}`);
   logger.info(`📡 WebSocket server ready`);
-  logger.info(`🔗 Accepting connections from frontend at http://localhost:5193`);
+  logger.info(`🔗 Accepting connections from: ${getAllowedOrigins().join(', ')}`);
   
   // Inizializza Google Maps Service con Redis Cache (non blocca se fallisce)
   (async () => {
@@ -602,17 +622,16 @@ if (process.env.NODE_ENV !== 'test') {
     }
   })();
   
-    // Inizializza WPPConnect direttamente (non blocca il server se fallisce)
-    (async () => {
-      try {
-        const { wppConnectService } = require('./services/wppconnect.service');
-        await wppConnectService.initialize();
-        logger.info('📱 WPPConnect pronto - vai su /admin/whatsapp per il QR Code');
-      } catch (error: any) {
-        logger.warn('⚠️ WPPConnect non connesso - scansiona il QR dalla dashboard');
-        // Non blocchiamo il server se WhatsApp fallisce
-      }
-    })();
+  // WPPConnect disabilitato — da riabilitare quando il servizio sarà ripristinato
+  // (async () => {
+  //   try {
+  //     const { wppConnectService } = require('./services/wppconnect.service');
+  //     await wppConnectService.initialize();
+  //     logger.info('📱 WPPConnect pronto - vai su /admin/whatsapp per il QR Code');
+  //   } catch (error: any) {
+  //     logger.warn('⚠️ WPPConnect non connesso - scansiona il QR dalla dashboard');
+  //   }
+  // })();
   });
 } else {
   logger.info('🧪 Test environment detected: server not listening on a port');
@@ -643,7 +662,7 @@ process.on('SIGINT', async () => {
   try {
     const GoogleMapsService = require('./services/googleMaps.service').default;
     await GoogleMapsService.shutdown();
-  } catch (error) {
+  } catch (error: unknown) {
     logger.debug('Google Maps shutdown error:', error);
   }
   

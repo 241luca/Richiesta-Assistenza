@@ -14,7 +14,7 @@ async function setupWhatsAppConfig() {
         url: 'http://37.27.89.35:8080',
         apiKey: 'evolution_key_luca_2025_secure_21806', 
         instance: 'assistenza',
-        webhookUrl: 'http://localhost:3200/api/whatsapp/webhook',
+        webhookUrl: `${process.env.BACKEND_URL || ''}/api/whatsapp/webhook`,
         enabled: true
       },
       isActive: true,
@@ -42,7 +42,7 @@ async function setupWhatsAppConfig() {
     }
 
     console.log('Configuration saved with instance: assistenza');
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Error:', error);
   } finally {
     await prisma.$disconnect();

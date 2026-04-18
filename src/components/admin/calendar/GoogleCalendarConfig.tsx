@@ -11,7 +11,7 @@ import {
   LinkIcon,
   ClipboardDocumentIcon
 } from '@heroicons/react/24/outline';
-import { api } from '../../../services/api';
+import { api, API_BASE_URL } from '../../../services/api';
 
 export default function GoogleCalendarConfig() {
   const queryClient = useQueryClient();
@@ -141,7 +141,7 @@ export default function GoogleCalendarConfig() {
     toast.success('Copiato negli appunti!');
   };
 
-  const callbackUrl = `${window.location.origin.replace('5193', '3200')}/api/calendar/google/callback`;
+  const callbackUrl = `${API_BASE_URL}/api/calendar/google/callback`;
 
   if (isLoading) {
     return (

@@ -25,7 +25,7 @@ export default function GoogleMapsConfig() {
       enabled: true,
       apis: ['maps', 'geocoding', 'places'],
       restrictions: {
-        allowedReferrers: ['http://localhost:5193', 'https://yourdomain.com']
+        allowedReferrers: [window.location.origin, 'https://yourdomain.com']
       }
     }
   });
@@ -43,14 +43,13 @@ export default function GoogleMapsConfig() {
   // Update form when data is loaded
   useEffect(() => {
     if (apiKey) {
-      console.log('API Key loaded from backend:', apiKey.key); // Debug log
       setFormData({
-        key: apiKey.key || '', // Show the masked key from backend
+        key: apiKey.key || '',
         configuration: apiKey.configuration || {
           enabled: true,
           apis: ['maps', 'geocoding', 'places'],
           restrictions: {
-            allowedReferrers: ['http://localhost:5193', 'https://yourdomain.com']
+            allowedReferrers: [window.location.origin, 'https://yourdomain.com']
           }
         }
       });
@@ -296,7 +295,7 @@ export default function GoogleMapsConfig() {
                 }))}
                 rows={4}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                placeholder="http://localhost:5193&#10;https://yourdomain.com"
+                placeholder={`${window.location.origin}\nhttps://yourdomain.com`}
               />
               <p className="mt-2 text-sm text-gray-500">
                 Specifica i domini autorizzati a utilizzare questa API key

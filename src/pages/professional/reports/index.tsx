@@ -13,7 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { apiClient } from '../../../services/api';
+import { apiClient, API_BASE_URL } from '../../../services/api';
 
 export default function ProfessionalReportsPage() {
   const navigate = useNavigate();
@@ -45,22 +45,15 @@ export default function ProfessionalReportsPage() {
           requestsWithoutReport: 0
         };
       }
-    },
-    onSuccess: (data) => {
-      setStats(data);
-    },
-    onError: () => {
-      // Se fallisce, usa dati di default
-      setStats({
-        totalReports: 0,
-        draftReports: 0,
-        completedReports: 0,
-        todayReports: 0,
-        pendingSignatures: 0,
-        requestsWithoutReport: 0
-      });
     }
   });
+
+  // Update stats when data changes
+  React.useEffect(() => {
+    if (statsData) {
+      setStats(statsData);
+    }
+  }, [statsData]);
 
   // Query per richieste assegnate (tutte, per poter creare rapporti anche per quelle in corso)
   const { data: myRequests, isLoading: requestsLoading } = useQuery({
@@ -291,7 +284,7 @@ export default function ProfessionalReportsPage() {
               Da Firmare
             </button>
             <button
-              onClick={() => window.open('http://localhost:3200/api/intervention-reports/professional/export', '_blank')}
+              onClick={() => window.open(`${API_BASE_URL}/api/intervention-reports/professional/export`, '_blank')}
               className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
             >
               Esporta Rapporti

@@ -9,7 +9,7 @@
 import { prisma } from '../config/database';
 import logger from '../utils/logger';
 import { whatsAppValidation } from './whatsapp-validation.service';
-import { wppConnectService } from './wppconnect.service';
+// import { wppConnectService } from './wppconnect.service'; // RIMOSSO
 import { NotificationService } from './notification.service';
 import { auditLogService } from './auditLog.service';
 import { createId } from '@paralleldrive/cuid2';
@@ -155,8 +155,8 @@ export class WhatsAppTemplateService {
       return this.mapToWhatsAppTemplate(savedTemplate);
       
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('❌ Errore creazione template:', error);
+      const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
+      logger.error('❌ Errore creazione template:', error instanceof Error ? error.message : String(error));
       throw new Error(`Failed to create template: ${errorMessage}`);
     }
   }
@@ -192,7 +192,7 @@ export class WhatsAppTemplateService {
           whatsappContent: updates.content || existing.whatsappContent,
           category: updates.category || existing.category,
           isActive: updates.isActive !== undefined ? updates.isActive : existing.isActive,
-          variables: variables,
+          variables: variables as any,
           updatedBy: userId,
           updatedAt: new Date()
         }
@@ -218,8 +218,8 @@ export class WhatsAppTemplateService {
       return this.mapToWhatsAppTemplate(updated);
       
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('❌ Errore aggiornamento template:', error);
+      const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
+      logger.error('❌ Errore aggiornamento template:', error instanceof Error ? error.message : String(error));
       throw new Error(`Failed to update template: ${errorMessage}`);
     }
   }
@@ -238,8 +238,8 @@ export class WhatsAppTemplateService {
       return this.mapToWhatsAppTemplate(template);
       
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('❌ Errore recupero template:', error);
+      const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
+      logger.error('❌ Errore recupero template:', error instanceof Error ? error.message : String(error));
       throw new Error(`Failed to get template: ${errorMessage}`);
     }
   }
@@ -269,8 +269,8 @@ export class WhatsAppTemplateService {
       return templates.map(t => this.mapToWhatsAppTemplate(t));
       
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('❌ Errore recupero templates:', error);
+      const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
+      logger.error('❌ Errore recupero templates:', error instanceof Error ? error.message : String(error));
       throw new Error(`Failed to get templates: ${errorMessage}`);
     }
   }
@@ -309,64 +309,14 @@ export class WhatsAppTemplateService {
         content = this.replaceVariables(content, variables);
       }
       
-      // Ottieni client WPPConnect
-      const client = wppConnectService;
-      
-      // Invia messaggio
-      const result = await client.sendMessage(validatedNumber.formatted, content);
-      
-      // Salva nel database
-      await prisma.whatsAppMessage.create({
-        data: {
-          messageId: result.messageId || `msg_${Date.now()}`,
-          phoneNumber: validatedNumber.formatted,
-          message: content,
-          direction: 'outgoing',
-          status: 'SENT',
-          timestamp: new Date(),
-          type: 'template'
-        }
-      });
-      
-      // Log nel sistema audit
-      await auditLogService.log({
-        action: 'CREATE',
-        entityType: 'WhatsAppMessage',
-        entityId: result.messageId || '',
-        userId: userId || undefined,
-        ipAddress: 'system',
-        userAgent: 'whatsapp-template-service',
-        metadata: {
-          to: validatedNumber.formatted,
-          templateName: template.name,
-          hasVariables: !!variables
-        },
-        success: true,
-        severity: 'INFO',
-        category: 'BUSINESS'
-      });
-      
-      // Invia media se presente nel template
-      if (template.mediaUrl && template.mediaType) {
-        await this.sendTemplateMedia(
-          validatedNumber.formatted, 
-          template.mediaUrl, 
-          template.mediaType
-        );
-      }
-      
-      logger.info(`✅ Template inviato con successo a ${to}`);
-      
-      return {
-        success: true,
-        messageId: result.messageId,
-        to: validatedNumber.formatted,
-        template: template.name
-      };
+      // WPPConnect disabilitato temporaneamente
+      // TODO: quando si riabilita wppConnectService, ripristinare il codice originale
+      // che include: client.sendMessage(), salvataggio DB, audit log, invio media
+      throw new Error('WPPConnect disabilitato. Riabilitare il servizio per inviare messaggi WhatsApp tramite template.');
       
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('❌ Errore invio template:', error);
+      const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
+      logger.error('❌ Errore invio template:', error instanceof Error ? error.message : String(error));
       
       await auditLogService.log({
         action: 'CREATE',
@@ -436,7 +386,7 @@ export class WhatsAppTemplateService {
               results.sent.push(recipient);
               
             } catch (error: unknown) {
-              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+              const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
               results.failed.push({
                 number: recipient,
                 error: errorMessage
@@ -480,8 +430,8 @@ export class WhatsAppTemplateService {
       return results;
       
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('❌ Errore invio bulk template:', error);
+      const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
+      logger.error('❌ Errore invio bulk template:', error instanceof Error ? error.message : String(error));
       throw new Error(`Failed to send bulk template: ${errorMessage}`);
     }
   }
@@ -528,8 +478,8 @@ export class WhatsAppTemplateService {
       logger.info(`✅ Template eliminato: ${templateId}`);
       
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('❌ Errore eliminazione template:', error);
+      const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
+      logger.error('❌ Errore eliminazione template:', error instanceof Error ? error.message : String(error));
       throw new Error(`Failed to delete template: ${errorMessage}`);
     }
   }
@@ -552,8 +502,8 @@ export class WhatsAppTemplateService {
       return templates.map(t => this.mapToWhatsAppTemplate(t));
       
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('❌ Errore recupero template più usati:', error);
+      const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
+      logger.error('❌ Errore recupero template più usati:', error instanceof Error ? error.message : String(error));
       throw new Error(`Failed to get most used templates: ${errorMessage}`);
     }
   }
@@ -579,8 +529,8 @@ export class WhatsAppTemplateService {
       return cloned;
       
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('❌ Errore clonazione template:', error);
+      const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
+      logger.error('❌ Errore clonazione template:', error instanceof Error ? error.message : String(error));
       throw new Error(`Failed to clone template: ${errorMessage}`);
     }
   }
@@ -673,7 +623,7 @@ export class WhatsAppTemplateService {
       // TODO: Implementare invio media quando il servizio è pronto
       logger.info(`📎 Invio media template: ${mediaType} a ${to}`);
     } catch (error: unknown) {
-      logger.error('Errore invio media template:', error);
+      logger.error('Errore invio media template:', error instanceof Error ? error.message : String(error));
     }
   }
   
@@ -702,7 +652,7 @@ export class WhatsAppTemplateService {
         });
       }
     } catch (error: unknown) {
-      logger.error('Errore notifica bulk issue:', error);
+      logger.error('Errore notifica bulk issue:', error instanceof Error ? error.message : String(error));
     }
   }
   
