@@ -152,10 +152,10 @@ const authLimiter = isAuthRateLimitDisabled
       }
     });
 
-// Static files
-app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
-app.use('/uploads', express.static(path.join(__dirname, '../../public/uploads')));
-app.use(express.static(path.join(__dirname, '../../public')));
+// Static files — __dirname è /app/dist, quindi ../uploads punta a /app/uploads
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+app.use(express.static(path.join(__dirname, '../public')));
 
 // Health check endpoint
 app.get('/health', (_req, res) => {
