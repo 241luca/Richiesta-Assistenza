@@ -1,371 +1,128 @@
 # 🚀 Sistema di Richiesta Assistenza
 
-**Versione**: 5.3.1  
-**Ultimo Aggiornamento**: 23 Ottobre 2025  
-**Status**: ✅ Production Ready + Document Integration Module
+**Versione**: 6.2.0  
+**Ultimo Aggiornamento**: 18 Aprile 2026  
+**Status**: ✅ Production Ready — In esecuzione su VM 103 (192.168.0.203)
+
+---
 
 ## 📋 Panoramica
 
-Il **Sistema di Richiesta Assistenza** è una piattaforma enterprise completa che connette clienti con professionisti qualificati attraverso un sistema intelligente basato su AI. La piattaforma gestisce l'intero ciclo di vita dei servizi, dalla richiesta iniziale alla generazione di preventivi e all'assegnazione dei professionisti.
+Il **Sistema di Richiesta Assistenza** è una piattaforma enterprise completa che connette clienti con professionisti qualificati attraverso un sistema intelligente basato su AI. Gestisce l'intero ciclo di vita dei servizi: dalla richiesta iniziale, alla gestione preventivi, all'assegnazione dei professionisti, fino alla fatturazione e recensioni.
 
 ### 🌟 Caratteristiche Principali
 
-- **🔐 Sicurezza Enterprise**: Security headers OWASP compliant, rate limiting, CSP avanzato
-- **⚡ Performance Ottimizzata**: Compression Brotli/Gzip, -70% bandwidth, caching intelligente
-- **🤖 AI-Powered**: Assistenza intelligente con OpenAI GPT-4/GPT-3.5-turbo
-- **💳 Pagamenti Sicuri**: Integrazione Stripe con retry logic e circuit breaker
-- **📍 Geolocalizzazione**: Google Maps integration con cache Redis
-- **💬 Real-time**: WebSocket per notifiche e chat istantanee
-- **📊 Monitoring Avanzato**: Health checks, circuit breakers, request tracking
-- **🔄 Alta Affidabilità**: Retry logic, circuit breaker pattern, 99.9% uptime
-- **📝 Moduli Personalizzati**: Sistema completo di form personalizzati con editor visuale
+- **🔐 Sicurezza Enterprise** — JWT + 2FA, rate limiting, CORS dinamico, security headers OWASP
+- **⚡ Performance Ottimizzata** — Compression Brotli/Gzip, Redis cache, query N+1 eliminate
+- **🤖 AI-Powered** — Assistenza intelligente con OpenAI GPT-4, sistema duale professionisti/clienti
+- **💳 Pagamenti Sicuri** — Integrazione Stripe con retry logic e circuit breaker
+- **📍 Geolocalizzazione** — Google Maps integration con cache Redis
+- **💬 Real-time** — WebSocket (Socket.io) per notifiche e chat istantanee
+- **📊 Monitoring Completo** — Health checks, audit log, dashboard stato servizi
+- **📝 Custom Forms** — Editor visuale drag & drop per moduli personalizzati
+- **📱 WhatsApp** — Integrazione WppConnect per messaggistica
+- **🌍 Zero Config Hardcoded** — Tutti gli URL e le chiavi vengono da variabili d'ambiente o dal database
 
-### 🚀 Ottimizzazioni Critiche v6.1.0 (04 Ottobre 2025)
+---
 
-- **⚡ Performance Calendario 900% Più Veloce**: Da 800ms a 80ms per 100 interventi
-- **🎯 Check Conflitti 100% Accurato**: Formula matematica corretta con durata
-- **📊 Query Ottimizzate**: Da 301 query (N+1) a 1 sola query con JOIN
-- **💾 Index Compositi**: 3 nuovi index per velocizzare ricerche calendario
-- **📖 Documentazione Completa**: 2 nuove guide dettagliate ottimizzazioni e conflitti
+## 🏗️ Stack Tecnologico
 
-### 🆕 Nuove Funzionalità v5.3.1 (23 Ottobre 2025)
+### Backend
+| Tecnologia | Versione | Uso |
+|---|---|---|
+| Node.js | 20.x LTS | Runtime |
+| TypeScript | 5.x | Linguaggio |
+| Express.js | 4.x | Framework HTTP |
+| Prisma ORM | latest | Database access |
+| PostgreSQL | 16 | Database principale |
+| Redis | 7 | Cache e code |
+| Socket.io | 4.x | WebSocket real-time |
+| Bull | 4.x | Job queue |
+| JWT + Speakeasy | — | Auth + 2FA |
 
-- **📄 Modulo Document Integration**: Unificazione gestione documenti legali e form-based
-- **🔗 Extended Document Types**: Linking tra tipi documento e template form personalizzati
-- **📊 Unified Documents Dashboard**: Vista unificata di tutti i documenti del sistema
-- **⚡ Performance Ottimizzate**: Query N+1 eliminate (da 150 a 3 query, 50x più veloce)
-- **🔄 Sistema Transazionale**: Operazioni database ACID-compliant con Prisma transactions
-- **📈 Statistiche Real-time**: Contatori documenti e template per ogni tipo
-- **🎯 Type-Safe API**: TypeScript completo con validazione Zod
-- **📚 Documentazione Completa**: Guide tecniche dettagliate per sviluppatori e utenti
+### Frontend
+| Tecnologia | Versione | Uso |
+|---|---|---|
+| React | 18.x | UI framework |
+| TypeScript | 5.x | Linguaggio |
+| Vite | 7.x | Build tool |
+| TanStack Query | 5.x | Server state |
+| Zustand | 4.x | Client state |
+| React Router | 6.x | Routing |
+| Tailwind CSS | 3.x | Styling |
+| Heroicons | 2.x | Icone |
 
-### 🆕 Nuove Funzionalità v5.3.0 (21 Ottobre 2025)
+### Integrazioni Esterne (chiavi nel DB)
+- **OpenAI** — AI assistant (GPT-4/3.5)
+- **Stripe** — Pagamenti
+- **Google Maps** — Mappe e geocoding
+- **Google Calendar** — Sincronizzazione calendario
+- **Brevo** — Email transazionale
+- **WppConnect** — WhatsApp Business
 
-- **📝 Sistema Custom Forms Completo**: Editor visuale, template repository, flusso di invio
-- **📋 18 Tipi di Campo Supportati**: TEXT, TEXTAREA, NUMBER, DATE, DATETIME, CHECKBOX, RADIO, SELECT, MULTISELECT, FILE, FILE_IMAGE, SIGNATURE, SLIDER, RATING, TAGS, AUTOCOMPLETE, LOCATION, HIDDEN
-- **🎨 Editor Visuale Form**: Interfaccia drag & drop per creazione moduli
-- **📦 Template Repository**: Libreria condivisa di moduli per professionisti
-- **📤 Flusso di Invio**: Professionista → Cliente → Compilazione → Notifica
-- **✍️ Compilazione Client**: Interfaccia intuitiva con firma digitale e upload file
-- **👁️ Campi Condizionali**: Logica show/hide e required basata su altri campi
-- **💾 Salvataggio Automatico**: Bozze salvate ogni 30 secondi
-- **📋 Validazione Avanzata**: Controllo dati in tempo reale con messaggi chiari
-- **🔔 Sistema Notifiche**: Email e WebSocket per ogni azione
-- **🕵️ Audit Trail**: Tracciamento completo di tutte le operazioni
-- **📱 UI Responsive**: Compatibile con tutti i dispositivi
+---
 
-### 🆕 Nuove Funzionalità v5.2.0 (02 Ottobre 2025)
-
-- **📊 Sistema Monitoraggio Completo**: Dashboard real-time stato servizi
-- **🔴 Service Status Indicator**: Pallino colorato nell'header con 9 servizi monitorati
-- **🛡️ Security Status Indicator**: Scudo con eventi sicurezza e statistiche
-- **🔔 Enhanced Notification Center**: Centro notifiche avanzato con filtri e azioni
-- **📊 System Status Page**: Pagina dettagliata con statistiche CPU/Memoria/Sistema
-- **📑 Dettagli Servizi**: 4 card informative + descrizione per ogni servizio
-- **⏱️ Auto-Refresh**: Polling automatico ogni 30-60 secondi configurabile
-- **🔗 Link Diretti**: Accesso rapido ad Audit Log e dettagli completi
-- **🎯 RBAC**: Visibilità basata su ruoli (SUPER_ADMIN, ADMIN, ALL)
-
-### 🆕 Sistema Recensioni Completo v2.0.0 (16 Ottobre 2025)
-
-- **⭐ Sistema Recensioni Enterprise**: Valutazioni 1-5 stelle con commenti dettagliati
-- **⚙️ Configurazione Admin Completa**: Pagina dedicata con 5 tab per gestione totale
-- **🚫 Sistema Esclusioni**: Possibilità di escludere utenti problematici con motivazione
-- **🛡️ Moderazione Avanzata**: Filtri automatici, approvazione manuale, parole vietate
-- **🎮 Gamification**: Badge "Top Rated", punti fedeltà, ricompense automatiche
-- **📊 Analytics Completo**: Statistiche dettagliate, KPI, report performance
-- **🔒 Sicurezza Enterprise**: Audit logging, validazione Zod, controlli autorizzazioni
-- **📱 UI Responsive**: Design moderno con Tailwind CSS e componenti riutilizzabili
-- **📚 Documentazione Completa**: Guida tecnica dettagliata in DOCUMENTAZIONE/
-
-### 🆕 Nuove Funzionalità v6.0 (03 Ottobre 2025)
-
-- **📅 Sistema Calendario Professionale Completo**: Gestione interventi con FullCalendar v6
-- **⏰ Scheduling Intelligente**: Creazione interventi drag & drop, gestione conflitti orari
-- **🔄 Sincronizzazione Real-time**: WebSocket per aggiornamenti istantanei calendario
-- **📊 Visualizzazioni Multiple**: Vista mensile, settimanale, giornaliera e lista
-- **🎨 Stati Colorati**: Distinzione visiva per stato intervento (proposto, accettato, rifiutato)
-- **💬 Notifiche Interventi**: Sistema notifiche per proposte, accettazioni, modifiche
-- **📈 Statistiche Calendario**: Report interventi, tassi accettazione, durate medie
-- **🎨 Sistema Branding Dinamico Completo**: Personalizzazione totale identità visiva senza codice
-- **🏢 System Settings Dashboard**: Pannello admin per gestione completa impostazioni
-- **📱 Logo & Favicon Management**: Upload drag & drop con ottimizzazione automatica
-- **📞 Contatti Aziendali Dinamici**: Gestione completa contatti, orari, indirizzi
-- **🌐 Social Media Integration**: Link social configurabili con icone dinamiche
-- **📄 Documenti Legali Personalizzabili**: Privacy, Terms, Cookie Policy editabili
-- **🎯 Info Panel Rinnovato**: Pannello informazioni con tutti i dati aziendali
-- **👤 User Info in Header**: Spostata info utente nell'header per più spazio menu
-- **📊 Footer Multi-Column**: Footer 4 colonne responsive con tutti i dati dinamici
-- **⚡ Cache Optimization**: Sistema cache 30 secondi con refresh automatico
-
-### 🆕 Sistema Gestione Immagini di Riconoscimento v1.0.0 (Ottobre 2025)
-
-- **📸 Gestione Avatar e Immagini**: Sistema completo per upload e gestione immagini utente
-- **🔍 Controllo Stato Immagini**: Endpoint `/api/users/image-status` per verifica immagini mancanti
-- **⚙️ Requisiti Basati su Ruolo**: Immagini di riconoscimento obbligatorie per professionisti
-- **🔔 Sistema Promemoria**: Notifiche automatiche per immagini mancanti richieste
-- **🛡️ Validazione Avanzata**: Controllo formato, dimensioni e qualità immagini
-- **📊 Monitoraggio Completezza**: Dashboard admin per stato immagini tutti gli utenti
-- **🔧 Pattern Ottimizzato**: Query dirette Prisma per performance e stabilità
-- **📚 Documentazione Completa**: Guide tecniche, API reference e troubleshooting
-
-### 🆕 Nuove Funzionalità v5.0 (27 Settembre 2025)
-
-- **🗺️ Sistema Maps Completo**: Visualizzazione mappe interattive, calcolo distanze con cache Redis
-- **🔄 Ricalcolo Automatico Distanze**: Quando cambia work address, ricalcola automaticamente tutte le distanze
-- **📍 Travel Info Enhanced**: Calcolo costi trasferta, tempi percorrenza, salvataggio DB
-- **🏢 Work Address Management**: Gestione separata indirizzo lavoro/residenza per professionisti
-- **📡 Cache Redis Ottimizzata**: Riduzione 80% chiamate Google Maps API
-- **🧪 Test Suite Completa**: Script automatici per verifica sistema maps
-
-### 🆕 Modulo Document Integration (23 Ottobre 2025)
-
-- **📄 Gestione Documenti Unificata**: Unificazione documenti legali e form-based in un'unica interfaccia
-- **🔗 Extended Document Types**: Linking avanzato tra tipi documento e template form personalizzati
-- **📊 Dashboard Unificata**: Vista centralizzata di tutti i documenti del sistema
-- **⚡ Performance Ottimizzate**: Eliminazione query N+1 (da 150 a 3 query, 50x più veloce)
-- **🔄 Transazioni Database**: Operazioni ACID-compliant con Prisma transactions
-- **📈 Statistiche Real-time**: Contatori documenti e template collegati per ogni tipo
-- **🎯 Type-Safe Completo**: TypeScript 100% con validazione Zod su tutti gli endpoint
-- **📚 Documentazione Tecnica**: Guide complete per sviluppatori e amministratori
-
-### 🆕 Sistema Custom Forms Completo (Ottobre 2025)
-
-- **📝 Sistema Moduli Personalizzati Enterprise**: Creazione, gestione e invio di moduli personalizzati
-- **📋 18 Tipi di Campo Supportati**: TEXT, TEXTAREA, NUMBER, DATE, DATETIME, CHECKBOX, RADIO, SELECT, MULTISELECT, FILE, FILE_IMAGE, SIGNATURE, SLIDER, RATING, TAGS, AUTOCOMPLETE, LOCATION, HIDDEN
-- **🎨 Editor Visuale Form**: Interfaccia drag & drop per creazione moduli
-- **📦 Template Repository**: Libreria condivisa di moduli per professionisti
-- **📤 Flusso di Invio**: Professionista → Cliente → Compilazione → Notifica
-- **✍️ Compilazione Client**: Interfaccia intuitiva con firma digitale e upload file
-- **👁️ Campi Condizionali**: Logica show/hide e required basata su altri campi
-- **💾 Salvataggio Automatico**: Bozze salvate ogni 30 secondi
-- **📋 Validazione Avanzata**: Controllo dati in tempo reale con messaggi chiari
-- **🔔 Sistema Notifiche**: Email e WebSocket per ogni azione
-- **🕵️ Audit Trail**: Tracciamento completo di tutte le operazioni
-- **📱 UI Responsive**: Compatibile con tutti i dispositivi
-- **📚 Documentazione Completa**: Guide dettagliate per tutti gli utenti
-
-### 🆕 Nuove Funzionalità v4.1
-
-- **📚 Tab Guida ai Test**: Documentazione completa integrata nella dashboard Health Check
-- **✅ FAQ Complete**: 8+ domande frequenti con risposte dettagliate
-- **🎆 UI Migliorata**: Navigazione più intuitiva con 6 tab
-- **🔧 Fix Performance**: Monitor completamente funzionante
-- **🔗 API Consolidate**: Tutti i percorsi corretti e funzionanti
-
-### 🆕 Funzionalità v4.0
-
-- **🏥 Health Check System**: Monitoraggio completo con auto-remediation
-- **🛠️ Script Manager**: Gestione script amministrativi da UI
-- **📊 Audit Log**: Tracciamento completo operazioni
-- **📈 Performance Monitor**: Metriche real-time CPU, Memory, API
-- **🤖 Auto-Remediation**: Risoluzione automatica problemi comuni
-- **📄 Report Automatici**: Generazione PDF settimanali
-
-## 🔥 ResponseFormatter - Standard di Comunicazione API
-
-> ⚠️ **FONDAMENTALE**: Il ResponseFormatter è lo standard OBBLIGATORIO per TUTTE le comunicazioni API nel progetto.
-
-### Cos'è il ResponseFormatter?
-
-Il ResponseFormatter è un sistema a due componenti che garantisce comunicazioni consistenti tra Backend e Frontend:
-
-1. **Backend ResponseFormatter** (`/backend/src/utils/responseFormatter.ts`)
-   - Crea risposte standardizzate nelle routes
-   - MAI usato nei services (che ritornano solo dati)
-   - Funzioni: `success()`, `error()`, `paginated()`
-
-2. **Frontend ResponseFormatter** (`/src/utils/responseFormatter.ts`)
-   - Interpreta le risposte dal backend
-   - Gestisce tutti gli errori in modo uniforme
-   - Previene crash React da oggetti non renderizzabili
-   - Funzioni: `getErrorMessage()`, `getData()`, `isValidationError()`
-
-### Struttura Standard delle Risposte
-
-``json
-// Successo
-{
-  "success": true,
-  "message": "Operazione completata",
-  "data": { /* dati */ },
-  "timestamp": "2025-01-10T..."
-}
-
-// Errore
-{
-  "success": false,
-  "message": "Descrizione errore",
-  "error": {
-    "code": "ERROR_CODE",
-    "details": /* dettagli o array Zod */
-  },
-  "timestamp": "2025-01-10T..."
-}
-```
-
-### Esempio di Utilizzo
-
-``typescript
-// Backend - Solo nelle routes!
-router.get('/users', async (req, res) => {
-  try {
-    const users = await userService.getUsers(); // Service ritorna solo dati
-    return res.json(ResponseFormatter.success(users, 'Utenti recuperati'));
-  } catch (error) {
-    return res.status(500).json(ResponseFormatter.error('Errore', 'FETCH_ERROR'));
-  }
-});
-
-// Frontend - Gestione errori
-import { ResponseFormatter } from '@/utils/responseFormatter';
-
-onError: (error) => {
-  // Sempre una stringa, mai un oggetto!
-  toast.error(ResponseFormatter.getErrorMessage(error));
-}
-```
-
-### Vantaggi
-
-- ✅ **Nessun crash React**: Errori sempre convertiti in stringhe
-- ✅ **Consistenza totale**: Tutte le API parlano la stessa lingua
-- ✅ **Type Safety**: TypeScript inferisce correttamente i tipi
-- ✅ **Manutenzione facile**: Un solo punto per modificare il formato
-- ✅ **Debug semplificato**: Struttura prevedibile ovunque
-
-📖 **Documentazione completa**: [DOCUMENTAZIONE/ATTUALE/01-ARCHITETTURA/RESPONSEFORMATTER.md](DOCUMENTAZIONE/ATTUALE/01-ARCHITETTURA/RESPONSEFORMATTER.md)
-
-## 🏗️ Architettura
-
-### Stack Tecnologico
-
-#### Backend (Node.js + TypeScript)
-- **Framework**: Express.js 4.x con TypeScript
-- **Database**: PostgreSQL 14+ con Prisma ORM
-- **Cache**: Redis 7+
-- **Real-time**: Socket.io
-- **Queue**: Bull + Redis
-- **Scheduler**: node-cron
-- **Authentication**: JWT + 2FA (Speakeasy)
-- **File Storage**: Local + Cloud (S3 compatible)
-
-#### Frontend (React 18)
-- **Build Tool**: Vite 5.x
-- **Framework**: React 18 con TypeScript
-- **State Management**: TanStack Query v5 + Zustand
-- **Routing**: React Router v6
-- **UI**: Tailwind CSS + Shadcn/UI
-- **Icons**: Heroicons + Lucide React
-- **Charts**: Recharts
-- **Forms**: React Hook Form + Zod
-
-#### Integrazioni Esterne
-- **AI**: OpenAI API (GPT-4, GPT-3.5-turbo)
-- **Pagamenti**: Stripe
-- **Maps**: Google Maps API
-- **Email**: Brevo (SendinBlue)
-- **SMS**: Twilio (opzionale)
-- **Storage**: S3 compatible (opzionale)
-
-### 🔒 Sicurezza Implementata (v4.0)
-
-#### Security Headers
-- **Content Security Policy (CSP)**: Protezione XSS avanzata
-- **HSTS**: Force HTTPS con preload list
-- **X-Frame-Options**: Protezione clickjacking
-- **Rate Limiting**: Configurabile per endpoint
-- **Security Monitoring**: Detection SQL injection, XSS, path traversal
-- **Audit Logging**: Tracciamento completo operazioni
-
-#### Performance & Reliability
-- **Response Compression**: Brotli + Gzip (-70% bandwidth)
-- **Circuit Breaker**: Per tutti i servizi esterni
-- **Retry Logic**: Exponential backoff intelligente
-- **Request ID Tracking**: Correlazione log end-to-end
-- **Health Checks**: Sistema completo con dashboard
-- **Auto-Remediation**: Fix automatici per problemi comuni
-
-## 📁 Struttura Progetto
+## 📁 Struttura del Progetto
 
 ```
 richiesta-assistenza/
-├── 📚 DOCUMENTAZIONE/              # TUTTA LA DOCUMENTAZIONE ORGANIZZATA
-│   ├── INDEX.md                   # 👉 Inizia da qui per navigare
-│   ├── ATTUALE/                   # Documentazione valida e aggiornata
-│   │   ├── 00-ESSENZIALI/         # File critici
-│   │   ├── 01-ARCHITETTURA/       # Architettura sistema
-│   │   ├── 02-FUNZIONALITA/       # Docs per feature
-│   │   ├── 03-API/                # API documentation
-│   │   ├── 04-GUIDE/              # Guide pratiche
-│   │   └── 05-TROUBLESHOOTING/    # Problem solving
-│   ├── ARCHIVIO/                  # Documentazione storica
-│   └── REPORT-SESSIONI/           # Report di ogni sessione
-├── 📂 backend/                    # Backend Node.js + TypeScript
+├── 📋 ISTRUZIONI-PROGETTO.md       ⚠️  LEGGERE PRIMA DI INIZIARE
+├── 📋 README.md                    Questo file
+├── 📋 CHANGELOG.md                 Storia delle versioni
+├── 📋 LEGGIMI-DOCUMENTAZIONE.md    Guida alla documentazione
+│
+├── 📚 DOCUMENTAZIONE/              TUTTA la documentazione
+│   ├── INDEX.md                   Punto di partenza navigazione
+│   ├── ATTUALE/                   Documentazione valida
+│   │   ├── 00-ESSENZIALI/         File critici
+│   │   ├── 01-ARCHITETTURA/       Architettura sistema
+│   │   ├── 02-FUNZIONALITA/       Docs per feature
+│   │   ├── 03-API/                Documentazione API
+│   │   ├── 04-GUIDE/              Guide pratiche
+│   │   └── 05-TROUBLESHOOTING/    Risoluzione problemi
+│   ├── ARCHIVIO/                  Documentazione storica
+│   └── REPORT-SESSIONI/           Report ogni sessione di sviluppo
+│
+├── 🖥️  backend/                    Backend Express + TypeScript
 │   ├── src/
-│   │   ├── config/               # Configurazioni
-│   │   ├── middleware/           # Middleware (security, auth, compression)
-│   │   │   ├── security.ts      # Security headers avanzati
-│   │   │   ├── compression.ts   # Brotli/Gzip compression
-│   │   │   ├── requestId.ts     # Request tracking
-│   │   │   ├── auditLogger.ts   # ✨ NEW: Audit logging
-│   │   │   └── auth.ts          # Autenticazione JWT + 2FA
-│   │   ├── routes/               # API routes
-│   │   │   ├── admin/
-│   │   │   │   ├── health-check.routes.ts  # ✨ NEW
-│   │   │   │   └── scripts.routes.ts       # ✨ NEW
-│   │   │   └── ...
-│   │   ├── services/             
-│   │   │   ├── health-check-automation/    # ✨ NEW
-│   │   │   ├── scripts.service.ts          # ✨ NEW
-│   │   │   └── ...
-│   │   ├── scripts/              # ✨ NEW: Admin scripts
-│   │   └── server.ts             # Entry point
+│   │   ├── routes/                70+ endpoint API
+│   │   ├── services/              50+ servizi business logic
+│   │   ├── middleware/            Auth, audit, security, compression
+│   │   └── utils/                 ResponseFormatter, logger, socket
 │   ├── prisma/
-│   │   └── schema.prisma        # Database schema
-│   └── logs/                     # Log files con rotation
+│   │   └── schema.prisma          Schema DB (86+ tabelle)
+│   ├── Dockerfile                 Ottimizzato — usa dist precompilato
+│   └── docker-entrypoint.sh       Fix permessi volumi Docker
 │
-├── 📂 src/                        # Frontend React (NON /client!)
-│   ├── components/               
-│   │   ├── admin/
-│   │   │   ├── health-check/    # ✨ NEW: Health Check UI
-│   │   │   ├── script-manager/  # ✨ NEW: Script Manager UI
-│   │   │   └── audit-log/       # ✨ NEW: Audit Log UI
-│   │   └── ...
-│   ├── hooks/                    # Custom hooks
-│   ├── pages/                    # Pagine applicazione
-│   ├── services/                 # API services
-│   └── lib/                      # Utilities
+├── 🎨 src/                         Frontend React (NON /frontend!)
+│   ├── components/                Componenti riutilizzabili
+│   ├── pages/                     Pagine applicazione
+│   ├── contexts/                  React Contexts (Auth, Maps, Socket)
+│   ├── hooks/                     Custom hooks
+│   ├── services/                  API client e servizi
+│   │   └── api.ts                 ⚠️  API_BASE_URL dinamico — no localhost
+│   └── types/                     TypeScript types
 │
-├── 📂 Docs/                       # ✨ NEW: Documentazione completa
-│   ├── 01-GETTING-STARTED/
-│   ├── 02-ARCHITETTURA/
-│   ├── 03-SVILUPPO/
-│   └── 04-SISTEMI/              # ✨ NEW
-│       ├── HEALTH-CHECK-SYSTEM.md
-│       ├── SCRIPT-MANAGER.md
-│       └── README.md
-│
-├── 📂 scripts/                    # Script di utility
-│   └── health-checks/            # ✨ NEW: Health check scripts
-│
-├── 📄 package.json               # Dipendenze frontend
-├── 📄 ISTRUZIONI-PROGETTO.md    # ⚠️ LEGGERE PRIMA DI INIZIARE
-└── 📄 README.md                  # Questo file
+├── 🐋 docker-compose.yml           Configurazione container (DEV)
+├── 🔧 nginx.conf                   Nginx con proxy /uploads/ e /api/
+├── 📦 Dockerfile.frontend          Nginx con dist precompilato
+├── 🚀 deploy-vm.sh                 Script deploy automatico sulla VM
+└── 📄 .env.example                 Template variabili d'ambiente
 ```
 
-## 🚀 Quick Start
+---
+
+## 🚀 Quick Start — Sviluppo Locale
 
 ### Prerequisiti
-- Node.js 18+ LTS
-- PostgreSQL 14+
-- Redis 7+ (per queue e cache)
-- npm o yarn
+- Node.js 20+ LTS
+- PostgreSQL 16+
+- Redis 7+
 
 ### Installazione
 
 ```bash
-# 1. Clone repository
+# 1. Clone
 git clone https://github.com/241luca/Richiesta-Assistenza.git
 cd richiesta-assistenza
 
@@ -373,231 +130,214 @@ cd richiesta-assistenza
 npm install
 cd backend && npm install && cd ..
 
-# 3. Setup database
-cd backend
-npx prisma generate
-npx prisma db push
-npx prisma db seed  # Dati di esempio
-
-# 4. Crea tabelle Health Check
-npx ts-node src/scripts/create-health-tables.ts
-
-# 5. Configura environment
+# 3. Configura environment
 cp .env.example .env
 # Modifica .env con le tue configurazioni
 
-# 6. Avvia i servizi
-# Terminal 1 - Backend
+# 4. Setup database
+cd backend
+npx prisma generate
+npx prisma db push
+npx prisma db seed   # Dati di esempio
+cd ..
+
+# 5. Avvia i servizi
+# Terminal 1 — Backend (porta 3200)
 cd backend && npm run dev
 
-# Terminal 2 - Frontend
+# Terminal 2 — Frontend (porta 5193)
 npm run dev
 
-# Terminal 3 - Redis (se non già attivo)
+# Terminal 3 — Redis
 redis-server
 ```
 
 ### Accesso
-
 - **Frontend**: http://localhost:5193
 - **Backend API**: http://localhost:3200
-- **Health Check**: http://localhost:3200/health
+- **Health check**: http://localhost:3200/health
 
-### Credenziali Default
-
+### Credenziali Default (da seed)
 ```
-Admin:
-  Email: admin@test.com
-  Password: password123
-
-Professional:
-  Email: professional@test.com
-  Password: password123
-
-Client:
-  Email: client@test.com
-  Password: password123
+Admin:     admin@assistenza.it  /  password123   (SUPER_ADMIN)
+Staff:     staff@assistenza.it  /  password123   (ADMIN)
+Test:      test@test.com        /  password123   (SUPER_ADMIN)
 ```
-
-## 📊 Sistema di Monitoraggio (v5.2.0)
-
-### Componenti Installati
-
-Il sistema di monitoraggio fornisce visibilità completa sullo stato del sistema attraverso 4 componenti principali:
-
-#### 1️⃣ Service Status Indicator (🔴 Pallino Colorato)
-- **Posizione**: Header (solo SUPER_ADMIN)
-- **Funzione**: Mostra stato generale servizi tramite pallino colorato
-- **Stati**: 🟢 Verde (healthy) | 🟡 Giallo (degraded) | 🔴 Rosso (critical)
-- **Features**: Badge numero servizi offline, dropdown con lista completa, auto-refresh 30s
-
-#### 2️⃣ Security Status Indicator (🛡️ Scudo)
-- **Posizione**: Header (ADMIN e SUPER_ADMIN)
-- **Funzione**: Monitora eventi di sicurezza del sistema
-- **Statistiche**: Login falliti (1h, 24h), IP bloccati, attività sospette
-- **Features**: Badge eventi critici, ultimi 10 eventi, link diretto Audit Log
-
-#### 3️⃣ Enhanced Notification Center (🔔 Campanella)
-- **Posizione**: Header (tutti gli utenti)
-- **Funzione**: Centro notifiche avanzato con filtri e azioni
-- **Filtri**: Tutte, Non lette, Oggi
-- **Azioni**: Leggi, Archivia, Elimina, "Segna tutte come lette"
-- **Categorie**: PAYMENT, REQUEST, QUOTE, SYSTEM, SECURITY, USER
-
-#### 4️⃣ System Status Page (📄 Pagina Dettagliata)
-- **Route**: `/admin/system-status`
-- **Accesso**: Menu sidebar → Tools e Utility → System Status
-- **Sezioni**:
-  - Banner stato generale (verde/giallo/rosso)
-  - 3 card statistiche (CPU, Memoria, Sistema)
-  - Lista dettagliata 9 servizi monitorati
-  - 4 card info + descrizione per ogni servizio
-- **Features**: Auto-refresh configurabile, pulsante refresh manuale
-
-### Servizi Monitorati
-
-| # | Servizio | Descrizione | Info Visualizzate |
-|---|----------|-------------|-------------------|
-| 1 | **PostgreSQL** | Database principale | Tipo, Pool (2-20), Performance, Stato |
-| 2 | **Redis** | Cache e sessioni | Tipo, Versione, Uso, TTL |
-| 3 | **Socket.io** | WebSocket real-time | Tipo, Versione, Client connessi, Clustering |
-| 4 | **Email (Brevo)** | Sistema email | Provider, Tipo, Rate limit, Templates |
-| 5 | **WhatsApp** | WppConnect | Tipo, Versione, Multidevice, QR refresh |
-| 6 | **OpenAI** | AI GPT-4/3.5 | Modello, Dual config, Embeddings, Rate limit |
-| 7 | **Stripe** | Pagamenti | Gateway, Webhook, API version, 3D Secure |
-| 8 | **Google Maps** | Mappe e geocoding | API, Servizi, Cache, Quota |
-| 9 | **Google Calendar** | Calendario | API, OAuth, Sync, Eventi |
-
-### Accesso Rapido
-
-```
-# Verifica stato servizi
-curl http://localhost:3200/api/admin/health-check/status
-
-# Verifica eventi sicurezza
-curl http://localhost:3200/api/security/status
-
-# Visualizza notifiche
-curl http://localhost:3200/api/notifications
-```
-
-### Documentazione Completa
-
-📚 Tutta la documentazione dettagliata disponibile in:
-`DOCUMENTAZIONE/ATTUALE/02-FUNZIONALITA/SISTEMA-MONITORAGGIO/`
-
-- README.md - Panoramica completa
-- SERVICE-STATUS-INDICATOR.md - Guida componente pallino
-- SECURITY-STATUS-INDICATOR.md - Guida componente scudo
-- ENHANCED-NOTIFICATION-CENTER.md - Guida centro notifiche
-- SYSTEM-STATUS-PAGE.md - Guida pagina dettagliata
 
 ---
 
-## 📊 Dashboard Amministrativa
+## 🌐 Ambiente di Produzione (VM 103)
 
-### Nuove Sezioni v4.0
+| Parametro | Valore |
+|---|---|
+| URL App | http://192.168.0.203 |
+| Backend API | http://192.168.0.203:3200 |
+| VM Proxmox | Z240 — 192.168.0.211 |
+| OS | Ubuntu 24.04 LTS |
+| SSH | `ssh -i ~/.ssh/id_ed25519_github santrack@100.101.202.35` |
 
-#### 🏥 Health Check System
-**Accesso**: Menu → Health Check → Automation & Alerts
+### Container Docker in produzione
 
-- **Overview**: Stato sistema real-time
-- **Scheduler**: Configurazione intervalli automatici
-- **Reports**: Generazione PDF on-demand e settimanali
-- **Auto-Remediation**: Gestione regole auto-fix
-- **Performance**: Grafici metriche real-time
+| Container | Porta host | Stato |
+|---|---|---|
+| assistenza-frontend | 80:80 | ✅ Running |
+| assistenza-backend | 3200:3200 | ✅ Running |
+| assistenza-database | 5434:5432 | ✅ Running |
+| assistenza-redis | 6382:6379 | ✅ Running |
 
-#### 🛠️ Script Manager
-**Accesso**: Menu → Script Manager
+> ⚠️ Il `docker-compose.yml` sulla VM è personalizzato (porte diverse) — non sovrascriverlo con quello del repository.
 
-- Lista script categorizzati
-- Esecuzione con parametri dinamici
-- Output real-time
-- Storia esecuzioni
-- Controllo accessi role-based
+---
 
-#### 📊 Audit Log
-**Accesso**: Menu → Audit Log
+## 📡 API — Panoramica Endpoint Principali
 
-- Tracciamento tutte le operazioni
-- Filtri avanzati
-- Export CSV/JSON/PDF
-- Grafici statistiche
-- Retention policy configurabile
-
-## 🔧 Configurazione
-
-### Environment Variables
-
-``env
-# Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/assistance_db
-
-# Security
-JWT_SECRET=your-32-char-minimum-secret
-SESSION_SECRET=your-32-char-minimum-secret
-
-# External Services
-OPENAI_API_KEY=sk-...
-STRIPE_SECRET_KEY=sk_test_...
-GOOGLE_MAPS_API_KEY=AIza...
-BREVO_API_KEY=xkeysib-...
-
-# Redis
-REDIS_URL=redis://localhost:6379
-
-# Health Check (NEW)
-HEALTH_CHECK_ENABLED=true
-HEALTH_CHECK_INTERVAL=30
-HEALTH_CHECK_ALERT_EMAIL=admin@example.com
-
-# Script Manager (NEW)
-SCRIPT_MANAGER_ENABLED=true
-SCRIPT_TIMEOUT=300000
-
-# Audit Log (NEW)
-AUDIT_LOG_ENABLED=true
-AUDIT_RETENTION_DAYS=90
-```
-
-## 📚 Documentazione
-
-### Documenti Principali
-
-- **[ISTRUZIONI-PROGETTO.md](./ISTRUZIONI-PROGETTO.md)** - ⚠️ LEGGERE PRIMA DI INIZIARE
-- **[Architettura Completa](./Docs/02-ARCHITETTURA/ARCHITETTURA-SISTEMA-COMPLETA.md)**
-- **[Health Check System](./Docs/04-SISTEMI/HEALTH-CHECK-SYSTEM.md)** - NEW
-- **[Script Manager](./Docs/04-SISTEMI/SCRIPT-MANAGER.md)** - NEW
-- **[Aggiornamento v4.0](./Docs/02-ARCHITETTURA/AGGIORNAMENTO-v4.0.md)** - NEW
-
-### API Documentation
-
-- Base URL: `http://localhost:3200/api`
-- Authentication: JWT Bearer token
-- **Response Format**: SEMPRE ResponseFormatter standard
-  - Backend: Tutte le routes usano ResponseFormatter
-  - Frontend: Tutti gli errori gestiti con ResponseFormatter
-  - Nessuna eccezione permessa!
-
-#### Nuovi Endpoints v4.0
+Base URL: `http://localhost:3200/api`  
+Autenticazione: `Authorization: Bearer <token>`
 
 ```
-Health Check:
-  GET    /admin/health-check/status
-  POST   /admin/health-check/start
-  POST   /admin/health-check/stop
-  POST   /admin/health-check/report
-  
-Script Manager:
-  GET    /admin/scripts
-  POST   /admin/scripts/:id/execute
-  GET    /admin/scripts/:id/output
-  
-Audit Log:
-  GET    /audit
-  GET    /audit/export
-  POST   /audit/cleanup
+Auth:           POST /auth/login, /auth/register, /auth/refresh
+Users:          GET/PUT /users/profile, POST /users/avatar
+Requests:       CRUD /requests, /requests/:id/attachments
+Quotes:         CRUD /quotes, POST /quotes/:id/accept
+Professionals:  GET /professionals, /professionals/:id
+Notifications:  GET /notifications, PUT /notifications/:id/read
+Chat:           GET/POST /chat/:requestId/messages
+Maps:           POST /maps/geocode, /maps/calculate-distance
+Calendar:       CRUD /calendar/interventions
+Payments:       POST /payments/create-intent, /payments/confirm
+Admin:          /admin/users, /admin/system-settings, /admin/scripts
+Health:         GET /health  (no auth)
+Public:         GET /public/system-settings/basic  (no auth)
 ```
+
+Tutte le risposte seguono il formato **ResponseFormatter**:
+```json
+{
+  "success": true,
+  "message": "Operazione completata",
+  "data": { },
+  "timestamp": "2026-04-18T..."
+}
+```
+
+---
+
+## 🔐 Sicurezza
+
+### Implementazioni
+
+- **CORS dinamico** — Origini lette da `FRONTEND_URL` e `ALLOWED_ORIGINS` (env), mai hardcoded
+- **JWT + 2FA** — Token con refresh, TOTP via Speakeasy
+- **Rate limiting** — Configurabile per endpoint (default: 50 req/15min su /auth)
+- **Helmet.js** — Security headers (CSP, HSTS, X-Frame-Options)
+- **Zod validation** — Su tutti gli endpoint
+- **Audit log** — Tracciamento completo ogni azione utente
+- **RBAC** — 4 ruoli: CLIENT, PROFESSIONAL, ADMIN, SUPER_ADMIN
+- **bcrypt** — Hash password con 10 rounds
+
+### Chiavi API
+
+Tutte le chiavi API (Google Maps, OpenAI, Stripe, ecc.) sono memorizzate nel **database** nella tabella `ApiKey`. Non sono mai nel codice sorgente né nelle variabili d'ambiente dell'app. L'admin le gestisce dalla dashboard `/admin/api-keys`.
+
+---
+
+## 🔧 Pattern Fondamentali
+
+### ResponseFormatter (OBBLIGATORIO)
+
+```typescript
+// ✅ Backend — SOLO nelle routes, MAI nei services
+router.get('/items', authenticate, async (req, res) => {
+  const items = await itemService.getAll();   // Service ritorna dati grezzi
+  return res.json(ResponseFormatter.success(items, 'Recuperati'));
+});
+
+// ❌ MAI nei services
+async function getAll() {
+  return ResponseFormatter.success(await prisma.item.findMany()); // SBAGLIATO
+}
+```
+
+### API Client Frontend (NO /api doppio)
+
+```typescript
+// src/services/api.ts ha già baseURL = 'http://.../api'
+// ✅ CORRETTO
+api.get('/users')       // → /api/users
+api.post('/requests')   // → /api/requests
+
+// ❌ SBAGLIATO — genera /api/api/users
+api.get('/api/users')
+```
+
+### URL Backend (dinamico, mai hardcoded)
+
+```typescript
+// src/services/api.ts
+export const API_BASE_URL = import.meta.env.VITE_API_URL ||
+  (window.location.hostname === 'localhost'
+    ? 'http://localhost:3200'
+    : `http://${window.location.hostname}:3200`);
+```
+
+---
+
+## 🐋 Deploy
+
+### Procedura Deploy su VM (rapida)
+
+```bash
+# 1. Build sul Mac
+npm run build                        # Frontend → dist/
+cd backend && npm run build && cd .. # Backend → backend/dist/
+
+# 2. Usa lo script automatico
+./deploy-vm.sh
+# Oppure con IP LAN: ./deploy-vm.sh 192.168.0.203
+```
+
+Lo script `deploy-vm.sh` esegue automaticamente:
+- Copia dist frontend e backend sulla VM via rsync
+- Aggiorna l'immagine Docker senza rebuild completo
+- Riavvia i container
+- Verifica che tutto funzioni
+
+Per la guida completa → vedi **[DOCUMENTAZIONE/ATTUALE/04-GUIDE/DEPLOY-VM.md](DOCUMENTAZIONE/ATTUALE/04-GUIDE/DEPLOY-VM.md)**
+
+### Build Docker (solo quando cambia il Dockerfile)
+
+```bash
+ssh -i ~/.ssh/id_ed25519_github santrack@100.101.202.35
+cd /home/santrack/richiesta-assistenza
+sudo docker compose build --no-cache backend
+sudo docker compose up -d backend
+```
+
+> ⚠️ Il build con `--no-cache` impiega 3-5 minuti sulla VM e satura la CPU — normale.
+
+---
+
+## 📊 Monitoring
+
+Il sistema espone diversi endpoint di monitoraggio:
+
+```bash
+# Health check (no auth)
+curl http://192.168.0.203:3200/health
+
+# Stato servizi (richiede auth SUPER_ADMIN)
+curl -H "Authorization: Bearer TOKEN" http://192.168.0.203:3200/api/admin/health-check/status
+
+# Audit log
+curl -H "Authorization: Bearer TOKEN" http://192.168.0.203:3200/api/audit
+```
+
+Dalla dashboard admin:
+- `/admin/system-status` — Stato 9 servizi in tempo reale
+- `/admin/audit` — Log completo operazioni
+- `/admin/health-check` — Automation e alert
+
+---
 
 ## 🧪 Testing
 
@@ -605,133 +345,47 @@ Audit Log:
 # Unit tests
 npm test
 
-# Integration tests
-npm run test:integration
+# TypeScript check (zero errori richiesti)
+cd backend && npx tsc --noEmit
 
-# E2E tests
-npm run test:e2e
-
-# Coverage report
-npm run test:coverage
-
-# Health Check test
-curl http://localhost:3200/api/admin/health-check/status
+# Test sistema (script automatico)
+./scripts/test-finale.sh
 ```
-
-## 🚢 Deployment
-
-### Docker
-
-```bash
-# Build images
-docker-compose build
-
-# Start services
-docker-compose up -d
-
-# Check logs
-docker-compose logs -f
-```
-
-### PM2
-
-```bash
-# Start with PM2
-pm2 start ecosystem.config.js
-
-# Monitor
-pm2 monit
-
-# Reload
-pm2 reload all
-```
-
-## 📈 Monitoring
-
-### Health Checks
-- Sistema automatico ogni 5-30 minuti
-- Dashboard real-time
-- Alert automatici per problemi critici
-- Report PDF settimanali
-
-### Metriche Monitorate
-- CPU & Memory usage
-- API response times
-- Database performance
-- Error rates
-- Request throughput
-- WebSocket connections
-
-## 🤝 Contributing
-
-1. Fork il repository
-2. Crea un branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push al branch (`git push origin feature/AmazingFeature`)
-5. Apri una Pull Request
-
-## 📝 Changelog
-
-### v6.1.0 (04 Ottobre 2025) 🚀
-- ⚡ **Performance**: Calendario 900% più veloce (query N+1 → 1 query)
-- 🎯 **Accuratezza**: Check conflitti 100% preciso (formula matematica corretta)
-- 💾 **Database**: Aggiunti 3 index compositi per ottimizzazione query
-- 📖 **Docs**: Nuove guide complete ottimizzazioni e sistema conflitti
-- 🧪 **Testing**: 10+ test cases per validazione conflitti
-- 📊 **Metriche**: 100 interventi caricati in 80ms (era 800ms)
-
-### v6.0.0 (03 Ottobre 2025)
-- 📅 Sistema Calendario Professionale completo con FullCalendar v6
-- ⏰ Scheduling intelligente con drag & drop e gestione conflitti
-- 🔄 Sincronizzazione real-time via WebSocket
-- 📊 Multiple visualizzazioni (mese/settimana/giorno/lista)
-- 🎨 Sistema branding dinamico completo
-
-### v4.3.0 (10 Gennaio 2025)
-- 🔥 **ResponseFormatter**: Implementato standard unificato per tutte le API
-- 📖 **Documentazione**: Aggiunto pattern ResponseFormatter come regola fondamentale
-- 🐛 **Fix**: Risolto errore React "Objects are not valid as a React child"
-- ✅ **Validazione**: Centralizzata gestione errori Zod nel frontend
-- 📚 **Docs**: Creata guida completa ResponseFormatter in DOCUMENTAZIONE/
-
-### v4.1.0 (8 Settembre 2025 - Pomeriggio)
-- ✨ **NUOVO**: Tab "Guida ai Test" con documentazione integrata
-- ✨ FAQ estese con 8+ domande frequenti
-- ✨ Spiegazioni user-friendly per tutti i componenti
-- 🔧 Fix metodi `getCurrentMetrics()` e `getHistory()`
-- 🔧 Correzione tutti i percorsi API duplicati `/api/api/`
-- 🔧 Gestione graceful tabelle database mancanti
-- 📁 Consolidamento script in posizione unica
-
-### v4.0.0 (8 Settembre 2025 - Mattina)
-- ✨ Health Check System con auto-remediation
-- ✨ Script Manager con UI
-- ✨ Audit Log system
-- ✨ Performance monitoring real-time
-- ✨ Report PDF automatici
-- 📚 Documentazione completa riorganizzata
-
-### v3.0.0 (6 Settembre 2025)
-- 🔒 Security headers avanzati
-- ⚡ Compression Brotli/Gzip
-- 📊 Request ID tracking
-- 🔄 Circuit breaker pattern
-
-### v2.0.0 (30 Agosto 2025)
-- 🤖 Integrazione AI
-- 💳 Sistema pagamenti
-- 📍 Geolocalizzazione
-
-## 📄 License
-
-Proprietario - LM Tecnologie © 2025
-
-## 👥 Team
-
-- **Lead Developer**: Luca Mambelli
-- **Email**: lucamambelli@lmtecnologie.it
-- **GitHub**: [@241luca](https://github.com/241luca)
 
 ---
 
-**Sistema Richiesta Assistenza v4.1** - Enterprise Ready Solution 🚀
+## 🤝 Contribuire
+
+1. Leggi **ISTRUZIONI-PROGETTO.md** prima di tutto
+2. Crea un branch: `git checkout -b feature/nome-feature`
+3. Segui tutti i pattern obbligatori (ResponseFormatter, React Query, ecc.)
+4. Esegui `./scripts/pre-commit-check.sh` prima del commit
+5. Crea il report di sessione in `DOCUMENTAZIONE/REPORT-SESSIONI/`
+6. Apri una Pull Request
+
+---
+
+## 📝 Changelog Rapido
+
+| Versione | Data | Highlights |
+|---|---|---|
+| **6.2.0** | Apr 2026 | Zero hardcoded — tutti URL dinamici da env; deploy VM 103 |
+| 6.1.0 | Ott 2025 | Calendario 900% più veloce, check conflitti corretto |
+| 6.0.0 | Ott 2025 | Sistema calendario completo, branding dinamico |
+| 5.3.1 | Ott 2025 | Modulo Document Integration, performance 50x |
+| 5.3.0 | Ott 2025 | Custom Forms completo con 18 tipi di campo |
+| 5.2.0 | Ott 2025 | Sistema monitoraggio, 9 servizi monitorati |
+
+Changelog completo → [CHANGELOG.md](CHANGELOG.md)
+
+---
+
+## 👥 Team
+
+**Lead Developer**: Luca Mambelli  
+**Email**: lucamambelli@lmtecnologie.it  
+**GitHub**: [@241luca](https://github.com/241luca)
+
+---
+
+**Sistema Richiesta Assistenza v6.2.0** — LM Tecnologie © 2026

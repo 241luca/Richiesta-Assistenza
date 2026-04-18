@@ -4,6 +4,167 @@
 
 ---
 
+## v6.2.0 — 18 Aprile 2026 🧹 ZERO HARDCODED + DEPLOY VM 103
+
+### 🎯 Obiettivo
+Eliminazione completa di tutti i riferimenti a `localhost`, IP fissi e URL hardcoded dal codice sorgente. Tutti gli URL, le porte e le chiavi derivano esclusivamente da variabili d'ambiente o dal database. Deploy completo sulla VM 103 (Proxmox Z240).
+
+---
+
+### 🔴 Fix Critici — Hardcoded Rimossi
+
+#### Backend
+
+**`backend/src/server.ts`**
+- CORS — origini ora lette da `FRONTEND_URL` e `ALLOWED_ORIGINS` (env). Mai più `localhost:5193` hardcoded (rimane solo in development mode)
+- Socket.io — stessa lista origini dinamica
+- Path uploads — corretto da `../../uploads` (path errato → `/uploads` inesistente) a `../uploads` (→ `/app/uploads` corretto)
+- Rimosso `wppConnectService.initialize()` che usava un import commentato (causava errore TypeScript)
+
+**`backend/src/services/healthCheck.service.ts`**
+- URL dashboard nelle email di alert ora usa `process.env.FRONTEND_URL` invece di `http://localhost:5193`
+
+**`backend/src/services/testRunnerService.ts`**
+- `localhost:3000` → `BACKEND_BASE_URL` calcolato da `process.env.BACKEND_URL || http://localhost:${PORT}`
+- (Era anche sulla porta sbagliata: 3000 invece di 3200)
+
+**`backend/src/services/whatsapp-media.service.ts`**
+- Rimosso uso di `wppConnectService` non importato — sostituito con `throw` esplicito che spiega il servizio è disabilitato
+
+**`backend/src/services/whatsapp-template.service.ts`**
+- Stesso fix — rimosso codice unreachable dopo il throw
+
+**`backend/src/scripts/setup-whatsapp.ts`**
+- `webhookUrl: 'http://localhost:3200/...'` → `${process.env.BACKEND_URL}/api/whatsapp/webhook`
+
+**`backend/src/server_test.ts`**
+- Rimosso `wppConnectService` non importato
+
+#### Frontend
+
+**`src/services/api.ts`**
+- Esportata `API_BASE_URL` come costante pubblica (usata dagli altri file)
+- Rimosso `console.log('WebSocket connected to port 3200')` con porta hardcoded
+
+**`src/contexts/SocketContext.tsx`**
+- WebSocket: `'http://localhost:3200'` → `API_BASE_URL`
+
+**`src/components/chat/RequestChat.tsx`**
+- WebSocket: stessa correzione
+
+**`src/pages/RequestDetailPage.tsx`**
+- 4 immagini profilo (client + professional, src + setSelectedImage): `http://localhost:3200${path}` → `` `${API_BASE_URL}${path}` ``
+
+**`src/pages/AdminTestPage.tsx`**
+- 3 fetch: `http://localhost:3200/api/test/...` → `` `${API_BASE_URL}/api/test/...` ``
+
+**`src/pages/professional/reports/index.tsx`**
+- Export URL: `http://localhost:3200/api/...` → `` `${API_BASE_URL}/api/...` ``
+
+**`src/pages/admin/api-keys/GoogleCalendarConfig.tsx`**
+- Callback URL: `.replace('5193', '3200')` → `API_BASE_URL`
+
+**`src/pages/admin/api-keys/StripeConfig.tsx`**
+- Webhook URL: `.replace(':5193', ':3200')` → `API_BASE_URL`
+
+**`src/pages/admin/api-keys/GoogleMapsConfig.tsx`**
+- `allowedReferrers` default: `['http://localhost:5193', ...]` → `[window.location.origin, ...]`
+
+**`src/components/admin/calendar/GoogleCalendarConfig.tsx`**
+- Callback URL: stessa correzione di GoogleCalendarConfig
+
+**`src/services/referralApi.ts`** e **`src/services/referral.service.ts`**
+- URL referral tracking: `localhost:3200` → `API_BASE_URL`
+
+---
+
+### 🏗️ Infrastruttura
+
+**`nginx.conf`**
+- Aggiunto blocco `location /uploads/` per proxy al backend
+- Prima: le immagini caricate venivano restituite con 404 da Nginx
+
+**`backend/Dockerfile`** — Ottimizzato completamente
+- **Prima**: compilava TypeScript nel container (npm install + tsc = 15-20 minuti di build)
+- **Dopo**: copia il `dist/` precompilato dal Mac (build in 2-3 minuti grazie alla cache npm)
+- Aggiunto `su-exec` per fix permessi volumi Docker
+- Aggiunto `docker-entrypoint.sh` per `chown` di uploads/logs/backups all'avvio
+
+**`backend/docker-entrypoint.sh`** — Nuovo file
+- Risolve il problema `EACCES: permission denied, mkdir '/uploads'` che si verificava quando Docker montava il volume su una directory il cui owner era root
+
+**`Dockerfile.frontend`** — Ottimizzato
+- **Prima**: compilava React con Vite nel container (npm install = 10-15 minuti)
+- **Dopo**: copia il `dist/` precompilato, solo Nginx (30 secondi)
+
+**`docker-compose.yml`**
+- Healthcheck backend: `/api/health` → `/health` (l'endpoint `/health` non richiede autenticazione)
+
+**`deploy-vm.sh`** — Nuovo script
+- Script completo per deploy sulla VM: build → rsync → aggiornamento immagine Docker → riavvio → verifica
+
+---
+
+### 🐛 Bug Fix Deploy VM 103
+
+**Problema porta 3210 vs 3200**
+- Il `docker-compose.yml` della VM aveva `3210:3200` (backend esposto su 3210)
+- Il frontend compilato usava dinamicamente `window.location.hostname:3200`
+- Risultato: il frontend non riusciva a contattare il backend → schermata di errore
+- Fix: cambiato in `3200:3200` nel docker-compose.yml della VM
+
+**Problema `nanoid` mancante**
+- Il Dockerfile (con cache) aveva installato `node_modules` senza `nanoid`
+- Fix: `docker run` temporaneo + `npm install nanoid` + `docker commit`
+
+**Problema `start:prod:skip-migrations`**
+- Il `docker-compose.yml` della VM aveva `command: ${START_COMMAND:-npm run start:prod:skip-migrations}`
+- Quello script non esiste nel `package.json`
+- Fix: `command: node dist/server.js`
+
+**Problema path uploads**
+- `express.static(path.join(__dirname, '../../uploads'))` con `__dirname = /app/dist` → `/uploads` (inesistente)
+- Fix: `express.static(path.join(__dirname, '../uploads'))` → `/app/uploads` (corretto)
+
+**Database vuoto dopo reset**
+- `prisma db push --force-reset` aveva resettato il DB durante il primo deploy
+- Fix: re-importato il backup locale (24 dicembre 2025) con drop + restore completo
+
+---
+
+### 📊 Metriche Sessione
+
+| Metrica | Valore |
+|---|---|
+| File sorgente corretti | 22 |
+| Occorrenze localhost rimosse | 35+ |
+| Commit pushati | 6 |
+| Bug fix deploy | 5 |
+| Tempo build backend (prima) | 15-20 min |
+| Tempo build backend (dopo) | 2-3 min |
+| Tempo build frontend (prima) | 10-15 min |
+| Tempo build frontend (dopo) | 30 sec |
+
+---
+
+### ✅ Stato Finale VM 103
+
+```
+URL:     http://192.168.0.203
+Admin:   admin@assistenza.it / password123  (SUPER_ADMIN)
+Staff:   staff@assistenza.it / password123  (ADMIN)
+
+Container:
+  assistenza-backend    ✅ Up, Healthy  (porta 3200)
+  assistenza-database   ✅ Up, Healthy  (porta 5434)
+  assistenza-redis      ✅ Up, Healthy  (porta 6382)
+  assistenza-frontend   ✅ Up           (porta 80)
+```
+
+---
+
+
+
 ## v5.3.1 - Modulo Document Integration (23 Ottobre 2025)
 
 ### 📄 MODULO DOCUMENT INTEGRATION COMPLETO
