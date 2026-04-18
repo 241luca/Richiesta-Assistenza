@@ -13,25 +13,46 @@ Rimuovere tutti i `localhost` e URL hardcoded dal codice sorgente, correggere i 
 
 ---
 
+## ✅ STATO FINALE VM 103
+
+| Servizio | Porta | Stato |
+|---|---|---|
+| `assistenza-backend` | 3200:3200 | ✅ Up, Healthy |
+| `assistenza-database` | 5434:5432 | ✅ Up, Healthy |
+| `assistenza-redis` | 6382:6379 | ✅ Up, Healthy |
+| `assistenza-frontend` | 80:80 | ✅ Up, funzionante |
+
+### Credenziali funzionanti
+- `admin@assistenza.it / password123` → SUPER_ADMIN ✅
+- `staff@assistenza.it / password123` → ADMIN ✅
+- `test@test.com / password123` → SUPER_ADMIN ✅
+
+### Test superati
+- ✅ `http://192.168.0.203/` — HTTP 200, login funziona
+- ✅ `http://192.168.0.203:3200/health` — `{status: ok}`
+- ✅ `http://192.168.0.203:3200/api/auth/login` — login OK
+- ✅ `http://192.168.0.203/uploads/site_logo_url-*.png` — HTTP 200
+- ✅ `http://192.168.0.203/api/public/system-settings/basic` — HTTP 200
+
+---
+
 ## 🔧 MODIFICHE AL CODICE SORGENTE (22 file)
 
-### Backend
+### Backend — hardcoded rimossi
 | File | Fix |
 |---|---|
-| `backend/src/server.ts` | CORS dinamico da env, rimosso wppConnect non importato, path uploads corretto (`../` invece di `../../`) |
-| `backend/src/server_test.ts` | Rimosso wppConnectService non importato |
+| `backend/src/server.ts` | CORS dinamico da env; path uploads `../uploads` (era `../../uploads`); rimosso wppConnect non importato |
+| `backend/src/server_test.ts` | Rimosso wppConnectService |
 | `backend/src/services/healthCheck.service.ts` | URL email usa `FRONTEND_URL` da env |
 | `backend/src/services/testRunnerService.ts` | `localhost:3000` → `BACKEND_BASE_URL` da env |
-| `backend/src/services/whatsapp-media.service.ts` | Sostituito wppConnectService con throw esplicito |
-| `backend/src/services/whatsapp-template.service.ts` | Stesso fix, rimosso codice unreachable |
+| `backend/src/services/whatsapp-media.service.ts` | Sostituito wppConnectService con throw |
+| `backend/src/services/whatsapp-template.service.ts` | Stesso fix |
 | `backend/src/scripts/setup-whatsapp.ts` | webhookUrl usa `BACKEND_URL` da env |
-| `backend/Dockerfile` | Ottimizzato: usa dist precompilato, nessun npm install nel container, aggiunto su-exec e entrypoint |
-| `backend/docker-entrypoint.sh` | Nuovo: fix permessi volumi montati all'avvio |
 
-### Frontend
+### Frontend — hardcoded rimossi
 | File | Fix |
 |---|---|
-| `src/services/api.ts` | Esportata `API_BASE_URL`, rimosso console.log con porta hardcoded |
+| `src/services/api.ts` | Esportata `API_BASE_URL`; rimosso console.log con porta hardcoded |
 | `src/services/referralApi.ts` | Usa `API_BASE_URL` |
 | `src/services/referral.service.ts` | Usa `API_BASE_URL` |
 | `src/contexts/SocketContext.tsx` | WebSocket usa `API_BASE_URL` |
@@ -48,53 +69,46 @@ Rimuovere tutti i `localhost` e URL hardcoded dal codice sorgente, correggere i 
 | File | Fix |
 |---|---|
 | `nginx.conf` | Aggiunto blocco `/uploads/` per proxy al backend |
-| `Dockerfile.frontend` | Ottimizzato: usa dist precompilato, solo Nginx |
-| `docker-compose.yml` | Healthcheck usa `/health` (senza auth) invece di `/api/health` |
+| `Dockerfile.frontend` | Usa dist precompilato, solo Nginx (build da 15min → 30sec) |
+| `backend/Dockerfile` | Usa dist precompilato + su-exec + entrypoint (build da 20min → 2min) |
+| `backend/docker-entrypoint.sh` | Fix permessi volumi montati (`chown uploads/logs/backups`) |
+| `docker-compose.yml` | Healthcheck usa `/health` senza auth |
 
 ---
 
-## 🚀 DEPLOY VM 103
+## 🚀 PROCEDURA DEPLOY (per future sessioni)
 
-### Procedura utilizzata
-1. `git push` su GitHub — tutti i sorgenti aggiornati
-2. `rsync` dist frontend e backend dalla Mac → VM
-3. `git pull` sulla VM
-4. `docker commit` per aggiornare immagine senza rebuild completo
-5. Ripristino database dal backup locale (24 dicembre 2025)
-6. Copia file uploads nella directory del container
+```bash
+# 1. Build sul Mac
+cd /Users/lucamambelli/Desktop/Richiesta-Assistenza
+npm run build                    # Frontend → dist/
+cd backend && npm run build      # Backend → backend/dist/
+cd ..
 
-### Problema risolto: `nanoid` mancante
-Il modulo `nanoid` mancava nelle dipendenze di produzione nell'immagine Docker. Risolto con `docker commit` dopo installazione manuale.
+# 2. Copia dist sulla VM
+rsync -av -e "ssh -i ~/.ssh/id_ed25519_github" \
+  backend/dist/ santrack@100.101.202.35:/home/santrack/richiesta-assistenza/backend/dist/
 
-### Problema risolto: `start:prod:skip-migrations`
-Il `docker-compose.yml` della VM aveva `command: ${START_COMMAND:-npm run start:prod:skip-migrations}` che sovrascriveva il CMD. Corretto a `command: node dist/server.js`.
+rsync -av -e "ssh -i ~/.ssh/id_ed25519_github" \
+  dist/ santrack@100.101.202.35:/home/santrack/richiesta-assistenza/dist/
 
-### Problema risolto: path uploads
-`express.static` usava `../../uploads` (→ `/uploads` inesistente). Corretto a `../uploads` (→ `/app/uploads`).
-
----
-
-## ✅ STATO FINALE VM 103
-
-| Servizio | Stato |
-|---|---|
-| `assistenza-backend` | ✅ Up, Healthy |
-| `assistenza-database` | ✅ Up, Healthy |
-| `assistenza-redis` | ✅ Up, Healthy |
-| `assistenza-frontend` | ✅ Up (unhealthy = falso allarme, nginx funziona) |
-
-### Test superati
-- ✅ `http://192.168.0.203/` — HTTP 200
-- ✅ `http://192.168.0.203:3210/health` — `{status: ok}`
-- ✅ Login `admin@assistenza.it / password123` — SUPER_ADMIN
-- ✅ Login `staff@assistenza.it / password123` — ADMIN
-- ✅ Logo `/uploads/site_logo_url-*.png` — HTTP 200
-- ✅ API public settings — dati corretti
+# 3. Aggiorna immagine Docker senza rebuild
+ssh -i ~/.ssh/id_ed25519_github santrack@100.101.202.35 "
+  cd /home/santrack/richiesta-assistenza
+  docker compose stop backend frontend
+  docker run -d --name temp_fix richiesta-assistenza-backend sleep 300
+  docker cp backend/dist/. temp_fix:/app/dist/
+  docker commit temp_fix richiesta-assistenza-backend:latest
+  docker rm -f temp_fix
+  docker compose up -d
+"
+```
 
 ---
 
-## 📝 NOTE
+## ⚠️ NOTE IMPORTANTI PER LA VM
 
-- Il `docker-compose.yml` sulla VM è una versione personalizzata (porte diverse: 5434, 6382, 3210) — NON sovrascrivere con quello del repository
-- I `dist/` frontend e backend non sono in git (`.gitignore`) — vanno sempre copiati via rsync dopo ogni build
-- Per futuri deploy: `npm run build` sul Mac → `rsync dist/` → `docker commit` sulla VM
+- Il `docker-compose.yml` della VM è **personalizzato** (porte diverse) — NON sovrascrivere con quello del repo
+- Porte VM: database=5434, redis=6382, backend=**3200** (non 3210!)
+- I dist non sono in git → sempre copiare via rsync dopo ogni build
+- **CAUSA DEL PROBLEMA "non entra"**: backend era su porta 3210, ma il frontend compilato si aspetta la 3200. Fix: cambiare `3210:3200` → `3200:3200` nel docker-compose.yml della VM
