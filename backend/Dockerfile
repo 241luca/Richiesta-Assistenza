@@ -42,4 +42,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 
 # L'entrypoint sistema i permessi dei volumi montati e poi avvia come nodejs
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["npm", "run", "start:prod"]
+CMD ["node", "dist/server.js"]
