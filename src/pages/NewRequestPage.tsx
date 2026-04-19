@@ -27,7 +27,7 @@ import { PlaceAutocomplete } from '../components/address/PlaceAutocomplete';
 import { AiChatComplete } from '../components/ai/AiChatComplete';
 import { GuaranteeBanner } from '../components/guarantees';
 import { QuickRequestForm } from '../components/requests/QuickRequestForm';
-import { useFormDraft } from '../hooks/useFormDraft';
+import { useFormDraft, DraftData } from '../hooks/useFormDraft';
 import { DraftBanner, DraftIndicator } from '../components/drafts';
 import { customFormsAPI, CustomForm } from '../services/customForms.api';
 import { CustomFormRenderer } from '../components/custom-forms/CustomFormRenderer';
@@ -74,7 +74,7 @@ export default function NewRequestPage() {
   const [showAiChat, setShowAiChat] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
-  const [savedDraft, setSavedDraft] = useState(null);
+  const [savedDraft, setSavedDraft] = useState<DraftData<any> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [addressData, setAddressData] = useState({
     address: user?.address || '',
@@ -552,11 +552,11 @@ export default function NewRequestPage() {
         {mode === 'standard' && showDraftBanner && savedDraft && getDraftInfo() && (
           <div className="mb-8">
             <DraftBanner
-              draftInfo={getDraftInfo()}
+              draftInfo={getDraftInfo()!}
               onRestore={handleRestoreDraft}
               onDismiss={handleDismissDraft}
               title="📝 Bozza richiesta trovata"
-              description={`Hai una bozza salvata ${getDraftInfo().timeAgo} con ${getDraftInfo().fieldsCount} campi compilati. Vuoi continuare dove avevi lasciato?`}
+              description={`Hai una bozza salvata ${getDraftInfo()!.timeAgo} con ${getDraftInfo()!.fieldsCount} campi compilati. Vuoi continuare dove avevi lasciato?`}
             />
           </div>
         )}
@@ -763,7 +763,7 @@ export default function NewRequestPage() {
                     </label>
 
                     {/* Form disponibili */}
-                    {customForms.map((form) => (
+                    {customForms.map((form: any) => (
                       <label
                         key={form.id}
                         className={`
@@ -1098,7 +1098,7 @@ export default function NewRequestPage() {
             <div className="mb-4">
               <DraftIndicator
                 isActive={true}
-                lastSaved={getDraftInfo() ? getDraftInfo().timeAgo : undefined}
+                lastSaved={getDraftInfo()?.timeAgo}
                 className="text-center"
               />
             </div>

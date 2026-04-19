@@ -417,7 +417,7 @@ export default function NewReportPage() {
               <button
                 type="button"
                 onClick={(e) => handleSubmit(e, true)}
-                disabled={saveMutation.isLoading}
+                disabled={saveMutation.isPending}
                 className="px-4 py-2 text-gray-700 bg-yellow-500 rounded-lg hover:bg-yellow-600 disabled:opacity-50"
               >
                 <ClockIcon className="h-5 w-5 inline mr-2" />
@@ -426,7 +426,7 @@ export default function NewReportPage() {
               
               <button
                 type="submit"
-                disabled={saveMutation.isLoading}
+                disabled={saveMutation.isPending}
                 className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 <CheckCircleIcon className="h-5 w-5 inline mr-2" />

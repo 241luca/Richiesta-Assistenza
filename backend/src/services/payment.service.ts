@@ -115,9 +115,9 @@ export class PaymentService {
       logger.info(`[PaymentService] Stripe loaded in ${this.stripeConfig.mode} mode`);
       return this.stripeConfig;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[PaymentService] Failed to load Stripe config:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
       });
       
@@ -146,9 +146,9 @@ export class PaymentService {
       logger.info('[PaymentService] Getting Stripe public key');
       const config = await this.loadStripeConfig();
       return config.publicKey;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[PaymentService] Error getting public key:', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error'
       });
       throw error;
     }
@@ -172,9 +172,9 @@ export class PaymentService {
       }
       
       return config.webhookSecret;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[PaymentService] Error getting webhook secret:', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error'
       });
       throw error;
     }
@@ -214,9 +214,9 @@ export class PaymentService {
       logger.info('[PaymentService] Stripe client initialized successfully');
       return this.stripeClient;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[PaymentService] Failed to initialize Stripe client:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
       });
       return null;
@@ -242,9 +242,9 @@ export class PaymentService {
         mode: config.mode,
         platformFee: this.PLATFORM_FEE_PERCENT
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[PaymentService] Error getting public config:', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error'
       });
       throw error;
     }
@@ -275,9 +275,9 @@ export class PaymentService {
       logger.info('[PaymentService] Stripe connection test successful');
       return true;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[PaymentService] Stripe connection test failed:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
       });
       return false;
@@ -377,9 +377,9 @@ export class PaymentService {
 
       return paymentWithRelations;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[PaymentService] Create payment error:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         data,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -467,9 +467,9 @@ export class PaymentService {
         currency: payment.currency,
       };
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[PaymentService] Create payment intent error:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         paymentId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -547,9 +547,9 @@ export class PaymentService {
         try {
           await invoiceService.generateInvoice(paymentId);
           logger.info('[PaymentService] Invoice generated for payment', { paymentId });
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('[PaymentService] Failed to generate invoice:', {
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
             paymentId
           });
         }
@@ -593,9 +593,9 @@ export class PaymentService {
         throw new AppError(`Payment not completed: ${paymentIntent.status}`, 400);
       }
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[PaymentService] Confirm payment error:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         paymentId,
         stripePaymentIntentId,
         stack: error instanceof Error ? error.stack : undefined
@@ -692,9 +692,9 @@ export class PaymentService {
 
       return refund;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[PaymentService] Refund payment error:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         paymentId,
         amount,
         stack: error instanceof Error ? error.stack : undefined
@@ -841,7 +841,7 @@ export class PaymentService {
         topPaymentMethod,
         byStatus,
         byType,
-        recentPayments: [],
+        recentPayments: [] as any[],
         
         // Campi per retrocompatibilità
         totalAmount: revenue,
@@ -856,9 +856,9 @@ export class PaymentService {
 
       return stats;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[PaymentService] Get payment stats error:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         professionalId,
         dateRange,
         stack: error instanceof Error ? error.stack : undefined
@@ -973,9 +973,9 @@ export class PaymentService {
 
       return { received: true };
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[PaymentService] Stripe webhook error:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         signature,
         stack: error instanceof Error ? error.stack : undefined
       });

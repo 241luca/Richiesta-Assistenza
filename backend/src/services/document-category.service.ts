@@ -20,7 +20,7 @@ export class DocumentCategoryService {
       const categories = await prisma.documentCategory.findMany({
         where,
         include: {
-          parent: true,
+          DocumentCategory_DocumentCategory_parentIdToDocumentCategory: true,
           other_DocumentCategory: {
             orderBy: { sortOrder: 'asc' }
           }
@@ -29,11 +29,11 @@ export class DocumentCategoryService {
           { sortOrder: 'asc' },
           { name: 'asc' }
         ]
-      });
+      } as any);
 
       return categories;
-    } catch (error) {
-      logger.error('Error fetching document categories:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching document categories:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -60,8 +60,8 @@ export class DocumentCategoryService {
         withChildren,
         leafCategories: total - withChildren
       };
-    } catch (error) {
-      logger.error('Error fetching category statistics:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching category statistics:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -74,20 +74,20 @@ export class DocumentCategoryService {
       const category = await prisma.documentCategory.findUnique({
         where: { id },
         include: {
-          parent: true,
+          DocumentCategory_DocumentCategory_parentIdToDocumentCategory: true,
           other_DocumentCategory: {
             orderBy: { sortOrder: 'asc' }
           }
         }
-      });
+      } as any);
 
       if (!category) {
         throw new Error('Category not found');
       }
 
       return category;
-    } catch (error) {
-      logger.error('Error fetching category:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching category:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -100,14 +100,14 @@ export class DocumentCategoryService {
       const category = await prisma.documentCategory.findUnique({
         where: { code },
         include: {
-          parent: true,
+          DocumentCategory_DocumentCategory_parentIdToDocumentCategory: true,
           other_DocumentCategory: true
         }
-      });
+      } as any);
 
       return category;
-    } catch (error) {
-      logger.error('Error fetching category by code:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching category by code:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -147,17 +147,17 @@ export class DocumentCategoryService {
       const newCategory = await prisma.documentCategory.create({
         data: categoryData,
         include: {
-          parent: true,
+          DocumentCategory_DocumentCategory_parentIdToDocumentCategory: true,
           other_DocumentCategory: true
         }
-      });
+      } as any);
 
       // Log audit
       await this.logAudit('CREATE', newCategory.id, null, newCategory, userId);
 
       return newCategory;
     } catch (error: any) {
-      logger.error('Error creating category:', error);
+      logger.error('Error creating category:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -212,17 +212,17 @@ export class DocumentCategoryService {
         where: { id },
         data: updateData,
         include: {
-          parent: true,
+          DocumentCategory_DocumentCategory_parentIdToDocumentCategory: true,
           other_DocumentCategory: true
         }
-      });
+      } as any);
 
       // Log audit
       await this.logAudit('UPDATE', id, existingCategory, updatedCategory, userId);
 
       return updatedCategory;
     } catch (error: any) {
-      logger.error('Error updating category:', error);
+      logger.error('Error updating category:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -261,7 +261,7 @@ export class DocumentCategoryService {
 
       return { success: true, message: 'Category deleted successfully' };
     } catch (error: any) {
-      logger.error('Error deleting category:', error);
+      logger.error('Error deleting category:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -322,8 +322,8 @@ export class DocumentCategoryService {
       });
 
       return tree;
-    } catch (error) {
-      logger.error('Error building category tree:', error);
+    } catch (error: unknown) {
+      logger.error('Error building category tree:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -347,10 +347,10 @@ export class DocumentCategoryService {
           oldValues: oldValues ? oldValues : undefined,
           newValues: newValues ? newValues : undefined,
           userId
-        }
+        } as any
       });
-    } catch (error) {
-      logger.error('Error logging audit:', error);
+    } catch (error: unknown) {
+      logger.error('Error logging audit:', error instanceof Error ? error.message : String(error));
       // Non lanciare errore per non bloccare l'operazione principale
     }
   }

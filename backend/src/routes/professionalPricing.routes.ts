@@ -113,7 +113,7 @@ router.get('/:id/pricing', authenticate, async (req: any, res) => {
     ));
     
   } catch (error: any) {
-    logger.error('Error getting professional pricing:', error);
+    logger.error('Error getting professional pricing:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle tariffe',
       'PRICING_ERROR'
@@ -181,12 +181,12 @@ router.put('/:id/pricing', authenticate, async (req: any, res) => {
       ));
       
     } catch (error: any) {
-      logger.error('Error updating pricing:', error);
+      logger.error('Error updating pricing:', error instanceof Error ? error.message : String(error));
       throw error;
     }
     
   } catch (error: any) {
-    logger.error('Error updating professional pricing:', error);
+    logger.error('Error updating professional pricing:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento delle tariffe',
       'PRICING_UPDATE_ERROR'

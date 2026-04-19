@@ -16,7 +16,11 @@ interface TestResult {
   original?: string;
 }
 
-export function TestPlayground() {
+interface TestPlaygroundProps {
+  professionalId?: string;
+}
+
+export function TestPlayground({ professionalId }: TestPlaygroundProps) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [message, setMessage] = useState('');
   const [testResult, setTestResult] = useState<TestResult | null>(null);

@@ -19,7 +19,7 @@ import { NotificationWithActions } from '../actions/NotificationWithActions';
 
 interface Notification {
   id: string;
-  type: string;
+  type: 'quote_received' | 'request_update' | 'appointment_reminder' | 'system' | 'info';
   title: string;
   message: string;
   isRead: boolean;

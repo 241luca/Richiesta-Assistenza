@@ -17,6 +17,8 @@ interface User {
   role: string;
   avatar?: string;
   profileImage?: string;
+  requestsCount?: number;
+  quotesCount?: number;
 }
 
 interface LoginData {

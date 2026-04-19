@@ -1,7 +1,7 @@
 import React from 'react';
 import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 
-interface VerifiedBadgeProps {
+export interface VerifiedBadgeProps {
   isVerified: boolean;
   size?: 'sm' | 'md' | 'lg';
   showText?: boolean;
@@ -91,7 +91,7 @@ export const VerifiedBadgeGreen: React.FC<VerifiedBadgeProps> = ({
 /**
  * Badge con informazioni dettagliate sulla verifica
  */
-interface DetailedVerifiedBadgeProps {
+export interface DetailedVerifiedBadgeProps {
   isVerified: boolean;
   verificationDetails?: {
     documentsVerified?: boolean;

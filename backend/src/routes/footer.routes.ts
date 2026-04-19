@@ -15,7 +15,7 @@ router.get('/public', async (req, res) => {
     const data = await footerService.getFooterData();
     res.json(ResponseFormatter.success(data, 'Footer data fetched successfully'));
   } catch (error: any) {
-    res.status(500).json(ResponseFormatter.error(error.message || 'Failed to fetch footer data'));
+    res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error) || 'Failed to fetch footer data'));
   }
 });
 
@@ -33,7 +33,7 @@ router.get('/sections', authenticate, async (req, res) => {
     const data = await footerService.getFooterData();
     res.json(ResponseFormatter.success(data, 'Footer sections fetched successfully'));
   } catch (error: any) {
-    res.status(500).json(ResponseFormatter.error(error.message || 'Failed to fetch footer sections'));
+    res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error) || 'Failed to fetch footer sections'));
   }
 });
 
@@ -51,7 +51,7 @@ router.post('/link', authenticate, async (req, res) => {
     const link = await footerService.upsertLink(req.body);
     res.json(ResponseFormatter.success(link, 'Footer link created successfully'));
   } catch (error: any) {
-    res.status(500).json(ResponseFormatter.error(error.message || 'Failed to create footer link'));
+    res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error) || 'Failed to create footer link'));
   }
 });
 
@@ -69,7 +69,7 @@ router.put('/link/:id', authenticate, async (req, res) => {
     const link = await footerService.updateLink(req.params.id, req.body);
     res.json(ResponseFormatter.success(link, 'Footer link updated successfully'));
   } catch (error: any) {
-    res.status(500).json(ResponseFormatter.error(error.message || 'Failed to update footer link'));
+    res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error) || 'Failed to update footer link'));
   }
 });
 
@@ -87,7 +87,7 @@ router.delete('/link/:id', authenticate, async (req, res) => {
     await footerService.deleteLink(req.params.id);
     res.json(ResponseFormatter.success(null, 'Footer link deleted successfully'));
   } catch (error: any) {
-    res.status(500).json(ResponseFormatter.error(error.message || 'Failed to delete footer link'));
+    res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error) || 'Failed to delete footer link'));
   }
 });
 
@@ -105,7 +105,7 @@ router.post('/section', authenticate, async (req, res) => {
     const section = await footerService.upsertSection(req.body);
     res.json(ResponseFormatter.success(section, 'Footer section saved successfully'));
   } catch (error: any) {
-    res.status(500).json(ResponseFormatter.error(error.message || 'Failed to save footer section'));
+    res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error) || 'Failed to save footer section'));
   }
 });
 
@@ -123,7 +123,7 @@ router.post('/initialize', authenticate, async (req, res) => {
     await footerService.initializeDefaults();
     res.json(ResponseFormatter.success(null, 'Footer defaults initialized successfully'));
   } catch (error: any) {
-    res.status(500).json(ResponseFormatter.error(error.message || 'Failed to initialize footer defaults'));
+    res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error) || 'Failed to initialize footer defaults'));
   }
 });
 

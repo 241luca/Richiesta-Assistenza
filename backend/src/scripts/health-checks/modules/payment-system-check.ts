@@ -60,8 +60,8 @@ export class PaymentSystemHealthCheck extends BaseHealthCheck {
         this.result.score >= 80 ? 'success' : 'warning');
       
     } catch (error: any) {
-      this.log(`Critical error during payment check: ${error.message}`, 'error');
-      this.result.errors.push(`System check failed: ${error.message}`);
+      this.log(`Critical error during payment check: ${error instanceof Error ? error.message : String(error)}`, 'error');
+      this.result.errors.push(`System check failed: ${error instanceof Error ? error.message : String(error)}`);
       this.result.score = 0;
     } finally {
       await this.prisma.$disconnect();
@@ -115,7 +115,7 @@ export class PaymentSystemHealthCheck extends BaseHealthCheck {
         name: 'payment_database',
         description: 'Payment database connectivity',
         status: CheckStatus.FAIL,
-        message: `Database error: ${error.message}`,
+        message: `Database error: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.CRITICAL,
         category: CheckCategory.CONNECTIVITY
       });
@@ -212,7 +212,7 @@ export class PaymentSystemHealthCheck extends BaseHealthCheck {
         name: 'success_rate',
         description: 'Payment success rate',
         status: CheckStatus.ERROR,
-        message: `Could not calculate: ${error.message}`,
+        message: `Could not calculate: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.MEDIUM,
         category: CheckCategory.PERFORMANCE
       });
@@ -263,7 +263,7 @@ export class PaymentSystemHealthCheck extends BaseHealthCheck {
         name: 'pending_payments',
         description: 'Pending payments check',
         status: CheckStatus.ERROR,
-        message: `Could not check: ${error.message}`,
+        message: `Could not check: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.MEDIUM,
         category: CheckCategory.DATA_INTEGRITY
       });
@@ -307,7 +307,7 @@ export class PaymentSystemHealthCheck extends BaseHealthCheck {
         name: 'refund_processing',
         description: 'Refund processing check',
         status: CheckStatus.ERROR,
-        message: `Could not check: ${error.message}`,
+        message: `Could not check: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.MEDIUM,
         category: CheckCategory.PERFORMANCE
       });
@@ -347,7 +347,7 @@ export class PaymentSystemHealthCheck extends BaseHealthCheck {
         name: 'payment_methods',
         description: 'Payment methods check',
         status: CheckStatus.ERROR,
-        message: `Could not check: ${error.message}`,
+        message: `Could not check: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.LOW,
         category: CheckCategory.CONFIGURATION
       });
@@ -402,7 +402,7 @@ export class PaymentSystemHealthCheck extends BaseHealthCheck {
         name: 'transaction_integrity',
         description: 'Transaction integrity check',
         status: CheckStatus.ERROR,
-        message: `Could not verify: ${error.message}`,
+        message: `Could not verify: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.MEDIUM,
         category: CheckCategory.DATA_INTEGRITY
       });
@@ -505,7 +505,7 @@ export class PaymentSystemHealthCheck extends BaseHealthCheck {
       this.addMetric('failed_payments_30d', failedPayments);
       
     } catch (error: any) {
-      this.log(`Error calculating metrics: ${error.message}`, 'warning');
+      this.log(`Error calculating metrics: ${error instanceof Error ? error.message : String(error)}`, 'warning');
     }
   }
   

@@ -78,7 +78,7 @@ router.post(
   auditLogger({ action: 'CREATE', entityType: 'Review' }),
   async (req, res) => {
     try {
-      const clientId = req.user.id;
+      const clientId = req.user!.id;
       
       // Verifica se il cliente è escluso dal sistema recensioni
       const canClientReview = await ReviewExclusionService.canClientReview(clientId);
@@ -100,7 +100,7 @@ router.post(
       ));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message || 'Errore nella creazione della recensione'
+        error instanceof Error ? error.message : String(error) || 'Errore nella creazione della recensione'
       ));
     }
   }
@@ -125,7 +125,7 @@ router.get(
       return res.json(ResponseFormatter.success(reviews));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message || 'Errore nel recupero delle recensioni'
+        error instanceof Error ? error.message : String(error) || 'Errore nel recupero delle recensioni'
       ));
     }
   }
@@ -148,7 +148,7 @@ router.get(
       return res.json(ResponseFormatter.success(result));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message || 'Errore nel recupero delle recensioni filtrate'
+        error instanceof Error ? error.message : String(error) || 'Errore nel recupero delle recensioni filtrate'
       ));
     }
   }
@@ -167,7 +167,7 @@ router.get(
       return res.json(ResponseFormatter.success(stats));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message || 'Errore nel recupero delle statistiche'
+        error instanceof Error ? error.message : String(error) || 'Errore nel recupero delle statistiche'
       ));
     }
   }
@@ -186,7 +186,7 @@ router.get(
       return res.json(ResponseFormatter.success(stats));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message || 'Errore nel recupero delle statistiche avanzate'
+        error instanceof Error ? error.message : String(error) || 'Errore nel recupero delle statistiche avanzate'
       ));
     }
   }
@@ -202,14 +202,14 @@ router.get(
   async (req, res) => {
     try {
       const result = await reviewService.canReview(
-        req.user.id,
+        req.user!.id,
         req.params.requestId
       );
 
       return res.json(ResponseFormatter.success(result));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message || 'Errore nella verifica'
+        error instanceof Error ? error.message : String(error) || 'Errore nella verifica'
       ));
     }
   }
@@ -232,7 +232,7 @@ router.get(
       return res.json(ResponseFormatter.success(review));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message || 'Errore nel recupero della recensione'
+        error instanceof Error ? error.message : String(error) || 'Errore nel recupero della recensione'
       ));
     }
   }
@@ -260,7 +260,7 @@ router.patch(
       ));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message || 'Errore nell\'aggiornamento'
+        error instanceof Error ? error.message : String(error) || 'Errore nell\'aggiornamento'
       ));
     }
   }
@@ -276,7 +276,7 @@ router.get(
   async (req, res) => {
     try {
       // Verifica che l'utente sia admin
-      if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') {
+      if (req.user!.role !== 'ADMIN' && req.user!.role !== 'SUPER_ADMIN') {
         return res.status(403).json(ResponseFormatter.error('Non autorizzato'));
       }
 
@@ -285,7 +285,7 @@ router.get(
       return res.json(ResponseFormatter.success(reviews));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message || 'Errore nel recupero delle recensioni'
+        error instanceof Error ? error.message : String(error) || 'Errore nel recupero delle recensioni'
       ));
     }
   }
@@ -302,7 +302,7 @@ router.delete(
   async (req, res) => {
     try {
       // Verifica che l'utente sia admin
-      if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') {
+      if (req.user!.role !== 'ADMIN' && req.user!.role !== 'SUPER_ADMIN') {
         return res.status(403).json(ResponseFormatter.error('Non autorizzato'));
       }
 
@@ -314,7 +314,7 @@ router.delete(
       ));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message || 'Errore nell\'eliminazione della recensione'
+        error instanceof Error ? error.message : String(error) || 'Errore nell\'eliminazione della recensione'
       ));
     }
   }
@@ -334,7 +334,7 @@ router.get(
   async (req, res) => {
     try {
       // Solo admin possono vedere la configurazione
-      if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') {
+      if (req.user!.role !== 'ADMIN' && req.user!.role !== 'SUPER_ADMIN') {
         return res.status(403).json(ResponseFormatter.error('Non autorizzato'));
       }
 
@@ -343,7 +343,7 @@ router.get(
       return res.json(ResponseFormatter.success(config));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message || 'Errore nel recupero della configurazione'
+        error instanceof Error ? error.message : String(error) || 'Errore nel recupero della configurazione'
       ));
     }
   }
@@ -361,7 +361,7 @@ router.put(
   async (req, res) => {
     try {
       // Solo admin possono modificare la configurazione
-      if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') {
+      if (req.user!.role !== 'ADMIN' && req.user!.role !== 'SUPER_ADMIN') {
         return res.status(403).json(ResponseFormatter.error('Non autorizzato'));
       }
 
@@ -373,7 +373,7 @@ router.put(
       ));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message || 'Errore nell\'aggiornamento della configurazione'
+        error instanceof Error ? error.message : String(error) || 'Errore nell\'aggiornamento della configurazione'
       ));
     }
   }
@@ -406,7 +406,7 @@ router.post(
       }));
     } catch (error: any) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message || 'Errore nella verifica di moderazione'
+        error instanceof Error ? error.message : String(error) || 'Errore nella verifica di moderazione'
       ));
     }
   }

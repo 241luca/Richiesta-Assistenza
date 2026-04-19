@@ -262,7 +262,7 @@ export const securityRateLimit = rateLimit({
     res.status(429).json({
       success: false,
       message: 'Too many requests, please try again later.',
-      retryAfter: req.rateLimit?.resetTime
+      retryAfter: (req as any).rateLimit?.resetTime
     });
   }
 });
@@ -282,7 +282,7 @@ export const authRateLimit = rateLimit({
     res.status(429).json({
       success: false,
       message: 'Too many login attempts. Please try again in 15 minutes.',
-      retryAfter: req.rateLimit?.resetTime
+      retryAfter: (req as any).rateLimit?.resetTime
     });
   }
 });

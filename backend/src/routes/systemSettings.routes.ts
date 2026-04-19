@@ -19,7 +19,7 @@ router.get('/', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req,
       settings || {},
       'System settings retrieved'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     return res.status(500).json(ResponseFormatter.error(
       'Error fetching settings',
       'FETCH_ERROR'

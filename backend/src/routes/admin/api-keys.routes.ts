@@ -13,8 +13,8 @@ router.get('/', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async
   try {
     const apiKeys = await apiKeyService.getAllApiKeys();
     res.json(ResponseFormatter.success(apiKeys, 'API keys retrieved successfully'));
-  } catch (error) {
-    logger.error('Error fetching API keys:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching API keys:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to fetch API keys'));
   }
 });
@@ -30,8 +30,8 @@ router.get('/:key', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), a
     }
 
     res.json(ResponseFormatter.success(apiKey, 'API key retrieved successfully'));
-  } catch (error) {
-    logger.error(`Error fetching API key ${req.params.key}:`, error);
+  } catch (error: unknown) {
+    logger.error(`Error fetching API key ${req.params.key}:`, error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to fetch API key'));
   }
 });
@@ -48,8 +48,8 @@ router.get('/:key/raw', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]
 
     // Return only the raw key string for safer client consumption
     res.json(ResponseFormatter.success({ key: apiKey.key }, 'Raw API key retrieved successfully'));
-  } catch (error) {
-    logger.error(`Error fetching raw API key ${req.params.key}:`, error);
+  } catch (error: unknown) {
+    logger.error(`Error fetching raw API key ${req.params.key}:`, error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to fetch raw API key'));
   }
 });
@@ -72,8 +72,8 @@ router.put('/:key', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), a
     }, req.user?.id || 'system');
 
     res.json(ResponseFormatter.success(updatedKey, 'API key updated successfully'));
-  } catch (error) {
-    logger.error(`Error updating API key ${req.params.key}:`, error);
+  } catch (error: unknown) {
+    logger.error(`Error updating API key ${req.params.key}:`, error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to update API key'));
   }
 });
@@ -101,8 +101,8 @@ router.post('/', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), asyn
     }, req.user?.id || 'system');
 
     res.status(201).json(ResponseFormatter.success(savedApiKey, 'API key created successfully'));
-  } catch (error) {
-    logger.error('Error creating API key:', error);
+  } catch (error: unknown) {
+    logger.error('Error creating API key:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to create API key'));
   }
 });
@@ -118,8 +118,8 @@ router.delete('/:key', authenticate, requireRole([Role.SUPER_ADMIN]), async (req
     }
     
     res.json(ResponseFormatter.success(null, 'API key deleted successfully'));
-  } catch (error) {
-    logger.error(`Error deleting API key ${req.params.key}:`, error);
+  } catch (error: unknown) {
+    logger.error(`Error deleting API key ${req.params.key}:`, error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to delete API key'));
   }
 });
@@ -130,8 +130,8 @@ router.post('/:key/test', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMI
     const { key } = req.params;
     const result = await apiKeyService.testApiKey(key as any);
     res.json(ResponseFormatter.success(result, result.message));
-  } catch (error) {
-    logger.error(`Error testing API key ${req.params.key}:`, error);
+  } catch (error: unknown) {
+    logger.error(`Error testing API key ${req.params.key}:`, error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to test API key'));
   }
 });

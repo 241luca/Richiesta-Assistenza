@@ -39,8 +39,8 @@ export async function getWhatsAppConfig(): Promise<WhatsAppConfig | null> {
       webhookUrl: config?.webhookUrl || '',
       isActive: apiKey.isActive
     };
-  } catch (error) {
-    logger.error('Errore recupero configurazione WhatsApp:', error);
+  } catch (error: unknown) {
+    logger.error('Errore recupero configurazione WhatsApp:', error instanceof Error ? error.message : String(error));
     return null;
   }
 }
@@ -89,8 +89,8 @@ export async function saveWhatsAppConfig(config: Partial<WhatsAppConfig>): Promi
       });
       logger.info('Configurazione WhatsApp creata');
     }
-  } catch (error) {
-    logger.error('Errore salvataggio configurazione WhatsApp:', error);
+  } catch (error: unknown) {
+    logger.error('Errore salvataggio configurazione WhatsApp:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -131,7 +131,7 @@ export async function migrateWhatsAppConfigFromEnv(): Promise<void> {
       });
       logger.info('Configurazione WhatsApp migrata da .env al database');
     }
-  } catch (error) {
-    logger.error('Errore migrazione configurazione WhatsApp:', error);
+  } catch (error: unknown) {
+    logger.error('Errore migrazione configurazione WhatsApp:', error instanceof Error ? error.message : String(error));
   }
 }

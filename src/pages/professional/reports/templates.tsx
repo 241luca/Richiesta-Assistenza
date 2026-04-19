@@ -402,7 +402,7 @@ export default function ProfessionalTemplatesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTemplates.map(template => (
+            {filteredTemplates.map((template: any) => (
               <div key={template.id} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-lg transition-shadow">
                 {/* Header Card */}
                 <div className="p-6">
@@ -440,7 +440,7 @@ export default function ProfessionalTemplatesPage() {
                   <div className="mb-4">
                     <p className="text-xs font-medium text-gray-700 mb-2">Sezioni ({template.sections.length}):</p>
                     <div className="flex flex-wrap gap-1">
-                      {template.sections.slice(0, 5).map(section => (
+                      {template.sections.slice(0, 5).map((section: any) => (
                         <span key={section} className="px-2 py-1 bg-gray-100 text-xs text-gray-700 rounded">
                           {section}
                         </span>

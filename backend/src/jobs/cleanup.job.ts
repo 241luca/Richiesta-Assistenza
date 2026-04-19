@@ -14,8 +14,8 @@ export const initializeCleanupJobs = () => {
     try {
       await fileService.cleanupOrphanFiles();
       logger.info('Orphan files cleanup completed successfully');
-    } catch (error) {
-      logger.error('Error during orphan files cleanup:', error);
+    } catch (error: unknown) {
+      logger.error('Error during orphan files cleanup:', error instanceof Error ? error.message : String(error));
     }
   });
   
@@ -26,8 +26,8 @@ export const initializeCleanupJobs = () => {
     try {
       const stats = await fileService.getStorageStats();
       logger.info('Storage statistics:', stats);
-    } catch (error) {
-      logger.error('Error generating storage statistics:', error);
+    } catch (error: unknown) {
+      logger.error('Error generating storage statistics:', error instanceof Error ? error.message : String(error));
     }
   });
   

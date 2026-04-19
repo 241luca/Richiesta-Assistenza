@@ -22,7 +22,7 @@ function decryptKey(encryptedKey: string): string {
     decrypted += decipher.final('utf8');
     
     return decrypted;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error decrypting:', error);
     return encryptedKey; // Fallback per chiavi non criptate
   }
@@ -70,7 +70,7 @@ async function showApiKeys() {
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
     });
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Errore:', error);
   } finally {
     await prisma.$disconnect();

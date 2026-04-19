@@ -18,14 +18,14 @@ router.get('/',
     try {
       // Per ora ritorna un array vuoto
       // Le tabelle del sistema workflow non esistono ancora
-      const workflows = [];
+      const workflows: any[] = [];
       
       return res.json(ResponseFormatter.success(
         workflows,
         'Workflows retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching workflows:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching workflows:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch workflows', 'FETCH_ERROR')
       );
@@ -61,8 +61,8 @@ router.get('/stats',
         },
         message: 'Workflow system not yet implemented'
       }, 'Workflow stats retrieved successfully'));
-    } catch (error) {
-      logger.error('Error fetching workflow stats:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching workflow stats:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch stats', 'FETCH_ERROR')
       );
@@ -84,8 +84,8 @@ router.get('/:id',
         'Workflow not found',
         'NOT_FOUND'
       ));
-    } catch (error) {
-      logger.error('Error fetching workflow:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching workflow:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch workflow', 'FETCH_ERROR')
       );
@@ -107,8 +107,8 @@ router.post('/',
         'Workflow creation not yet implemented',
         'NOT_IMPLEMENTED'
       ));
-    } catch (error) {
-      logger.error('Error creating workflow:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating workflow:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to create workflow', 'CREATE_ERROR')
       );
@@ -130,8 +130,8 @@ router.put('/:id',
         'Workflow update not yet implemented',
         'NOT_IMPLEMENTED'
       ));
-    } catch (error) {
-      logger.error('Error updating workflow:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating workflow:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to update workflow', 'UPDATE_ERROR')
       );
@@ -153,8 +153,8 @@ router.delete('/:id',
         'Workflow deletion not yet implemented',
         'NOT_IMPLEMENTED'
       ));
-    } catch (error) {
-      logger.error('Error deleting workflow:', error);
+    } catch (error: unknown) {
+      logger.error('Error deleting workflow:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to delete workflow', 'DELETE_ERROR')
       );

@@ -60,8 +60,8 @@ export class AISystemHealthCheck extends BaseHealthCheck {
         this.result.score >= 80 ? 'success' : 'warning');
       
     } catch (error: any) {
-      this.log(`Critical error during AI check: ${error.message}`, 'error');
-      this.result.errors.push(`System check failed: ${error.message}`);
+      this.log(`Critical error during AI check: ${error instanceof Error ? error.message : String(error)}`, 'error');
+      this.result.errors.push(`System check failed: ${error instanceof Error ? error.message : String(error)}`);
       this.result.score = 0;
     } finally {
       await this.prisma.$disconnect();
@@ -151,7 +151,7 @@ export class AISystemHealthCheck extends BaseHealthCheck {
         name: 'api_connectivity',
         description: 'OpenAI API connectivity',
         status: CheckStatus.FAIL,
-        message: `Connection failed: ${error.message}`,
+        message: `Connection failed: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.CRITICAL,
         category: CheckCategory.CONNECTIVITY
       });
@@ -224,7 +224,7 @@ export class AISystemHealthCheck extends BaseHealthCheck {
         name: 'token_usage',
         description: 'Token usage tracking',
         status: CheckStatus.ERROR,
-        message: `Could not check usage: ${error.message}`,
+        message: `Could not check usage: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.MEDIUM,
         category: CheckCategory.PERFORMANCE
       });
@@ -265,7 +265,7 @@ export class AISystemHealthCheck extends BaseHealthCheck {
         name: 'response_time',
         description: 'Response time metrics',
         status: CheckStatus.ERROR,
-        message: `Could not measure: ${error.message}`,
+        message: `Could not measure: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.MEDIUM,
         category: CheckCategory.PERFORMANCE
       });
@@ -350,7 +350,7 @@ export class AISystemHealthCheck extends BaseHealthCheck {
         name: 'conversation_history',
         description: 'Conversation history check',
         status: CheckStatus.ERROR,
-        message: `Could not check: ${error.message}`,
+        message: `Could not check: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.LOW,
         category: CheckCategory.DATA_INTEGRITY
       });
@@ -407,7 +407,7 @@ export class AISystemHealthCheck extends BaseHealthCheck {
         name: 'error_rates',
         description: 'Error rate analysis',
         status: CheckStatus.ERROR,
-        message: `Could not analyze: ${error.message}`,
+        message: `Could not analyze: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.MEDIUM,
         category: CheckCategory.PERFORMANCE
       });
@@ -464,7 +464,7 @@ export class AISystemHealthCheck extends BaseHealthCheck {
       this.addMetric('ai_success_rate', successRate);
       
     } catch (error: any) {
-      this.log(`Error calculating metrics: ${error.message}`, 'warning');
+      this.log(`Error calculating metrics: ${error instanceof Error ? error.message : String(error)}`, 'warning');
     }
   }
   

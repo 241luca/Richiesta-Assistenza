@@ -43,7 +43,7 @@ class PaymentService {
     const keys = await this.getStripeKeys();
     
     this.stripe = new Stripe(keys.secretKey, {
-      apiVersion: '2024-06-20',
+      apiVersion: '2024-06-20' as any,
       typescript: true
     });
 
@@ -83,7 +83,7 @@ class PaymentService {
       const stripe = await this.initStripe();
       const balance = await stripe.balance.retrieve();
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Stripe connection test failed:', error);
       return false;
     }

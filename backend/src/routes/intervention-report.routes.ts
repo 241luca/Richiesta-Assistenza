@@ -41,7 +41,7 @@ router.get('/client/my-reports', authenticate, async (req: any, res) => {
       reports,
       'Rapporti recuperati con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero rapporti cliente:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero dei rapporti',
@@ -69,7 +69,7 @@ router.get('/client/stats', authenticate, async (req: any, res) => {
       stats,
       'Statistiche recuperate con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero statistiche cliente:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle statistiche',
@@ -125,14 +125,14 @@ router.post('/client/:id/sign', authenticate, async (req: any, res) => {
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'REPORT_NOT_FOUND'
       ));
     }
     
     if (error.statusCode === 403) {
       return res.status(403).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'SIGN_FORBIDDEN'
       ));
     }
@@ -193,14 +193,14 @@ router.post('/client/:id/rate', authenticate, async (req: any, res) => {
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'REPORT_NOT_FOUND'
       ));
     }
     
     if (error.statusCode === 403) {
       return res.status(403).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'RATE_FORBIDDEN'
       ));
     }
@@ -227,7 +227,7 @@ router.get('/reports', authenticate, async (req: any, res) => {
       reports,
       'Rapporti recuperati con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero rapporti:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero dei rapporti',
@@ -254,14 +254,14 @@ router.get('/reports/:id', authenticate, async (req: any, res) => {
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'REPORT_NOT_FOUND'
       ));
     }
     
     if (error.statusCode === 403) {
       return res.status(403).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'REPORT_ACCESS_DENIED'
       ));
     }
@@ -318,7 +318,7 @@ router.post('/reports', authenticate, async (req: any, res) => {
     
     if (error.statusCode === 400) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'REPORT_VALIDATION_ERROR'
       ));
     }
@@ -367,14 +367,14 @@ router.put('/reports/:id', authenticate, async (req: any, res) => {
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'REPORT_NOT_FOUND'
       ));
     }
     
     if (error.statusCode === 403) {
       return res.status(403).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'REPORT_UPDATE_FORBIDDEN'
       ));
     }
@@ -421,14 +421,14 @@ router.delete('/reports/:id', authenticate, async (req: any, res) => {
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'REPORT_NOT_FOUND'
       ));
     }
     
     if (error.statusCode === 403) {
       return res.status(403).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'REPORT_DELETE_FORBIDDEN'
       ));
     }
@@ -461,14 +461,14 @@ router.post('/reports/:id/sign', authenticate, async (req: any, res) => {
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'REPORT_NOT_FOUND'
       ));
     }
     
     if (error.statusCode === 403) {
       return res.status(403).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'SIGN_FORBIDDEN'
       ));
     }
@@ -505,14 +505,14 @@ router.post('/reports/:id/send', authenticate, async (req: any, res) => {
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'REPORT_NOT_FOUND'
       ));
     }
     
     if (error.statusCode === 400) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'SEND_ERROR'
       ));
     }
@@ -527,7 +527,7 @@ router.post('/reports/:id/send', authenticate, async (req: any, res) => {
 // GET /api/intervention-reports/reports/:id/pdf
 router.get('/reports/:id/pdf', authenticate, async (req: any, res) => {
   try {
-    const result = await interventionReportOperationsService.generatePDF(
+    const result = await (interventionReportOperationsService as any).generatePDF(
       req.params.id,
       req.user.id,
       req.user.role
@@ -542,14 +542,14 @@ router.get('/reports/:id/pdf', authenticate, async (req: any, res) => {
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'REPORT_NOT_FOUND'
       ));
     }
     
     if (error.statusCode === 403) {
       return res.status(403).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'PDF_ACCESS_DENIED'
       ));
     }
@@ -586,14 +586,14 @@ router.post('/reports/:id/duplicate', authenticate, async (req: any, res) => {
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'REPORT_NOT_FOUND'
       ));
     }
     
     if (error.statusCode === 403) {
       return res.status(403).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'DUPLICATE_FORBIDDEN'
       ));
     }
@@ -617,7 +617,7 @@ router.get('/statistics', authenticate, async (req: any, res) => {
       stats,
       'Statistiche recuperate con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero statistiche:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle statistiche',

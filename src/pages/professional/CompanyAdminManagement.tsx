@@ -107,7 +107,14 @@ export default function CompanyAdminManagement() {
 
   const handleEditPermissions = (member: TeamMember) => {
     setEditingUserId(member.id);
-    setSelectedPermissions(member.permissions || {
+    const defaultPermissions: CompanyPermission = {
+      // Permessi operativi
+      canViewAllRequests: false,
+      canAssignRequests: false,
+      canCreateQuotes: false,
+      canEditQuotes: false,
+      canApproveQuotes: false,
+      // Permessi gestionali
       canManageTeam: false,
       canGenerateCodes: false,
       canViewReports: false,
@@ -116,7 +123,11 @@ export default function CompanyAdminManagement() {
       canApproveRequests: false,
       canManageDocuments: false,
       canViewFinancials: false,
-    });
+      // Permessi comunicazione
+      canMessageAllClients: false,
+      canManageReviews: false,
+    };
+    setSelectedPermissions(member.permissions || defaultPermissions);
   };
 
   const handleSavePermissions = (userId: string, isNewAdmin: boolean) => {
@@ -179,7 +190,7 @@ export default function CompanyAdminManagement() {
         </div>
         
         <div className="divide-y">
-          {team?.members?.map((member: TeamMember) => (
+          {team?.data?.members?.map((member: TeamMember) => (
             <div key={member.id} className="px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
@@ -729,13 +740,13 @@ export default function CompanyAdminManagement() {
           <div>
             <p className="text-sm text-gray-600">Admin Totali</p>
             <p className="text-2xl font-bold text-orange-600">
-              {team?.members?.filter((m: TeamMember) => m.companyRole === 'COMPANY_ADMIN').length || 0}
+              {team?.data?.members?.filter((m: TeamMember) => m.companyRole === 'COMPANY_ADMIN').length || 0}
             </p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Con Permessi Completi</p>
             <p className="text-2xl font-bold text-green-600">
-              {team?.members?.filter((m: TeamMember) => 
+              {team?.data?.members?.filter((m: TeamMember) => 
                 m.companyRole === 'COMPANY_ADMIN' && 
                 m.permissions && 
                 Object.values(m.permissions).every(p => p === true)
@@ -745,7 +756,7 @@ export default function CompanyAdminManagement() {
           <div>
             <p className="text-sm text-gray-600">Dipendenti Promuovibili</p>
             <p className="text-2xl font-bold text-blue-600">
-              {team?.members?.filter((m: TeamMember) => m.companyRole === 'EMPLOYEE').length || 0}
+              {team?.data?.members?.filter((m: TeamMember) => m.companyRole === 'EMPLOYEE').length || 0}
             </p>
           </div>
         </div>

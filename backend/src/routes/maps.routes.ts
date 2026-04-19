@@ -29,7 +29,7 @@ const autocompleteLimit = rateLimit({
   skip: (req, res) => {
     // Skip per IP interni o di sviluppo
     const allowedIPs = ['127.0.0.1', '::1', 'localhost'];
-    return allowedIPs.includes(req.ip);
+    return allowedIPs.includes(req.ip || '');
   }
 });
 
@@ -66,8 +66,8 @@ router.get('/config', async (req, res) => {
       apiKey: decryptedKey,
       isConfigured: true
     }, 'Configurazione Google Maps recuperata'));
-  } catch (error) {
-    logger.error('Error fetching Google Maps config:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching Google Maps config:', error instanceof Error ? error.message : String(error));
     // ✅ SEMPRE ResponseFormatter.error
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero configurazione',
@@ -105,8 +105,8 @@ router.get('/geocode', async (req, res) => {
       coordinates,
       'Indirizzo geocodificato con successo'
     ));
-  } catch (error) {
-    logger.error('Geocoding error:', error);
+  } catch (error: unknown) {
+    logger.error('Geocoding error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore durante la geocodifica',
       'GEOCODING_ERROR'
@@ -143,8 +143,8 @@ router.post('/geocode', authenticate, async (req, res) => {
       coordinates,
       'Indirizzo geocodificato con successo'
     ));
-  } catch (error) {
-    logger.error('Geocoding error:', error);
+  } catch (error: unknown) {
+    logger.error('Geocoding error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore durante la geocodifica',
       'GEOCODING_ERROR'
@@ -186,8 +186,8 @@ router.post('/calculate-distance', authenticate, async (req, res) => {
       result,
       'Distanza calcolata con successo'
     ));
-  } catch (error) {
-    logger.error('Distance calculation error:', error);
+  } catch (error: unknown) {
+    logger.error('Distance calculation error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel calcolo della distanza',
       'DISTANCE_ERROR'
@@ -295,8 +295,8 @@ router.post('/calculate-distances', authenticate, async (req: any, res) => {
       total: validDistances.length,
       failed: distances.length - validDistances.length
     }, 'Distanze calcolate con successo'));
-  } catch (error) {
-    logger.error('Batch distance calculation error:', error);
+  } catch (error: unknown) {
+    logger.error('Batch distance calculation error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel calcolo delle distanze',
       'BATCH_DISTANCE_ERROR'
@@ -375,8 +375,8 @@ router.post('/directions', authenticate, async (req, res) => {
       result,
       'Percorso calcolato con successo'
     ));
-  } catch (error) {
-    logger.error('Directions error:', error);
+  } catch (error: unknown) {
+    logger.error('Directions error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel calcolo del percorso',
       'DIRECTIONS_ERROR'
@@ -417,8 +417,8 @@ router.post('/autocomplete', autocompleteLimit, async (req, res) => {
       results,
       'Suggerimenti recuperati'
     ));
-  } catch (error) {
-    logger.error('Autocomplete error:', error);
+  } catch (error: unknown) {
+    logger.error('Autocomplete error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero suggerimenti',
       'AUTOCOMPLETE_ERROR'
@@ -455,8 +455,8 @@ router.post('/place-details', authenticate, async (req, res) => {
       details,
       'Dettagli luogo recuperati'
     ));
-  } catch (error) {
-    logger.error('Place details error:', error);
+  } catch (error: unknown) {
+    logger.error('Place details error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero dettagli',
       'PLACE_DETAILS_ERROR'
@@ -491,8 +491,8 @@ router.post('/validate-address', authenticate, async (req, res) => {
       validation,
       validation.isValid ? 'Indirizzo valido' : 'Indirizzo non valido'
     ));
-  } catch (error) {
-    logger.error('Address validation error:', error);
+  } catch (error: unknown) {
+    logger.error('Address validation error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nella validazione indirizzo',
       'VALIDATION_ERROR'
@@ -520,8 +520,8 @@ router.get('/usage-stats', authenticate, async (req: any, res) => {
       stats,
       'Statistiche utilizzo recuperate'
     ));
-  } catch (error) {
-    logger.error('Usage stats error:', error);
+  } catch (error: unknown) {
+    logger.error('Usage stats error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero statistiche',
       'STATS_ERROR'
@@ -570,8 +570,8 @@ router.post('/cleanup-cache', authenticate, async (req: any, res) => {
         }
       ));
     }
-  } catch (error) {
-    logger.error('Cache cleanup error:', error);
+  } catch (error: unknown) {
+    logger.error('Cache cleanup error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nella pulizia cache',
       'CLEANUP_ERROR'

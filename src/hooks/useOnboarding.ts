@@ -64,8 +64,8 @@ export const useOnboarding = ({ userRole, userId }: UseOnboardingProps) => {
     }));
 
     // Analytics tracking (opzionale)
-    if (typeof window !== 'undefined' && window.gtag) {
-      window.gtag('event', 'onboarding_task_completed', {
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'onboarding_task_completed', {
         task_id: taskId,
         user_role: userRole,
         completion_percentage: completionPercentage

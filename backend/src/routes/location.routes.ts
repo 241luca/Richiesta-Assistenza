@@ -73,7 +73,7 @@ router.post(
   requireRole(['PROFESSIONAL']),
   rateLimiter({ points: 60, duration: 60 }), // 60 richieste al minuto
   validateRequest(updateLocationSchema),
-  auditLogger('LOCATION_UPDATE'),
+  auditLogger({ action: 'UPDATE' as any, entityType: 'Location', category: 'SYSTEM' as any }),
   async (req, res, next) => {
     try {
       const professionalId = req.user!.id;
@@ -103,9 +103,9 @@ router.post(
         'Posizione aggiornata con successo'
       ));
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[LocationRoutes] Error updating location:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         professionalId: req.user?.id,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -181,9 +181,9 @@ router.get(
         'Posizione recuperata con successo'
       ));
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[LocationRoutes] Error getting professional location:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         professionalId: req.params.professionalId,
         userId: req.user?.id,
         stack: error instanceof Error ? error.stack : undefined
@@ -296,9 +296,9 @@ router.get(
         'Dati tracking recuperati con successo'
       ));
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[LocationRoutes] Error getting request tracking:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         requestId: req.params.requestId,
         userId: req.user?.id,
         stack: error instanceof Error ? error.stack : undefined
@@ -361,9 +361,9 @@ router.get(
         'Lista professionisti attivi recuperata'
       ));
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[LocationRoutes] Error getting active locations:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         stack: error instanceof Error ? error.stack : undefined
       });
 
@@ -389,7 +389,7 @@ router.delete(
   authenticate,
   requireRole(['PROFESSIONAL']),
   rateLimiter({ points: 10, duration: 60 }),
-  auditLogger('LOCATION_CLEAR'),
+  auditLogger({ action: 'DELETE' as any, entityType: 'Location', category: 'SYSTEM' as any }),
   async (req, res, next) => {
     try {
       const professionalId = req.user!.id;
@@ -437,9 +437,9 @@ router.delete(
         'Tracking disattivato con successo'
       ));
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[LocationRoutes] Error clearing location:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         professionalId: req.user?.id,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -500,9 +500,9 @@ router.get(
         'Statistiche sistema tracking recuperate'
       ));
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[LocationRoutes] Error getting location stats:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         stack: error instanceof Error ? error.stack : undefined
       });
 
@@ -553,9 +553,9 @@ if (process.env.NODE_ENV === 'development') {
           eta ? 'ETA calcolato con successo' : 'Impossibile calcolare ETA'
         ));
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('[LocationRoutes] Error testing ETA:', {
-          error: error instanceof Error ? error.message : 'Unknown',
+          error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
           stack: error instanceof Error ? error.stack : undefined
         });
 

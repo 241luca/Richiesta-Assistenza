@@ -47,7 +47,7 @@ router.get('/stats',
 
       return res.json(ResponseFormatter.success(stats));
     } catch (error: any) {
-      logger.error('Error fetching config stats:', error);
+      logger.error('Error fetching config stats:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch stats', 'STATS_ERROR')
       );
@@ -81,7 +81,7 @@ router.get('/permissions-stats',
 
       return res.json(ResponseFormatter.success(stats));
     } catch (error: any) {
-      logger.error('Error fetching permission stats:', error);
+      logger.error('Error fetching permission stats:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch stats', 'STATS_ERROR')
       );
@@ -113,7 +113,7 @@ router.get('/notifications-stats',
 
       return res.json(ResponseFormatter.success(stats));
     } catch (error: any) {
-      logger.error('Error fetching notification stats:', error);
+      logger.error('Error fetching notification stats:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch stats', 'STATS_ERROR')
       );

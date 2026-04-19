@@ -33,8 +33,8 @@ router.get('/', async (req: any, res) => {
       scripts,
       'Scripts retrieved successfully'
     ));
-  } catch (error) {
-    logger.error('Error getting scripts:', error);
+  } catch (error: unknown) {
+    logger.error('Error getting scripts:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to get scripts', 'SCRIPTS_ERROR')
     );
@@ -65,10 +65,10 @@ router.post('/run', async (req: any, res) => {
       'Script executed successfully'
     ));
   } catch (error: any) {
-    logger.error('Error executing script:', error);
+    logger.error('Error executing script:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error(
-        error.message || 'Failed to execute script',
+        error instanceof Error ? error.message : String(error) || 'Failed to execute script',
         'EXECUTION_ERROR'
       )
     );

@@ -40,7 +40,7 @@ const mockAppointment = {
 
 const mockNotification = {
   id: 'notif-123',
-  type: 'quote_received',
+  type: 'quote_received' as const,
   title: 'Nuovo Preventivo Ricevuto',
   message: 'Mario Bianchi ti ha inviato un preventivo di €150.00',
   isRead: false,

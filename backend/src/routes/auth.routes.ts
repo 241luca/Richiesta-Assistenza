@@ -107,7 +107,7 @@ router.post('/register',
     try {
       const validatedData = registerSchema.parse(data);
     } catch (error: any) {
-      logger.error('Validation error:', error);
+      logger.error('Validation error:', error instanceof Error ? error.message : String(error));
       return res.status(400).json(
         ResponseFormatter.error(
           'Dati non validi. Controlla tutti i campi obbligatori.',
@@ -464,7 +464,7 @@ router.post('/refresh',
           'Token refreshed successfully'
         )
       );
-    } catch (error) {
+    } catch (error: unknown) {
       return res.status(401).json(
         ResponseFormatter.error(
           'Please login again',
@@ -567,8 +567,8 @@ router.post('/forgot-password',
         },
         channels: ['email'] // Solo email per sicurezza
       });
-    } catch (error) {
-      logger.error('Error sending password reset notification:', error);
+    } catch (error: unknown) {
+      logger.error('Error sending password reset notification:', error instanceof Error ? error.message : String(error));
     }
 
     logger.info(`Password reset requested for: ${email}`);
@@ -649,8 +649,8 @@ router.post('/reset-password',
           },
           channels: ['websocket', 'email']
         });
-      } catch (error) {
-        logger.error('Error sending password changed notification:', error);
+      } catch (error: unknown) {
+        logger.error('Error sending password changed notification:', error instanceof Error ? error.message : String(error));
       }
 
       logger.info(`Password reset for User: ${user.email}`);
@@ -661,7 +661,7 @@ router.post('/reset-password',
           'Password reset successful'
         )
       );
-    } catch (error) {
+    } catch (error: unknown) {
       return res.status(400).json(
         ResponseFormatter.error(
           'The reset token is invalid or has expired',

@@ -118,7 +118,11 @@ function AddNumberForm({
   );
 }
 
-export function PhoneNumberManager() {
+interface PhoneNumberManagerProps {
+  professionalId?: string;
+}
+
+export function PhoneNumberManager({ professionalId }: PhoneNumberManagerProps) {
   const [activeTab, setActiveTab] = useState('professional');
   const queryClient = useQueryClient();
   

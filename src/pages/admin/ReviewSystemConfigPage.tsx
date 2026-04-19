@@ -788,9 +788,9 @@ export default function ReviewSystemConfigPage() {
                     <Loader2 className="h-6 w-6 animate-spin" />
                     <span className="ml-2">Caricamento esclusioni...</span>
                   </div>
-                ) : exclusionsData?.data?.data?.length > 0 ? (
+                ) : (exclusionsData as any)?.data?.data?.length > 0 ? (
                   <div className="space-y-3">
-                    {exclusionsData.data.data.map((exclusion: ReviewExclusion) => (
+                    {(exclusionsData as any).data.data.map((exclusion: ReviewExclusion) => (
                       <div key={exclusion.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex-1">
                           <div className="flex items-center gap-3">
@@ -1021,8 +1021,8 @@ export default function ReviewSystemConfigPage() {
                         <div className="mt-2">
                           <Select
                             value={exclusionForm.type}
-                            onValueChange={(value: 'CLIENT' | 'PROFESSIONAL' | 'BOTH') => 
-                              setExclusionForm(prev => ({ ...prev, type: value }))
+                            onValueChange={(value: string) => 
+                              setExclusionForm(prev => ({ ...prev, type: value as 'CLIENT' | 'PROFESSIONAL' | 'BOTH' }))
                             }
                           >
                             <SelectTrigger className="w-full">

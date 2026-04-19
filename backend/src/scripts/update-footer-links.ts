@@ -61,7 +61,7 @@ async function updateFooterLinks() {
     console.log('- Supporto: Admin, Categorie, Utenti, Sistema');
     console.log('- Legali: Privacy, Termini, Cookie (già funzionanti)');
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Errore durante l\'aggiornamento dei link Footer:', error);
     throw error;
   } finally {

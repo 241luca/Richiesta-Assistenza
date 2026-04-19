@@ -43,7 +43,7 @@ class ReviewService {
    */
   async createReview(data: CreateReviewData) {
     // 1. Verifica che la richiesta esista e sia completata
-    const request = await prisma.assistanceRequest.findUnique({
+    const request = await (prisma.assistanceRequest.findUnique as any)({
       where: { id: data.requestId },
       include: { User_AssistanceRequest_professionalIdToUser: true }
     });
@@ -88,7 +88,7 @@ class ReviewService {
         clientId: data.clientId,
         professionalId: request.professionalId,
         isVerified: true
-      },
+      } as any,
       include: {
         User_Review_clientIdToUser: {
           select: {
@@ -388,7 +388,7 @@ class ReviewService {
           remindClientAfterDays: 3,
           notifyAdminOnProblematic: true
         }
-      });
+      } as any);
     }
 
     return config;
@@ -411,7 +411,7 @@ class ReviewService {
         data: {
           ...data
         }
-      });
+      } as any);
     }
   }
 
@@ -527,10 +527,10 @@ class ReviewService {
     }
 
     const [reviews, total] = await Promise.all([
-      prisma.review.findMany({
+      (prisma.review.findMany as any)({
         where,
         include: {
-          client: {
+          User_Review_clientIdToUser: {
             select: {
               id: true,
               firstName: true,
@@ -538,12 +538,12 @@ class ReviewService {
               avatar: true
             }
           },
-          request: {
+          AssistanceRequest: {
             select: {
               id: true,
               categoryId: true,
               createdAt: true,
-              category: {
+              Category: {
                 select: {
                   name: true
                 }

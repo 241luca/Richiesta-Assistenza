@@ -38,8 +38,8 @@ router.get('/stats',
         stats,
         'Config stats retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching config stats:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching config stats:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch stats', 'STATS_ERROR')
       );
@@ -62,8 +62,8 @@ router.get('/',
         configs,
         'UI configs retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching UI configs:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching UI configs:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch UI configs', 'FETCH_ERROR')
       );
@@ -84,8 +84,8 @@ router.post('/ui-configs',
         'UI config creation not yet implemented',
         'NOT_IMPLEMENTED'
       ));
-    } catch (error) {
-      logger.error('Error creating UI config:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating UI config:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to create UI config', 'CREATE_ERROR')
       );
@@ -106,8 +106,8 @@ router.put('/ui-configs/:id',
         'UI config update not yet implemented',
         'NOT_IMPLEMENTED'
       ));
-    } catch (error) {
-      logger.error('Error updating UI config:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating UI config:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to update UI config', 'UPDATE_ERROR')
       );
@@ -128,8 +128,8 @@ router.delete('/ui-configs/:id',
         'UI config deletion not yet implemented',
         'NOT_IMPLEMENTED'
       ));
-    } catch (error) {
-      logger.error('Error deleting UI config:', error);
+    } catch (error: unknown) {
+      logger.error('Error deleting UI config:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to delete UI config', 'DELETE_ERROR')
       );
@@ -153,8 +153,8 @@ router.get('/system-settings',
         settings,
         'System settings retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching system settings:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching system settings:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch settings', 'FETCH_ERROR')
       );
@@ -175,8 +175,8 @@ router.put('/system-settings/:key',
         { key: req.params.key, value: req.body.value },
         'Setting updated successfully'
       ));
-    } catch (error) {
-      logger.error('Error updating system setting:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating system setting:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to update setting', 'UPDATE_ERROR')
       );
@@ -197,8 +197,8 @@ router.post('/system-settings/test/:category',
         { success: true, category: req.params.category },
         'Configuration test successful'
       ));
-    } catch (error) {
-      logger.error('Error testing configuration:', error);
+    } catch (error: unknown) {
+      logger.error('Error testing configuration:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Configuration test failed', 'TEST_ERROR')
       );
@@ -225,8 +225,8 @@ router.get('/system-settings/export',
         config,
         'Configuration exported successfully'
       ));
-    } catch (error) {
-      logger.error('Error exporting configuration:', error);
+    } catch (error: unknown) {
+      logger.error('Error exporting configuration:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to export configuration', 'EXPORT_ERROR')
       );

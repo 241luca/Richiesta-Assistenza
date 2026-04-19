@@ -107,9 +107,9 @@ export class NotificationService {
       } else {
         logger.warn(`[NotificationService] ⚠️ Cannot broadcast ${event}: Socket.io not initialized`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error in broadcast:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         event,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -136,9 +136,9 @@ export class NotificationService {
       } else {
         logger.warn(`[NotificationService] ⚠️ Cannot emit to user ${userId}: Socket.io not initialized`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error in emitToUser:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         userId,
         event,
         stack: error instanceof Error ? error.stack : undefined
@@ -166,9 +166,9 @@ export class NotificationService {
       } else {
         logger.warn(`[NotificationService] ⚠️ Cannot emit to room ${room}: Socket.io not initialized`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error in emitToRoom:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         room,
         event,
         stack: error instanceof Error ? error.stack : undefined
@@ -195,9 +195,9 @@ export class NotificationService {
       } else {
         logger.warn(`[NotificationService] ⚠️ Cannot emit to role ${role}: Socket.io not initialized`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error in emitToRole:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         role,
         event,
         stack: error instanceof Error ? error.stack : undefined
@@ -228,9 +228,9 @@ export class NotificationService {
       } else {
         logger.warn(`[NotificationService] ⚠️ Cannot emit to request ${requestId}: Socket.io not initialized`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error in emitToRequest:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         requestId,
         event,
         stack: error instanceof Error ? error.stack : undefined
@@ -378,9 +378,9 @@ export class NotificationService {
         successful,
         failed
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error sending notification to user:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         userId: data.userId,
         type: data.type,
         stack: error instanceof Error ? error.stack : undefined
@@ -477,9 +477,9 @@ export class NotificationService {
         type: data.type,
         title: data.title
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error broadcasting notification:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         type: data.type,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -565,9 +565,9 @@ export class NotificationService {
         role,
         userCount: users.length
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error sending notification to role:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         role,
         type: data.type,
         stack: error instanceof Error ? error.stack : undefined
@@ -625,9 +625,9 @@ export class NotificationService {
         notificationId,
         userId
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error marking notification as read:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         notificationId,
         userId,
         stack: error instanceof Error ? error.stack : undefined
@@ -660,9 +660,9 @@ export class NotificationService {
         userId,
         count: result.count
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error marking all notifications as read:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         userId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -698,9 +698,9 @@ export class NotificationService {
 
       // ✅ RETURN PURE DATA (no ResponseFormatter)
       return notifications;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error fetching unread notifications:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         userId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -724,9 +724,9 @@ export class NotificationService {
       });
 
       return count;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error counting unread notifications:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         userId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -777,9 +777,9 @@ export class NotificationService {
         deletedCount: result.count,
         daysToKeep
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error cleaning up old notifications:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         daysToKeep,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -828,9 +828,9 @@ export class NotificationService {
 
       // ✅ RETURN PURE DATA
       return notification;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error creating notification:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         recipientId: params.recipientId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -855,9 +855,9 @@ export class NotificationService {
         isConnected: true,
         clientsCount
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error getting Socket.io status:', {
-        error: error instanceof Error ? error.message : 'Unknown'
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown'
       });
       return { isConnected: false, clientsCount: 0 };
     }
@@ -909,9 +909,9 @@ export class NotificationService {
         roomsCount,
         namespaces
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error getting WebSocket metrics:', {
-        error: error instanceof Error ? error.message : 'Unknown'
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown'
       });
       return {
         isConnected: false,
@@ -948,10 +948,10 @@ export class NotificationService {
         pushNotifications: true,
         smsNotifications: false
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('[NotificationService] Error fetching user preferences, using defaults', {
         userId,
-        error: error instanceof Error ? error.message : 'Unknown'
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown'
       });
       return {
         email: true,
@@ -1047,9 +1047,9 @@ export class NotificationService {
         userId,
         email: user.email
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error sending email notification:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         userId
       });
       
@@ -1109,9 +1109,9 @@ export class NotificationService {
           variables: data.data || {}
         }
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error sending SMS notification:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         userId
       });
     }
@@ -1144,9 +1144,9 @@ export class NotificationService {
           variables: data.data || {}
         }
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[NotificationService] Error sending push notification:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         userId
       });
     }

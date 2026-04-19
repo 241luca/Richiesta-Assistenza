@@ -50,8 +50,8 @@ router.get('/subcategories', authenticate, async (req: any, res) => {
       professionalSubcategories,
       'Sottocategorie professionista recuperate con successo'
     ));
-  } catch (error) {
-    logger.error('Error fetching professional subcategories:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching professional subcategories:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle sottocategorie',
       'SUBCATEGORIES_FETCH_ERROR'
@@ -79,7 +79,7 @@ router.put('/subcategories', authenticate, async (req: any, res) => {
     // Prova il nuovo formato con experienceLevel
     if (req.body.subcategories && Array.isArray(req.body.subcategories)) {
       const validatedData = updateSubcategoriesSchema.parse(req.body);
-      subcategoriesToUpdate = validatedData.subcategories;
+      subcategoriesToUpdate = validatedData.subcategories as any[];
     } 
     // Fallback al vecchio formato per compatibilità
     else if (req.body.subcategoryIds && Array.isArray(req.body.subcategoryIds)) {
@@ -154,8 +154,8 @@ router.put('/subcategories', authenticate, async (req: any, res) => {
       'Sottocategorie aggiornate con successo'
     ));
     
-  } catch (error) {
-    logger.error('Error updating professional subcategories:', error);
+  } catch (error: unknown) {
+    logger.error('Error updating professional subcategories:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento delle sottocategorie',
       'SUBCATEGORIES_UPDATE_ERROR'
@@ -210,8 +210,8 @@ router.delete('/subcategories/:subcategoryId', authenticate, async (req: any, re
       'Sottocategoria rimossa con successo'
     ));
     
-  } catch (error) {
-    logger.error('Error removing professional Subcategory:', error);
+  } catch (error: unknown) {
+    logger.error('Error removing professional Subcategory:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nella rimozione della sottocategoria',
       'SUBCATEGORY_REMOVE_ERROR'
@@ -291,8 +291,8 @@ router.get('/subcategories/:userId', authenticate, canAccessUserData, async (req
       professionalSubcategories,
       'Sottocategorie professionista recuperate con successo'
     ));
-  } catch (error) {
-    logger.error('Error fetching professional subcategories for admin:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching professional subcategories for admin:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle sottocategorie',
       'SUBCATEGORIES_FETCH_ERROR'
@@ -324,7 +324,7 @@ router.put('/subcategories/:userId', authenticate, requireAdmin, async (req: any
     // Prova il nuovo formato con experienceLevel
     if (req.body.subcategories && Array.isArray(req.body.subcategories)) {
       const validatedData = updateSubcategoriesSchema.parse(req.body);
-      subcategoriesToUpdate = validatedData.subcategories;
+      subcategoriesToUpdate = validatedData.subcategories as any[];
     } 
     // Fallback al vecchio formato per compatibilità
     else if (req.body.subcategoryIds && Array.isArray(req.body.subcategoryIds)) {
@@ -401,8 +401,8 @@ router.put('/subcategories/:userId', authenticate, requireAdmin, async (req: any
       'Sottocategorie professionista aggiornate con successo dall\'amministratore'
     ));
     
-  } catch (error) {
-    logger.error('Error updating professional subcategories by admin:', error);
+  } catch (error: unknown) {
+    logger.error('Error updating professional subcategories by admin:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento delle sottocategorie',
       'SUBCATEGORIES_UPDATE_ERROR'
@@ -486,8 +486,8 @@ router.post('/subcategories/:userId/add', authenticate, requireAdmin, async (req
       'Sottocategoria aggiunta con successo'
     ));
     
-  } catch (error) {
-    logger.error('Error adding Subcategory:', error);
+  } catch (error: unknown) {
+    logger.error('Error adding Subcategory:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiunta della sottocategoria',
       'SUBCATEGORY_ADD_ERROR'
@@ -534,8 +534,8 @@ router.delete('/subcategories/:userId/:subcategoryId', authenticate, requireAdmi
       'Sottocategoria rimossa con successo'
     ));
     
-  } catch (error) {
-    logger.error('Error removing professional Subcategory:', error);
+  } catch (error: unknown) {
+    logger.error('Error removing professional Subcategory:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nella rimozione della sottocategoria',
       'SUBCATEGORY_REMOVE_ERROR'

@@ -39,8 +39,8 @@ router.get('/stats',
       };
       
       res.json(ResponseFormatter.success(enhanced, 'WebSocket stats retrieved'));
-    } catch (error) {
-      logger.error('Error getting WebSocket stats:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting WebSocket stats:', error instanceof Error ? error.message : String(error));
       res.status(500).json(
         ResponseFormatter.error('Failed to get WebSocket stats', 'STATS_ERROR')
       );
@@ -64,8 +64,8 @@ router.post('/cleanup',
         { message: 'Cleanup triggered' },
         'WebSocket cleanup initiated'
       ));
-    } catch (error) {
-      logger.error('Error during WebSocket cleanup:', error);
+    } catch (error: unknown) {
+      logger.error('Error during WebSocket cleanup:', error instanceof Error ? error.message : String(error));
       res.status(500).json(
         ResponseFormatter.error('Failed to cleanup WebSocket', 'CLEANUP_ERROR')
       );

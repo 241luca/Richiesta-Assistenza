@@ -68,7 +68,7 @@ class CircuitBreaker {
       const result = await fn();
       this.onSuccess();
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       this.onFailure();
       throw error;
     }
@@ -174,14 +174,14 @@ export async function retryWithBackoff<T>(
       
       // Verifica se dovremmo fare retry
       if (!finalConfig.shouldRetry!(error)) {
-        logger.debug('Error not retryable', { error: error.message });
+        logger.debug('Error not retryable', { error: error instanceof Error ? error.message : String(error) });
         throw error;
       }
       
       // Se abbiamo esaurito i retry, lancia errore
       if (attempt === finalConfig.maxRetries) {
         logger.error(`All ${finalConfig.maxRetries} retries failed`, {
-          error: error.message,
+          error: error instanceof Error ? error.message : String(error),
           attempts: attempt + 1
         });
         throw error;
@@ -189,7 +189,7 @@ export async function retryWithBackoff<T>(
       
       // Log retry attempt
       logger.warn(`Attempt ${attempt + 1} failed, retrying in ${delay}ms`, {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         nextDelay: delay
       });
       
@@ -245,7 +245,7 @@ export async function callOpenAIWithRetry<T>(
       initialDelay: 2000,
       shouldRetry: (error) => {
         // Non fare retry per quota exceeded o invalid API key
-        if (error.message?.includes('quota') || error.message?.includes('api_key')) {
+        if (error instanceof Error ? error.message : String(error)?.includes('quota') || error instanceof Error ? error.message : String(error)?.includes('api_key')) {
           return false;
         }
         return true;
@@ -287,7 +287,7 @@ export async function callGoogleMapsWithRetry<T>(
       initialDelay: 1000,
       shouldRetry: (error) => {
         // Non fare retry per invalid API key o quota
-        if (error.message?.includes('API key') || error.message?.includes('quota')) {
+        if (error instanceof Error ? error.message : String(error)?.includes('API key') || error instanceof Error ? error.message : String(error)?.includes('quota')) {
           return false;
         }
         return true;

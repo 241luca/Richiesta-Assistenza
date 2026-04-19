@@ -6,11 +6,13 @@ import { minioStorage } from '../services/MinIOStorageService';
 import { DatabaseClient } from '../database/client';
 import { DocumentProcessingService } from '../services/DocumentProcessingService';
 import { DocumentService } from '../services/DocumentService';
+import { StructuredDataIngestionService } from '../services/StructuredDataIngestionService';
 
 const router = Router();
 const db = DatabaseClient.getInstance();
 const processingService = new DocumentProcessingService();
 const docService = new DocumentService();
+const ingestionService = new StructuredDataIngestionService();
 
 // Configurazione Multer per upload in memoria
 const upload = multer({
@@ -455,6 +457,119 @@ router.post('/:id/process', async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: error.message || 'Failed to start document processing'
+    });
+  }
+});
+
+/**
+ * POST /api/documents/upload-markdown
+ * Upload documento con conversione automatica in Markdown
+ * Supporta dual chunking (Docling + Semantic)
+ */
+router.post('/upload-markdown', upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    const file = req.file;
+    const { 
+      container_id, 
+      title, 
+      ocr_engine = 'auto',
+      chunking_method = 'semantic'
+    } = req.body;
+
+    // Validazione
+    if (!file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded'
+      });
+    }
+
+    if (!container_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'container_id is required'
+      });
+    }
+
+    // Verifica container
+    const containerCheck = await db.query(
+      'SELECT id, name FROM smartdocs.container_instances WHERE id = $1',
+      [container_id]
+    );
+
+    if (containerCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Container not found'
+      });
+    }
+
+    const documentId = uuidv4();
+    const tempFilePath = `/tmp/${documentId}_${file.originalname}`;
+
+    logger.info(`🔄 Processing document with Markdown pipeline: ${file.originalname}`);
+    logger.info(`  Engine: ${ocr_engine}, Chunking: ${chunking_method}`);
+
+    // Salva file temporaneo
+    const fs = require('fs').promises;
+    await fs.writeFile(tempFilePath, file.buffer);
+
+    try {
+      // Upload a MinIO
+      const storageResult = await minioStorage.uploadFile(file, container_id, documentId);
+
+      // Processa con pipeline Markdown
+      const result = await ingestionService.ingestStructuredData({
+        container_id,
+        source_app: 'manual',
+        source_type: 'manual',
+        entity_type: 'document',
+        entity_id: documentId,
+        title: title || file.originalname,
+        content: '', // Sarà sostituito da MD
+        metadata: {
+          original_name: file.originalname,
+          file_size: file.size,
+          mime_type: file.mimetype,
+          storage_url: storageResult.url
+        },
+        // ✅ Markdown pipeline
+        use_markdown: true,
+        file_path: tempFilePath,
+        ocr_engine: ocr_engine as 'auto' | 'docling' | 'paddleocr-vl',
+        chunking_method: chunking_method as 'docling' | 'semantic' | 'both'
+      });
+
+      // Cleanup temp file
+      await fs.unlink(tempFilePath).catch(() => {});
+
+      logger.info(`✅ Document processed with Markdown pipeline: ${result.documentId}`);
+
+      return res.status(201).json({
+        success: true,
+        data: {
+          documentId: result.documentId,
+          chunksCreated: result.chunksCreated,
+          entitiesExtracted: result.entitiesExtracted,
+          relationshipsExtracted: result.relationshipsExtracted,
+          semanticChunking: result.semanticChunking,
+          hybridExtraction: result.hybridExtraction,
+          storage_url: storageResult.url
+        },
+        message: 'Document processed successfully with Markdown pipeline'
+      });
+
+    } catch (processingError: any) {
+      // Cleanup on error
+      await fs.unlink(tempFilePath).catch(() => {});
+      throw processingError;
+    }
+
+  } catch (error: any) {
+    logger.error('Error in Markdown upload pipeline:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to process document with Markdown pipeline'
     });
   }
 });

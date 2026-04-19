@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { whatsappRouter } from './routes/whatsapp.routes';
+import whatsappRouter from './routes/whatsapp.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3201;

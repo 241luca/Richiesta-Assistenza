@@ -63,6 +63,16 @@ export interface ChunkingConfig {
   includeMetadata?: boolean;
   detectSections?: boolean;
   language?: string;
+  inputFormat?: 'text' | 'markdown';  // NEW: Support markdown
+}
+
+export interface MarkdownSection {
+  level: number;
+  title: string;
+  content: string;
+  startLine: number;
+  endLine: number;
+  children: MarkdownSection[];
 }
 
 // ============================================================================
@@ -95,16 +105,39 @@ export class SemanticChunkingService {
   async chunkDocument(
     text: string,
     documentId: string,
-    documentTitle?: string
+    documentTitle?: string,
+    format: 'text' | 'markdown' = 'text'  // NEW: format parameter
   ): Promise<SemanticChunk[]> {
     try {
-      logger.info(`[SemanticChunking] Starting chunking for document: ${documentId}`);
+      logger.info(`[SemanticChunking] Starting chunking for document: ${documentId} (format: ${format})`);
       
       if (!text || text.trim().length === 0) {
         logger.warn('[SemanticChunking] Empty text provided');
         return [];
       }
 
+      // Route to appropriate chunking method
+      if (format === 'markdown') {
+        return await this.chunkMarkdown(text, documentId, documentTitle);
+      } else {
+        return await this.chunkPlainText(text, documentId, documentTitle);
+      }
+
+    } catch (error: any) {
+      logger.error('[SemanticChunking] Error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Chunk plain text (original method)
+   */
+  private async chunkPlainText(
+    text: string,
+    documentId: string,
+    documentTitle?: string
+  ): Promise<SemanticChunk[]> {
+    try {
       const cleanedText = this.cleanText(text);
       const paragraphs = this.extractParagraphs(cleanedText);
       const rawChunks = this.groupParagraphsIntoChunks(paragraphs);
@@ -139,6 +172,274 @@ export class SemanticChunkingService {
       logger.error('[SemanticChunking] Error:', error);
       throw error;
     }
+  }
+
+  /**
+   * Chunk Markdown document (NEW)
+   */
+  private async chunkMarkdown(
+    markdown: string,
+    documentId: string,
+    documentTitle?: string
+  ): Promise<SemanticChunk[]> {
+    try {
+      logger.info('[SemanticChunking] Chunking Markdown document with context windows');
+      
+      // Parse markdown structure
+      const sections = this.parseMarkdownSections(markdown);
+      
+      // Create chunks respecting MD structure
+      const chunks: SemanticChunk[] = [];
+      let chunkIndex = 0;
+      
+      for (const section of sections) {
+        // Check if section needs splitting
+        if (section.content.length > this.config.maxChunkSize!) {
+          // Split large section into sub-chunks
+          const subChunks = this.splitMarkdownSection(section);
+          
+          for (const subContent of subChunks) {
+            const chunk = this.createMarkdownChunk(
+              subContent,
+              chunkIndex,
+              documentId,
+              documentTitle || 'Document',
+              section.title,
+              section.level
+            );
+            
+            if (this.validateChunk(chunk)) {
+              chunks.push(chunk);
+              chunkIndex++;
+            }
+          }
+        } else {
+          // Section fits in one chunk
+          const chunk = this.createMarkdownChunk(
+            section.content,
+            chunkIndex,
+            documentId,
+            documentTitle || 'Document',
+            section.title,
+            section.level
+          );
+          
+          if (this.validateChunk(chunk)) {
+            chunks.push(chunk);
+            chunkIndex++;
+          }
+        }
+      }
+      
+      // ✅ NEW: Add context windows like Docling (50 chars before + 50 chars after)
+      this.addDoclingStyleContextWindows(chunks, markdown);
+      
+      // Add context previews (metadata only)
+      this.addContextPreviews(chunks);
+      
+      // Build relationships
+      if (chunks.length > 1) {
+        const relationships = this.buildChunkRelationships(chunks);
+        this.applyRelationships(chunks, relationships);
+      }
+      
+      const stats = this.getStatistics(chunks);
+      logger.info('[SemanticChunking] Markdown chunking completed:', stats);
+      
+      return chunks.filter(c => this.validateChunk(c));
+      
+    } catch (error: any) {
+      logger.error('[SemanticChunking] Markdown chunking error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add context windows like Docling: 50 chars before + 50 chars after
+   */
+  private addDoclingStyleContextWindows(chunks: SemanticChunk[], fullText: string): void {
+    logger.info('[SemanticChunking] Adding Docling-style context windows (50 chars before/after)');
+    
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const chunkStart = fullText.indexOf(chunk.content);
+      
+      if (chunkStart === -1) continue; // Chunk not found in original text
+      
+      const chunkEnd = chunkStart + chunk.content.length;
+      
+      // Extract 50 chars before
+      const contextBefore = fullText.substring(Math.max(0, chunkStart - 50), chunkStart);
+      
+      // Extract 50 chars after
+      const contextAfter = fullText.substring(chunkEnd, Math.min(fullText.length, chunkEnd + 50));
+      
+      // 🔥 CRITICAL: Add context to content itself (like Docling)
+      if (contextBefore.trim().length > 0 || contextAfter.trim().length > 0) {
+        chunk.content = `${contextBefore}${chunk.content}${contextAfter}`.trim();
+        chunk.characterCount = chunk.content.length;
+        chunk.tokens = Math.ceil(chunk.content.length / 4);
+        
+        logger.debug(`[SemanticChunking] Chunk #${i}: Added ${contextBefore.length} chars before, ${contextAfter.length} chars after`);
+      }
+    }
+  }
+
+  /**
+   * Parse Markdown into sections based on headers
+   */
+  private parseMarkdownSections(markdown: string): MarkdownSection[] {
+    const lines = markdown.split('\n');
+    const sections: MarkdownSection[] = [];
+    let currentSection: MarkdownSection | null = null;
+    let lineNumber = 0;
+    
+    for (const line of lines) {
+      // Detect markdown headers: # H1, ## H2, ### H3, etc.
+      const headerMatch = line.match(/^(#{1,6})\s+(.+)$/);
+      
+      if (headerMatch) {
+        // Save previous section
+        if (currentSection) {
+          currentSection.endLine = lineNumber - 1;
+          sections.push(currentSection);
+        }
+        
+        // Start new section
+        currentSection = {
+          level: headerMatch[1].length,
+          title: headerMatch[2].trim(),
+          content: line + '\n',
+          startLine: lineNumber,
+          endLine: lineNumber,
+          children: []
+        };
+      } else if (currentSection) {
+        // Add line to current section
+        currentSection.content += line + '\n';
+      } else {
+        // No section yet, create default section
+        currentSection = {
+          level: 0,
+          title: 'Introduction',
+          content: line + '\n',
+          startLine: lineNumber,
+          endLine: lineNumber,
+          children: []
+        };
+      }
+      
+      lineNumber++;
+    }
+    
+    // Save last section
+    if (currentSection) {
+      currentSection.endLine = lineNumber - 1;
+      sections.push(currentSection);
+    }
+    
+    return sections;
+  }
+
+  /**
+   * Split large Markdown section into smaller chunks
+   */
+  private splitMarkdownSection(section: MarkdownSection): string[] {
+    const chunks: string[] = [];
+    const lines = section.content.split('\n');
+    let currentChunk = '';
+    let inCodeBlock = false;
+    let inTable = false;
+    
+    for (const line of lines) {
+      // Detect code block boundaries
+      if (line.trim().startsWith('```')) {
+        inCodeBlock = !inCodeBlock;
+      }
+      
+      // Detect table
+      if (line.trim().startsWith('|')) {
+        inTable = true;
+      } else if (inTable && !line.trim().startsWith('|')) {
+        inTable = false;
+      }
+      
+      const projectedLength = currentChunk.length + line.length + 1;
+      
+      // Split logic: don't break code blocks or tables
+      if (projectedLength > this.config.maxChunkSize! && 
+          !inCodeBlock && 
+          !inTable && 
+          currentChunk.length > this.config.minChunkSize!) {
+        chunks.push(currentChunk.trim());
+        currentChunk = line + '\n';
+      } else {
+        currentChunk += line + '\n';
+      }
+    }
+    
+    // Add remaining content
+    if (currentChunk.trim().length > 0) {
+      chunks.push(currentChunk.trim());
+    }
+    
+    return chunks.length > 0 ? chunks : [section.content];
+  }
+
+  /**
+   * Create semantic chunk from Markdown content
+   */
+  private createMarkdownChunk(
+    content: string,
+    index: number,
+    documentId: string,
+    documentTitle: string,
+    sectionTitle: string,
+    sectionLevel: number
+  ): SemanticChunk {
+    const keywords = this.extractKeywords(content);
+    const documentType = this.classifyContentType(content);
+    const importanceScore = this.calculateImportanceScore(content, keywords);
+    const isSectionHeader = sectionLevel > 0;
+    const sentenceCount = this.countSentences(content);
+    const readabilityScore = this.calculateReadabilityScore(content);
+    
+    const embeddingOptimized = this.createOptimizedEmbeddingText(
+      content,
+      sectionTitle,
+      keywords,
+      documentTitle
+    );
+    
+    const tokens = Math.ceil(embeddingOptimized.length / 4);
+    
+    return {
+      id: `${documentId}-${index}-${uuidv4().substring(0, 8)}`,
+      documentId,
+      index,
+      content,
+      title: sectionTitle,
+      sectionPath: [documentTitle, sectionTitle],
+      previousChunkPreview: '',
+      nextChunkPreview: '',
+      contextualMetadata: {
+        topicKeywords: keywords,
+        documentType: 'markdown',
+        importanceScore,
+        isSectionHeader,
+        sentenceCount,
+        readabilityScore
+      },
+      embeddingOptimized,
+      relatedChunkIds: [],
+      tokens,
+      characterCount: content.length,
+      metadata: {
+        createdAt: new Date(),
+        sourceDocument: documentId,
+        chunkingVersion: '1.0.0-md'
+      }
+    };
   }
 
   // ==========================================================================

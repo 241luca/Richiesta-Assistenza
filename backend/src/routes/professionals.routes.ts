@@ -13,12 +13,12 @@ const router = Router();
 // ==================== TIPI ====================
 
 // Interfaccia per req.user esteso dall'autenticazione
-interface AuthenticatedRequest extends Request {
+interface AuthenticatedRequest extends Request<any, any, any, any, any> {
   user: {
     id: string;
     role: string;
     email: string;
-  };
+  } | any;
 }
 
 // ==================== MIDDLEWARE ====================
@@ -70,12 +70,12 @@ router.get(
       return res.json(
         ResponseFormatter.success(stats, 'Statistiche recuperate con successo')
       );
-    } catch (error) {
-      logger.error('Error fetching professional stats:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching professional stats:', error instanceof Error ? error.message : String(error));
 
       if (
         error instanceof Error &&
-        error.message === 'Professionista non trovato'
+        error instanceof Error ? error.message : String(error) === 'Professionista non trovato'
       ) {
         return res
           .status(404)
@@ -114,8 +114,8 @@ router.get(
       return res.json(
         ResponseFormatter.success(quickStats, 'Statistiche rapide recuperate')
       );
-    } catch (error) {
-      logger.error('Error fetching quick stats:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching quick stats:', error instanceof Error ? error.message : String(error));
       return res
         .status(500)
         .json(
@@ -179,8 +179,8 @@ router.get(
       }
 
       return res.json(ResponseFormatter.success(pricing));
-    } catch (error) {
-      logger.error('Error fetching pricing:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching pricing:', error instanceof Error ? error.message : String(error));
       return res
         .status(500)
         .json(ResponseFormatter.error('Errore nel recupero tariffe'));
@@ -212,8 +212,8 @@ router.put(
       return res.json(
         ResponseFormatter.success(pricing, 'Tariffe aggiornate con successo')
       );
-    } catch (error) {
-      logger.error('Error updating pricing:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating pricing:', error instanceof Error ? error.message : String(error));
       return res
         .status(500)
         .json(ResponseFormatter.error("Errore nell'aggiornamento tariffe"));
@@ -279,7 +279,7 @@ router.get(
           data: {
             id: `pai_${professionalId}_${subcategoryId}`,
             professionalId: professionalId,
-            Subcategory: { connect: { id: subcategoryId } },
+            subcategoryId: subcategoryId,
             modelName: 'gpt-3.5-turbo',
             temperature: 0.7,
             maxTokens: 2000,
@@ -294,8 +294,8 @@ router.get(
       }
 
       return res.json(ResponseFormatter.success(aiSettings));
-    } catch (error) {
-      logger.error('Error fetching AI settings:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching AI settings:', error instanceof Error ? error.message : String(error));
       return res
         .status(500)
         .json(ResponseFormatter.error('Errore nel recupero impostazioni AI'));
@@ -330,11 +330,11 @@ router.put(
         create: {
           id: `pai_${professionalId}_${subcategoryId}`,
           professionalId: professionalId,
-          Subcategory: { connect: { id: subcategoryId } },
+          subcategoryId: subcategoryId,
           ...validatedData,
           updatedAt: new Date(),
         },
-      });
+      } as any);
 
       logger.info('AI settings saved:', aiSettings);
 
@@ -344,8 +344,8 @@ router.put(
           'Impostazioni AI aggiornate con successo'
         )
       );
-    } catch (error) {
-      logger.error('Error updating AI settings:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating AI settings:', error instanceof Error ? error.message : String(error));
       return res
         .status(500)
         .json(
@@ -377,8 +377,8 @@ router.get(
       });
 
       return res.json(ResponseFormatter.success(skills));
-    } catch (error) {
-      logger.error('Error fetching skills:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching skills:', error instanceof Error ? error.message : String(error));
       return res
         .status(500)
         .json(ResponseFormatter.error('Errore nel recupero skills'));
@@ -413,17 +413,17 @@ router.post(
       const skill = await prisma.professionalSkill.create({
         data: {
           id: `ps_${professionalId}_${Date.now()}`,
-          User: { connect: { id: professionalId } },
+          userId: professionalId,
           ...validatedData,
           updatedAt: new Date(),
         },
-      });
+      } as any);
 
       return res.json(
         ResponseFormatter.success(skill, 'Skill aggiunta con successo')
       );
-    } catch (error) {
-      logger.error('Error creating skill:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating skill:', error instanceof Error ? error.message : String(error));
       return res
         .status(500)
         .json(ResponseFormatter.error("Errore nell'aggiunta skill"));
@@ -450,8 +450,8 @@ router.delete(
       return res.json(
         ResponseFormatter.success(null, 'Skill rimossa con successo')
       );
-    } catch (error) {
-      logger.error('Error deleting skill:', error);
+    } catch (error: unknown) {
+      logger.error('Error deleting skill:', error instanceof Error ? error.message : String(error));
       return res
         .status(500)
         .json(ResponseFormatter.error('Errore nella rimozione skill'));
@@ -483,8 +483,8 @@ router.get(
       });
 
       return res.json(ResponseFormatter.success(certifications));
-    } catch (error) {
-      logger.error('Error fetching certifications:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching certifications:', error instanceof Error ? error.message : String(error));
       return res
         .status(500)
         .json(ResponseFormatter.error('Errore nel recupero certificazioni'));
@@ -505,14 +505,14 @@ router.post(
       const certification = await prisma.professionalCertification.create({
         data: {
           id: `pc_${professionalId}_${Date.now()}`,
-          User: { connect: { id: professionalId } },
+          userId: professionalId,
           ...validatedData,
           validUntil: validatedData.validUntil
             ? new Date(validatedData.validUntil)
             : null,
           updatedAt: new Date(),
         },
-      });
+      } as any);
 
       return res.json(
         ResponseFormatter.success(
@@ -520,8 +520,8 @@ router.post(
           'Certificazione aggiunta con successo'
         )
       );
-    } catch (error) {
-      logger.error('Error creating certification:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating certification:', error instanceof Error ? error.message : String(error));
       return res
         .status(500)
         .json(ResponseFormatter.error("Errore nell'aggiunta certificazione"));
@@ -548,8 +548,8 @@ router.delete(
       return res.json(
         ResponseFormatter.success(null, 'Certificazione rimossa con successo')
       );
-    } catch (error) {
-      logger.error('Error deleting certification:', error);
+    } catch (error: unknown) {
+      logger.error('Error deleting certification:', error instanceof Error ? error.message : String(error));
       return res
         .status(500)
         .json(ResponseFormatter.error('Errore nella rimozione certificazione'));
@@ -579,8 +579,8 @@ router.patch(
       return res.json(
         ResponseFormatter.success(certification, 'Certificazione verificata')
       );
-    } catch (error) {
-      logger.error('Error verifying certification:', error);
+    } catch (error: unknown) {
+      logger.error('Error verifying certification:', error instanceof Error ? error.message : String(error));
       return res
         .status(500)
         .json(
@@ -733,8 +733,8 @@ router.get(
           `Trovati ${formattedProfessionals.length} professionisti per questa sottocategoria`
         )
       );
-    } catch (error) {
-      logger.error('Error fetching professionals by subcategory:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching professionals by subcategory:', error instanceof Error ? error.message : String(error));
       return res
         .status(500)
         .json(ResponseFormatter.error('Errore nel recupero professionisti'));
@@ -772,11 +772,11 @@ router.get(
           `Trovati ${allProfessionals.length} professionisti (versione semplificata)`
         )
       );
-    } catch (error) {
-      logger.error('Error in simple endpoint:', error);
+    } catch (error: unknown) {
+      logger.error('Error in simple endpoint:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Errore nel recupero professionisti', 'FETCH_ERROR', {
-          details: error instanceof Error ? error.message : 'Unknown error',
+          details: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         })
       );
     }
@@ -904,8 +904,8 @@ router.get(
           stats
         )
       );
-    } catch (error) {
-      logger.error('Error fetching professionals:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching professionals:', error instanceof Error ? error.message : String(error));
       return res
         .status(500)
         .json(ResponseFormatter.error('Errore nel recupero professionisti'));

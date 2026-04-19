@@ -91,7 +91,7 @@ async function checkTypeScript(projectPath: string, area: string): Promise<TypeS
         }
       }
     } else {
-      logger.error(`❌ Error checking ${area}:`, error.message);
+      logger.error(`❌ Error checking ${area}:`, error instanceof Error ? error.message : String(error));
     }
   }
   
@@ -259,8 +259,8 @@ export async function execute(params: CheckTypeScriptParams = {}) {
       message: `Trovati ${results.backend.total + results.frontend.total} errori TypeScript in ${results.backend.files + results.frontend.files} file`
     };
     
-  } catch (error) {
-    logger.error('❌ Script execution failed:', error);
+  } catch (error: unknown) {
+    logger.error('❌ Script execution failed:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }

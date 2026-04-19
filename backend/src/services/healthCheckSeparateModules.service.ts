@@ -62,7 +62,7 @@ export async function checkRedisSystem(): Promise<HealthCheckResult> {
           message: `Connected in ${pingTime}ms`
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       checks.push({
         description: 'Redis Connection',
         status: 'fail',
@@ -123,7 +123,7 @@ export async function checkRedisSystem(): Promise<HealthCheckResult> {
           message: `Using ${memoryUsed} (no limit set)`
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       checks.push({
         description: 'Memory Usage',
         status: 'error',
@@ -154,7 +154,7 @@ export async function checkRedisSystem(): Promise<HealthCheckResult> {
           message: `${dbSize} keys stored`
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       checks.push({
         description: 'Key Count',
         status: 'error',
@@ -185,7 +185,7 @@ export async function checkRedisSystem(): Promise<HealthCheckResult> {
           message: `${connectedClients} clients connected`
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       checks.push({
         description: 'Client Connections',
         status: 'error',
@@ -205,7 +205,7 @@ export async function checkRedisSystem(): Promise<HealthCheckResult> {
         status: 'pass',
         message: `${opsPerSec} ops/second`
       });
-    } catch (error) {
+    } catch (error: unknown) {
       checks.push({
         description: 'Operations Performance',
         status: 'error',
@@ -241,7 +241,7 @@ export async function checkRedisSystem(): Promise<HealthCheckResult> {
           });
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       checks.push({
         description: 'Data Persistence',
         status: 'error',
@@ -251,7 +251,7 @@ export async function checkRedisSystem(): Promise<HealthCheckResult> {
     }
 
   } catch (error: any) {
-    errors.push(`Redis check failed: ${error.message}`);
+    errors.push(`Redis check failed: ${error instanceof Error ? error.message : String(error)}`);
     score = 0;
   }
 
@@ -356,7 +356,7 @@ export async function checkWebSocketSystem(): Promise<HealthCheckResult> {
     }
 
   } catch (error: any) {
-    errors.push(`WebSocket check failed: ${error.message}`);
+    errors.push(`WebSocket check failed: ${error instanceof Error ? error.message : String(error)}`);
     score = 0;
   }
 
@@ -499,7 +499,7 @@ export async function checkEmailService(): Promise<HealthCheckResult> {
           });
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       checks.push({
         description: 'Email Quota',
         status: 'error',
@@ -556,7 +556,7 @@ export async function checkEmailService(): Promise<HealthCheckResult> {
           });
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       checks.push({
         description: 'Email Delivery Rate (24h)',
         status: 'error',
@@ -598,7 +598,7 @@ export async function checkEmailService(): Promise<HealthCheckResult> {
           message: `${templates.length} templates configured`
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       checks.push({
         description: 'Email Templates',
         status: 'error',
@@ -637,7 +637,7 @@ export async function checkEmailService(): Promise<HealthCheckResult> {
           message: `${senders.length} verified senders`
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       checks.push({
         description: 'Verified Senders',
         status: 'error',
@@ -647,7 +647,7 @@ export async function checkEmailService(): Promise<HealthCheckResult> {
     }
 
   } catch (error: any) {
-    errors.push(`Email service check failed: ${error.message}`);
+    errors.push(`Email service check failed: ${error instanceof Error ? error.message : String(error)}`);
     score = 0;
   }
 
@@ -795,7 +795,7 @@ export async function checkAISystem(): Promise<HealthCheckResult> {
           message: `${totalTokens} tokens used`
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       checks.push({
         description: 'Token Usage (24h)',
         status: 'error',
@@ -844,7 +844,7 @@ export async function checkAISystem(): Promise<HealthCheckResult> {
           });
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       checks.push({
         description: 'AI Response Time',
         status: 'error',
@@ -879,7 +879,7 @@ export async function checkAISystem(): Promise<HealthCheckResult> {
           message: `${metrics.requests_this_hour} requests this hour`
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       checks.push({
         description: 'AI Rate Limiting',
         status: 'error',
@@ -889,7 +889,7 @@ export async function checkAISystem(): Promise<HealthCheckResult> {
     }
 
   } catch (error: any) {
-    errors.push(`AI system check failed: ${error.message}`);
+    errors.push(`AI system check failed: ${error instanceof Error ? error.message : String(error)}`);
     score = 0;
   }
 

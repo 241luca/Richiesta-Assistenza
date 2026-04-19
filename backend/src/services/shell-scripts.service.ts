@@ -180,7 +180,7 @@ class ShellScriptsService {
           script.available = false;
           logger.warn(`⚠️ Script not found: ${script.name} at ${scriptPath}`);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         script.available = false;
         logger.warn(`❌ Error checking script ${script.name}:`, error);
       }
@@ -277,7 +277,7 @@ class ShellScriptsService {
 
       // Gestisci errori di spawn
       child.on('error', (error) => {
-        logger.error(`❌ Script ${scriptName} failed:`, error);
+        logger.error(`❌ Script ${scriptName} failed:`, error instanceof Error ? error.message : String(error));
         reject(error);
       });
 

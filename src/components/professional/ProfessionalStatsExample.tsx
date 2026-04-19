@@ -6,6 +6,9 @@
  */
 
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useParams } from 'react-router-dom';
+import { api } from '../../services/api';
 import { ProfessionalStats } from './ProfessionalStats';
 
 // 🎯 ESEMPIO 1: Nel profilo del professionista

@@ -12,7 +12,7 @@ export async function saveWhatsAppInstanceId(instanceId: string): Promise<void> 
   try {
     logger.info(`💾 Salvataggio Instance ID WhatsApp: ${instanceId}`);
     
-    await prisma.systemConfiguration.upsert({
+    await (prisma as any).systemConfiguration.upsert({
       where: { key: 'whatsapp_instance_id' },
       update: {
         value: instanceId,
@@ -26,8 +26,8 @@ export async function saveWhatsAppInstanceId(instanceId: string): Promise<void> 
     });
     
     logger.info('✅ Instance ID salvato con successo');
-  } catch (error) {
-    logger.error('❌ Errore salvataggio Instance ID:', error);
+  } catch (error: unknown) {
+    logger.error('❌ Errore salvataggio Instance ID:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -37,7 +37,7 @@ export async function saveWhatsAppInstanceId(instanceId: string): Promise<void> 
  */
 export async function getWhatsAppInstanceId(): Promise<string | null> {
   try {
-    const config = await prisma.systemConfiguration.findFirst({
+    const config = await (prisma as any).systemConfiguration.findFirst({
       where: { key: 'whatsapp_instance_id' }
     });
     
@@ -47,8 +47,8 @@ export async function getWhatsAppInstanceId(): Promise<string | null> {
     }
     
     return config.value;
-  } catch (error) {
-    logger.error('❌ Errore recupero Instance ID:', error);
+  } catch (error: unknown) {
+    logger.error('❌ Errore recupero Instance ID:', error instanceof Error ? error.message : String(error));
     return null;
   }
 }
@@ -58,13 +58,13 @@ export async function getWhatsAppInstanceId(): Promise<string | null> {
  */
 export async function removeWhatsAppInstanceId(): Promise<void> {
   try {
-    await prisma.systemConfiguration.deleteMany({
+    await (prisma as any).systemConfiguration.deleteMany({
       where: { key: 'whatsapp_instance_id' }
     });
     
     logger.info('🗑️ Instance ID rimosso');
-  } catch (error) {
-    logger.error('❌ Errore rimozione Instance ID:', error);
+  } catch (error: unknown) {
+    logger.error('❌ Errore rimozione Instance ID:', error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -74,7 +74,7 @@ export async function removeWhatsAppInstanceId(): Promise<void> {
 export async function saveWhatsAppConnectionStatus(isConnected: boolean, phoneNumber?: string): Promise<void> {
   try {
     // Salva stato connessione
-    await prisma.systemConfiguration.upsert({
+    await (prisma as any).systemConfiguration.upsert({
       where: { key: 'whatsapp_connected' },
       update: {
         value: isConnected.toString(),
@@ -89,7 +89,7 @@ export async function saveWhatsAppConnectionStatus(isConnected: boolean, phoneNu
     
     // Salva numero di telefono se fornito
     if (phoneNumber) {
-      await prisma.systemConfiguration.upsert({
+      await (prisma as any).systemConfiguration.upsert({
         where: { key: 'whatsapp_phone_number' },
         update: {
           value: phoneNumber,
@@ -104,8 +104,8 @@ export async function saveWhatsAppConnectionStatus(isConnected: boolean, phoneNu
     }
     
     logger.info(`📱 Stato WhatsApp aggiornato: ${isConnected ? 'Connesso' : 'Disconnesso'} ${phoneNumber || ''}`);
-  } catch (error) {
-    logger.error('❌ Errore salvataggio stato connessione:', error);
+  } catch (error: unknown) {
+    logger.error('❌ Errore salvataggio stato connessione:', error instanceof Error ? error.message : String(error));
   }
 }
 

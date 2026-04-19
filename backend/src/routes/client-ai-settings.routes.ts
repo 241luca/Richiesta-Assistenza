@@ -49,7 +49,7 @@ router.get('/:professionalId/:subcategoryId', authenticate, async (req: any, res
         AND "subcategoryId" = ${subcategoryId}
         LIMIT 1
       `;
-      settings = result[0] || null;
+      settings = (result as any)[0] || null;
     }
 
     // Se non esistono, crea default
@@ -73,8 +73,8 @@ router.get('/:professionalId/:subcategoryId', authenticate, async (req: any, res
     return res.json(
       ResponseFormatter.success(settings, 'Impostazioni AI cliente recuperate con successo')
     );
-  } catch (error) {
-    logger.error('Error fetching client AI settings:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching client AI settings:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Errore nel recupero delle impostazioni AI cliente', 'FETCH_ERROR')
     );
@@ -129,8 +129,8 @@ router.put('/:professionalId/:subcategoryId', authenticate, validateRequest(aiSe
     return res.json(
       ResponseFormatter.success(settings, 'Impostazioni AI cliente aggiornate con successo')
     );
-  } catch (error) {
-    logger.error('Error updating client AI settings:', error);
+  } catch (error: unknown) {
+    logger.error('Error updating client AI settings:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Errore nell\'aggiornamento delle impostazioni AI cliente', 'UPDATE_ERROR')
     );

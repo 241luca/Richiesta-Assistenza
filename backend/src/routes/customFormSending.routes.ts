@@ -35,15 +35,15 @@ router.post('/:formId/send', [
         senderId: userId
       },
       req
-    );
+    ) as { success: boolean; message?: string };
 
     res.status(result.success ? 201 : 400).json(result);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore nella route POST /custom-forms/:formId/send:', error);
     res.status(500).json({
       success: false,
       message: 'Errore interno del server',
-      error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Errore sconosciuto'
     });
   }
 });
@@ -58,15 +58,15 @@ router.get('/requests/:requestId/forms', [
 ], async (req: Request, res: Response) => {
   try {
     const { requestId } = req.params;
-    const result = await customFormSendingService.getRequestForms(requestId);
+    const result = await customFormSendingService.getRequestForms(requestId) as { success: boolean; message?: string };
     
     res.status(result.success ? 200 : 500).json(result);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore nella route GET /requests/:requestId/forms:', error);
     res.status(500).json({
       success: false,
       message: 'Errore interno del server',
-      error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Errore sconosciuto'
     });
   }
 });
@@ -81,15 +81,15 @@ router.get('/request-forms/:id', [
 ], async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await customFormSendingService.getFormWithResponses(id);
+    const result = await customFormSendingService.getFormWithResponses(id) as { success: boolean; message?: string };
     
     res.status(result.success ? 200 : 404).json(result);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore nella route GET /request-forms/:id:', error);
     res.status(500).json({
       success: false,
       message: 'Errore interno del server',
-      error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Errore sconosciuto'
     });
   }
 });
@@ -118,15 +118,15 @@ router.post('/request-forms/:id/save-draft', [
         submittedBy: userId
       },
       req
-    );
+    ) as { success: boolean; message?: string };
 
     res.status(result.success ? 200 : 400).json(result);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore nella route POST /request-forms/:id/save-draft:', error);
     res.status(500).json({
       success: false,
       message: 'Errore interno del server',
-      error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Errore sconosciuto'
     });
   }
 });
@@ -155,15 +155,15 @@ router.post('/request-forms/:id/submit', [
         submittedBy: userId
       },
       req
-    );
+    ) as { success: boolean; message?: string };
 
     res.status(result.success ? 200 : 400).json(result);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore nella route POST /request-forms/:id/submit:', error);
     res.status(500).json({
       success: false,
       message: 'Errore interno del server',
-      error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Errore sconosciuto'
     });
   }
 });
@@ -182,14 +182,14 @@ router.delete('/request-forms/:id', [
     const userId = (req as any).user.id;
     const { id } = req.params;
 
-    const result = await customFormSendingService.removeFormFromRequest(id, userId, req);
+    const result = await customFormSendingService.removeFormFromRequest(id, userId, req) as { success: boolean; message?: string };
     res.status(result.success ? 200 : 400).json(result);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore nella route DELETE /request-forms/:id:', error);
     res.status(500).json({
       success: false,
       message: 'Errore interno del server',
-      error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Errore sconosciuto'
     });
   }
 });
@@ -209,14 +209,14 @@ router.patch('/request-forms/:id/verify', [
     const { id } = req.params;
     const { isVerified } = req.body;
 
-    const result = await customFormSendingService.verifyForm(id, userId, isVerified, req);
+    const result = await customFormSendingService.verifyForm(id, userId, isVerified, req) as { success: boolean; message?: string };
     res.status(result.success ? 200 : 400).json(result);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore nella route PATCH /request-forms/:id/verify:', error);
     res.status(500).json({
       success: false,
       message: 'Errore interno del server',
-      error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Errore sconosciuto'
     });
   }
 });

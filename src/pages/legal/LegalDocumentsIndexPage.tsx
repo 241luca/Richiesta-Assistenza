@@ -176,7 +176,7 @@ export default function LegalDocumentsIndexPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {documents.map((doc) => {
+            {documents.map((doc: any) => {
               // Ottieni l'icona corretta dalla mappa o usa default
               const IconComponent = iconMap[doc.icon || 'DocumentTextIcon'] || DocumentTextIcon;
               

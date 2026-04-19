@@ -150,8 +150,8 @@ class ReferralService {
       }
 
       return referral;
-    } catch (error) {
-      logger.error('Error creating referral', error);
+    } catch (error: unknown) {
+      logger.error('Error creating referral', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -181,8 +181,8 @@ class ReferralService {
       }
 
       return referral;
-    } catch (error) {
-      logger.error('Error tracking referral click', error);
+    } catch (error: unknown) {
+      logger.error('Error tracking referral click', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -264,8 +264,8 @@ class ReferralService {
       });
 
       return updatedReferral;
-    } catch (error) {
-      logger.error('Error tracking referral signup', error);
+    } catch (error: unknown) {
+      logger.error('Error tracking referral signup', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -334,8 +334,8 @@ class ReferralService {
       });
 
       return updatedReferral;
-    } catch (error) {
-      logger.error('Error tracking referral first request', error);
+    } catch (error: unknown) {
+      logger.error('Error tracking referral first request', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -382,8 +382,8 @@ class ReferralService {
       };
 
       return stats;
-    } catch (error) {
-      logger.error('Error getting referral stats', error);
+    } catch (error: unknown) {
+      logger.error('Error getting referral stats', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -431,8 +431,8 @@ Link diretto: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/signup?ref=
 
 Che ne dici di provarlo? 😊`
       };
-    } catch (error) {
-      logger.error('Error getting referral code', error);
+    } catch (error: unknown) {
+      logger.error('Error getting referral code', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -481,8 +481,8 @@ Che ne dici di provarlo? 😊`
       logger.info('Points added to user', { userId, points, type, newTotal: userPoints.points + points });
 
       return userPoints;
-    } catch (error) {
-      logger.error('Error adding points to user', error);
+    } catch (error: unknown) {
+      logger.error('Error adding points to user', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -508,8 +508,8 @@ Che ne dici di provarlo? 😊`
       });
 
       return expiredReferrals.count;
-    } catch (error) {
-      logger.error('Error cleaning up expired referrals', error);
+    } catch (error: unknown) {
+      logger.error('Error cleaning up expired referrals', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -559,8 +559,8 @@ Che ne dici di provarlo? 😊`
           referee: r.User_Referral_refereeIdToUser
         }))
       };
-    } catch (error) {
-      logger.error('Error getting global referral analytics', error);
+    } catch (error: unknown) {
+      logger.error('Error getting global referral analytics', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

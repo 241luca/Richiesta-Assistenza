@@ -247,7 +247,11 @@ function ScriptManagerInner() {
     
     const output = outputs[selectedScript];
     const cleanOutput = stripHtmlTags(output.output + '\n' + output.errors);
-    const content = `Script: ${selectedScript}\nTimestamp: ${output.timestamp}\nExit Code: ${output.exitCode}\n\n${cleanOutput}`;
+    const content = `Script: ${selectedScript}
+Timestamp: ${output.timestamp}
+Exit Code: ${output.exitCode}
+
+${cleanOutput}`;
     
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -311,8 +315,8 @@ function ScriptManagerInner() {
     setIsFullscreen(!isFullscreen);
   };
 
-  const getScriptIcon = (scriptName: string) => {
-    const icons: Record<string, JSX.Element> = {
+  const getScriptIcon = (scriptName: string): React.ReactElement => {
+    const icons: Record<string, React.ReactElement> = {
       'check-system': <ArrowPathIcon className="w-5 h-5" />,
       'pre-commit-check': <CheckCircleIcon className="w-5 h-5" />,
       'validate-work': <ExclamationTriangleIcon className="w-5 h-5" />,

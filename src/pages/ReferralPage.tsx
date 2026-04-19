@@ -76,7 +76,17 @@ export const ReferralPage = () => {
   const shareViaEmail = () => {
     if (!referralData) return;
     const subject = encodeURIComponent('Ti consiglio questo servizio!');
-    const body = encodeURIComponent(`Ciao!\n\nTi consiglio questo fantastico servizio di assistenza!\n\nUsa il mio codice invito: ${referralData.code}\n\nLink diretto: ${referralData.link}\n\nRiceverai punti bonus alla registrazione!\n\nA presto! 😊`);
+    const body = encodeURIComponent(`Ciao!
+
+Ti consiglio questo fantastico servizio di assistenza!
+
+Usa il mio codice invito: ${referralData.code}
+
+Link diretto: ${referralData.link}
+
+Riceverai punti bonus alla registrazione!
+
+A presto! 😊`);
     window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
   };
 
@@ -267,7 +277,7 @@ export const ReferralPage = () => {
         </div>
 
         {/* 📈 Grafico semplice percentuali */}
-        {stats?.total > 0 && (
+        {(stats?.total || 0) > 0 && (
           <div className="mt-6">
             <h3 className="font-semibold mb-3">Tasso di Conversione</h3>
             <div className="w-full bg-gray-200 rounded-full h-4">

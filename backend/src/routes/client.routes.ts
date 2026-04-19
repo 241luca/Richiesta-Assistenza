@@ -48,7 +48,7 @@ router.get('/pending-forms', authenticate, async (req, res) => {
       pendingForms,
       `${pendingForms.length} moduli pendenti trovati`
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore nel recupero dei form pendenti:', error);
     return res.status(500).json(
       ResponseFormatter.error('Errore nel recupero dei moduli pendenti')

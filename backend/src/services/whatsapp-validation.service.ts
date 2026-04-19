@@ -78,7 +78,7 @@ export class WhatsAppValidationService {
       
       // 5. Determina il paese e aggiungi prefisso se necessario
       const country = options.country || 'IT'; // Default Italia
-      const countryPrefix = this.countryPrefixes[country] || '39';
+      const countryPrefix = (this.countryPrefixes as any)[country] || '39';
       
       // Se il numero non inizia con un prefisso internazionale, aggiungi quello del paese
       if (!this.hasInternationalPrefix(cleanNumber)) {
@@ -123,12 +123,12 @@ export class WhatsAppValidationService {
       };
       
     } catch (error: any) {
-      logger.error('❌ Errore validazione numero:', error);
+      logger.error('❌ Errore validazione numero:', error instanceof Error ? error.message : String(error));
       return {
         isValid: false,
         formatted: '',
         country: '',
-        error: error.message || 'Errore durante la validazione'
+        error: error instanceof Error ? error.message : String(error) || 'Errore durante la validazione'
       };
     }
   }
@@ -183,8 +183,8 @@ export class WhatsAppValidationService {
       logger.info(`📱 Check WhatsApp per ${phoneNumber} - assumo attivo`);
       return true;
       
-    } catch (error) {
-      logger.error('Errore check WhatsApp status:', error);
+    } catch (error: unknown) {
+      logger.error('Errore check WhatsApp status:', error instanceof Error ? error.message : String(error));
       return false;
     }
   }
@@ -285,11 +285,11 @@ export class WhatsAppValidationService {
           isUser: true,
           syncedAt: new Date()
         }
-      });
+      } as any);
       
       logger.info(`💾 Numero salvato/aggiornato: ${validatedNumber.formatted}`);
-    } catch (error) {
-      logger.error('Errore salvataggio numero validato:', error);
+    } catch (error: unknown) {
+      logger.error('Errore salvataggio numero validato:', error instanceof Error ? error.message : String(error));
     }
   }
 }

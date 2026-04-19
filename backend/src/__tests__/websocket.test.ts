@@ -114,7 +114,7 @@ describe('WebSocket Authentication', () => {
       });
 
       invalidSocket.on('connect_error', (error) => {
-        expect(error.message).toContain('Authentication failed');
+        expect(error instanceof Error ? error.message : String(error)).toContain('Authentication failed');
         invalidSocket.disconnect();
         done();
       });
@@ -132,7 +132,7 @@ describe('WebSocket Authentication', () => {
       });
 
       noTokenSocket.on('connect_error', (error) => {
-        expect(error.message).toContain('Authentication token missing');
+        expect(error instanceof Error ? error.message : String(error)).toContain('Authentication token missing');
         noTokenSocket.disconnect();
         done();
       });
@@ -158,7 +158,7 @@ describe('WebSocket Authentication', () => {
       });
 
       expiredSocket.on('connect_error', (error) => {
-        expect(error.message).toContain('Authentication failed');
+        expect(error instanceof Error ? error.message : String(error)).toContain('Authentication failed');
         expiredSocket.disconnect();
         done();
       });

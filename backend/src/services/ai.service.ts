@@ -79,9 +79,9 @@ class AiService {
       } else {
         logger.warn('[AiService] ⚠️ OpenAI API key not found or inactive');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[AiService] Error initializing OpenAI:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         stack: error instanceof Error ? error.stack : undefined
       });
     }
@@ -159,9 +159,9 @@ class AiService {
         model: 'gpt-3.5-turbo',
         tokensUsed: completion.usage?.total_tokens || 0
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[AiService] Error sending message to AI:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         recipientId: chatRequest.recipientId,
         conversationType: chatRequest.conversationType,
         stack: error instanceof Error ? error.stack : undefined
@@ -251,14 +251,14 @@ export async function generateAIResponse(
     logger.info('[AiService] AI response generated', {
       promptLength: prompt.length,
       responseLength: response.length,
-      tokensUsed: completion.usage?.total_tokens || 0
+      tokensUsed: (completion as any).usage?.total_tokens || 0
     });
 
     // ✅ RETURN PURE DATA (string)
     return response;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[AiService] Error generating AI response:', {
-      error: error instanceof Error ? error.message : 'Unknown',
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
       promptLength: prompt.length,
       model,
       stack: error instanceof Error ? error.stack : undefined
@@ -312,9 +312,9 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
 
     // ✅ RETURN PURE DATA (array)
     return embedding;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[AiService] Error generating embedding:', {
-      error: error instanceof Error ? error.message : 'Unknown',
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
       textLength: text.length,
       stack: error instanceof Error ? error.stack : undefined
     });

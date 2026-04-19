@@ -24,8 +24,8 @@ router.get('/contacts', authenticate, async (req: any, res: Response) => {
         isBlocked: false,
         isFavorite: false,
         lastMessageAt: new Date(),
-        user: null,
-        professional: null
+        user: null as any,
+        professional: null as any
       },
       {
         id: '2',
@@ -47,7 +47,7 @@ router.get('/contacts', authenticate, async (req: any, res: Response) => {
     return res.json(ResponseFormatter.success(mockContacts, 'Contatti recuperati (mock)'));
     
   } catch (error: any) {
-    logger.error('Errore recupero contatti:', error);
+    logger.error('Errore recupero contatti:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Errore recupero contatti', 'FETCH_CONTACTS_ERROR')
     );
@@ -73,14 +73,14 @@ router.get('/contacts/:id', authenticate, async (req: any, res: Response) => {
       isBlocked: false,
       isFavorite: false,
       lastMessageAt: new Date(),
-      messages: [],
-      user: null,
-      professional: null
+      messages: [] as any[],
+      user: null as any,
+      professional: null as any
     };
     
     return res.json(ResponseFormatter.success(mockContact, 'Contatto recuperato'));
   } catch (error: any) {
-    logger.error('Errore recupero contatto:', error);
+    logger.error('Errore recupero contatto:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Errore recupero contatto', 'FETCH_CONTACT_ERROR')
     );
@@ -100,7 +100,7 @@ router.put('/contacts/:id', authenticate, async (req: any, res: Response) => {
     
     return res.json(ResponseFormatter.success({ id, ...updates }, 'Contatto aggiornato'));
   } catch (error: any) {
-    logger.error('Errore aggiornamento contatto:', error);
+    logger.error('Errore aggiornamento contatto:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Errore aggiornamento contatto', 'UPDATE_CONTACT_ERROR')
     );
@@ -122,7 +122,7 @@ router.put('/contacts/:id/link', authenticate, async (req: any, res: Response) =
       'Contatto collegato con successo'
     ));
   } catch (error: any) {
-    logger.error('Errore collegamento contatto:', error);
+    logger.error('Errore collegamento contatto:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Errore collegamento contatto', 'LINK_CONTACT_ERROR')
     );
@@ -140,7 +140,7 @@ router.delete('/contacts/:id/link', authenticate, async (req: any, res: Response
     
     return res.json(ResponseFormatter.success({ id }, 'Collegamento rimosso'));
   } catch (error: any) {
-    logger.error('Errore rimozione collegamento:', error);
+    logger.error('Errore rimozione collegamento:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Errore rimozione collegamento', 'UNLINK_CONTACT_ERROR')
     );
@@ -159,7 +159,7 @@ router.post('/contacts/sync', authenticate, async (req: any, res: Response) => {
       `Sincronizzazione completata (mock)`
     ));
   } catch (error: any) {
-    logger.error('Errore sincronizzazione contatti:', error);
+    logger.error('Errore sincronizzazione contatti:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Errore sincronizzazione contatti', 'SYNC_CONTACTS_ERROR')
     );
@@ -182,7 +182,7 @@ router.get('/contacts/stats/summary', authenticate, async (req: any, res: Respon
     
     return res.json(ResponseFormatter.success(stats, 'Statistiche contatti (mock)'));
   } catch (error: any) {
-    logger.error('Errore recupero statistiche:', error);
+    logger.error('Errore recupero statistiche:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Errore recupero statistiche', 'STATS_ERROR')
     );

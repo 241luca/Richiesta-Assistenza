@@ -100,8 +100,8 @@ router.get('/:professionalId/:subcategoryId', authenticate, async (req: any, res
       formattedDocuments,
       'Documenti recuperati con successo'
     ));
-  } catch (error) {
-    logger.error('Error fetching knowledge base:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching knowledge base:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error(
         'Errore nel recupero dei documenti',
@@ -151,7 +151,7 @@ router.post('/:professionalId/:subcategoryId/upload',
           uploadedBy: req.user.id,
           isProcessed: false,
           isActive: true
-        }
+        } as any
       });
 
       logger.info(`Document saved to database with id ${document.id}`);
@@ -168,8 +168,8 @@ router.post('/:professionalId/:subcategoryId/upload',
         formattedDocument,
         'Documento caricato con successo'
       ));
-    } catch (error) {
-      logger.error('Error uploading document:', error);
+    } catch (error: unknown) {
+      logger.error('Error uploading document:', error instanceof Error ? error.message : String(error));
       
       // Se c'è stato un errore, elimina il file caricato
       if (req.file?.path && fs.existsSync(req.file.path)) {
@@ -234,8 +234,8 @@ router.delete('/:professionalId/:subcategoryId/:documentId',
         { deleted: true, documentId },
         'Documento eliminato con successo'
       ));
-    } catch (error) {
-      logger.error('Error deleting document:', error);
+    } catch (error: unknown) {
+      logger.error('Error deleting document:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error(
           'Errore nell\'eliminazione del documento',
@@ -273,8 +273,8 @@ router.post('/:professionalId/:subcategoryId/process',
         result,
         'Knowledge base processata con successo'
       ));
-    } catch (error) {
-      logger.error('Error processing knowledge base:', error);
+    } catch (error: unknown) {
+      logger.error('Error processing knowledge base:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error(
           'Errore nel processamento dei documenti',
@@ -311,8 +311,8 @@ router.get('/stats/:professionalId', authenticate, async (req: any, res) => {
       stats,
       'Statistiche recuperate con successo'
     ));
-  } catch (error) {
-    logger.error('Error getting knowledge base stats:', error);
+  } catch (error: unknown) {
+    logger.error('Error getting knowledge base stats:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error(
         'Errore nel recupero delle statistiche',

@@ -247,7 +247,7 @@ export default function ClientPaymentsPage() {
             <div>
               <p className="text-sm font-medium text-gray-600">Documenti</p>
               <p className="text-2xl font-bold text-gray-900">
-                {payments.filter(p => p.invoice || p.receipt).length}
+                {payments.filter((p: any) => p.invoice || p.receipt).length}
               </p>
             </div>
             <DocumentTextIcon className="h-12 w-12 text-gray-500" />
@@ -352,7 +352,7 @@ export default function ClientPaymentsPage() {
                   </td>
                 </tr>
               ) : (
-                payments.map((payment) => (
+                payments.map((payment: any) => (
                   <tr key={payment.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {format(new Date(payment.paidAt || payment.createdAt), 'dd/MM/yyyy', { locale: it })}

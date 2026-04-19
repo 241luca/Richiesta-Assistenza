@@ -28,8 +28,8 @@ export async function getCleanupConfig(id?: string) {
     }
 
     return config;
-  } catch (error) {
-    logger.error('Errore nel recupero configurazione cleanup:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero configurazione cleanup:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -43,8 +43,8 @@ export async function getAllCleanupConfigs() {
         { createdAt: 'desc' }
       ]
     });
-  } catch (error) {
-    logger.error('Errore nel recupero configurazioni:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero configurazioni:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -70,8 +70,8 @@ export async function createCleanupConfig(data: any) {
 
     logger.info('Configurazione cleanup creata:', config.name);
     return config;
-  } catch (error) {
-    logger.error('Errore nella creazione configurazione:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nella creazione configurazione:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -100,8 +100,8 @@ export async function updateCleanupConfig(id: string, data: any) {
 
     logger.info('Configurazione cleanup aggiornata:', config.name);
     return config;
-  } catch (error) {
-    logger.error('Errore nell\'aggiornamento configurazione:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'aggiornamento configurazione:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -130,8 +130,8 @@ export async function deleteCleanupConfig(id: string) {
 
     logger.info('Configurazione cleanup eliminata:', id);
     return { success: true };
-  } catch (error) {
-    logger.error('Errore nell\'eliminazione configurazione:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'eliminazione configurazione:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -153,7 +153,7 @@ async function createDefaultConfig() {
       createReadme: true,
       preserveStructure: true,
       notifyOnCleanup: true
-    }
+    } as any
   });
 }
 
@@ -173,8 +173,8 @@ export async function getCleanupPatterns(includeInactive = false) {
         { pattern: 'asc' }
       ]
     });
-  } catch (error) {
-    logger.error('Errore nel recupero pattern:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero pattern:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -185,8 +185,8 @@ export async function getCleanupPattern(id: string) {
     return await prisma.cleanupPattern.findUnique({
       where: { id }
     });
-  } catch (error) {
-    logger.error('Errore nel recupero pattern:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero pattern:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -204,8 +204,8 @@ export async function createCleanupPattern(data: any) {
 
     logger.info('Pattern cleanup creato:', pattern.pattern);
     return pattern;
-  } catch (error) {
-    logger.error('Errore nella creazione pattern:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nella creazione pattern:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -223,8 +223,8 @@ export async function updateCleanupPattern(id: string, data: any) {
 
     logger.info('Pattern cleanup aggiornato:', pattern.pattern);
     return pattern;
-  } catch (error) {
-    logger.error('Errore nell\'aggiornamento pattern:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'aggiornamento pattern:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -238,8 +238,8 @@ export async function deleteCleanupPattern(id: string) {
 
     logger.info('Pattern cleanup eliminato:', id);
     return { success: true };
-  } catch (error) {
-    logger.error('Errore nell\'eliminazione pattern:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'eliminazione pattern:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -257,8 +257,8 @@ export async function getCleanupExcludedFiles(includeInactive = false) {
       where,
       orderBy: { fileName: 'asc' }
     });
-  } catch (error) {
-    logger.error('Errore nel recupero file esclusi:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero file esclusi:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -269,8 +269,8 @@ export async function getCleanupExcludedFile(id: string) {
     return await prisma.cleanupExcludeFile.findUnique({
       where: { id }
     });
-  } catch (error) {
-    logger.error('Errore nel recupero file escluso:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero file escluso:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -288,8 +288,8 @@ export async function createCleanupExcludedFile(data: any) {
 
     logger.info('File escluso creato:', file.fileName);
     return file;
-  } catch (error) {
-    logger.error('Errore nella creazione file escluso:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nella creazione file escluso:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -307,8 +307,8 @@ export async function updateCleanupExcludedFile(id: string, data: any) {
 
     logger.info('File escluso aggiornato:', file.fileName);
     return file;
-  } catch (error) {
-    logger.error('Errore nell\'aggiornamento file escluso:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'aggiornamento file escluso:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -322,8 +322,8 @@ export async function deleteCleanupExcludedFile(id: string) {
 
     logger.info('File escluso eliminato:', id);
     return { success: true };
-  } catch (error) {
-    logger.error('Errore nell\'eliminazione file escluso:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'eliminazione file escluso:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -341,8 +341,8 @@ export async function getCleanupExcludedDirectories(includeInactive = false) {
       where,
       orderBy: { directory: 'asc' }
     });
-  } catch (error) {
-    logger.error('Errore nel recupero directory escluse:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero directory escluse:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -353,8 +353,8 @@ export async function getCleanupExcludedDirectory(id: string) {
     return await prisma.cleanupExcludeDirectory.findUnique({
       where: { id }
     });
-  } catch (error) {
-    logger.error('Errore nel recupero directory esclusa:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero directory esclusa:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -372,8 +372,8 @@ export async function createCleanupExcludedDirectory(data: any) {
 
     logger.info('Directory esclusa creata:', dir.directory);
     return dir;
-  } catch (error) {
-    logger.error('Errore nella creazione directory esclusa:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nella creazione directory esclusa:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -391,8 +391,8 @@ export async function updateCleanupExcludedDirectory(id: string, data: any) {
 
     logger.info('Directory esclusa aggiornata:', dir.directory);
     return dir;
-  } catch (error) {
-    logger.error('Errore nell\'aggiornamento directory esclusa:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'aggiornamento directory esclusa:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -406,8 +406,8 @@ export async function deleteCleanupExcludedDirectory(id: string) {
 
     logger.info('Directory esclusa eliminata:', id);
     return { success: true };
-  } catch (error) {
-    logger.error('Errore nell\'eliminazione directory esclusa:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'eliminazione directory esclusa:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }

@@ -332,7 +332,7 @@ export default function LegalDocumentDetailPage() {
                   {sortedVersions && sortedVersions.length > 0 ? (
                     <div className="divide-y divide-gray-200">
                       {sortedVersions.map((version: any) => {
-                        const statusConfig = versionStatusConfig[version.status];
+                        const statusConfig = (versionStatusConfig as any)[version.status];
                         const StatusIcon = statusConfig?.icon || ClockIcon;
                         const isExpanded = expandedVersion === version.id;
 

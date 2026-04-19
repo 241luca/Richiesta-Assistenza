@@ -224,7 +224,7 @@ export const CustomFormBuilder: React.FC<CustomFormBuilderProps> = ({
         description: form.description,
         subcategoryId: form.subcategoryId,
         displayType: form.displayType,
-        fields: formFields.map(field => ({
+        fields: formFields.map((field: any) => ({
           code: field.code,
           label: field.label,
           fieldType: field.fieldType,

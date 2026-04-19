@@ -140,7 +140,7 @@ export async function execute(params: SecurityAuditParams = { checkType: 'full' 
     };
     
   } catch (error: any) {
-    logger.error('❌ Security audit failed:', error);
+    logger.error('❌ Security audit failed:', error instanceof Error ? error.message : String(error));
     throw error;
   } finally {
     await prisma.$disconnect();

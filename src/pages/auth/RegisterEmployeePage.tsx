@@ -46,8 +46,10 @@ export function RegisterEmployeePage() {
 
   // Cerca azienda per P.IVA o Ragione Sociale
   const searchMutation = useMutation({
-    mutationFn: (query: string) => 
-      api.get(`/companies/search?q=${encodeURIComponent(query)}`),
+    mutationFn: async (query: string) => {
+      const response = await api.get(`/companies/search?q=${encodeURIComponent(query)}`);
+      return response.data.data || response.data;
+    },
     onSuccess: (data) => {
       if (data.length === 0) {
         toast.error('Nessuna azienda trovata');

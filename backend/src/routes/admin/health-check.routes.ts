@@ -94,7 +94,7 @@ router.get('/summary', async (req: Request, res: Response): Promise<Response> =>
     console.log(`[API] Returning summary with ${summary.modules.length} modules`);
     return res.json(ResponseFormatter.success(summary, 'Last health check summary'));
   } catch (error: unknown) {
-    logger.error('Error getting health summary:', error);
+    logger.error('Error getting health summary:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to get health summary', 'SUMMARY_ERROR')
     );
@@ -105,7 +105,7 @@ router.get('/summary', async (req: Request, res: Response): Promise<Response> =>
  * GET /api/admin/health-check/status
  * Ottiene lo stato dettagliato di tutti i servizi per il ServiceStatusIndicator
  */
-router.get('/status', async (req: Request & { app: any }, res: Response): Promise<Response> => {
+router.get('/status', async (req: Request & { app: any }, res: Response): Promise<Response | void> => {
   try {
     const services: ServiceStatus[] = [];
     let overallStatus: 'healthy' | 'degraded' | 'critical' = 'healthy';
@@ -153,7 +153,7 @@ router.get('/status', async (req: Request & { app: any }, res: Response): Promis
         });
         if (overallStatus === 'healthy') overallStatus = 'degraded';
       }
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'Redis',
         status: 'offline',
@@ -194,7 +194,7 @@ router.get('/status', async (req: Request & { app: any }, res: Response): Promis
         overallStatus = 'degraded';
       }
     } catch (error: unknown) {
-      logger.error('Error checking WebSocket status:', error);
+      logger.error('Error checking WebSocket status:', error instanceof Error ? error.message : String(error));
       services.push({
         name: 'WebSocket',
         status: 'warning',
@@ -346,7 +346,7 @@ router.get('/status', async (req: Request & { app: any }, res: Response): Promis
     }));
 
   } catch (error: unknown) {
-    logger.error('Error checking system health:', error);
+    logger.error('Error checking system health:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Failed to check system health',
       'HEALTH_CHECK_ERROR'
@@ -377,7 +377,7 @@ router.get('/metrics/websocket', async (_req: Request, res: Response): Promise<R
     }
     return res.json(ResponseFormatter.success(ws, 'WebSocket metrics'));
   } catch (error: unknown) {
-    logger.error('Error getting WebSocket metrics:', error);
+    logger.error('Error getting WebSocket metrics:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to get WebSocket metrics', 'WEBSOCKET_METRICS_ERROR')
     );
@@ -461,7 +461,7 @@ router.get('/modules', async (req: Request, res: Response): Promise<Response> =>
     
     return res.json(ResponseFormatter.success(modules, 'Modules list retrieved'));
   } catch (error: unknown) {
-    logger.error('Error getting modules list:', error);
+    logger.error('Error getting modules list:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to get modules', 'MODULES_ERROR')
     );
@@ -507,7 +507,7 @@ router.post('/run', async (req: Request, res: Response): Promise<Response> => {
       return res.json(ResponseFormatter.success(result, 'All health checks executed'));
     }
   } catch (error: unknown) {
-    logger.error('Error running health check:', error);
+    logger.error('Error running health check:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to run health check', 'RUN_ERROR')
     );
@@ -523,7 +523,7 @@ router.post('/start', async (req: Request, res: Response): Promise<Response> => 
     await orchestrator.start();
     return res.json(ResponseFormatter.success(null, 'Automation system started'));
   } catch (error: unknown) {
-    logger.error('Error starting automation:', error);
+    logger.error('Error starting automation:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to start automation', 'START_ERROR')
     );
@@ -539,7 +539,7 @@ router.post('/stop', async (req: Request, res: Response): Promise<Response> => {
     await orchestrator.stop();
     return res.json(ResponseFormatter.success(null, 'Automation system stopped'));
   } catch (error: unknown) {
-    logger.error('Error stopping automation:', error);
+    logger.error('Error stopping automation:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to stop automation', 'STOP_ERROR')
     );
@@ -555,7 +555,7 @@ router.get('/schedule', async (req: Request, res: Response): Promise<Response> =
     const config = scheduler.getConfig();
     return res.json(ResponseFormatter.success(config, 'Schedule configuration retrieved'));
   } catch (error: unknown) {
-    logger.error('Error getting schedule config:', error);
+    logger.error('Error getting schedule config:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to get schedule', 'SCHEDULE_ERROR')
     );
@@ -572,7 +572,7 @@ router.put('/schedule', async (req: Request, res: Response): Promise<Response> =
     await scheduler.updateConfig(config);
     return res.json(ResponseFormatter.success(null, 'Schedule updated successfully'));
   } catch (error: unknown) {
-    logger.error('Error updating schedule:', error);
+    logger.error('Error updating schedule:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to update schedule', 'UPDATE_ERROR')
     );
@@ -593,7 +593,7 @@ router.post('/report', async (req: Request, res: Response): Promise<Response> =>
       'Report generated successfully'
     ));
   } catch (error: unknown) {
-    logger.error('Error generating report:', error);
+    logger.error('Error generating report:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to generate report', 'REPORT_ERROR')
     );
@@ -609,7 +609,7 @@ router.get('/report/history', async (req: Request, res: Response): Promise<Respo
     const history = await reportGenerator.getReportHistory();
     return res.json(ResponseFormatter.success(history, 'Report history retrieved'));
   } catch (error: unknown) {
-    logger.error('Error getting report history:', error);
+    logger.error('Error getting report history:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to get report history', 'HISTORY_ERROR')
     );
@@ -633,7 +633,7 @@ router.get('/download/:filename', async (req: Request, res: Response): Promise<R
     
     res.download(filepath);
   } catch (error: unknown) {
-    logger.error('Error downloading report:', error);
+    logger.error('Error downloading report:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to download report', 'DOWNLOAD_ERROR')
     );
@@ -648,8 +648,8 @@ router.get('/remediation', async (req: Request, res: Response): Promise<Response
   try {
     const rules = autoRemediation.getRules();
     return res.json(ResponseFormatter.success(rules, 'Remediation rules retrieved'));
-  } catch (error) {
-    logger.error('Error getting remediation rules:', error);
+  } catch (error: unknown) {
+    logger.error('Error getting remediation rules:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to get remediation rules', 'REMEDIATION_ERROR')
     );
@@ -665,8 +665,8 @@ router.post('/remediation', async (req: Request, res: Response): Promise<Respons
     const rule = req.body;
     await autoRemediation.addOrUpdateRule(rule);
     return res.json(ResponseFormatter.success(null, 'Remediation rule added'));
-  } catch (error) {
-    logger.error('Error adding remediation rule:', error);
+  } catch (error: unknown) {
+    logger.error('Error adding remediation rule:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to add remediation rule', 'ADD_RULE_ERROR')
     );
@@ -682,8 +682,8 @@ router.delete('/remediation/:id', async (req: Request, res: Response): Promise<R
     const { id } = req.params;
     await autoRemediation.removeRule(id);
     return res.json(ResponseFormatter.success(null, 'Remediation rule removed'));
-  } catch (error) {
-    logger.error('Error removing remediation rule:', error);
+  } catch (error: unknown) {
+    logger.error('Error removing remediation rule:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to remove remediation rule', 'REMOVE_RULE_ERROR')
     );
@@ -700,8 +700,8 @@ router.patch('/remediation/:id/toggle', async (req: Request, res: Response): Pro
     const { enabled } = req.body;
     await autoRemediation.toggleRule(id, enabled);
     return res.json(ResponseFormatter.success(null, 'Remediation rule toggled'));
-  } catch (error) {
-    logger.error('Error toggling remediation rule:', error);
+  } catch (error: unknown) {
+    logger.error('Error toggling remediation rule:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to toggle remediation rule', 'TOGGLE_ERROR')
     );
@@ -716,8 +716,8 @@ router.get('/performance', async (req: Request, res: Response): Promise<Response
   try {
     const metrics = await performanceMonitor.getCurrentMetrics();
     return res.json(ResponseFormatter.success(metrics, 'Performance metrics retrieved'));
-  } catch (error) {
-    logger.error('Error getting performance metrics:', error);
+  } catch (error: unknown) {
+    logger.error('Error getting performance metrics:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to get performance metrics', 'METRICS_ERROR')
     );
@@ -736,8 +736,8 @@ router.get('/performance/history', async (req: Request, res: Response): Promise<
       endDate as string
     );
     return res.json(ResponseFormatter.success(history, 'Performance history retrieved'));
-  } catch (error) {
-    logger.error('Error getting performance history:', error);
+  } catch (error: unknown) {
+    logger.error('Error getting performance history:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to get performance history', 'PERF_HISTORY_ERROR')
     );
@@ -757,8 +757,8 @@ router.post('/export', async (req: Request, res: Response): Promise<Response> =>
     res.setHeader('Content-Disposition', `attachment; filename=health-check-export.${format}`);
     
     return res.send(data);
-  } catch (error) {
-    logger.error('Error exporting data:', error);
+  } catch (error: unknown) {
+    logger.error('Error exporting data:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to export data', 'EXPORT_ERROR')
     );
@@ -776,8 +776,8 @@ router.get('/history', async (req: Request, res: Response): Promise<Response> =>
     const history = await orchestrator.getHistory(undefined, Number(limit));
     
     return res.json(ResponseFormatter.success(history, 'History retrieved'));
-  } catch (error) {
-    logger.error('Error getting history:', error);
+  } catch (error: unknown) {
+    logger.error('Error getting history:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to get history', 'HISTORY_ERROR')
     );
@@ -796,8 +796,8 @@ router.get('/history/:module', async (req: Request, res: Response): Promise<Resp
     const history = await orchestrator.getHistory(module, Number(limit));
     
     return res.json(ResponseFormatter.success(history, 'Module history retrieved'));
-  } catch (error) {
-    logger.error('Error getting module history:', error);
+  } catch (error: unknown) {
+    logger.error('Error getting module history:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to get module history', 'HISTORY_ERROR')
     );

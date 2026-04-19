@@ -15,10 +15,39 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 
+// Tipi per Knowledge Base
+interface Article {
+  id: string;
+  title: string;
+  content: string;
+  category?: string;
+  tags?: string[];
+  imageUrl?: string;
+  videoUrl?: string;
+  views: number;
+  helpful: number;
+  notHelpful: number;
+  authorUser?: {
+    fullName: string;
+  };
+}
+
+interface Category {
+  name: string;
+  count: number;
+}
+
+interface ArticlesData {
+  articles: Article[];
+  pagination?: {
+    total: number;
+  };
+}
+
 export default function KnowledgeBase() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedArticle, setSelectedArticle] = useState(null);
+  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [articleForm, setArticleForm] = useState({
     title: '',
@@ -32,34 +61,46 @@ export default function KnowledgeBase() {
   const queryClient = useQueryClient();
 
   // Query per gli articoli
-  const { data: articlesData, isLoading } = useQuery({
+  const { data: articlesData, isLoading } = useQuery<ArticlesData>({
     queryKey: ['kb-articles', searchQuery, selectedCategory],
-    queryFn: () => api.get('/kb/articles', {
-      params: {
-        search: searchQuery,
-        category: selectedCategory
-      }
-    })
+    queryFn: async () => {
+      const response = await api.get('/kb/articles', {
+        params: {
+          search: searchQuery,
+          category: selectedCategory
+        }
+      });
+      return response.data;
+    }
   });
 
   // Query per le categorie
-  const { data: categories } = useQuery({
+  const { data: categories } = useQuery<Category[]>({
     queryKey: ['kb-categories'],
-    queryFn: () => api.get('/kb/categories')
+    queryFn: async () => {
+      const response = await api.get('/kb/categories');
+      return response.data;
+    }
   });
 
   // Query per articoli popolari
-  const { data: popularArticles } = useQuery({
+  const { data: popularArticles } = useQuery<Article[]>({
     queryKey: ['kb-popular'],
-    queryFn: () => api.get('/kb/popular')
+    queryFn: async () => {
+      const response = await api.get('/kb/popular');
+      return response.data;
+    }
   });
 
   // Mutation per creare articolo
   const createArticleMutation = useMutation({
-    mutationFn: (data) => api.post('/kb/articles', data),
+    mutationFn: async (data: Omit<typeof articleForm, 'tags'> & { tags: string[]; published: boolean }) => {
+      const response = await api.post('/kb/articles', data);
+      return response.data;
+    },
     onSuccess: () => {
       toast.success('Articolo creato con successo!');
-      queryClient.invalidateQueries(['kb-articles']);
+      queryClient.invalidateQueries({ queryKey: ['kb-articles'] });
       setShowCreateForm(false);
       setArticleForm({
         title: '',
@@ -78,10 +119,13 @@ export default function KnowledgeBase() {
 
   // Mutation per feedback
   const feedbackMutation = useMutation({
-    mutationFn: (data) => api.post('/kb/feedback', data),
+    mutationFn: async (data: { articleId: string; helpful: boolean }) => {
+      const response = await api.post('/kb/feedback', data);
+      return response.data;
+    },
     onSuccess: () => {
       toast.success('Grazie per il tuo feedback!');
-      queryClient.invalidateQueries(['kb-articles']);
+      queryClient.invalidateQueries({ queryKey: ['kb-articles'] });
     },
     onError: (error) => {
       toast.error('Errore invio feedback');
@@ -89,7 +133,7 @@ export default function KnowledgeBase() {
     }
   });
 
-  const handleCreateArticle = (e) => {
+  const handleCreateArticle = (e: React.FormEvent) => {
     e.preventDefault();
     const tags = articleForm.tags.split(',').map(t => t.trim()).filter(t => t);
     createArticleMutation.mutate({
@@ -99,7 +143,7 @@ export default function KnowledgeBase() {
     });
   };
 
-  const handleFeedback = (articleId, helpful) => {
+  const handleFeedback = (articleId: string, helpful: boolean) => {
     feedbackMutation.mutate({
       articleId,
       helpful
@@ -147,7 +191,7 @@ export default function KnowledgeBase() {
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Tutte le categorie</option>
-              {categories?.map(cat => (
+              {categories?.map((cat: Category) => (
                 <option key={cat.name} value={cat.name}>
                   {cat.name} ({cat.count})
                 </option>
@@ -173,7 +217,7 @@ export default function KnowledgeBase() {
               </div>
             ) : (
               <div className="space-y-4">
-                {articles.map(article => (
+                {articles.map((article: Article) => (
                   <div
                     key={article.id}
                     className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6 cursor-pointer"
@@ -217,7 +261,7 @@ export default function KnowledgeBase() {
 
                     {article.tags && article.tags.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {article.tags.map(tag => (
+                        {article.tags.map((tag: string) => (
                           <span
                             key={tag}
                             className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full"
@@ -242,7 +286,7 @@ export default function KnowledgeBase() {
                 Articoli Popolari
               </h3>
               <div className="space-y-3">
-                {popularArticles?.slice(0, 5).map(article => (
+                {popularArticles?.slice(0, 5).map((article: Article) => (
                   <div
                     key={article.id}
                     className="cursor-pointer hover:text-blue-600"

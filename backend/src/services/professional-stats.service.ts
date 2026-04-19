@@ -101,8 +101,8 @@ class ProfessionalStatsService {
       logger.info(`Stats calculated for professional ${professionalId}:`, stats);
       
       return stats;
-    } catch (error) {
-      logger.error('Error calculating professional stats:', error);
+    } catch (error: unknown) {
+      logger.error('Error calculating professional stats:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -130,8 +130,8 @@ class ProfessionalStatsService {
         totalReviews,
         isActive: completedJobs > 0
       };
-    } catch (error) {
-      logger.error('Error calculating quick stats:', error);
+    } catch (error: unknown) {
+      logger.error('Error calculating quick stats:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -150,8 +150,8 @@ class ProfessionalStatsService {
       logger.info(`Stats cache updated for professional ${professionalId}`);
       
       return stats;
-    } catch (error) {
-      logger.error('Error updating stats cache:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating stats cache:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

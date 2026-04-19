@@ -65,8 +65,8 @@ router.post('/webhook/:instance', async (req, res) => {
     // Evolution API si aspetta una risposta 200
     return res.status(200).json({ success: true });
     
-  } catch (error) {
-    logger.error('Webhook error:', error);
+  } catch (error: unknown) {
+    logger.error('Webhook error:', error instanceof Error ? error.message : String(error));
     return res.status(200).json({ success: true }); // Sempre 200 per Evolution
   }
 });
@@ -97,8 +97,8 @@ router.get('/qrcode/:instance', async (req, res) => {
       timestamp: qrData.timestamp
     }));
     
-  } catch (error) {
-    logger.error('Get QR error:', error);
+  } catch (error: unknown) {
+    logger.error('Get QR error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to get QR code', 'QR_ERROR')
     );
@@ -119,8 +119,8 @@ router.post('/setup-webhook', async (req, res) => {
       events: ['QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_UPSERT']
     }));
     
-  } catch (error) {
-    logger.error('Setup webhook error:', error);
+  } catch (error: unknown) {
+    logger.error('Setup webhook error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to setup webhook', 'WEBHOOK_ERROR')
     );

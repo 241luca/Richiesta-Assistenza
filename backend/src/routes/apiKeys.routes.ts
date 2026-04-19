@@ -78,8 +78,8 @@ router.get('/', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req,
     }
 
     return res.json(ResponseFormatter.success(transformedKeys, 'API Keys retrieved successfully'));
-  } catch (error) {
-    logger.error('Get API keys error:', error);
+  } catch (error: unknown) {
+    logger.error('Get API keys error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to retrieve API keys')
     );
@@ -160,8 +160,8 @@ router.post('/', authenticate, requireRole(['SUPER_ADMIN']), async (req, res) =>
     });
 
     return res.json(ResponseFormatter.success(apiKey, 'API Key created successfully'));
-  } catch (error) {
-    logger.error('Create API key error:', error);
+  } catch (error: unknown) {
+    logger.error('Create API key error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to create API key')
     );
@@ -217,8 +217,8 @@ router.put('/:id', authenticate, requireRole(['SUPER_ADMIN']), async (req, res) 
     });
 
     return res.json(ResponseFormatter.success(apiKey, 'API Key updated successfully'));
-  } catch (error) {
-    logger.error('Update API key error:', error);
+  } catch (error: unknown) {
+    logger.error('Update API key error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to update API key')
     );
@@ -244,8 +244,8 @@ router.post('/test-connection', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN
         ResponseFormatter.error('Stripe connection failed')
       );
     }
-  } catch (error) {
-    logger.error('Test connection error:', error);
+  } catch (error: unknown) {
+    logger.error('Test connection error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to test connection')
     );

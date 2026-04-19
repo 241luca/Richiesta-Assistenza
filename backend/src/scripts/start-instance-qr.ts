@@ -120,7 +120,7 @@ async function startInstanceAndGetQR() {
     }
     
   } catch (error: any) {
-    console.error('\n❌ Errore generale:', error.response?.data || error.message);
+    console.error('\n❌ Errore generale:', error.response?.data || error instanceof Error ? error.message : String(error));
   }
 }
 

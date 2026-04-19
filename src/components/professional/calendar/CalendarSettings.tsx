@@ -131,7 +131,7 @@ export default function CalendarSettings({ onClose }: CalendarSettingsProps) {
       colorScheme: {
         ...(prev.colorScheme || {}),
         [status]: color
-      }
+      } as any
     }));
   };
 

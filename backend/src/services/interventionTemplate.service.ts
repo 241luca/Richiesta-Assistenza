@@ -104,7 +104,7 @@ class InterventionTemplateService {
       }
       
       return filtered;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero template:', error);
       throw error;
     }
@@ -126,7 +126,7 @@ class InterventionTemplateService {
         ...template,
         fields
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero template:', error);
       throw error;
     }
@@ -144,14 +144,14 @@ class InterventionTemplateService {
         id: Date.now().toString(),
         ...data,
         version: 1,
-        createdBy: userId,
+        createdBy: recipientId,
         createdAt: new Date(),
         updatedAt: new Date()
       };
       
       console.log('Template creato:', template);
       return template;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore creazione template:', error);
       throw error;
     }
@@ -173,7 +173,7 @@ class InterventionTemplateService {
       
       console.log('Template aggiornato:', updated);
       return updated;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore aggiornamento template:', error);
       throw error;
     }
@@ -193,7 +193,7 @@ class InterventionTemplateService {
       
       console.log('Template eliminato:', id);
       return { success: true };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore eliminazione template:', error);
       throw error;
     }
@@ -209,14 +209,14 @@ class InterventionTemplateService {
         name: newName || `${original.name} (Copia)`,
         isDefault: false,
         isPublic: false,
-        createdBy: userId,
+        createdBy: recipientId,
         createdAt: new Date(),
         version: 1
       };
       
       console.log('Template clonato:', clone);
       return clone;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore clonazione template:', error);
       throw error;
     }
@@ -325,7 +325,7 @@ class InterventionTemplateService {
           label: 'Descrizione Intervento',
           placeholder: 'Descrivi l\'intervento effettuato',
           helpText: 'Inserisci una descrizione dettagliata del lavoro svolto',
-          tooltip: null,
+          tooltip: null as string | null,
           fieldTypeId: '2', // textarea
           sectionCode: 'intervention',
           displayOrder: 4,
@@ -338,8 +338,8 @@ class InterventionTemplateService {
           showOnPDF: true,
           showOnClient: true,
           showOnMobile: true,
-          defaultValue: null,
-          possibleValues: null,
+          defaultValue: null as string | null,
+          possibleValues: null as any,
           validationRules: {
             minLength: 10,
             maxLength: 2000
@@ -347,10 +347,10 @@ class InterventionTemplateService {
           config: {
             rows: 5
           },
-          dependencies: null,
-          calculations: null,
-          showIf: null,
-          requiredIf: null
+          dependencies: null as any,
+          calculations: null as any,
+          showIf: null as any,
+          requiredIf: null as any
         },
         {
           id: '5',
@@ -450,7 +450,7 @@ class InterventionTemplateService {
       ];
       
       return fields.filter(f => f.templateId === templateId);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero campi template:', error);
       throw error;
     }
@@ -476,7 +476,7 @@ class InterventionTemplateService {
       
       console.log('Campo aggiunto al template:', field);
       return field;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore aggiunta campo:', error);
       throw error;
     }
@@ -499,7 +499,7 @@ class InterventionTemplateService {
       
       console.log('Campo template aggiornato:', updated);
       return updated;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore aggiornamento campo:', error);
       throw error;
     }
@@ -516,7 +516,7 @@ class InterventionTemplateService {
       
       console.log('Campo eliminato dal template:', fieldId);
       return { success: true };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore eliminazione campo:', error);
       throw error;
     }
@@ -531,7 +531,7 @@ class InterventionTemplateService {
       console.log('Campi riordinati:', fieldOrders);
       
       return { success: true };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore riordino campi:', error);
       throw error;
     }

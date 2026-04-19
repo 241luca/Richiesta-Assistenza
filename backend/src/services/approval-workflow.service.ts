@@ -26,8 +26,8 @@ export class ApprovalWorkflowService {
       });
 
       return workflows;
-    } catch (error) {
-      logger.error('Error fetching approval workflows:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching approval workflows:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -46,8 +46,8 @@ export class ApprovalWorkflowService {
       }
 
       return workflow;
-    } catch (error) {
-      logger.error('Error fetching workflow:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching workflow:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -62,8 +62,8 @@ export class ApprovalWorkflowService {
       });
 
       return workflow;
-    } catch (error) {
-      logger.error('Error fetching workflow by name:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching workflow by name:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -126,7 +126,7 @@ export class ApprovalWorkflowService {
 
       return newWorkflow;
     } catch (error: any) {
-      logger.error('Error creating workflow:', error);
+      logger.error('Error creating workflow:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -195,7 +195,7 @@ export class ApprovalWorkflowService {
 
       return updatedWorkflow;
     } catch (error: any) {
-      logger.error('Error updating workflow:', error);
+      logger.error('Error updating workflow:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -224,7 +224,7 @@ export class ApprovalWorkflowService {
 
       return { success: true, message: 'Workflow deleted successfully' };
     } catch (error: any) {
-      logger.error('Error deleting workflow:', error);
+      logger.error('Error deleting workflow:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -259,7 +259,7 @@ export class ApprovalWorkflowService {
 
       return clonedWorkflow;
     } catch (error: any) {
-      logger.error('Error cloning workflow:', error);
+      logger.error('Error cloning workflow:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -344,8 +344,8 @@ export class ApprovalWorkflowService {
       }
 
       return simulation;
-    } catch (error) {
-      logger.error('Error simulating workflow:', error);
+    } catch (error: unknown) {
+      logger.error('Error simulating workflow:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -381,8 +381,8 @@ export class ApprovalWorkflowService {
         defaultCount,
         byDocumentType
       };
-    } catch (error) {
-      logger.error('Error getting workflow statistics:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting workflow statistics:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -407,10 +407,10 @@ export class ApprovalWorkflowService {
           newValues: newValues ? JSON.parse(JSON.stringify(newValues)) : null,
           userId,
           timestamp: new Date()
-        }
+        } as any
       });
-    } catch (error) {
-      logger.error('Error logging audit:', error);
+    } catch (error: unknown) {
+      logger.error('Error logging audit:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -419,7 +419,7 @@ export class ApprovalWorkflowService {
    */
   async initializeDefaultWorkflows(userId: string) {
     try {
-      const defaultWorkflows = [
+      const defaultWorkflows: any[] = [
         {
           name: 'Simple Approval',
           description: 'Workflow semplice con approvazione singola',
@@ -601,8 +601,8 @@ export class ApprovalWorkflowService {
         message: `Initialized ${created.length} default workflows`,
         created
       };
-    } catch (error) {
-      logger.error('Error initializing default workflows:', error);
+    } catch (error: unknown) {
+      logger.error('Error initializing default workflows:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

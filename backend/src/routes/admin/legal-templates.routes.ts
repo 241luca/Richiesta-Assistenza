@@ -25,12 +25,12 @@ router.get('/',
 
       // Se non ci sono template nel DB, ritorna template di default
       if (!templates || templates.length === 0) {
-        templates = getDefaultTemplates();
+        templates = getDefaultTemplates() as any;
       }
 
       return res.json(ResponseFormatter.success(templates));
     } catch (error: any) {
-      logger.error('Error fetching templates:', error);
+      logger.error('Error fetching templates:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch templates', 'FETCH_ERROR')
       );
@@ -57,7 +57,7 @@ router.get('/:type',
       // Se non esiste nel DB, usa il default
       if (!template) {
         const defaults = getDefaultTemplates();
-        template = defaults.find(t => t.type === type) || null;
+        template = (defaults.find(t => t.type === type) || null) as any;
       }
 
       if (!template) {
@@ -68,7 +68,7 @@ router.get('/:type',
 
       return res.json(ResponseFormatter.success(template));
     } catch (error: any) {
-      logger.error('Error fetching template:', error);
+      logger.error('Error fetching template:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch template', 'FETCH_ERROR')
       );
@@ -98,14 +98,14 @@ router.post('/',
           category: req.body.category || 'LEGAL',
           variables: req.body.variables || {},
           updatedAt: new Date()
-        }
+        } as any // Type assertion for Prisma input
       });
 
       return res.status(201).json(
         ResponseFormatter.success(newTemplate, 'Template created successfully')
       );
     } catch (error: any) {
-      logger.error('Error creating template:', error);
+      logger.error('Error creating template:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to create template', 'CREATE_ERROR')
       );
@@ -133,7 +133,7 @@ router.put('/:id',
         ResponseFormatter.success(updatedTemplate, 'Template updated successfully')
       );
     } catch (error: any) {
-      logger.error('Error updating template:', error);
+      logger.error('Error updating template:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to update template', 'UPDATE_ERROR')
       );
@@ -171,7 +171,7 @@ router.delete('/:id',
         ResponseFormatter.success(null, 'Template deleted successfully')
       );
     } catch (error: any) {
-      logger.error('Error deleting template:', error);
+      logger.error('Error deleting template:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to delete template', 'DELETE_ERROR')
       );

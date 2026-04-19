@@ -23,7 +23,7 @@ interface ProcessedImage {
 }
 
 export class FileService {
-  private readonly uploadsDir = path.join(process.cwd(), '..', 'uploads');
+  private readonly uploadsDir = path.join(process.cwd(), 'uploads');
   private readonly attachmentsDir = path.join(this.uploadsDir, 'attachments');
   private readonly thumbnailsDir = path.join(this.uploadsDir, 'thumbnails');
   
@@ -38,7 +38,7 @@ export class FileService {
     try {
       await fs.mkdir(this.attachmentsDir, { recursive: true });
       await fs.mkdir(this.thumbnailsDir, { recursive: true });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore creazione directory:', error);
     }
   }
@@ -78,7 +78,7 @@ export class FileService {
         filePath: `attachments/${fileName}`,
         thumbnailPath: `thumbnails/${thumbnailName}`
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore processing immagine:', error);
       // Se fallisce, ritorna percorso originale senza thumbnail
       return {
@@ -102,7 +102,7 @@ export class FileService {
         data: {
           id: uuidv4(), // Genera UUID per l'ID
           requestId,
-          recipientId: uploadedById, // Usa userId come definito nello schema
+          userId: uploadedById, // Usa userId come definito nello schema
           fileName: fileInfo.fileName,
           originalName: fileInfo.originalName,
           filePath: fileInfo.filePath,
@@ -120,7 +120,7 @@ export class FileService {
 
       // AGGIUNTO: Usa ResponseFormatter per output consistente
       return formatAttachment(attachment);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore salvataggio attachment:', error);
       throw error;
     }
@@ -134,7 +134,7 @@ export class FileService {
       const attachments = await prisma.requestAttachment.findMany({
         where: { requestId },
         include: {
-          user: {
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -148,7 +148,7 @@ export class FileService {
 
       // AGGIUNTO: Usa ResponseFormatter per output consistente
       return formatAttachmentList(attachments);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero attachments:', error);
       throw error;
     }
@@ -162,7 +162,7 @@ export class FileService {
       const attachment = await prisma.requestAttachment.findUnique({
         where: { id: attachmentId },
         include: {
-          user: {
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -175,7 +175,7 @@ export class FileService {
 
       // AGGIUNTO: Usa ResponseFormatter per output consistente
       return attachment ? formatAttachment(attachment) : null;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero attachment:', error);
       throw error;
     }
@@ -187,10 +187,10 @@ export class FileService {
   async deleteAttachment(attachmentId: string, recipientId: string): Promise<boolean> {
     try {
       // Verifica che l'utente possa eliminare l'attachment
-      const attachment = await prisma.requestAttachment.findUnique({
+      const attachment = await (prisma.requestAttachment.findUnique as any)({
         where: { id: attachmentId },
         include: {
-          request: {
+          AssistanceRequest: {
             select: {
               clientId: true,
               professionalId: true
@@ -203,11 +203,13 @@ export class FileService {
         throw new Error('Attachment non trovato');
       }
       
+      const assistanceRequest = (attachment as any).AssistanceRequest || {};
+      
       // Verifica permessi (può eliminare: chi ha uploadato, il cliente, il professionista assegnato)
       const canDelete = 
-        attachment.userId === userId ||
-        attachment.request.clientId === userId ||
-        attachment.request.professionalId === userId;
+        attachment.userId === recipientId ||
+        assistanceRequest.clientId === recipientId ||
+        assistanceRequest.professionalId === recipientId;
       
       if (!canDelete) {
         throw new Error('Non hai i permessi per eliminare questo file');
@@ -221,7 +223,7 @@ export class FileService {
         if (metadata?.thumbnailPath) {
           await fs.unlink(path.join(this.uploadsDir, metadata.thumbnailPath));
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Errore eliminazione file fisico:', error);
       }
       
@@ -231,7 +233,7 @@ export class FileService {
       });
       
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore eliminazione attachment:', error);
       throw error;
     }
@@ -247,7 +249,7 @@ export class FileService {
       });
       
       return count;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore conteggio attachments:', error);
       return 0;
     }
@@ -311,7 +313,7 @@ export class FileService {
           }
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore pulizia file orfani:', error);
     }
   }
@@ -347,7 +349,7 @@ export class FileService {
           sizeMB: ((t._sum.fileSize || 0) / (1024 * 1024)).toFixed(2)
         }))
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore calcolo statistiche:', error);
       throw error;
     }

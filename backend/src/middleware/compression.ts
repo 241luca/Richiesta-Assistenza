@@ -15,14 +15,10 @@ export function setupCompression() {
   return compression({
     // Abilita Brotli compression (se supportato dal client)
     brotli: {
-      // enabled: true // Not a valid option,
-      zlib: {
-        // Livello compressione Brotli (1-11, default 11)
-        params: {
+      params: {
           [require('zlib').constants.BROTLI_PARAM_QUALITY]: 6, // Bilanciato tra velocità e compressione
         }
-      }
-    },
+      },
     
     // Configurazione Gzip fallback
     level: 6, // Livello compressione gzip (1-9, default 6)
@@ -43,7 +39,10 @@ export function setupCompression() {
       }
       
       // Non comprimere Server-Sent Events
-      if (res.getHeader('Content-Type')?.includes('text/event-stream')) {
+      const contentTypeHeader = res.getHeader('Content-Type');
+      const sseContentType = typeof contentTypeHeader === 'string' ? contentTypeHeader : 
+                         (Array.isArray(contentTypeHeader) ? contentTypeHeader[0] : undefined);
+      if (sseContentType?.includes('text/event-stream')) {
         return false;
       }
       

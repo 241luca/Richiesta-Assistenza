@@ -42,9 +42,9 @@ router.get('/dashboard', authenticate, async (req: any, res: any) => {
         }
       },
       recentActivity: {
-        recentUsers: [],
-        recentRequests: [],
-        recentQuotes: []
+        recentUsers: [] as any[],
+        recentRequests: [] as any[],
+        recentQuotes: [] as any[]
       }
     };
 
@@ -58,12 +58,12 @@ router.get('/dashboard', authenticate, async (req: any, res: any) => {
     ));
     
   } catch (error: any) {
-    logger.error('Error in simple dashboard:', error);
+    logger.error('Error in simple dashboard:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error(
       'Failed to fetch simple dashboard data',
-      500,
+      error instanceof Error ? error.message : String(error) || 'Unknown error',
       { 
-        details: error.message || 'Unknown error' 
+        details: error instanceof Error ? error.message : String(error) || 'Unknown error' 
       }
     ));
   }

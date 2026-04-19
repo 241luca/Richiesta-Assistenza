@@ -76,7 +76,7 @@ export default function DocumentTypesPage() {
     return (
       <DocumentTypeForm
         type={editingType}
-        onSave={(data) => saveMutation.mutate(data)}
+        onSave={(data: any) => saveMutation.mutate(data)}
         onCancel={() => {
           setShowForm(false);
           setEditingType(null);

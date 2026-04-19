@@ -114,8 +114,8 @@ router.get('/:code', async (req: Request, res: Response) => {
       'Informazioni modulo recuperate con successo'
     ));
 
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
     
     logger.error('[PublicModulesRoutes] Error fetching module info:', {
@@ -184,8 +184,8 @@ router.get('/', async (req: Request, res: Response) => {
       'Lista moduli abilitati recuperata con successo'
     ));
 
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
     
     logger.error('[PublicModulesRoutes] Error fetching modules list:', {

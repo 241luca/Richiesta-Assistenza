@@ -57,8 +57,8 @@ export class ExtendedDocumentTypeService extends DocumentTypeService {
         documentCount,
         templateCount
       };
-    } catch (error) {
-      logger.error('Error fetching extended document type:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching extended document type:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -141,8 +141,8 @@ export class ExtendedDocumentTypeService extends DocumentTypeService {
       });
 
       return extendedTypes;
-    } catch (error) {
-      logger.error('Error fetching extended document types:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching extended document types:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -225,8 +225,8 @@ export class ExtendedDocumentTypeService extends DocumentTypeService {
       });
 
       return result;
-    } catch (error) {
-      logger.error('Error linking form template:', error);
+    } catch (error: unknown) {
+      logger.error('Error linking form template:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -267,8 +267,8 @@ export class ExtendedDocumentTypeService extends DocumentTypeService {
         defaultTemplate,
         availableTemplates: templates.filter((t) => !t.isDefault)
       };
-    } catch (error) {
-      logger.error('Error fetching form templates:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching form templates:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -333,8 +333,8 @@ export class ExtendedDocumentTypeService extends DocumentTypeService {
         success: true,
         message: 'Form template unlinked successfully'
       };
-    } catch (error) {
-      logger.error('Error unlinking form template:', error);
+    } catch (error: unknown) {
+      logger.error('Error unlinking form template:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -358,8 +358,8 @@ export class ExtendedDocumentTypeService extends DocumentTypeService {
       });
 
       return result;
-    } catch (error) {
-      logger.error('Error setting default form template:', error);
+    } catch (error: unknown) {
+      logger.error('Error setting default form template:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

@@ -215,7 +215,7 @@ async function main() {
     console.log('🔧 Obbligatorietà per professionisti');
     console.log('🚫 Configurazione esclusioni');
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Errore durante l\'aggiunta delle impostazioni:', error);
     throw error;
   } finally {

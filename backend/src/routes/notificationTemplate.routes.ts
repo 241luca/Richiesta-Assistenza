@@ -20,7 +20,7 @@ interface AuthenticatedRequest extends Request {
     id: string;
     role: string;
     email: string;
-  };
+  } | any;
 }
 
 interface VariableMap {
@@ -109,10 +109,10 @@ router.post(
       return res.json(
         ResponseFormatter.success(preview, 'Preview generated successfully')
       );
-    } catch (error) {
-      logger.error('Error generating preview:', error);
+    } catch (error: unknown) {
+      logger.error('Error generating preview:', error instanceof Error ? error.message : String(error));
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
       return res.status(500).json(
         ResponseFormatter.error(
           'Failed to generate preview',
@@ -160,10 +160,10 @@ router.get(
           { count: templates.length }
         )
       );
-    } catch (error) {
-      logger.error('Error fetching templates:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching templates:', error instanceof Error ? error.message : String(error));
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
       return res.status(500).json(
         ResponseFormatter.error(
           'Failed to fetch templates',
@@ -191,10 +191,10 @@ router.get(
       return res.json(
         ResponseFormatter.success(template, 'Template retrieved successfully')
       );
-    } catch (error) {
-      logger.error('Error fetching template:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching template:', error instanceof Error ? error.message : String(error));
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
       return res.status(404).json(
         ResponseFormatter.error('Template not found', 'NOT_FOUND', errorMessage)
       );
@@ -227,10 +227,10 @@ router.post(
       return res.status(201).json(
         ResponseFormatter.success(template, 'Template created successfully')
       );
-    } catch (error) {
-      logger.error('Error creating template:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating template:', error instanceof Error ? error.message : String(error));
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
       return res.status(400).json(
         ResponseFormatter.error(
           'Failed to create template',
@@ -261,10 +261,10 @@ router.put(
       return res.json(
         ResponseFormatter.success(template, 'Template updated successfully')
       );
-    } catch (error) {
-      logger.error('Error updating template:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating template:', error instanceof Error ? error.message : String(error));
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
       return res.status(400).json(
         ResponseFormatter.error(
           'Failed to update template',
@@ -304,10 +304,10 @@ router.post(
           'Template preview generated successfully'
         )
       );
-    } catch (error) {
-      logger.error('Error previewing template:', error);
+    } catch (error: unknown) {
+      logger.error('Error previewing template:', error instanceof Error ? error.message : String(error));
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
       return res.status(400).json(
         ResponseFormatter.error(
           'Failed to preview template',
@@ -347,10 +347,10 @@ router.get(
           { count: events.length }
         )
       );
-    } catch (error) {
-      logger.error('Error fetching events:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching events:', error instanceof Error ? error.message : String(error));
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
       return res.status(500).json(
         ResponseFormatter.error(
           'Failed to fetch events',
@@ -382,10 +382,10 @@ router.post(
       return res.status(201).json(
         ResponseFormatter.success(event, 'Event created successfully')
       );
-    } catch (error) {
-      logger.error('Error creating event:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating event:', error instanceof Error ? error.message : String(error));
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
       return res.status(400).json(
         ResponseFormatter.error(
           'Failed to create event',
@@ -419,10 +419,10 @@ router.post(
       return res.json(
         ResponseFormatter.success(null, 'Event triggered successfully')
       );
-    } catch (error) {
-      logger.error('Error triggering event:', error);
+    } catch (error: unknown) {
+      logger.error('Error triggering event:', error instanceof Error ? error.message : String(error));
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
       return res.status(400).json(
         ResponseFormatter.error(
           'Failed to trigger event',
@@ -455,10 +455,10 @@ router.post(
       return res.json(
         ResponseFormatter.success(null, 'Notification queued successfully')
       );
-    } catch (error) {
-      logger.error('Error sending notification:', error);
+    } catch (error: unknown) {
+      logger.error('Error sending notification:', error instanceof Error ? error.message : String(error));
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
       return res.status(400).json(
         ResponseFormatter.error(
           'Failed to send notification',
@@ -504,10 +504,10 @@ router.post(
           'Bulk notifications queued'
         )
       );
-    } catch (error) {
-      logger.error('Error sending bulk notifications:', error);
+    } catch (error: unknown) {
+      logger.error('Error sending bulk notifications:', error instanceof Error ? error.message : String(error));
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
       return res.status(400).json(
         ResponseFormatter.error(
           'Failed to send bulk notifications',
@@ -537,10 +537,10 @@ router.post(
       return res.json(
         ResponseFormatter.success({ processed }, 'Queue processed successfully')
       );
-    } catch (error) {
-      logger.error('Error processing queue:', error);
+    } catch (error: unknown) {
+      logger.error('Error processing queue:', error instanceof Error ? error.message : String(error));
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
       return res.status(500).json(
         ResponseFormatter.error(
           'Failed to process queue',
@@ -584,10 +584,10 @@ router.get(
       return res.json(
         ResponseFormatter.success(stats, 'Statistics retrieved successfully')
       );
-    } catch (error) {
-      logger.error('Error fetching statistics:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching statistics:', error instanceof Error ? error.message : String(error));
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
       return res.status(500).json(
         ResponseFormatter.error(
           'Failed to fetch statistics',
@@ -648,10 +648,10 @@ router.get(
       return res.json(
         ResponseFormatter.success(categories, 'Categories retrieved successfully')
       );
-    } catch (error) {
-      logger.error('Error fetching categories:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching categories:', error instanceof Error ? error.message : String(error));
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
       return res.status(500).json(
         ResponseFormatter.error(
           'Failed to fetch categories',
@@ -765,10 +765,10 @@ router.get(
           'Event types retrieved successfully'
         )
       );
-    } catch (error) {
-      logger.error('Error fetching event types:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching event types:', error instanceof Error ? error.message : String(error));
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
       return res.status(500).json(
         ResponseFormatter.error(
           'Failed to fetch event types',

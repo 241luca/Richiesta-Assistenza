@@ -29,11 +29,11 @@ router.get('/health', async (req: Request, res: Response) => {
       ...health
     });
   } catch (error: any) {
-    logger.error('[SmartDocs] Health check failed', error);
+    logger.error('[SmartDocs] Health check failed', error instanceof Error ? error.message : String(error));
     res.status(503).json({
       enabled: true,
       error: 'Service unavailable',
-      message: error.message
+      message: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -47,22 +47,62 @@ router.get('/containers', async (req: Request, res: Response) => {
     const client = getSmartDocsClient();
     const { type, search, limit = '50', offset = '0' } = req.query;
 
-    const containers = await client.listContainers({
+    let containers = await client.listContainers({
       type: type as string,
       search: search as string,
       limit: parseInt(limit as string),
       offset: parseInt(offset as string)
     });
 
+    // 📊 Arricchisci con conteggio documenti dal database SmartDocs
+    const enrichedContainers = await Promise.all(
+      containers.map(async (container: any) => {
+        try {
+          const smartdocsUrl = process.env.SMARTDOCS_API_URL || 'http://localhost:3500';
+          const apiUrl = `${smartdocsUrl}/api/documents?container_id=${container.id}&limit=1&offset=0`;
+          console.log(`🔍 Fetching documents from: ${apiUrl}`);
+          
+          const response = await fetch(apiUrl);
+          console.log(`🔍 Response status: ${response.status}`);
+          
+          if (response.ok) {
+            const data = await response.json() as any;
+            console.log(`🔍 Response count field: ${data.count}`);
+            // L'API ritorna il campo 'count' con il numero totale di documenti
+            const docCount = data.count || 0;
+            
+            console.log(`✅ Container ${container.id} has ${docCount} documents`);
+            
+            return {
+              ...container,
+              processed_docs: docCount
+            };
+          }
+          
+          console.warn(`⚠️ Response not OK for container ${container.id}: ${response.status}`);
+          return {
+            ...container,
+            processed_docs: 0
+          };
+        } catch (err: any) {
+          console.error(`❌ Error fetching documents for container ${container.id}:`, err.message);
+          return {
+            ...container,
+            processed_docs: 0
+          };
+        }
+      })
+    );
+
     res.json({
       success: true,
-      data: containers
+      data: enrichedContainers
     });
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to list containers', error);
+    logger.error('[SmartDocs] Failed to list containers', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -95,10 +135,10 @@ router.post('/containers', async (req: Request, res: Response) => {
       data: container
     });
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to create container', error);
+    logger.error('[SmartDocs] Failed to create container', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -119,10 +159,10 @@ router.get('/containers/:id/stats', async (req: Request, res: Response) => {
       data: stats
     });
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to get container stats', error);
+    logger.error('[SmartDocs] Failed to get container stats', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -144,10 +184,10 @@ router.delete('/containers/:id/documents', async (req: Request, res: Response) =
 
     res.status(response.status).json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to clear container documents', error);
+    logger.error('[SmartDocs] Failed to clear container documents', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -173,10 +213,10 @@ router.put('/containers/:id', async (req: Request, res: Response) => {
       data: container
     });
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to update container', error);
+    logger.error('[SmartDocs] Failed to update container', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -197,10 +237,10 @@ router.delete('/containers/:id', async (req: Request, res: Response) => {
       message: 'Container eliminato con successo'
     });
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to delete container', error);
+    logger.error('[SmartDocs] Failed to delete container', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -227,10 +267,10 @@ router.post('/instances', async (req: Request, res: Response) => {
     logger.info('[SmartDocs] SmartDocs API response:', { status: response.status, data });
     res.status(response.status).json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to create instance', error);
+    logger.error('[SmartDocs] Failed to create instance', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -250,10 +290,10 @@ router.get('/instances', async (req: Request, res: Response) => {
     const data = await response.json();
     res.json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to list instances', error);
+    logger.error('[SmartDocs] Failed to list instances', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -273,10 +313,10 @@ router.get('/instances/:id', async (req: Request, res: Response) => {
     const data = await response.json();
     res.status(response.status).json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to get instance', error);
+    logger.error('[SmartDocs] Failed to get instance', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -301,10 +341,10 @@ router.put('/instances/:id', async (req: Request, res: Response) => {
     const data = await response.json();
     res.status(response.status).json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to update instance', error);
+    logger.error('[SmartDocs] Failed to update instance', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -325,10 +365,10 @@ router.delete('/instances/:id', async (req: Request, res: Response) => {
     const data = await response.json();
     res.status(response.status).json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to delete instance', error);
+    logger.error('[SmartDocs] Failed to delete instance', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -348,10 +388,10 @@ router.get('/instances/:id/stats', async (req: Request, res: Response) => {
     const data = await response.json();
     res.status(response.status).json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to get instance stats', error);
+    logger.error('[SmartDocs] Failed to get instance stats', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -372,10 +412,10 @@ router.delete('/instances/:id/documents', async (req: Request, res: Response) =>
     const data = await response.json();
     res.status(response.status).json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to clear instance documents', error);
+    logger.error('[SmartDocs] Failed to clear instance documents', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -438,10 +478,10 @@ router.post('/ingest/intervention-report/:id', async (req: Request, res: Respons
       data: result
     });
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to ingest intervention report', error);
+    logger.error('[SmartDocs] Failed to ingest intervention report', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -475,10 +515,10 @@ router.post('/ingest/manual', async (req: Request, res: Response) => {
       data: result
     });
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to ingest manual', error);
+    logger.error('[SmartDocs] Failed to ingest manual', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -511,10 +551,10 @@ router.post('/query', async (req: Request, res: Response) => {
       data: result
     });
   } catch (error: any) {
-    logger.error('[SmartDocs] Query failed', error);
+    logger.error('[SmartDocs] Query failed', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -560,10 +600,10 @@ router.post('/ask', async (req: Request, res: Response) => {
     const data = await response.json();
     res.status(response.status).json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Query failed', { error: error.message, question: req.body.question });
+    logger.error('[SmartDocs] Query failed', { error: error instanceof Error ? error.message : String(error), question: req.body.question });
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -591,10 +631,10 @@ router.post('/classify', async (req: Request, res: Response) => {
       data: result
     });
   } catch (error: any) {
-    logger.error('[SmartDocs] Classification failed', error);
+    logger.error('[SmartDocs] Classification failed', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -622,10 +662,10 @@ router.post('/extract', async (req: Request, res: Response) => {
       data: result
     });
   } catch (error: any) {
-    logger.error('[SmartDocs] Extraction failed', error);
+    logger.error('[SmartDocs] Extraction failed', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -692,7 +732,7 @@ router.post('/batch-ingest/intervention-reports', async (req: Request, res: Resp
       } catch (error: any) {
         errors.push({
           id: report.id,
-          error: error.message
+          error: error instanceof Error ? error.message : String(error)
         });
       }
     }
@@ -708,10 +748,10 @@ router.post('/batch-ingest/intervention-reports', async (req: Request, res: Resp
       }
     });
   } catch (error: any) {
-    logger.error('[SmartDocs] Batch ingest failed', error);
+    logger.error('[SmartDocs] Batch ingest failed', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -772,11 +812,11 @@ router.post('/documents/upload', upload.single('file'), async (req: Request, res
     
     res.status(response.status).json(response.data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Upload failed:', error.response?.data || error.message);
+    logger.error('[SmartDocs] Upload failed:', error.response?.data || error instanceof Error ? error.message : String(error));
     res.status(error.response?.status || 500).json(
       error.response?.data || {
         success: false,
-        error: error.message || 'Upload failed'
+        error: error instanceof Error ? error.message : String(error) || 'Upload failed'
       }
     );
   }
@@ -796,10 +836,10 @@ router.get('/documents/container/:containerId', async (req: Request, res: Respon
     
     res.status(response.status).json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to list documents:', error);
+    logger.error('[SmartDocs] Failed to list documents:', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -818,10 +858,10 @@ router.get('/documents/:id/chunks', async (req: Request, res: Response) => {
 
     res.status(response.status).json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to get document chunks:', error);
+    logger.error('[SmartDocs] Failed to get document chunks:', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -842,10 +882,10 @@ router.delete('/documents/:id', async (req: Request, res: Response) => {
     
     res.status(response.status).json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to delete document:', error);
+    logger.error('[SmartDocs] Failed to delete document:', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -869,10 +909,10 @@ router.post('/documents/:id/process', async (req: Request, res: Response) => {
     
     res.status(response.status).json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to process document:', error);
+    logger.error('[SmartDocs] Failed to process document:', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -895,10 +935,10 @@ router.get('/storage/:containerId', async (req: Request, res: Response) => {
     
     res.status(response.status).json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to get storage stats:', error);
+    logger.error('[SmartDocs] Failed to get storage stats:', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -924,10 +964,10 @@ router.get('/knowledge-graph/entities', async (req: Request, res: Response) => {
 
     res.status(response.status).json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to get KG entities:', error);
+    logger.error('[SmartDocs] Failed to get KG entities:', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -949,10 +989,10 @@ router.get('/knowledge-graph/relationships', async (req: Request, res: Response)
 
     res.status(response.status).json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to get KG relationships:', error);
+    logger.error('[SmartDocs] Failed to get KG relationships:', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -973,10 +1013,10 @@ router.get('/container-categories/grouped', async (req: Request, res: Response) 
 
     res.status(response.status).json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to get container categories (grouped):', error);
+    logger.error('[SmartDocs] Failed to get container categories (grouped):', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -997,10 +1037,10 @@ router.post('/sync/request/:requestId', async (req: Request, res: Response) => {
       message: 'Request sync triggered'
     });
   } catch (error: any) {
-    logger.error('[SmartDocs] Sync request failed:', error);
+    logger.error('[SmartDocs] Sync request failed:', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -1024,10 +1064,10 @@ router.get('/sync/jobs', async (req: Request, res: Response) => {
 
     res.status(response.status).json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to list sync jobs:', error);
+    logger.error('[SmartDocs] Failed to list sync jobs:', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -1051,10 +1091,10 @@ router.post('/sync/jobs/:id/retry', async (req: Request, res: Response) => {
     const data = await response.json();
     res.status(response.status).json(data);
   } catch (error: any) {
-    logger.error('[SmartDocs] Failed to retry sync job:', error);
+    logger.error('[SmartDocs] Failed to retry sync job:', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });

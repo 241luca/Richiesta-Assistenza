@@ -28,7 +28,7 @@ import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { TextArea } from '../ui/textarea';
-import { Select } from '../ui/select';
+import { NativeSelect } from '../ui/select';
 
 // Validation schema
 const quoteItemSchema = z.object({
@@ -105,7 +105,7 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
     setValue,
     formState: { errors }
   } = useForm<QuoteFormData>({
-    resolver: zodResolver(quoteSchema),
+    resolver: zodResolver(quoteSchema) as any,
     defaultValues: initialData || {
       title: '',
       description: '',
@@ -363,7 +363,7 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6">
       {/* Header */}
       <Card>
         <div className="p-6">
@@ -684,16 +684,20 @@ export const QuoteBuilder: React.FC<QuoteBuilderProps> = ({
                 </div>
 
                 <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <Select
-                    label="Tipo"
-                    {...register(`items.${index}.itemType`)}
-                    disabled={field.isAutomatic}
-                  >
-                    <option value="service">Servizio</option>
-                    <option value="product">Prodotto</option>
-                    <option value="expense">Spesa</option>
-                    <option value="travel">Trasferimento</option>
-                  </Select>
+                  <div>
+                    <NativeSelect
+                      label="Tipo"
+                      {...register(`items.${index}.itemType`)}
+                    >
+                      <option value="service">Servizio</option>
+                      <option value="product">Prodotto</option>
+                      <option value="expense">Spesa</option>
+                      <option value="travel">Trasferimento</option>
+                    </NativeSelect>
+                    {field.isAutomatic && (
+                      <div className="absolute inset-0 bg-gray-100 bg-opacity-50 cursor-not-allowed" />
+                    )}
+                  </div>
                   
                   <Input
                     label="Unità"

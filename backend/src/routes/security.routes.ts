@@ -294,8 +294,8 @@ router.get('/status', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async
       events
     }));
 
-  } catch (error) {
-    logger.error('Error fetching security status:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching security status:', error instanceof Error ? error.message : String(error));
     res.status(500).json(
       ResponseFormatter.error('Failed to fetch security status', 'SECURITY_STATUS_ERROR')
     );
@@ -352,13 +352,13 @@ router.post('/resolve-event/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADM
         severity: LogSeverity.INFO,
         category: LogCategory.SECURITY,
         success: true
-      }
+      } as any
     });
 
     res.json(ResponseFormatter.success(null, 'Event resolved successfully'));
 
-  } catch (error) {
-    logger.error('Error resolving security event:', error);
+  } catch (error: unknown) {
+    logger.error('Error resolving security event:', error instanceof Error ? error.message : String(error));
     res.status(500).json(
       ResponseFormatter.error('Failed to resolve event', 'RESOLVE_EVENT_ERROR')
     );
@@ -396,8 +396,8 @@ router.get('/blocked-ips', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), 
       suspicious
     }));
 
-  } catch (error) {
-    logger.error('Error fetching blocked IPs:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching blocked IPs:', error instanceof Error ? error.message : String(error));
     res.status(500).json(
       ResponseFormatter.error('Failed to fetch blocked IPs', 'BLOCKED_IPS_ERROR')
     );

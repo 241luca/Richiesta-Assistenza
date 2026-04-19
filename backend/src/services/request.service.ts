@@ -112,7 +112,7 @@ export class RequestService {
               profession: true,
             },
           },
-          category: {
+          Category: {
             select: {
               id: true,
               name: true,
@@ -120,7 +120,7 @@ export class RequestService {
               color: true,
             },
           },
-          subcategory: {
+          Subcategory: {
             select: {
               id: true,
               name: true,
@@ -128,7 +128,7 @@ export class RequestService {
             },
           },
           RequestAttachment: true,
-          quotes: true,
+          Quote: true,
         },
         orderBy: {
           createdAt: 'desc',
@@ -144,9 +144,9 @@ export class RequestService {
       logger.info(`[RequestService] Found ${requestsWithDistance.length} requests`);
       return requestsWithDistance;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[RequestService] Error fetching requests:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         filters,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -213,7 +213,7 @@ export class RequestService {
                   : undefined,
               };
             }
-          } catch (error) {
+          } catch (error: unknown) {
             logger.warn(`[RequestService] Could not calculate distance for request ${request.id}:`, error);
           }
           
@@ -234,9 +234,9 @@ export class RequestService {
       logger.info(`[RequestService] Distances calculated for ${sorted.filter(r => r.distance).length} requests`);
       return sorted;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[RequestService] Error adding distances:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         professionalId
       });
       return requests;
@@ -281,9 +281,9 @@ export class RequestService {
               profession: true,
             },
           },
-          category: true,
-          subcategory: true,
-          quotes: {
+          Category: true,
+          Subcategory: true,
+          Quote: {
             include: {
               professional: {
                 select: {
@@ -297,7 +297,7 @@ export class RequestService {
               },
               items: true,
             },
-          },
+          } as any,
           RequestAttachment: true,
         },
       });
@@ -310,9 +310,9 @@ export class RequestService {
       logger.info(`[RequestService] Request found: ${id}`);
       return request;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[RequestService] Error fetching request by ID:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         requestId: id,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -408,8 +408,8 @@ export class RequestService {
               phone: true,
             },
           },
-          category: true,
-          subcategory: true,
+          Category: true,
+          Subcategory: true,
         },
       });
 
@@ -425,9 +425,9 @@ export class RequestService {
 
       return request;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[RequestService] Error creating request:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         title: data.title,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -582,8 +582,8 @@ export class RequestService {
               profession: true,
             },
           },
-          category: true,
-          subcategory: true,
+          Category: true,
+          Subcategory: true,
         },
       });
 
@@ -611,9 +611,9 @@ export class RequestService {
 
       return request;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[RequestService] Error updating request:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         requestId: id,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -690,7 +690,7 @@ export class RequestService {
               profession: true,
             },
           },
-          category: true,
+          Category: true,
         },
       });
 
@@ -712,9 +712,9 @@ export class RequestService {
 
       return request;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[RequestService] Error updating request status:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         requestId: id,
         newStatus: status,
         stack: error instanceof Error ? error.stack : undefined
@@ -770,7 +770,7 @@ export class RequestService {
               profession: true,
             },
           },
-          category: true,
+          Category: true,
         },
       });
 
@@ -780,9 +780,9 @@ export class RequestService {
 
       return request;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[RequestService] Error assigning professional:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         requestId: id,
         professionalId,
         stack: error instanceof Error ? error.stack : undefined
@@ -825,9 +825,9 @@ export class RequestService {
       logger.info(`[RequestService] Found ${quotes.length} quotes for request ${requestId}`);
       return quotes;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[RequestService] Error fetching quotes for request:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         requestId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -856,9 +856,9 @@ export class RequestService {
       logger.info(`[RequestService] Found ${attachments.length} attachments for request ${requestId}`);
       return attachments;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[RequestService] Error fetching attachments for request:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         requestId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -1010,9 +1010,9 @@ export class RequestService {
 
       return { success: true };
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[RequestService] Error deleting request:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         requestId: id,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -1062,9 +1062,9 @@ export class RequestService {
       logger.info('[RequestService] Statistics fetched successfully', stats);
       return stats;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[RequestService] Error getting request stats:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
       });
       throw error;

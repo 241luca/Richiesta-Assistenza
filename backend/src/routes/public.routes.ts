@@ -62,7 +62,7 @@ router.get('/config/google-maps-key', async (req, res) => {
       )
     );
   } catch (error: any) {
-    logger.error('Error fetching Google Maps API Key:', error);
+    logger.error('Error fetching Google Maps API Key:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error(
         'Errore nel recupero della API Key',
@@ -148,7 +148,7 @@ router.get('/legal/all', async (req, res) => {
               },
               take: 1
             }
-          }
+          } as any
         });
 
         const versions = (legalDoc as any)?.LegalDocumentVersion || [];
@@ -164,7 +164,7 @@ router.get('/legal/all', async (req, res) => {
 
     return res.json(ResponseFormatter.success(documentsWithStatus));
   } catch (error: any) {
-    logger.error('Error fetching public legal documents:', error);
+    logger.error('Error fetching public legal documents:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to fetch documents', 'FETCH_ERROR')
     );
@@ -222,7 +222,7 @@ router.get('/legal/:type', async (req, res) => {
           },
           take: 1
         }
-      }
+      } as any
     });
 
     const versions = (document as any)?.LegalDocumentVersion || [];
@@ -511,7 +511,7 @@ router.get('/legal/:type', async (req, res) => {
       lastUpdated: currentVersion.publishedAt
     }));
   } catch (error: any) {
-    logger.error('Error fetching public legal document:', error);
+    logger.error('Error fetching public legal document:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to fetch document', 'FETCH_ERROR')
     );

@@ -66,9 +66,9 @@ class NotificationSystemHealthCheck extends BaseHealthCheck {
       await this.checkQueueHealth();
       
     } catch (error: any) {
-      this.log(`Critical error during health check: ${error.message}`, 'error');
+      this.log(`Critical error during health check: ${error instanceof Error ? error.message : String(error)}`, 'error');
       this.result.status = 'error';
-      this.result.errors.push(`Health check failed: ${error.message}`);
+      this.result.errors.push(`Health check failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       // Cleanup
       await this.redis.quit();
@@ -118,7 +118,7 @@ class NotificationSystemHealthCheck extends BaseHealthCheck {
         name: 'database_tables',
         description: 'Notification database tables',
         status: CheckStatus.FAIL,
-        message: `Database error: ${error.message}`,
+        message: `Database error: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.CRITICAL
       });
     }
@@ -168,7 +168,7 @@ class NotificationSystemHealthCheck extends BaseHealthCheck {
           name: 'email_service_connection',
           description: 'Brevo API connection',
           status: CheckStatus.FAIL,
-          message: `Brevo connection failed: ${error.message}`,
+          message: `Brevo connection failed: ${error instanceof Error ? error.message : String(error)}`,
           severity: CheckSeverity.HIGH
         });
       }
@@ -246,7 +246,7 @@ class NotificationSystemHealthCheck extends BaseHealthCheck {
         name: 'redis_queue',
         description: 'Redis queue connection',
         status: CheckStatus.FAIL,
-        message: `Queue system error: ${error.message}`,
+        message: `Queue system error: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.HIGH
       });
       
@@ -347,7 +347,7 @@ class NotificationSystemHealthCheck extends BaseHealthCheck {
       }
       
     } catch (error: any) {
-      this.log(`Template check error: ${error.message}`, 'warning');
+      this.log(`Template check error: ${error instanceof Error ? error.message : String(error)}`, 'warning');
     }
   }
   
@@ -407,7 +407,7 @@ class NotificationSystemHealthCheck extends BaseHealthCheck {
       }
       
     } catch (error: any) {
-      this.log(`Statistics error: ${error.message}`, 'warning');
+      this.log(`Statistics error: ${error instanceof Error ? error.message : String(error)}`, 'warning');
     }
   }
   
@@ -462,7 +462,7 @@ class NotificationSystemHealthCheck extends BaseHealthCheck {
       }
       
     } catch (error: any) {
-      this.log(`Failed notification check error: ${error.message}`, 'warning');
+      this.log(`Failed notification check error: ${error instanceof Error ? error.message : String(error)}`, 'warning');
     }
   }
   
@@ -501,7 +501,7 @@ class NotificationSystemHealthCheck extends BaseHealthCheck {
       }
       
     } catch (error: any) {
-      this.log(`Performance check error: ${error.message}`, 'warning');
+      this.log(`Performance check error: ${error instanceof Error ? error.message : String(error)}`, 'warning');
     }
   }
   
@@ -576,7 +576,7 @@ class NotificationSystemHealthCheck extends BaseHealthCheck {
       this.addMetric('redis_memory', memoryUsage);
       
     } catch (error: any) {
-      this.log(`Queue health check error: ${error.message}`, 'warning');
+      this.log(`Queue health check error: ${error instanceof Error ? error.message : String(error)}`, 'warning');
     }
   }
 }

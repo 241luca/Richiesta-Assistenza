@@ -48,11 +48,11 @@ export const loadGoogleMapsScript = async (): Promise<typeof google> => {
 
   try {
     const loader = getLoader();
-    loadPromise = loader.load();
+    loadPromise = (loader as any).load();
     const google = await loadPromise;
     
     console.log('✅ Google Maps caricato con successo');
-    return google;
+    return google!;
   } catch (error) {
     loadPromise = null;  // Reset per retry
     console.error('❌ Errore caricamento Google Maps:', error);
@@ -65,7 +65,7 @@ export const loadGoogleMapsScript = async (): Promise<typeof google> => {
  */
 export const loadGoogleMapsLibrary = async (libraryName: 'maps' | 'marker' | 'places' | 'geometry' | 'drawing') => {
   const loader = getLoader();
-  return loader.importLibrary(libraryName);
+  return (loader as any).importLibrary(libraryName);
 };
 
 /**

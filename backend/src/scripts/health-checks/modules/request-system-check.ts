@@ -61,8 +61,8 @@ export class RequestSystemHealthCheck extends BaseHealthCheck {
         this.result.score >= 80 ? 'success' : 'warning');
       
     } catch (error: any) {
-      this.log(`Critical error during request check: ${error.message}`, 'error');
-      this.result.errors.push(`System check failed: ${error.message}`);
+      this.log(`Critical error during request check: ${error instanceof Error ? error.message : String(error)}`, 'error');
+      this.result.errors.push(`System check failed: ${error instanceof Error ? error.message : String(error)}`);
       this.result.score = 0;
     } finally {
       await this.prisma.$disconnect();
@@ -100,7 +100,7 @@ export class RequestSystemHealthCheck extends BaseHealthCheck {
         name: 'request_database',
         description: 'Request database connectivity',
         status: CheckStatus.FAIL,
-        message: `Database error: ${error.message}`,
+        message: `Database error: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.CRITICAL,
         category: CheckCategory.CONNECTIVITY
       });
@@ -156,7 +156,7 @@ export class RequestSystemHealthCheck extends BaseHealthCheck {
         name: 'workflow_health',
         description: 'Request workflow check',
         status: CheckStatus.ERROR,
-        message: `Could not check: ${error.message}`,
+        message: `Could not check: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.MEDIUM,
         category: CheckCategory.DATA_INTEGRITY
       });
@@ -238,7 +238,7 @@ export class RequestSystemHealthCheck extends BaseHealthCheck {
         name: 'assignment_system',
         description: 'Assignment system check',
         status: CheckStatus.ERROR,
-        message: `Could not check: ${error.message}`,
+        message: `Could not check: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.HIGH,
         category: CheckCategory.PERFORMANCE
       });
@@ -300,7 +300,7 @@ export class RequestSystemHealthCheck extends BaseHealthCheck {
         name: 'quote_system',
         description: 'Quote system check',
         status: CheckStatus.ERROR,
-        message: `Could not check: ${error.message}`,
+        message: `Could not check: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.MEDIUM,
         category: CheckCategory.PERFORMANCE
       });
@@ -377,7 +377,7 @@ export class RequestSystemHealthCheck extends BaseHealthCheck {
         name: 'completion_metrics',
         description: 'Completion metrics check',
         status: CheckStatus.ERROR,
-        message: `Could not calculate: ${error.message}`,
+        message: `Could not calculate: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.MEDIUM,
         category: CheckCategory.PERFORMANCE
       });
@@ -437,7 +437,7 @@ export class RequestSystemHealthCheck extends BaseHealthCheck {
         name: 'response_times',
         description: 'Response time metrics',
         status: CheckStatus.ERROR,
-        message: `Could not measure: ${error.message}`,
+        message: `Could not measure: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.MEDIUM,
         category: CheckCategory.PERFORMANCE
       });
@@ -497,7 +497,7 @@ export class RequestSystemHealthCheck extends BaseHealthCheck {
         name: 'category_system',
         description: 'Category system check',
         status: CheckStatus.ERROR,
-        message: `Could not check: ${error.message}`,
+        message: `Could not check: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.MEDIUM,
         category: CheckCategory.CONFIGURATION
       });
@@ -557,7 +557,7 @@ export class RequestSystemHealthCheck extends BaseHealthCheck {
         name: 'geolocation_system',
         description: 'Geolocation system check',
         status: CheckStatus.ERROR,
-        message: `Could not check: ${error.message}`,
+        message: `Could not check: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.LOW,
         category: CheckCategory.CONFIGURATION
       });
@@ -619,7 +619,7 @@ export class RequestSystemHealthCheck extends BaseHealthCheck {
         name: 'pending_requests',
         description: 'Pending requests analysis',
         status: CheckStatus.ERROR,
-        message: `Could not analyze: ${error.message}`,
+        message: `Could not analyze: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.MEDIUM,
         category: CheckCategory.PERFORMANCE
       });
@@ -672,7 +672,7 @@ export class RequestSystemHealthCheck extends BaseHealthCheck {
       this.addMetric('avg_requests_per_day', (last7Days / 7).toFixed(1));
       
     } catch (error: any) {
-      this.log(`Error calculating metrics: ${error.message}`, 'warning');
+      this.log(`Error calculating metrics: ${error instanceof Error ? error.message : String(error)}`, 'warning');
     }
   }
   

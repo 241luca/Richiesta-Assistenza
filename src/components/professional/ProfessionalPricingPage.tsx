@@ -61,14 +61,16 @@ export default function ProfessionalPricingPage({ professionalId }: { profession
     queryFn: async () => {
       const response = await api.get(`/professionals/${professionalId}/pricing`);
       return response.data?.data || response.data;
-    },
-    onSuccess: (data) => {
-      if (data) {
-        setPricingData(data);
-        setUseRanges(!!(data.costRanges && data.costRanges.length > 0));
-      }
     }
   });
+
+  // Update state when data changes
+  React.useEffect(() => {
+    if (data) {
+      setPricingData(data);
+      setUseRanges(!!(data.costRanges && data.costRanges.length > 0));
+    }
+  }, [data]);
 
   // Save mutation
   const saveMutation = useMutation({
@@ -457,10 +459,10 @@ export default function ProfessionalPricingPage({ professionalId }: { profession
         </button>
         <button
           onClick={handleSave}
-          disabled={saveMutation.isLoading}
+          disabled={saveMutation.isPending}
           className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
         >
-          {saveMutation.isLoading ? 'Salvataggio...' : 'Salva Tariffe'}
+          {saveMutation.isPending ? 'Salvataggio...' : 'Salva Tariffe'}
         </button>
       </div>
     </div>

@@ -113,8 +113,8 @@ export class PerformanceMonitor {
       // Salva nel database
       await this.saveMetrics(metrics);
       
-    } catch (error) {
-      logger.error('Error collecting metrics:', error);
+    } catch (error: unknown) {
+      logger.error('Error collecting metrics:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -192,8 +192,8 @@ export class PerformanceMonitor {
         queryTime: avgQueryTime,
         slowQueries
       };
-    } catch (error) {
-      logger.error('Error getting database metrics:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting database metrics:', error instanceof Error ? error.message : String(error));
       return {
         activeConnections: 0,
         queryTime: 0,
@@ -229,8 +229,8 @@ export class PerformanceMonitor {
         requestsPerMinute: recentResults,
         errorRate: recentResults > 0 ? (failedResults / recentResults) * 100 : 0
       };
-    } catch (error) {
-      logger.error('Error getting API metrics:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting API metrics:', error instanceof Error ? error.message : String(error));
       return {
         responseTime: 0,
         requestsPerMinute: 0,
@@ -270,8 +270,8 @@ export class PerformanceMonitor {
         checksPerHour: recentChecks.length,
         failureRate: Math.round(failureRate)
       };
-    } catch (error) {
-      logger.error('Error getting health check metrics:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting health check metrics:', error instanceof Error ? error.message : String(error));
       return {
         averageExecutionTime: 0,
         checksPerHour: 0,
@@ -325,9 +325,9 @@ export class PerformanceMonitor {
           metrics: metrics as any
         }
       });
-    } catch (error) {
+    } catch (error: unknown) {
       // Tabella potrebbe non esistere ancora
-      logger.debug('Could not save performance metrics:', error.message);
+      logger.debug('Could not save performance metrics:', error instanceof Error ? error.message : String(error));
     }
   }
 

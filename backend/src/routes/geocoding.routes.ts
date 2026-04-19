@@ -102,7 +102,7 @@ router.post(
           message: 'Indirizzo non trovato',
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -134,7 +134,7 @@ router.post(
           message: 'Indirizzo non trovato per le coordinate fornite',
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -166,7 +166,7 @@ router.post(
           message: 'Impossibile calcolare la distanza',
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -274,7 +274,7 @@ router.post(
         success: true,
         data: results,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -306,7 +306,7 @@ router.post(
           message: 'Impossibile ottimizzare il percorso',
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -359,7 +359,7 @@ router.delete(
         success: true,
         message: 'Cache geocoding pulita con successo',
       });
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }

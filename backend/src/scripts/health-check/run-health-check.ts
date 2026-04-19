@@ -93,8 +93,8 @@ export async function execute(params: HealthCheckParams = {}) {
       timestamp: new Date()
     };
     
-  } catch (error) {
-    logger.error('❌ Health check failed:', error);
+  } catch (error: unknown) {
+    logger.error('❌ Health check failed:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }

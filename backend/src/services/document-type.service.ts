@@ -30,8 +30,8 @@ export class DocumentTypeService {
       });
 
       return types;
-    } catch (error) {
-      logger.error('Error fetching document types:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching document types:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -57,8 +57,8 @@ export class DocumentTypeService {
         system,
         custom: total - system
       };
-    } catch (error) {
-      logger.error('Error fetching document type statistics:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching document type statistics:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -84,8 +84,8 @@ export class DocumentTypeService {
       }
 
       return type;
-    } catch (error) {
-      logger.error('Error fetching document type:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching document type:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -100,8 +100,8 @@ export class DocumentTypeService {
       });
 
       return type;
-    } catch (error) {
-      logger.error('Error fetching document type by code:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching document type by code:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -154,7 +154,7 @@ export class DocumentTypeService {
 
       return newType;
     } catch (error: any) {
-      logger.error('Error creating document type:', error);
+      logger.error('Error creating document type:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -217,8 +217,8 @@ export class DocumentTypeService {
       await this.logAudit('UPDATE', id, existingType, updatedType, userId);
 
       return updatedType;
-    } catch (error) {
-      logger.error('Error updating document type:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating document type:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -245,8 +245,8 @@ export class DocumentTypeService {
       );
 
       return updatedType;
-    } catch (error) {
-      logger.error('Error toggling document type status:', error);
+    } catch (error: unknown) {
+      logger.error('Error toggling document type status:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -285,7 +285,7 @@ export class DocumentTypeService {
         message: 'Document type deleted successfully'
       };
     } catch (error: any) {
-      logger.error('Error deleting document type:', error);
+      logger.error('Error deleting document type:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -309,10 +309,10 @@ export class DocumentTypeService {
           oldValues: oldValues ? oldValues : undefined,
           newValues: newValues ? newValues : undefined,
           userId
-        }
+        } as any
       });
-    } catch (error) {
-      logger.error('Error logging audit:', error);
+    } catch (error: unknown) {
+      logger.error('Error logging audit:', error instanceof Error ? error.message : String(error));
       // Non lanciare errore per non bloccare l'operazione principale
     }
   }
@@ -383,8 +383,8 @@ export class DocumentTypeService {
         message: `Initialized ${created.length} default document types`,
         created
       };
-    } catch (error) {
-      logger.error('Error initializing default types:', error);
+    } catch (error: unknown) {
+      logger.error('Error initializing default types:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

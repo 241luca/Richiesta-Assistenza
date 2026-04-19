@@ -126,7 +126,7 @@ async function insertPrismaRelationsScript() {
     console.log('\n✅ Inserimento completato!');
     console.log('🌐 Ora puoi vedere lo script su: http://localhost:5193/admin/scripts');
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Errore durante l\'inserimento:', error);
     throw error;
   } finally {

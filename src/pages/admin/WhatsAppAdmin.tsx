@@ -34,6 +34,7 @@ interface InstanceInfo {
   state?: string;
   serverUrl?: string;
   apikey?: string;
+  token?: string;
   integration?: any;
 }
 
@@ -222,7 +223,7 @@ export default function WhatsAppAdminPage() {
         if (connectedInstance?.owner) {
           // Owner è nel formato numero@s.whatsapp.net
           const phoneNumber = connectedInstance.owner.replace('@s.whatsapp.net', '');
-          setStatus(prev => ({ ...prev, phoneNumber }));
+          setStatus((prev: any) => ({ ...prev, phoneNumber }));
         }
       }
     } catch (error: any) {
@@ -591,7 +592,7 @@ export default function WhatsAppAdminPage() {
         toast.success('Connessione verificata! WhatsApp è online.');
         
         // Aggiorna lo stato manualmente
-        setStatus(prev => ({
+        setStatus((prev: any) => ({
           ...prev,
           connected: true,
           state: 'open'
@@ -986,7 +987,7 @@ export default function WhatsAppAdminPage() {
                       <button
                         onClick={() => {
                           // Considera manualmente come connesso
-                          setStatus(prev => ({
+                          setStatus((prev: any) => ({
                             ...prev,
                             connected: true,
                             state: 'open'
@@ -1139,7 +1140,7 @@ export default function WhatsAppAdminPage() {
                           </code>
                           <button
                             onClick={() => {
-                              navigator.clipboard.writeText(instance.apikey || instance.token);
+                              navigator.clipboard.writeText((instance.apikey || instance.token) || '');
                               toast.success('Token copiato!');
                             }}
                             className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"

@@ -30,7 +30,7 @@ interface AuthenticatedRequest extends Request {
     role: Role;
     email: string;
     fullName?: string;
-  };
+  } | any;
 }
 
 interface InvoiceFilters {
@@ -177,7 +177,7 @@ router.post('/',
         invoice,
         'Fattura creata con successo'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -208,7 +208,7 @@ router.get('/:invoiceId',
       }
 
       res.json(ResponseFormatter.success(invoice));
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -293,7 +293,7 @@ router.get('/',
       const result = await invoiceService.listInvoices(filters, paginationOptions);
 
       res.json(ResponseFormatter.success(result));
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -338,7 +338,7 @@ router.put('/:invoiceId',
         updated,
         'Fattura aggiornata con successo'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -383,7 +383,7 @@ router.post('/:invoiceId/payment',
         result,
         'Pagamento registrato con successo'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -422,7 +422,7 @@ router.get('/:invoiceId/download',
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="fattura-${invoice.invoiceNumber}.pdf"`);
       res.send(pdfBuffer);
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -473,7 +473,7 @@ router.post('/:invoiceId/send',
         null,
         'Fattura inviata con successo'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -517,7 +517,7 @@ router.post('/:invoiceId/reminder',
         null,
         'Promemoria inviato con successo'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -562,7 +562,7 @@ router.post('/credit-note',
         creditNote,
         'Nota di credito creata con successo'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -613,7 +613,7 @@ router.post('/:invoiceId/electronic',
         result,
         'Fattura elettronica generata con successo'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -651,7 +651,7 @@ router.get('/stats/summary',
       });
 
       res.json(ResponseFormatter.success(stats));
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }

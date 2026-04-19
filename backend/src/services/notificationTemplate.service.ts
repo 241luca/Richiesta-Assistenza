@@ -157,8 +157,8 @@ export class NotificationTemplateService {
 
       logger.info(`Retrieved ${templates.length} templates`);
       return templates;
-    } catch (error) {
-      logger.error('Error fetching templates:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching templates:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -177,8 +177,8 @@ export class NotificationTemplateService {
       }
 
       return template as NotificationTemplate;
-    } catch (error) {
-      logger.error(`Error fetching template ${code}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Error fetching template ${code}:`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -197,8 +197,8 @@ export class NotificationTemplateService {
       }
 
       return template as NotificationTemplate;
-    } catch (error) {
-      logger.error(`Error fetching template ${id}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Error fetching template ${id}:`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -246,8 +246,8 @@ export class NotificationTemplateService {
 
       logger.info(`Template created: ${template.code}`);
       return template;
-    } catch (error) {
-      logger.error('Error creating template:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating template:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -308,8 +308,8 @@ export class NotificationTemplateService {
 
       logger.info(`Template updated: ${template.code}`);
       return template;
-    } catch (error) {
-      logger.error(`Error updating template ${id}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Error updating template ${id}:`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -330,8 +330,8 @@ export class NotificationTemplateService {
 
       logger.info(`Template deleted: ${existing.code}`);
       return { success: true };
-    } catch (error) {
-      logger.error(`Error deleting template ${id}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Error deleting template ${id}:`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -372,8 +372,8 @@ export class NotificationTemplateService {
         content: renderedContent,
         channel,
       };
-    } catch (error) {
-      logger.error('Error compiling template:', error);
+    } catch (error: unknown) {
+      logger.error('Error compiling template:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -405,8 +405,8 @@ export class NotificationTemplateService {
       });
 
       return events;
-    } catch (error) {
-      logger.error('Error fetching events:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching events:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -443,8 +443,8 @@ export class NotificationTemplateService {
 
       logger.info(`Event created: ${event.code}`);
       return event;
-    } catch (error) {
-      logger.error('Error creating event:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating event:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -486,8 +486,8 @@ export class NotificationTemplateService {
 
       logger.info(`Event updated: ${event.code}`);
       return event;
-    } catch (error) {
-      logger.error(`Error updating event ${id}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Error updating event ${id}:`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -511,8 +511,8 @@ export class NotificationTemplateService {
 
       logger.info(`Event deleted: ${event.code}`);
       return { success: true };
-    } catch (error) {
-      logger.error(`Error deleting event ${id}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Error deleting event ${id}:`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -573,8 +573,8 @@ export class NotificationTemplateService {
       }
 
       logger.info(`Triggered event ${eventCode} for recipient ${data.recipientId}`);
-    } catch (error) {
-      logger.error(`Error triggering event ${eventCode}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Error triggering event ${eventCode}:`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -613,8 +613,8 @@ export class NotificationTemplateService {
       }
 
       return results;
-    } catch (error) {
-      logger.error('Error sending notification:', error);
+    } catch (error: unknown) {
+      logger.error('Error sending notification:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -661,8 +661,8 @@ export class NotificationTemplateService {
         `Scheduled ${queueEntries.length} notifications for template ${template.code}`
       );
       return queueEntries;
-    } catch (error) {
-      logger.error('Error scheduling notification:', error);
+    } catch (error: unknown) {
+      logger.error('Error scheduling notification:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -716,10 +716,10 @@ export class NotificationTemplateService {
           });
 
           results.push(result);
-        } catch (error) {
+        } catch (error: unknown) {
           const errorMessage =
-            error instanceof Error ? error.message : 'Unknown error';
-          logger.error(`Error processing notification ${notification.id}:`, error);
+            error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
+          logger.error(`Error processing notification ${notification.id}:`, error instanceof Error ? error.message : String(error));
 
           await prisma.notificationQueue.update({
             where: { id: notification.id },
@@ -736,8 +736,8 @@ export class NotificationTemplateService {
 
       logger.info(`Processed ${results.length} notifications from queue`);
       return results;
-    } catch (error) {
-      logger.error('Error processing queue:', error);
+    } catch (error: unknown) {
+      logger.error('Error processing queue:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -815,8 +815,8 @@ export class NotificationTemplateService {
         })),
         byTemplate,
       };
-    } catch (error) {
-      logger.error('Error getting statistics:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting statistics:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -839,9 +839,9 @@ export class NotificationTemplateService {
       }
 
       compiledTemplate(testVariables);
-    } catch (error) {
+    } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
       throw new Error(`Invalid template: ${errorMessage}`);
     }
   }
@@ -920,8 +920,8 @@ export class NotificationTemplateService {
       });
 
       return log;
-    } catch (error) {
-      logger.error(`Error sending via ${channel}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Error sending via ${channel}:`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -948,8 +948,8 @@ export class NotificationTemplateService {
       }
 
       return true;
-    } catch (error) {
-      logger.error('Error evaluating conditions:', error);
+    } catch (error: unknown) {
+      logger.error('Error evaluating conditions:', error instanceof Error ? error.message : String(error));
       return false;
     }
   }

@@ -169,9 +169,9 @@ class UserService {
       
       return newUser;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[UserService] Error creating user:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         email: data.email,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -217,9 +217,9 @@ class UserService {
       logger.info(`[UserService] User found: ${userId}`);
       return user;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[UserService] Error fetching user by ID:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         userId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -307,9 +307,9 @@ class UserService {
       logger.info(`[UserService] Found ${users.length} users (total: ${total})`);
       return { users, total };
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[UserService] Error fetching users:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         filters,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -379,9 +379,9 @@ class UserService {
       logger.info(`[UserService] User updated successfully: ${userId}`);
       return updatedUser;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[UserService] Error updating user:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         userId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -427,9 +427,9 @@ class UserService {
 
       logger.info(`[UserService] User deleted (soft): ${userId}`);
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[UserService] Error deleting user:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         userId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -491,9 +491,9 @@ class UserService {
         }
       }
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[UserService] Error changing password:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         userId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -552,9 +552,9 @@ class UserService {
 
       logger.info(`[UserService] Welcome email sent successfully: ${userId}`);
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[UserService] Error sending welcome email:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         userId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -588,9 +588,9 @@ class UserService {
 
       logger.info(`[UserService] User blocked successfully: ${userId} for ${days} days`);
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[UserService] Error blocking user:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         userId,
         days,
         stack: error instanceof Error ? error.stack : undefined
@@ -623,9 +623,9 @@ class UserService {
 
       logger.info(`[UserService] User unblocked successfully: ${userId}`);
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[UserService] Error unblocking user:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         userId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -658,9 +658,9 @@ class UserService {
 
       logger.info(`[UserService] User activated successfully: ${userId}`);
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[UserService] Error activating user:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         userId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -692,9 +692,9 @@ class UserService {
 
       logger.info(`[UserService] User deactivated successfully: ${userId}`);
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[UserService] Error deactivating user:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         userId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -744,9 +744,9 @@ class UserService {
         logger.error('[UserService] Error sending email verified notification:', notificationError);
       }
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[UserService] Error verifying email:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         userId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -860,9 +860,9 @@ class UserService {
 
       return stats;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[UserService] Error fetching user stats:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
       });
       throw error;
@@ -907,9 +907,9 @@ class UserService {
       logger.info(`[UserService] User ${userId} has ${count} requests`);
       return count;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[UserService] Error counting user requests:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         userId,
         stack: error instanceof Error ? error.stack : undefined
       });

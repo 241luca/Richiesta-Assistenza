@@ -68,7 +68,7 @@ router.get('/documents/:type', async (req: any, res) => {
             language: true
           }
         }
-      }
+      } as any
     });
 
     if (!document) {
@@ -79,7 +79,7 @@ router.get('/documents/:type', async (req: any, res) => {
     }
 
     // Formatta il documento con la versione corrente
-    const currentVersion = document.LegalDocumentVersion[0] || null;
+    const currentVersion = (document as any).versions?.[0] || null;
     
     // Se l'utente è autenticato, verifica se ha accettato il documento
     let userAcceptance = null;
@@ -118,8 +118,8 @@ router.get('/documents/:type', async (req: any, res) => {
       response,
       'Document retrieved successfully'
     ));
-  } catch (error) {
-    logger.error('Error fetching public legal document:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching public legal document:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Failed to fetch document',
       'FETCH_ERROR'
@@ -164,7 +164,7 @@ router.get('/documents', async (req: any, res) => {
             summary: true
           }
         }
-      },
+      } as any,
       orderBy: {
         sortOrder: 'asc'
       }
@@ -175,7 +175,7 @@ router.get('/documents', async (req: any, res) => {
       documents.map(async (doc) => {
         let userAcceptance = null;
         
-        if (userId && doc.LegalDocumentVersion.length > 0) {
+        if (userId && (doc as any).versions?.length > 0) {
           userAcceptance = await prisma.userLegalAcceptance.findFirst({
             where: {
               userId: userId,
@@ -204,11 +204,11 @@ router.get('/documents', async (req: any, res) => {
           description: doc.description,
           icon: doc.icon,
           isRequired: doc.isRequired,
-          currentVersion: doc.LegalDocumentVersion[0] || null,
+          currentVersion: (doc as any).versions?.[0] || null,
           hasAccepted: !!userAcceptance,
           needsNewAcceptance: userAcceptance && 
-            doc.LegalDocumentVersion[0] && 
-            userAcceptance.versionId !== doc.LegalDocumentVersion[0].id,
+            (doc as any).versions?.[0] && 
+            userAcceptance.versionId !== (doc as any).versions[0].id,
           userAcceptance
         };
       })
@@ -218,8 +218,8 @@ router.get('/documents', async (req: any, res) => {
       documentsWithAcceptance,
       'Documents retrieved successfully'
     ));
-  } catch (error) {
-    logger.error('Error fetching public legal documents:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching public legal documents:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Failed to fetch documents',
       'FETCH_ERROR'
@@ -330,8 +330,8 @@ router.post('/accept',
         acceptance,
         'Document accepted successfully'
       ));
-    } catch (error) {
-      logger.error('Error accepting document:', error);
+    } catch (error: unknown) {
+      logger.error('Error accepting document:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to accept document',
         'ACCEPT_ERROR'
@@ -380,8 +380,8 @@ router.get('/acceptances',
         acceptances,
         'Acceptances retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching user acceptances:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching user acceptances:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to fetch acceptances',
         'FETCH_ERROR'
@@ -406,8 +406,8 @@ router.get('/pending',
         pendingDocuments,
         'Pending documents retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching pending documents:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching pending documents:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to fetch pending documents',
         'FETCH_ERROR'

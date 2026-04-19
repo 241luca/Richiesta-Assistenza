@@ -57,11 +57,12 @@ export function useGoogleMaps(): UseGoogleMapsResult {
         setIsLoading(true);
         setError(null);
 
-        // Carica API key e script
-        await googleMapsConfig.loadGoogleMapsScript();
+        // Ottieni API key
+        const key = googleMapsConfig.getApiKey();
         
-        // Ottieni API key per info
-        const key = await googleMapsConfig.getApiKey();
+        if (!key) {
+          throw new Error('Google Maps API key not configured');
+        }
 
         if (isMounted) {
           setApiKey(key);

@@ -39,7 +39,7 @@ export class ChatWebSocket {
         socket.userRole = decoded.role;
         
         next();
-      } catch (error) {
+      } catch (error: unknown) {
         next(new Error('Authentication error'));
       }
     });
@@ -80,8 +80,8 @@ export class ChatWebSocket {
             recipientId: socket.userId,
             timestamp: new Date()
           });
-        } catch (error) {
-          logger.error('Error joining chat room:', error);
+        } catch (error: unknown) {
+          logger.error('Error joining chat room:', error instanceof Error ? error.message : String(error));
           socket.emit('error', { message: 'Errore nell\'accesso alla chat' });
         }
       });
@@ -111,11 +111,11 @@ export class ChatWebSocket {
           // Invia il messaggio tramite il service
           const newMessage = await chatService.sendMessage({
             requestId: data.requestId,
-            recipientId: socket.userId,
+            senderId: socket.userId,
             message: data.message,
             messageType: data.messageType as any,
             attachments: data.attachments
-          });
+          } as any);
 
           // Invia il messaggio a tutti nella room (incluso il mittente)
           this.io.to(`request-${data.requestId}`).emit('new-message', newMessage);
@@ -123,8 +123,8 @@ export class ChatWebSocket {
           // Invia notifica push agli utenti offline
           await this.sendPushNotificationToOfflineUsers(data.requestId, socket.userId, data.message);
         } catch (error: any) {
-          logger.error('Error sending message via WebSocket:', error);
-          socket.emit('error', { message: error.message || 'Errore nell\'invio del messaggio' });
+          logger.error('Error sending message via WebSocket:', error instanceof Error ? error.message : String(error));
+          socket.emit('error', { message: error instanceof Error ? error.message : String(error) || 'Errore nell\'invio del messaggio' });
         }
       });
 
@@ -146,8 +146,8 @@ export class ChatWebSocket {
           // Notifica tutti nella room della modifica
           this.io.to(`request-${data.requestId}`).emit('message-edited', updatedMessage);
         } catch (error: any) {
-          logger.error('Error editing message via WebSocket:', error);
-          socket.emit('error', { message: error.message || 'Errore nella modifica del messaggio' });
+          logger.error('Error editing message via WebSocket:', error instanceof Error ? error.message : String(error));
+          socket.emit('error', { message: error instanceof Error ? error.message : String(error) || 'Errore nella modifica del messaggio' });
         }
       });
 
@@ -168,8 +168,8 @@ export class ChatWebSocket {
             timestamp: new Date()
           });
         } catch (error: any) {
-          logger.error('Error deleting message via WebSocket:', error);
-          socket.emit('error', { message: error.message || 'Errore nell\'eliminazione del messaggio' });
+          logger.error('Error deleting message via WebSocket:', error instanceof Error ? error.message : String(error));
+          socket.emit('error', { message: error instanceof Error ? error.message : String(error) || 'Errore nell\'eliminazione del messaggio' });
         }
       });
 
@@ -195,8 +195,8 @@ export class ChatWebSocket {
             requestId: data.requestId,
             timestamp: new Date()
           });
-        } catch (error) {
-          logger.error('Error marking messages as read via WebSocket:', error);
+        } catch (error: unknown) {
+          logger.error('Error marking messages as read via WebSocket:', error instanceof Error ? error.message : String(error));
         }
       });
 
@@ -249,7 +249,7 @@ export class ChatWebSocket {
    * Verifica se un utente è online
    */
   public isUserOnline(recipientId: string): boolean {
-    return this.connectedUsers.has(userId);
+    return this.connectedUsers.has(recipientId);
   }
 
   /**

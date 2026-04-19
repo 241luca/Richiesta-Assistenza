@@ -82,7 +82,7 @@ export async function execute(params: ReportParams) {
     };
     
   } catch (error: any) {
-    logger.error('❌ Report generation failed:', error);
+    logger.error('❌ Report generation failed:', error instanceof Error ? error.message : String(error));
     throw error;
   } finally {
     await prisma.$disconnect();

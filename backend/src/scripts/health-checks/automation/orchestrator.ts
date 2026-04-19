@@ -38,8 +38,8 @@ export class HealthCheckOrchestrator {
         logger.info('📊 Generating weekly report...');
         try {
           await reportGenerator.generateWeeklyReport();
-        } catch (error) {
-          logger.error('Failed to generate weekly report:', error);
+        } catch (error: unknown) {
+          logger.error('Failed to generate weekly report:', error instanceof Error ? error.message : String(error));
         }
       });
       logger.info('✅ Weekly report scheduler configured');
@@ -57,8 +57,8 @@ export class HealthCheckOrchestrator {
       // Esegui un check iniziale
       await this.runInitialCheck();
 
-    } catch (error) {
-      logger.error('❌ Failed to start orchestrator:', error);
+    } catch (error: unknown) {
+      logger.error('❌ Failed to start orchestrator:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -108,8 +108,8 @@ export class HealthCheckOrchestrator {
           }
         }
       }
-    } catch (error) {
-      logger.error('Initial check failed:', error);
+    } catch (error: unknown) {
+      logger.error('Initial check failed:', error instanceof Error ? error.message : String(error));
     }
   }
 

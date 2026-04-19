@@ -70,8 +70,8 @@ export async function execute(params: TestEmailParams) {
       throw new Error(result.error || 'Failed to send email');
     }
     
-  } catch (error) {
-    logger.error('❌ Email test failed:', error);
+  } catch (error: unknown) {
+    logger.error('❌ Email test failed:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }

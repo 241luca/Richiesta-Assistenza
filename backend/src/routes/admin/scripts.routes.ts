@@ -33,8 +33,8 @@ router.get('/', async (req: any, res) => {
       { scripts, categories },
       'Scripts retrieved successfully'
     ));
-  } catch (error) {
-    logger.error('Error getting scripts:', error);
+  } catch (error: unknown) {
+    logger.error('Error getting scripts:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to get scripts', 'SCRIPTS_ERROR')
     );
@@ -57,8 +57,8 @@ router.get('/:id', async (req, res) => {
     }
     
     return res.json(ResponseFormatter.success(script, 'Script retrieved'));
-  } catch (error) {
-    logger.error('Error getting script:', error);
+  } catch (error: unknown) {
+    logger.error('Error getting script:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to get script', 'SCRIPT_ERROR')
     );
@@ -89,23 +89,23 @@ router.post('/:id/execute', async (req: any, res) => {
       'Script execution started'
     ));
   } catch (error: any) {
-    logger.error('Error executing script:', error);
+    logger.error('Error executing script:', error instanceof Error ? error.message : String(error));
     
-    if (error.message === 'Insufficient permissions') {
+    if (error instanceof Error ? error.message : String(error) === 'Insufficient permissions') {
       return res.status(403).json(
         ResponseFormatter.error('Insufficient permissions', 'FORBIDDEN')
       );
     }
     
-    if (error.message.includes('not found')) {
+    if (error instanceof Error ? error.message : String(error).includes('not found')) {
       return res.status(404).json(
-        ResponseFormatter.error(error.message, 'NOT_FOUND')
+        ResponseFormatter.error(error instanceof Error ? error.message : String(error), 'NOT_FOUND')
       );
     }
     
-    if (error.message.includes('Required parameter') || error.message.includes('must be')) {
+    if (error instanceof Error ? error.message : String(error).includes('Required parameter') || error instanceof Error ? error.message : String(error).includes('must be')) {
       return res.status(400).json(
-        ResponseFormatter.error(error.message, 'VALIDATION_ERROR')
+        ResponseFormatter.error(error instanceof Error ? error.message : String(error), 'VALIDATION_ERROR')
       );
     }
     
@@ -130,8 +130,8 @@ router.get('/:id/history', async (req, res) => {
       history,
       'Script history retrieved'
     ));
-  } catch (error) {
-    logger.error('Error getting script history:', error);
+  } catch (error: unknown) {
+    logger.error('Error getting script history:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to get script history', 'HISTORY_ERROR')
     );
@@ -157,8 +157,8 @@ router.get('/execution/:runId', async (req, res) => {
       execution,
       'Execution status retrieved'
     ));
-  } catch (error) {
-    logger.error('Error getting execution status:', error);
+  } catch (error: unknown) {
+    logger.error('Error getting execution status:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to get execution status', 'STATUS_ERROR')
     );
@@ -178,8 +178,8 @@ router.get('/execution/:runId/output', async (req, res) => {
       { output },
       'Execution output retrieved'
     ));
-  } catch (error) {
-    logger.error('Error getting execution output:', error);
+  } catch (error: unknown) {
+    logger.error('Error getting execution output:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to get execution output', 'OUTPUT_ERROR')
     );
@@ -198,8 +198,8 @@ router.post('/reload', requireRole(['SUPER_ADMIN']), async (req, res) => {
       null,
       'Script registry reloaded successfully'
     ));
-  } catch (error) {
-    logger.error('Error reloading registry:', error);
+  } catch (error: unknown) {
+    logger.error('Error reloading registry:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to reload registry', 'RELOAD_ERROR')
     );

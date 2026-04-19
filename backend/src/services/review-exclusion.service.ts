@@ -28,25 +28,31 @@ export class ReviewExclusionService {
         where: {
           userId,
           isActive: true,
-          OR: [
-            { type: 'BOTH' },
-            ...(type ? [{ type }] : [{ type: 'CLIENT' }, { type: 'PROFESSIONAL' }])
-          ],
-          OR: [
-            { isTemporary: false },
-            { 
-              isTemporary: true,
-              expiresAt: {
-                gt: new Date()
-              }
+          AND: [
+            {
+              OR: [
+                { type: 'BOTH' },
+                ...(type ? [{ type: type as any }] : [{ type: 'CLIENT' }, { type: 'PROFESSIONAL' }])
+              ]
+            },
+            {
+              OR: [
+                { isTemporary: false },
+                { 
+                  isTemporary: true,
+                  expiresAt: {
+                    gt: new Date()
+                  }
+                }
+              ]
             }
           ]
         }
       });
 
       return !!exclusion;
-    } catch (error) {
-      logger.error('Error checking user exclusion:', error);
+    } catch (error: unknown) {
+      logger.error('Error checking user exclusion:', error instanceof Error ? error.message : String(error));
       return false;
     }
   }
@@ -101,8 +107,8 @@ export class ReviewExclusionService {
       });
 
       return exclusions;
-    } catch (error) {
-      logger.error('Error fetching exclusions:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching exclusions:', error instanceof Error ? error.message : String(error));
       throw new Error('Errore nel caricamento delle esclusioni');
     }
   }
@@ -172,8 +178,8 @@ export class ReviewExclusionService {
       });
 
       return exclusion;
-    } catch (error) {
-      logger.error('Error creating exclusion:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating exclusion:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -220,8 +226,8 @@ export class ReviewExclusionService {
       });
 
       return updatedExclusion;
-    } catch (error) {
-      logger.error('Error removing exclusion:', error);
+    } catch (error: unknown) {
+      logger.error('Error removing exclusion:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -246,7 +252,7 @@ export class ReviewExclusionService {
           updatedAt: new Date(),
         },
         include: {
-          user: {
+          User_ReviewExclusion_userIdToUser: {
             select: {
               id: true,
               firstName: true,
@@ -255,14 +261,14 @@ export class ReviewExclusionService {
               role: true,
             },
           },
-          excludedByUser: {
+          User_ReviewExclusion_excludedByToUser: {
             select: {
               id: true,
               firstName: true,
               lastName: true,
             },
           },
-        },
+        } as any,
       });
 
       logger.info('Updated review exclusion', { 
@@ -272,8 +278,8 @@ export class ReviewExclusionService {
       });
 
       return updatedExclusion;
-    } catch (error) {
-      logger.error('Error updating exclusion:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating exclusion:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -302,8 +308,8 @@ export class ReviewExclusionService {
       }
 
       return result.count;
-    } catch (error) {
-      logger.error('Error cleaning up expired exclusions:', error);
+    } catch (error: unknown) {
+      logger.error('Error cleaning up expired exclusions:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -336,8 +342,8 @@ export class ReviewExclusionService {
         permanent: active - temporary,
         byType: typeStats,
       };
-    } catch (error) {
-      logger.error('Error fetching exclusion stats:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching exclusion stats:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

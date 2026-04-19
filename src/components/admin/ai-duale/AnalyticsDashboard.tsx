@@ -17,7 +17,11 @@ interface AccuracyData {
   confidenceAverage: number;
 }
 
-export function AnalyticsDashboard() {
+interface AnalyticsDashboardProps {
+  professionalId?: string;
+}
+
+export function AnalyticsDashboard({ professionalId }: AnalyticsDashboardProps) {
   // Fetch accuracy data
   const { data: accuracy, isLoading } = useQuery({
     queryKey: ['ai-accuracy'],

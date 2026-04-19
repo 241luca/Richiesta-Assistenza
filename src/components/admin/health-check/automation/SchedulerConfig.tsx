@@ -46,11 +46,15 @@ export default function SchedulerConfig() {
     queryFn: async () => {
       const response = await api.get('/admin/health-check/schedule');
       return response.data.data;
-    },
-    onSuccess: (data) => {
-      setConfig(data);
     }
   });
+
+  // Update config when data changes
+  React.useEffect(() => {
+    if (currentConfig) {
+      setConfig(currentConfig);
+    }
+  }, [currentConfig]);
 
   // Update configuration mutation
   const updateMutation = useMutation({

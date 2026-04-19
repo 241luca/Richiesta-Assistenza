@@ -28,8 +28,8 @@ export class DocumentConfigService {
         ...config,
         value: this.parseConfigValue(config.value, config.dataType)
       }));
-    } catch (error) {
-      logger.error('Error fetching system configs:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching system configs:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -51,8 +51,8 @@ export class DocumentConfigService {
         ...config,
         value: this.parseConfigValue(config.value, config.dataType)
       };
-    } catch (error) {
-      logger.error('Error fetching config by key:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching config by key:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -74,8 +74,8 @@ export class DocumentConfigService {
         ...config,
         value: this.parseConfigValue(config.value, config.dataType)
       }));
-    } catch (error) {
-      logger.error('Error fetching configs by category:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching configs by category:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -99,7 +99,7 @@ export class DocumentConfigService {
           isEditable: data.isEditable ?? true,
           isVisible: data.isVisible ?? true,
           updatedBy: userId
-        },
+        } as any,
         update: {
           value: jsonValue,
           category: data.category,
@@ -109,15 +109,15 @@ export class DocumentConfigService {
           isVisible: data.isVisible,
           updatedBy: userId,
           updatedAt: new Date()
-        }
+        } as any
       });
 
       return {
         ...config,
         value: this.parseConfigValue(config.value, config.dataType)
       };
-    } catch (error) {
-      logger.error('Error upserting config:', error);
+    } catch (error: unknown) {
+      logger.error('Error upserting config:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -155,8 +155,8 @@ export class DocumentConfigService {
         ...updated,
         value: this.parseConfigValue(updated.value, updated.dataType)
       };
-    } catch (error) {
-      logger.error('Error updating config:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating config:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -184,8 +184,8 @@ export class DocumentConfigService {
       await this.logAudit('DELETE', key, config.value, null, userId);
 
       return { success: true, message: 'Configuration deleted successfully' };
-    } catch (error) {
-      logger.error('Error deleting config:', error);
+    } catch (error: unknown) {
+      logger.error('Error deleting config:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -285,8 +285,8 @@ export class DocumentConfigService {
         message: `Initialized ${created.length} default configurations`,
         created
       };
-    } catch (error) {
-      logger.error('Error initializing default configs:', error);
+    } catch (error: unknown) {
+      logger.error('Error initializing default configs:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -320,8 +320,8 @@ export class DocumentConfigService {
         default:
           return value;
       }
-    } catch (error) {
-      logger.error(`Error parsing config value for type ${dataType}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Error parsing config value for type ${dataType}:`, error instanceof Error ? error.message : String(error));
       return value;
     }
   }
@@ -347,8 +347,8 @@ export class DocumentConfigService {
         default:
           return value;
       }
-    } catch (error) {
-      logger.error(`Error formatting config value for type ${dataType}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Error formatting config value for type ${dataType}:`, error instanceof Error ? error.message : String(error));
       return value;
     }
   }
@@ -373,10 +373,10 @@ export class DocumentConfigService {
           newValues: newValues ? JSON.parse(JSON.stringify(newValues)) : null,
           userId,
           timestamp: new Date()
-        }
+        } as any
       });
-    } catch (error) {
-      logger.error('Error logging audit:', error);
+    } catch (error: unknown) {
+      logger.error('Error logging audit:', error instanceof Error ? error.message : String(error));
       // Non propagare l'errore, il log è secondario
     }
   }
@@ -417,8 +417,8 @@ export class DocumentConfigService {
           count: t._count.id
         }))
       };
-    } catch (error) {
-      logger.error('Error getting config statistics:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting config statistics:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

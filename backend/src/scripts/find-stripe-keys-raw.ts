@@ -28,7 +28,7 @@ async function findStripeKeys() {
     console.log('Risultati trovati:', results);
     
   } catch (error: any) {
-    console.error('Errore SQL:', error.message);
+    console.error('Errore SQL:', error instanceof Error ? error.message : String(error));
     
     // Se il modello ApiKey non esiste, proviamo a vedere quali tabelle esistono
     console.log('\n📊 Controllo tabelle nel database...\n');

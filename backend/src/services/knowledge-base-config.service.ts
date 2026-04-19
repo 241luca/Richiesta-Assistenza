@@ -43,7 +43,7 @@ export class KnowledgeBaseConfigService {
           professionalId,
           subcategoryId,
           targetAudience
-        );
+        ) as any; // Type assertion needed
       }
       
       // Salva in cache
@@ -53,8 +53,8 @@ export class KnowledgeBaseConfigService {
       });
       
       return config;
-    } catch (error) {
-      logger.error('Error getting KB config:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting KB config:', error instanceof Error ? error.message : String(error));
       // Ritorna configurazione di default in caso di errore
       return this.getDefaultConfig(targetAudience);
     }
@@ -77,10 +77,10 @@ export class KnowledgeBaseConfigService {
           subcategoryId,
           targetAudience,
           ...defaults
-        }
+        } as any // Type assertion for complex Prisma input
       });
-    } catch (error) {
-      logger.error('Error creating default KB config:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating default KB config:', error instanceof Error ? error.message : String(error));
       return { ...defaults, professionalId, subcategoryId, targetAudience };
     }
   }
@@ -160,15 +160,15 @@ export class KnowledgeBaseConfigService {
           targetAudience,
           ...this.getDefaultConfig(targetAudience),
           ...updates
-        }
+        } as any // Type assertion for complex Prisma input
       });
       
       // Invalida cache
       configCache.delete(cacheKey);
       
       return config;
-    } catch (error) {
-      logger.error('Error updating KB config:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating KB config:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

@@ -32,10 +32,10 @@ class TestController {
         }
       ));
     } catch (error: any) {
-      logger.error('Error during system tests execution:', error);
+      logger.error('Error during system tests execution:', error instanceof Error ? error.message : String(error));
       res.status(500).json(ResponseFormatter.error(
         'Failed to execute system tests',
-        500,
+        'SYSTEM_TEST_ERROR',
         { 
           suggestion: 'Verifica che il backend sia avviato e il database sia accessibile'
         }
@@ -70,10 +70,10 @@ class TestController {
         }
       ));
     } catch (error: any) {
-      logger.error(`Error testing category ${req.params.category}:`, error);
+      logger.error(`Error testing category ${req.params.category}:`, error instanceof Error ? error.message : String(error));
       res.status(500).json(ResponseFormatter.error(
         `Failed to execute tests for category '${req.params.category}'`,
-        500,
+        'CATEGORY_TEST_ERROR',
         { category: req.params.category }
       ));
     }
@@ -108,10 +108,10 @@ class TestController {
         }
       ));
     } catch (error: any) {
-      logger.error('Error during system health check:', error);
+      logger.error('Error during system health check:', error instanceof Error ? error.message : String(error));
       res.status(500).json(ResponseFormatter.error(
         'System health check failed',
-        500,
+        'HEALTH_CHECK_ERROR',
         { timestamp: new Date() }
       ));
     }

@@ -140,8 +140,8 @@ class TravelCostService {
           { type: 'URGENT' as const, percentage: 0, fixedAmount: 2000, isActive: false }
         ]
       };
-    } catch (error) {
-      logger.error('[TravelCostService] Error fetching cost settings:', error);
+    } catch (error: unknown) {
+      logger.error('[TravelCostService] Error fetching cost settings:', error instanceof Error ? error.message : String(error));
       // Ritorna impostazioni di default in caso di errore
       return {
         professionalId: professionalId,
@@ -336,8 +336,8 @@ class TravelCostService {
         return savedSettings;
       });
       
-    } catch (error) {
-      logger.error('[TravelCostService] Error saving cost settings:', error);
+    } catch (error: unknown) {
+      logger.error('[TravelCostService] Error saving cost settings:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

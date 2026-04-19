@@ -57,7 +57,7 @@ export const requireModule = (moduleCode: string) => {
       next();
     } catch (error: any) {
       logger.error(`[ModuleMiddleware] Error checking module ${moduleCode}:`, {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         stack: error.stack,
         path: req.path
       });
@@ -126,7 +126,7 @@ export const requireModules = (moduleCodes: string[]) => {
       next();
     } catch (error: any) {
       logger.error(`[ModuleMiddleware] Error checking multiple modules:`, {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         modules: moduleCodes,
         path: req.path
       });
@@ -201,7 +201,7 @@ export const requireModuleCached = (moduleCode: string) => {
       next();
     } catch (error: any) {
       logger.error(`[ModuleMiddleware] Error checking cached module ${moduleCode}:`, {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         path: req.path
       });
       
@@ -269,8 +269,8 @@ export const warnIfModuleDisabled = (moduleCode: string) => {
           user: req.user?.id || 'anonymous'
         });
       }
-    } catch (error) {
-      logger.error(`[ModuleMiddleware] Error in warning check for ${moduleCode}:`, error);
+    } catch (error: unknown) {
+      logger.error(`[ModuleMiddleware] Error in warning check for ${moduleCode}:`, error instanceof Error ? error.message : String(error));
     }
     next(); // Continua sempre, è solo un warning
   };

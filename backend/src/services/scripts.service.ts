@@ -79,8 +79,8 @@ class ScriptManagerService {
       const registryContent = await fs.readFile(registryPath, 'utf-8');
       this.registry = JSON.parse(registryContent);
       logger.info(`✅ Script registry loaded: ${this.registry?.scripts.length} scripts`);
-    } catch (error) {
-      logger.error('❌ Failed to load script registry:', error);
+    } catch (error: unknown) {
+      logger.error('❌ Failed to load script registry:', error instanceof Error ? error.message : String(error));
       // Usa un registry vuoto se il file non esiste
       this.registry = {
         scripts: [],
@@ -242,9 +242,9 @@ class ScriptManagerService {
       execution.completedAt = new Date();
 
     } catch (error: any) {
-      logger.error(`Script execution failed for ${script.id}:`, error);
+      logger.error(`Script execution failed for ${script.id}:`, error instanceof Error ? error.message : String(error));
       execution.status = 'error';
-      execution.error = error.message;
+      execution.error = error instanceof Error ? error.message : String(error);
       execution.completedAt = new Date();
     }
   }
@@ -268,8 +268,8 @@ class ScriptManagerService {
         .slice(0, limit);
       
       return history;
-    } catch (error) {
-      logger.error('Error fetching script history:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching script history:', error instanceof Error ? error.message : String(error));
       return [];
     }
   }
@@ -300,8 +300,8 @@ class ScriptManagerService {
         parameters: JSON.stringify(parameters),
         timestamp: new Date()
       });
-    } catch (error) {
-      logger.error('Failed to log script execution:', error);
+    } catch (error: unknown) {
+      logger.error('Failed to log script execution:', error instanceof Error ? error.message : String(error));
     }
   }
 

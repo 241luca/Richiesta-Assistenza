@@ -286,7 +286,7 @@ async function setupPaymentSystem() {
     }
     
   } catch (error: any) {
-    console.error('\n❌ ERRORE:', error.message);
+    console.error('\n❌ ERRORE:', error instanceof Error ? error.message : String(error));
     console.error('Dettagli:', error);
   } finally {
     await prisma.$disconnect();

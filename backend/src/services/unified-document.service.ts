@@ -158,7 +158,7 @@ export class UnifiedDocumentService {
       }
 
       // Convert to unified format
-      const unifiedDocuments: UnifiedDocument[] = [
+      const unifiedDocuments = [
         ...legalDocuments.map((doc: any) => ({
           id: doc.id,
           type: 'LEGAL' as const,
@@ -220,8 +220,8 @@ export class UnifiedDocumentService {
         limit,
         offset
       };
-    } catch (error) {
-      logger.error('Error fetching unified documents:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching unified documents:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -329,8 +329,8 @@ export class UnifiedDocumentService {
           metadata: doc.documentSettings
         };
       }
-    } catch (error) {
-      logger.error('Error fetching document by ID:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching document by ID:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -378,7 +378,7 @@ export class UnifiedDocumentService {
             name: data.title,
             description: data.description,
             subcategoryId: formTemplate.subcategoryId,
-            professionalId: null, // This is a document, not a professional form
+            professionalId: null,
             displayType: formTemplate.displayType,
             createdBy: data.createdBy,
             version: 1,
@@ -387,7 +387,6 @@ export class UnifiedDocumentService {
             isDocumentTemplate: true,
             documentTypeId: data.documentTypeId,
             documentSettings: {
-              // Document-specific settings from document type
               requiresApproval: documentType.requiresApproval,
               requiresSignature: documentType.requiresSignature,
               approverRoles: documentType.approverRoles,
@@ -395,7 +394,7 @@ export class UnifiedDocumentService {
               ...data.metadata
             },
             enableVersioning: true
-          }
+          } as any
         });
 
         // Copy fields from template
@@ -424,7 +423,7 @@ export class UnifiedDocumentService {
                 dependencies: field.dependencies,
                 showIf: field.showIf,
                 requiredIf: field.requiredIf
-              }
+              } as any
             })
           )
         );
@@ -443,8 +442,8 @@ export class UnifiedDocumentService {
       });
 
       return result;
-    } catch (error) {
-      logger.error('Error creating document from form:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating document from form:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -484,8 +483,8 @@ export class UnifiedDocumentService {
         draftDocuments: legalDraft + formDraft,
         publishedDocuments: (legalCount - legalDraft) + (formCount - formDraft)
       };
-    } catch (error) {
-      logger.error('Error fetching document statistics:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching document statistics:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

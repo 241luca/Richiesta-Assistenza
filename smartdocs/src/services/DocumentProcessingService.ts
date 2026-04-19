@@ -2,15 +2,17 @@ import { DatabaseClient } from '../database/client';
 import { logger } from '../utils/logger';
 import { minioStorage } from './MinIOStorageService';
 import { OpenAIService } from './OpenAIService';
-import pdfParse from 'pdf-parse';
+import { UnifiedTextExtractorService } from './UnifiedTextExtractorService';
 
 export class DocumentProcessingService {
   private db: DatabaseClient;
   private openai: OpenAIService;
+  private textExtractor: UnifiedTextExtractorService;
 
   constructor() {
     this.db = DatabaseClient.getInstance();
     this.openai = new OpenAIService();
+    this.textExtractor = new UnifiedTextExtractorService();
   }
 
   /**
@@ -46,24 +48,62 @@ export class DocumentProcessingService {
       logger.info(`[DocumentProcessing] Downloading file from MinIO: ${storagePath}`);
       const fileBuffer = await minioStorage.getFile(storagePath);
 
-      // 4. Estrai testo basandosi sul tipo di file
-      let extractedText: string;
+      // 4. Estrai testo usando il servizio unificato
+      const extractionResult = await this.textExtractor.extractText(
+        fileBuffer, 
+        document.mime_type,
+        document.title
+      );
       
-      if (document.mime_type === 'application/pdf') {
-        extractedText = await this.extractTextFromPDF(fileBuffer);
-      } else if (document.mime_type === 'text/plain') {
-        extractedText = fileBuffer.toString('utf-8');
-      } else {
-        throw new Error(`Unsupported file type: ${document.mime_type}`);
+      const extractedText = extractionResult.text;
+      
+      // Log metadata estratti
+      if (extractionResult.metadata) {
+        logger.info(`[DocumentProcessing] Metadata estratti:`, {
+          wordCount: extractionResult.metadata.wordCount,
+          pageCount: extractionResult.metadata.pageCount,
+          language: extractionResult.metadata.language || this.textExtractor.detectLanguage(extractedText),
+          tables: extractionResult.metadata.tables?.length || 0,
+          images: extractionResult.metadata.images?.length || 0
+        });
+      }
+      
+      // Log warnings se presenti
+      if (extractionResult.warnings) {
+        extractionResult.warnings.forEach(warning => {
+          logger.warn(`[DocumentProcessing] Warning: ${warning}`);
+        });
       }
 
       logger.info(`[DocumentProcessing] Extracted ${extractedText.length} characters from document`);
 
-      // 5. Salva il contenuto estratto nel documento
+      // 5. Salva il contenuto estratto e i metadata nel documento
+      const updatedMetadata = {
+        ...metadata,
+        extraction: {
+          wordCount: extractionResult.metadata.wordCount,
+          pageCount: extractionResult.metadata.pageCount,
+          language: extractionResult.metadata.language || this.textExtractor.detectLanguage(extractedText),
+          tablesCount: extractionResult.metadata.tables?.length || 0,
+          imagesCount: extractionResult.metadata.images?.length || 0,
+          extractionDate: new Date().toISOString()
+        }
+      };
+      
       await this.db.query(
-        'UPDATE smartdocs.documents SET content = $1 WHERE id = $2',
-        [extractedText, documentId]
+        'UPDATE smartdocs.documents SET content = $1, metadata = $2 WHERE id = $3',
+        [extractedText, JSON.stringify(updatedMetadata), documentId]
       );
+      
+      // Se ci sono dati strutturati (da Excel/CSV), salvali separatamente
+      if (extractionResult.structuredData) {
+        await this.db.query(
+          `UPDATE smartdocs.documents 
+           SET structured_data = $1 
+           WHERE id = $2`,
+          [JSON.stringify(extractionResult.structuredData), documentId]
+        );
+      }
 
       // 6. Ottieni configurazione chunking dal container
       const containerQuery = await this.db.query(
@@ -96,18 +136,6 @@ export class DocumentProcessingService {
     }
   }
 
-  /**
-   * Estrae testo da PDF
-   */
-  private async extractTextFromPDF(buffer: Buffer): Promise<string> {
-    try {
-      const data = await pdfParse(buffer);
-      return data.text;
-    } catch (error) {
-      logger.error('[DocumentProcessing] PDF parsing error:', error);
-      throw new Error('Failed to extract text from PDF');
-    }
-  }
 
   /**
    * Divide il testo in chunks con overlap

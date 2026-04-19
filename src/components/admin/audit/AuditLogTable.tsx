@@ -22,6 +22,7 @@ interface AuditLog {
   entityId?: string;
   success: boolean;
   ipAddress: string;
+  userAgent?: string;
   endpoint?: string;
   method?: string;
   responseTime?: number;

@@ -19,7 +19,7 @@ router.get('/phrases', authenticate, requireProfessional, async (req: any, res) 
       phrases,
       'Frasi recuperate con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching phrases:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle frasi',
@@ -47,7 +47,7 @@ router.get('/phrases/search', authenticate, requireProfessional, async (req: any
       phrases,
       'Ricerca completata'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error searching phrases:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nella ricerca',
@@ -68,7 +68,7 @@ router.get('/phrases/category/:category', authenticate, requireProfessional, asy
       phrases,
       'Frasi recuperate con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching phrases by Category:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle frasi',
@@ -88,7 +88,7 @@ router.get('/phrases/export', authenticate, requireProfessional, async (req: any
     res.setHeader('Content-Disposition', 'attachment; filename="frasi-professionali.json"');
     
     return res.json(phrases);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error exporting phrases:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'esportazione',
@@ -119,7 +119,7 @@ router.get('/phrases/:id', authenticate, requireProfessional, async (req: any, r
   } catch (error: any) {
     console.error('Error fetching phrase:', error);
     
-    if (error.message === 'Frase non trovata') {
+    if (error instanceof Error ? error.message : String(error) === 'Frase non trovata') {
       return res.status(404).json(ResponseFormatter.error(
         'Frase non trovata',
         'PHRASE_NOT_FOUND'
@@ -157,7 +157,7 @@ router.post('/phrases', authenticate, requireProfessional, async (req: any, res)
     
     const phrase = await professionalPhrasesService.create({
       professionalId,
-      category,
+      Category: category,
       code: code || '',
       title,
       content,
@@ -168,7 +168,7 @@ router.post('/phrases', authenticate, requireProfessional, async (req: any, res)
       phrase,
       'Frase creata con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating phrase:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nella creazione della frase',
@@ -199,7 +199,7 @@ router.put('/phrases/:id', authenticate, requireProfessional, async (req: any, r
   } catch (error: any) {
     console.error('Error updating phrase:', error);
     
-    if (error.message === 'Frase non trovata') {
+    if (error instanceof Error ? error.message : String(error) === 'Frase non trovata') {
       return res.status(404).json(ResponseFormatter.error(
         'Frase non trovata',
         'PHRASE_NOT_FOUND'
@@ -235,7 +235,7 @@ router.delete('/phrases/:id', authenticate, requireProfessional, async (req: any
   } catch (error: any) {
     console.error('Error deleting phrase:', error);
     
-    if (error.message === 'Frase non trovata') {
+    if (error instanceof Error ? error.message : String(error) === 'Frase non trovata') {
       return res.status(404).json(ResponseFormatter.error(
         'Frase non trovata',
         'PHRASE_NOT_FOUND'
@@ -271,7 +271,7 @@ router.post('/phrases/:id/favorite', authenticate, requireProfessional, async (r
   } catch (error: any) {
     console.error('Error toggling favorite:', error);
     
-    if (error.message === 'Frase non trovata') {
+    if (error instanceof Error ? error.message : String(error) === 'Frase non trovata') {
       return res.status(404).json(ResponseFormatter.error(
         'Frase non trovata',
         'PHRASE_NOT_FOUND'
@@ -303,7 +303,7 @@ router.post('/phrases/:id/use', authenticate, requireProfessional, async (req: a
       phrase,
       'Utilizzo registrato'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error incrementing usage:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento',
@@ -334,7 +334,7 @@ router.post('/phrases/import', authenticate, requireProfessional, async (req: an
       },
       `${imported.length} frasi importate con successo`
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error importing phrases:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'importazione',

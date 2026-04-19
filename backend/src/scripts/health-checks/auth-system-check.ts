@@ -58,9 +58,9 @@ class AuthenticationHealthCheck extends BaseHealthCheck {
       await this.checkPerformanceMetrics();
       
     } catch (error: any) {
-      this.log(`Critical error during health check: ${error.message}`, 'error');
+      this.log(`Critical error during health check: ${error instanceof Error ? error.message : String(error)}`, 'error');
       this.result.status = 'error';
-      this.result.errors.push(`Health check failed: ${error.message}`);
+      this.result.errors.push(`Health check failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       // Cleanup
       await this.redis.quit();
@@ -132,7 +132,7 @@ class AuthenticationHealthCheck extends BaseHealthCheck {
         name: 'database_tables',
         description: 'Database table accessibility',
         status: CheckStatus.FAIL,
-        message: `Database error: ${error.message}`,
+        message: `Database error: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.CRITICAL
       });
     }
@@ -165,7 +165,7 @@ class AuthenticationHealthCheck extends BaseHealthCheck {
         name: 'redis_connection',
         description: 'Redis session store',
         status: CheckStatus.FAIL,
-        message: `Redis connection failed: ${error.message}`,
+        message: `Redis connection failed: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.HIGH
       });
       
@@ -203,7 +203,7 @@ class AuthenticationHealthCheck extends BaseHealthCheck {
       }
       
     } catch (error: any) {
-      this.log(`2FA check error: ${error.message}`, 'warning');
+      this.log(`2FA check error: ${error instanceof Error ? error.message : String(error)}`, 'warning');
     }
   }
   
@@ -254,7 +254,7 @@ class AuthenticationHealthCheck extends BaseHealthCheck {
       }
       
     } catch (error: any) {
-      this.log(`Login statistics error: ${error.message}`, 'warning');
+      this.log(`Login statistics error: ${error instanceof Error ? error.message : String(error)}`, 'warning');
     }
   }
   
@@ -381,7 +381,7 @@ class AuthenticationHealthCheck extends BaseHealthCheck {
       this.addMetric('active_lockouts', activeLockouts);
       
     } catch (error: any) {
-      this.log(`Account lockout check error: ${error.message}`, 'warning');
+      this.log(`Account lockout check error: ${error instanceof Error ? error.message : String(error)}`, 'warning');
     }
   }
   
@@ -408,7 +408,7 @@ class AuthenticationHealthCheck extends BaseHealthCheck {
       this.addMetric('auth_query_time_ms', queryTime);
       
     } catch (error: any) {
-      this.log(`Performance check error: ${error.message}`, 'warning');
+      this.log(`Performance check error: ${error instanceof Error ? error.message : String(error)}`, 'warning');
     }
   }
 }

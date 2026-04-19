@@ -19,8 +19,8 @@ const storage = multer.diskStorage({
     // Crea la directory se non esiste
     try {
       await fs.mkdir(uploadDir, { recursive: true });
-    } catch (error) {
-      logger.error('Error creating upload directory:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating upload directory:', error instanceof Error ? error.message : String(error));
     }
     
     cb(null, uploadDir);
@@ -110,14 +110,14 @@ router.post('/profile-image',
       }));
 
     } catch (error: any) {
-      logger.error('Profile image upload error:', error);
+      logger.error('Profile image upload error:', error instanceof Error ? error.message : String(error));
       
       // Gestisci errori di validazione
-      if (error.message.includes('Formato non valido') || 
-          error.message.includes('troppo grande') || 
-          error.message.includes('troppo piccola')) {
+      if (error instanceof Error ? error.message : String(error).includes('Formato non valido') || 
+          error instanceof Error ? error.message : String(error).includes('troppo grande') || 
+          error instanceof Error ? error.message : String(error).includes('troppo piccola')) {
         return res.status(400).json(
-          ResponseFormatter.error(error.message, 'VALIDATION_ERROR')
+          ResponseFormatter.error(error instanceof Error ? error.message : String(error), 'VALIDATION_ERROR')
         );
       }
       
@@ -159,14 +159,14 @@ router.post('/recognition-image',
       }));
 
     } catch (error: any) {
-      logger.error('Recognition image upload error:', error);
+      logger.error('Recognition image upload error:', error instanceof Error ? error.message : String(error));
       
       // Gestisci errori di validazione
-      if (error.message.includes('Formato non valido') || 
-          error.message.includes('troppo grande') || 
-          error.message.includes('troppo piccola')) {
+      if (error instanceof Error ? error.message : String(error).includes('Formato non valido') || 
+          error instanceof Error ? error.message : String(error).includes('troppo grande') || 
+          error instanceof Error ? error.message : String(error).includes('troppo piccola')) {
         return res.status(400).json(
-          ResponseFormatter.error(error.message, 'VALIDATION_ERROR')
+          ResponseFormatter.error(error instanceof Error ? error.message : String(error), 'VALIDATION_ERROR')
         );
       }
       
@@ -201,7 +201,7 @@ router.get('/profile-image/:userId', authenticate, async (req: any, res: Respons
     }));
 
   } catch (error: any) {
-    logger.error('Get profile image error:', error);
+    logger.error('Get profile image error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error(
         'Errore nel recupero della foto profilo',
@@ -227,7 +227,7 @@ router.delete('/profile-image', authenticate, async (req: any, res: Response) =>
     ));
 
   } catch (error: any) {
-    logger.error('Remove profile image error:', error);
+    logger.error('Remove profile image error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error(
         'Errore nella rimozione della foto profilo',
@@ -258,7 +258,7 @@ router.get('/check-profile-image', authenticate, async (req: any, res: Response)
     }));
 
   } catch (error: any) {
-    logger.error('Check profile image error:', error);
+    logger.error('Check profile image error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error(
         'Errore nel controllo della foto profilo',
@@ -302,7 +302,7 @@ router.post('/image', authenticate, upload.single('image'), async (req: any, res
     }, 'Immagine caricata con successo'));
 
   } catch (error: any) {
-    logger.error('Upload error:', error);
+    logger.error('Upload error:', error instanceof Error ? error.message : String(error));
     
     // Rimuovi il file se c'è stato un errore
     if (req.file) {
@@ -315,7 +315,7 @@ router.post('/image', authenticate, upload.single('image'), async (req: any, res
     
     return res.status(500).json(
       ResponseFormatter.error(
-        error.message || 'Errore nel caricamento',
+        error instanceof Error ? error.message : String(error) || 'Errore nel caricamento',
         'UPLOAD_ERROR'
       )
     );
@@ -352,10 +352,10 @@ router.delete('/image/:filename', authenticate, async (req: any, res: Response) 
     return res.json(ResponseFormatter.success(null, 'Immagine eliminata con successo'));
 
   } catch (error: any) {
-    logger.error('Delete error:', error);
+    logger.error('Delete error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error(
-        error.message || 'Errore nell\'eliminazione',
+        error instanceof Error ? error.message : String(error) || 'Errore nell\'eliminazione',
         'DELETE_ERROR'
       )
     );

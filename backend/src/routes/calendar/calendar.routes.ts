@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { authenticate, AuthRequest } from '../middleware/auth';
-import { requireRole } from '../middleware/rbac';
-import { ResponseFormatter } from '../utils/responseFormatter';
-import { logger } from '../utils/logger';
-import { prisma } from '../config/database';
+import { authenticate, AuthRequest } from '../../middleware/auth';
+import { requireRole } from '../../middleware/rbac';
+import { ResponseFormatter } from '../../utils/responseFormatter';
+import { logger } from '../../utils/logger';
+import { prisma } from '../../config/database';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -64,7 +64,7 @@ router.get('/settings', requireRole(['PROFESSIONAL', 'ADMIN']), async (req: Auth
       settings = await prisma.calendarSettings.create({
         data: {
           id: uuidv4(),
-          professional: { connect: { id: professionalId } },
+          professionalId: professionalId,
           defaultView: 'week',
           weekStartsOn: 1,
           timeSlotDuration: 30,
@@ -81,13 +81,13 @@ router.get('/settings', requireRole(['PROFESSIONAL', 'ADMIN']), async (req: Auth
           },
           updatedAt: new Date()
         }
-      });
+      } as any);
     }
 
     logger.info('Calendar settings retrieved', { professionalId });
     return res.json(ResponseFormatter.success(settings, 'Settings retrieved successfully'));
-  } catch (error) {
-    logger.error('Error fetching calendar settings:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching calendar settings:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Failed to fetch settings', 'FETCH_ERROR'));
   }
 });
@@ -109,15 +109,15 @@ router.put('/settings', requireRole(['PROFESSIONAL', 'ADMIN']), async (req: Auth
         professionalId,
         ...validatedData
       }
-    });
+    } as any);
 
     logger.info('Calendar settings updated', { professionalId });
     return res.json(ResponseFormatter.success(settings, 'Settings updated successfully'));
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return res.status(400).json(ResponseFormatter.error('Invalid data', 'VALIDATION_ERROR', error.errors));
     }
-    logger.error('Error updating calendar settings:', error);
+    logger.error('Error updating calendar settings:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Failed to update settings', 'UPDATE_ERROR'));
   }
 });
@@ -139,14 +139,14 @@ router.get('/availability', requireRole(['PROFESSIONAL', 'ADMIN']), async (req: 
         const hour = await prisma.calendarAvailability.create({
           data: {
             id: uuidv4(),
-            professional: { connect: { id: professionalId } },
+            professionalId: professionalId,
             dayOfWeek: day,
             startTime: day === 0 ? '' : '09:00',
             endTime: day === 0 ? '' : '18:00',
             isActive: day !== 0, // Attivo tutti i giorni tranne domenica
             updatedAt: new Date()
           }
-        });
+        } as any);
         defaultHours.push(hour);
       }
       return res.json(ResponseFormatter.success(defaultHours, 'Default availability created'));
@@ -154,8 +154,8 @@ router.get('/availability', requireRole(['PROFESSIONAL', 'ADMIN']), async (req: 
 
     logger.info('Availability retrieved', { professionalId });
     return res.json(ResponseFormatter.success(availability, 'Availability retrieved successfully'));
-  } catch (error) {
-    logger.error('Error fetching availability:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching availability:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Failed to fetch availability', 'FETCH_ERROR'));
   }
 });
@@ -184,21 +184,21 @@ router.put('/availability', requireRole(['PROFESSIONAL', 'ADMIN']), async (req: 
           },
           create: {
             id: uuidv4(),
-            professional: { connect: { id: professionalId } },
+            professionalId: professionalId,
             ...hour,
             updatedAt: new Date()
           }
-        });
+        } as any);
       })
     );
 
     logger.info('Availability updated', { professionalId });
     return res.json(ResponseFormatter.success(updates, 'Availability updated successfully'));
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return res.status(400).json(ResponseFormatter.error('Invalid data', 'VALIDATION_ERROR', error.errors));
     }
-    logger.error('Error updating availability:', error);
+    logger.error('Error updating availability:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Failed to update availability', 'UPDATE_ERROR'));
   }
 });
@@ -220,8 +220,8 @@ router.get('/unavailability', requireRole(['PROFESSIONAL', 'ADMIN']), async (req
 
     logger.info('Unavailability retrieved', { professionalId });
     return res.json(ResponseFormatter.success(exceptions, 'Unavailability retrieved successfully'));
-  } catch (error) {
-    logger.error('Error fetching unavailability:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching unavailability:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Failed to fetch unavailability', 'FETCH_ERROR'));
   }
 });
@@ -252,23 +252,23 @@ router.post('/unavailability', requireRole(['PROFESSIONAL', 'ADMIN']), async (re
         },
         create: {
           id: uuidv4(),
-          professional: { connect: { id: professionalId } },
+          professionalId: professionalId,
           date: new Date(date),
           isWorkingDay: false,
           reason: validatedData.reason,
           updatedAt: new Date()
         }
-      });
+      } as any);
       exceptions.push(exception);
     }
 
     logger.info('Unavailability added', { professionalId, days: exceptions.length });
     return res.json(ResponseFormatter.success(exceptions, 'Unavailability added successfully'));
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return res.status(400).json(ResponseFormatter.error('Invalid data', 'VALIDATION_ERROR', error.errors));
     }
-    logger.error('Error adding unavailability:', error);
+    logger.error('Error adding unavailability:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Failed to add unavailability', 'CREATE_ERROR'));
   }
 });
@@ -297,8 +297,8 @@ router.delete('/unavailability/:id', requireRole(['PROFESSIONAL', 'ADMIN']), asy
 
     logger.info('Unavailability removed', { professionalId, id });
     return res.json(ResponseFormatter.success(null, 'Unavailability removed successfully'));
-  } catch (error) {
-    logger.error('Error removing unavailability:', error);
+  } catch (error: unknown) {
+    logger.error('Error removing unavailability:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Failed to remove unavailability', 'DELETE_ERROR'));
   }
 });
@@ -325,8 +325,8 @@ router.get('/blocks', requireRole(['PROFESSIONAL', 'ADMIN']), async (req: AuthRe
 
     logger.info('Calendar blocks retrieved', { professionalId, count: blocks.length });
     return res.json(ResponseFormatter.success(blocks, 'Blocks retrieved successfully'));
-  } catch (error) {
-    logger.error('Error fetching blocks:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching blocks:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Failed to fetch blocks', 'FETCH_ERROR'));
   }
 });
@@ -340,7 +340,7 @@ router.post('/blocks', requireRole(['PROFESSIONAL', 'ADMIN']), async (req: AuthR
     const block = await prisma.calendarBlock.create({
       data: {
         id: uuidv4(),
-        professional: { connect: { id: professionalId } },
+        professionalId: professionalId,
         startDateTime: new Date(startDateTime),
         endDateTime: new Date(endDateTime),
         reason,
@@ -348,12 +348,12 @@ router.post('/blocks', requireRole(['PROFESSIONAL', 'ADMIN']), async (req: AuthR
         recurringPattern: recurringPattern || null,
         updatedAt: new Date()
       }
-    });
+    } as any);
 
     logger.info('Calendar block created', { professionalId, blockId: block.id });
     return res.json(ResponseFormatter.success(block, 'Block created successfully'));
-  } catch (error) {
-    logger.error('Error creating block:', error);
+  } catch (error: unknown) {
+    logger.error('Error creating block:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Failed to create block', 'CREATE_ERROR'));
   }
 });
@@ -379,18 +379,18 @@ router.get('/interventions', requireRole(['PROFESSIONAL', 'ADMIN']), async (req:
     const interventions = await prisma.scheduledIntervention.findMany({
       where,
       include: {
-        request: {
+        AssistanceRequest: {
           include: {
-            client: true,
-            category: true
+            User_AssistanceRequest_clientIdToUser: true,
+            Category: true
           }
         }
-      },
+      } as any,
       orderBy: { proposedDate: 'asc' }
     });
 
     // Formatta per il calendario
-    const calendarEvents = interventions.map(intervention => ({
+    const calendarEvents = interventions.map((intervention: any) => ({
       id: intervention.id,
       title: intervention.description || `Intervento ${intervention.request.title}`,
       start: intervention.proposedDate,
@@ -404,15 +404,17 @@ router.get('/interventions', requireRole(['PROFESSIONAL', 'ADMIN']), async (req:
 
     logger.info('Calendar interventions retrieved', { professionalId, count: calendarEvents.length });
     return res.json(ResponseFormatter.success(calendarEvents, 'Interventions retrieved successfully'));
-  } catch (error) {
-    logger.error('Error fetching interventions:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching interventions:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Failed to fetch interventions', 'FETCH_ERROR'));
   }
 });
 
 // Alias per compatibilità con il frontend esistente
 router.get('/interventions/calendar', requireRole(['PROFESSIONAL', 'ADMIN']), async (req: AuthRequest, res) => {
-  return router.handle(req, res);
+  // Redirect alla route principale
+  req.url = '/interventions';
+  return res.redirect('/api/calendar/interventions');
 });
 
 export default router;

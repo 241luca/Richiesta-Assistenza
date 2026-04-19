@@ -72,14 +72,14 @@ export function handleMessageEvents(socket: AuthenticatedSocket, io: Server) {
           ...(data.requestId ? { requestId: data.requestId } : {}), // FIXED: usa spread condizionale
           attachments: data.attachments || [],
           isRead: false
-        }
+        } as any
       });
 
       // Recupera il messaggio con il sender incluso
-      const message = await prisma.message.findUnique({
+      const message = await (prisma.message.findUnique as any)({
         where: { id: createdMessage.id },
         include: {
-          sender: {
+          User_Message_senderIdToUser: {
             select: {
               id: true,
               firstName: true,
@@ -93,6 +93,8 @@ export function handleMessageEvents(socket: AuthenticatedSocket, io: Server) {
       if (!message) {
         throw new Error('Message created but not found');
       }
+
+      const sender = (message as any).User_Message_senderIdToUser || {};
 
       // Invia il messaggio al destinatario se online
       io.to(`User:${data.recipientId}`).emit('message:new', {
@@ -113,11 +115,11 @@ export function handleMessageEvents(socket: AuthenticatedSocket, io: Server) {
           userId: data.recipientId, // FIXED: usa userId
           type: 'NEW_MESSAGE',
           title: 'Nuovo Messaggio',
-          message: `${message.sender.firstName} ${message.sender.lastName}: ${data.content.substring(0, 100)}${data.content.length > 100 ? '...' : ''}`,
+          message: `${sender.firstName} ${sender.lastName}: ${data.content.substring(0, 100)}${data.content.length > 100 ? '...' : ''}`,
           data: { 
             messageId: message.id, 
             senderId: socket.userId,
-            senderName: `${message.sender.firstName} ${message.sender.lastName}`,
+            senderName: `${sender.firstName} ${sender.lastName}`,
             requestId: data.requestId,
             actionUrl: data.requestId ? `${process.env.FRONTEND_URL}/requests/${data.requestId}#chat` : `${process.env.FRONTEND_URL}/messages`
           },
@@ -127,9 +129,9 @@ export function handleMessageEvents(socket: AuthenticatedSocket, io: Server) {
       }
 
       logger.info(`Message sent from ${socket.userId} to ${data.recipientId}`);
-    } catch (error) {
-      logger.error('Error sending message:', error);
-      socket.emit('error', { message: error instanceof Error ? error.message : 'Failed to send message' });
+    } catch (error: unknown) {
+      logger.error('Error sending message:', error instanceof Error ? error.message : String(error));
+      socket.emit('error', { message: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Failed to send message' });
     }
   });
 
@@ -176,8 +178,8 @@ export function handleMessageEvents(socket: AuthenticatedSocket, io: Server) {
 
       socket.emit('message:markedAsRead', { messageIds });
       logger.debug(`Messages marked as read: ${messageIds.join(', ')}`);
-    } catch (error) {
-      logger.error('Error marking messages as read:', error);
+    } catch (error: unknown) {
+      logger.error('Error marking messages as read:', error instanceof Error ? error.message : String(error));
       socket.emit('error', { message: 'Failed to mark messages as read' });
     }
   });
@@ -220,12 +222,12 @@ export function handleMessageEvents(socket: AuthenticatedSocket, io: Server) {
       }
 
       // Recupera i messaggi
-      const messages = await prisma.message.findMany({
+      const messages = await (prisma.message.findMany as any)({
         where: whereClause,
         orderBy: { createdAt: 'desc' },
         take: data.limit || 50,
         include: {
-          sender: {
+          User_Message_senderIdToUser: {
             select: {
               id: true,
               firstName: true,
@@ -238,8 +240,8 @@ export function handleMessageEvents(socket: AuthenticatedSocket, io: Server) {
 
       // Segna come letti i messaggi ricevuti
       const unreadMessageIds = messages
-        .filter(m => m.recipientId === socket.userId && !m.isRead)
-        .map(m => m.id);
+        .filter((m: any) => m.recipientId === socket.userId && !m.isRead)
+        .map((m: any) => m.id);
 
       if (unreadMessageIds.length > 0) {
         await prisma.message.updateMany({
@@ -262,9 +264,9 @@ export function handleMessageEvents(socket: AuthenticatedSocket, io: Server) {
         messages: messages.reverse(), // Ordina dal più vecchio al più recente
         hasMore: messages.length === (data.limit || 50)
       });
-    } catch (error) {
-      logger.error('Error fetching message history:', error);
-      socket.emit('error', { message: error instanceof Error ? error.message : 'Failed to fetch message history' });
+    } catch (error: unknown) {
+      logger.error('Error fetching message history:', error instanceof Error ? error.message : String(error));
+      socket.emit('error', { message: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Failed to fetch message history' });
     }
   });
 
@@ -291,8 +293,8 @@ export function handleMessageEvents(socket: AuthenticatedSocket, io: Server) {
         isTyping: true,
         timestamp: new Date()
       });
-    } catch (error) {
-      logger.error('Error sending typing indicator:', error);
+    } catch (error: unknown) {
+      logger.error('Error sending typing indicator:', error instanceof Error ? error.message : String(error));
     }
   });
 
@@ -316,8 +318,8 @@ export function handleMessageEvents(socket: AuthenticatedSocket, io: Server) {
         isTyping: false,
         timestamp: new Date()
       });
-    } catch (error) {
-      logger.error('Error sending typing stop indicator:', error);
+    } catch (error: unknown) {
+      logger.error('Error sending typing stop indicator:', error instanceof Error ? error.message : String(error));
     }
   });
 
@@ -356,9 +358,9 @@ export function handleMessageEvents(socket: AuthenticatedSocket, io: Server) {
 
       socket.emit('message:deleteSuccess', { messageId });
       logger.info(`Message ${messageId} deleted by user ${socket.userId}`);
-    } catch (error) {
-      logger.error('Error deleting message:', error);
-      socket.emit('error', { message: error instanceof Error ? error.message : 'Failed to delete message' });
+    } catch (error: unknown) {
+      logger.error('Error deleting message:', error instanceof Error ? error.message : String(error));
+      socket.emit('error', { message: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Failed to delete message' });
     }
   });
 }
@@ -376,8 +378,8 @@ export async function getUnreadMessageCount(recipientId: string): Promise<number
         deletedAt: null // FIXED: usa deletedAt invece di isDeleted
       }
     });
-  } catch (error) {
-    logger.error('Error counting unread messages:', error);
+  } catch (error: unknown) {
+    logger.error('Error counting unread messages:', error instanceof Error ? error.message : String(error));
     return 0;
   }
 }
@@ -416,8 +418,8 @@ export async function getRecentConversations(recipientId: string) {
     `;
 
     return conversations;
-  } catch (error) {
-    logger.error('Error fetching recent conversations:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching recent conversations:', error instanceof Error ? error.message : String(error));
     return [];
   }
 }

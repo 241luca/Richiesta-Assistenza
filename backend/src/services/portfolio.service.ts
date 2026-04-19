@@ -41,7 +41,7 @@ class PortfolioService {
     try {
       const { requestId, ...rest } = data;
 
-      const portfolio = await prisma.portfolio.create({
+      const portfolio = await (prisma.portfolio.create as any)({
         data: {
           ...rest,
           ...(requestId
@@ -67,8 +67,8 @@ class PortfolioService {
 
       logger.info('Portfolio created', { portfolioId: portfolio.id });
       return portfolio;
-    } catch (error) {
-      logger.error('Error creating portfolio:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating portfolio:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -105,8 +105,8 @@ class PortfolioService {
       });
 
       return portfolios;
-    } catch (error) {
-      logger.error('Error fetching professional portfolio:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching professional portfolio:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -134,8 +134,8 @@ class PortfolioService {
           },
           AssistanceRequest: {
             include: {
-              category: true,
-              subcategory: true
+              Category: true,
+              Subcategory: true
             }
           }
         }
@@ -146,8 +146,8 @@ class PortfolioService {
       }
 
       return portfolio;
-    } catch (error) {
-      logger.error('Error fetching portfolio:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching portfolio:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -161,8 +161,8 @@ class PortfolioService {
         where: { id: portfolioId },
         data: { viewCount: { increment: 1 } }
       });
-    } catch (error) {
-      logger.error('Error incrementing view count:', error);
+    } catch (error: unknown) {
+      logger.error('Error incrementing view count:', error instanceof Error ? error.message : String(error));
       // Non lanciamo l'errore, è un'operazione non critica
     }
   }
@@ -203,8 +203,8 @@ class PortfolioService {
 
       logger.info('Portfolio updated', { portfolioId: id });
       return updated;
-    } catch (error) {
-      logger.error('Error updating portfolio:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating portfolio:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -232,8 +232,8 @@ class PortfolioService {
 
       logger.info('Portfolio deleted', { portfolioId: id });
       return true;
-    } catch (error) {
-      logger.error('Error deleting portfolio:', error);
+    } catch (error: unknown) {
+      logger.error('Error deleting portfolio:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -265,8 +265,8 @@ class PortfolioService {
       });
 
       return portfolios;
-    } catch (error) {
-      logger.error('Error fetching portfolio by category:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching portfolio by category:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -327,8 +327,8 @@ class PortfolioService {
       });
 
       return portfolios;
-    } catch (error) {
-      logger.error('Error searching portfolio:', error);
+    } catch (error: unknown) {
+      logger.error('Error searching portfolio:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -359,8 +359,8 @@ class PortfolioService {
       });
 
       return portfolios;
-    } catch (error) {
-      logger.error('Error fetching popular portfolios:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching popular portfolios:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -391,8 +391,8 @@ class PortfolioService {
       });
 
       return portfolios;
-    } catch (error) {
-      logger.error('Error fetching recent portfolios:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching recent portfolios:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

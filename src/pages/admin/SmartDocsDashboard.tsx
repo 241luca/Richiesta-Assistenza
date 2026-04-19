@@ -70,11 +70,12 @@ export default function SmartDocsPage() {
         {pages.map((page) => {
           const Icon = page.icon;
           return (
-            <Card 
+            <div
               key={page.path}
-              className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-gray-300"
+              className="cursor-pointer"
               onClick={() => navigate(page.path)}
             >
+              <Card className="hover:shadow-lg transition-shadow border-2 hover:border-gray-300 h-full">
               <CardHeader>
                 <div className={`w-12 h-12 rounded-lg ${page.bgColor} flex items-center justify-center mb-3`}>
                   <Icon className={`w-6 h-6 ${page.color}`} />
@@ -95,6 +96,7 @@ export default function SmartDocsPage() {
                 </Button>
               </CardContent>
             </Card>
+            </div>
           );
         })}
       </div>

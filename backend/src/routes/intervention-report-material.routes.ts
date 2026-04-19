@@ -17,7 +17,7 @@ router.get('/', authenticate, async (req: any, res) => {
       materials,
       'Materiali recuperati con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero materiali:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero dei materiali',
@@ -35,7 +35,7 @@ router.get('/categories', authenticate, async (req: any, res) => {
       categories,
       'Categorie materiali recuperate con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero categorie:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle categorie',
@@ -54,7 +54,7 @@ router.get('/most-used', authenticate, async (req: any, res) => {
       materials,
       'Materiali più utilizzati recuperati con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero materiali più usati:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero dei materiali più utilizzati',
@@ -79,7 +79,7 @@ router.get('/search', authenticate, async (req: any, res) => {
       materials,
       'Ricerca materiali completata'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore ricerca materiali:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nella ricerca dei materiali',
@@ -102,7 +102,7 @@ router.get('/:id', authenticate, async (req: any, res) => {
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'MATERIAL_NOT_FOUND'
       ));
     }
@@ -128,7 +128,7 @@ router.get('/code/:code', authenticate, async (req: any, res) => {
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'MATERIAL_NOT_FOUND'
       ));
     }
@@ -154,7 +154,7 @@ router.post('/', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req
     
     if (error.statusCode === 400) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'MATERIAL_VALIDATION_ERROR'
       ));
     }
@@ -183,7 +183,7 @@ router.put('/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (r
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'MATERIAL_NOT_FOUND'
       ));
     }
@@ -209,14 +209,14 @@ router.delete('/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'MATERIAL_NOT_FOUND'
       ));
     }
     
     if (error.statusCode === 400) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'MATERIAL_IN_USE'
       ));
     }
@@ -246,7 +246,7 @@ router.post('/import', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), asyn
       result,
       `Import completato: ${result.success} importati, ${result.failed} falliti`
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore import materiali:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore durante l\'importazione dei materiali',
@@ -264,7 +264,7 @@ router.get('/export', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async
       result,
       'Export materiali completato'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore export materiali:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore durante l\'esportazione dei materiali',

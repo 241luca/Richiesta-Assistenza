@@ -51,7 +51,7 @@ async function updateSystemVersion() {
 
     console.log('✅ Tutte le impostazioni di sistema sono state aggiornate');
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Errore durante l\'aggiornamento:', error);
     throw error;
   } finally {

@@ -62,7 +62,7 @@ export class SmartDocsSyncService {
       }
 
     } catch (error: any) {
-      logger.error(`[SmartDocsSync] Error syncing ${entityType} #${entityId}:`, error.message);
+      logger.error(`[SmartDocsSync] Error syncing ${entityType} #${entityId}:`, error instanceof Error ? error.message : String(error));
       return { success: false };
     }
   }
@@ -90,7 +90,7 @@ export class SmartDocsSyncService {
       }
 
     } catch (error: any) {
-      logger.error(`[SmartDocsSync] Error deleting ${entityType} #${entityId}:`, error.message);
+      logger.error(`[SmartDocsSync] Error deleting ${entityType} #${entityId}:`, error instanceof Error ? error.message : String(error));
       return false;
     }
   }
@@ -110,7 +110,7 @@ export class SmartDocsSyncService {
       return null;
 
     } catch (error: any) {
-      logger.error(`[SmartDocsSync] Error fetching stats:`, error.message);
+      logger.error(`[SmartDocsSync] Error fetching stats:`, error instanceof Error ? error.message : String(error));
       return null;
     }
   }

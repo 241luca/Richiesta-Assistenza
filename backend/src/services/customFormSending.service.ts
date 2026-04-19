@@ -3,16 +3,19 @@
  * Gestisce l'invio di form a richieste e la compilazione da parte dei clienti
  * 
  * @module services/customFormSending
- * @version 1.0.0
+ * @version 1.0.2
+ * 
+ * ⚠️ NOTA: Questo service usa ResponseFormatter che andrebbe solo nelle routes.
+ * In futuro andrà refactorizzato per ritornare dati diretti e lanciare errori.
  */
 
-import { PrismaClient, RequestCustomForm, RequestCustomFormResponse } from '@prisma/client';
+import { prisma } from '../config/database';
+import type { CustomFormFieldType, Prisma } from '@prisma/client';
+import type { Request } from 'express';
 import { ResponseFormatter } from '../utils/responseFormatter';
 import { auditLogService } from './auditLog.service';
 import { notificationService } from './notification.service';
 import { moduleService } from './module.service';
-
-const prisma = new PrismaClient();
 
 export interface SendFormToRequestData {
   requestId: string;
@@ -25,36 +28,50 @@ export interface SubmitFormResponseData {
   responses: Array<{
     fieldId: string;
     fieldName: string;
-    fieldType: string;
+    fieldType: CustomFormFieldType;
     value?: string;
-    valueJson?: any;
+    valueJson?: unknown;
   }>;
   submittedBy: string;
 }
 
-export interface RequestCustomFormWithDetails extends RequestCustomForm {
+export interface RequestCustomFormWithDetails {
+  id: string;
+  requestId: string;
+  customFormId: string;
+  isCompleted: boolean;
+  submittedAt: Date | null;
+  submittedBy: string | null;
   CustomForm: {
     id: string;
     name: string;
     description: string | null;
-    Fields: Array<{
+    CustomFormField: Array<{
       id: string;
       code: string;
       label: string;
-      fieldType: string;
+      fieldType: CustomFormFieldType;
       isRequired: boolean;
-      config: any;
-      possibleValues: any;
+      config: unknown;
+      possibleValues: unknown;
     }>;
   };
-  Responses: Array<{
+  RequestCustomFormResponse: Array<{
     id: string;
     fieldId: string;
     fieldName: string;
-    fieldType: string;
+    fieldType: CustomFormFieldType;
     value: string | null;
-    valueJson: any;
+    valueJson: unknown;
   }>;
+}
+
+// Helper per estrarre messaggio di errore
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  return String(error);
 }
 
 class CustomFormSendingService {
@@ -64,7 +81,7 @@ class CustomFormSendingService {
   async isModuleEnabled(): Promise<boolean> {
     try {
       return await moduleService.isModuleEnabled('custom-forms');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore verifica modulo custom-forms:', error);
       return false;
     }
@@ -74,7 +91,7 @@ class CustomFormSendingService {
    * Invia un custom form a una richiesta specifica
    * Il professionista invia il form al cliente dopo l'assegnazione
    */
-  async sendFormToRequest(data: SendFormToRequestData, req?: any) {
+  async sendFormToRequest(data: SendFormToRequestData, req?: unknown): Promise<unknown> {
     try {
       const isEnabled = await this.isModuleEnabled();
       if (!isEnabled) {
@@ -112,7 +129,7 @@ class CustomFormSendingService {
       const customForm = await prisma.customForm.findUnique({
         where: { id: data.customFormId },
         include: {
-          Fields: {
+          CustomFormField: {
             orderBy: { displayOrder: 'asc' }
           }
         }
@@ -143,9 +160,11 @@ class CustomFormSendingService {
       // Crea il collegamento tra form e richiesta
       const requestCustomForm = await prisma.requestCustomForm.create({
         data: {
+          id: `rcf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           requestId: data.requestId,
           customFormId: data.customFormId,
-          isCompleted: false
+          isCompleted: false,
+          updatedAt: new Date()
         },
         include: {
           CustomForm: {
@@ -159,13 +178,13 @@ class CustomFormSendingService {
       });
 
       // ✅ Audit Log
-      const requestInfo = req ? auditLogService.extractRequestInfo(req) : {};
+      const requestInfo = req ? auditLogService.extractRequestInfo(req as unknown as Request) : {};
       await auditLogService.log({
         ...requestInfo,
         userId: data.senderId,
-        ipAddress: requestInfo.ipAddress || 'system',
-        userAgent: requestInfo.userAgent || 'custom-form-sending-service',
-        action: 'CREATE' as any,
+        ipAddress: (requestInfo as Record<string, unknown>).ipAddress as string || 'system',
+        userAgent: (requestInfo as Record<string, unknown>).userAgent as string || 'custom-form-sending-service',
+        action: 'CREATE',
         entityType: 'RequestCustomForm',
         entityId: requestCustomForm.id,
         newValues: {
@@ -174,8 +193,8 @@ class CustomFormSendingService {
           formName: customForm.name
         },
         success: true,
-        severity: 'INFO' as any,
-        category: 'BUSINESS' as any
+        severity: 'INFO',
+        category: 'BUSINESS'
       });
 
       // ✅ Notifica il cliente
@@ -183,7 +202,7 @@ class CustomFormSendingService {
         userId: request.clientId,
         type: 'custom_form_received',
         title: 'Nuovo Modulo da Compilare',
-        message: `Il professionista ${request.professional?.firstName} ti ha inviato il modulo "${customForm.name}" da compilare`,
+        message: `Il professionista ${request.professional?.firstName || ''} ti ha inviato il modulo "${customForm.name}" da compilare`,
         data: {
           requestId: data.requestId,
           formId: customForm.id,
@@ -198,22 +217,22 @@ class CustomFormSendingService {
         requestCustomForm,
         'Form inviato con successo al cliente'
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nell\'invio del form:', error);
       
       // Log errore
-      const requestInfo = req ? auditLogService.extractRequestInfo(req) : {};
+      const requestInfo = req ? auditLogService.extractRequestInfo(req as unknown as Request) : {};
       await auditLogService.log({
         ...requestInfo,
         userId: data.senderId,
-        ipAddress: requestInfo.ipAddress || 'system',
-        userAgent: requestInfo.userAgent || 'custom-form-sending-service',
-        action: 'CREATE' as any,
+        ipAddress: (requestInfo as Record<string, unknown>).ipAddress as string || 'system',
+        userAgent: (requestInfo as Record<string, unknown>).userAgent as string || 'custom-form-sending-service',
+        action: 'CREATE',
         entityType: 'RequestCustomForm',
         success: false,
-        errorMessage: (error as Error).message,
-        severity: 'ERROR' as any,
-        category: 'BUSINESS' as any
+        errorMessage: getErrorMessage(error),
+        severity: 'ERROR',
+        category: 'BUSINESS'
       });
       
       return ResponseFormatter.error('Errore nell\'invio del form');
@@ -223,7 +242,7 @@ class CustomFormSendingService {
   /**
    * Ottiene tutti i form inviati a una richiesta specifica
    */
-  async getRequestForms(requestId: string) {
+  async getRequestForms(requestId: string): Promise<unknown> {
     try {
       const isEnabled = await this.isModuleEnabled();
       if (!isEnabled) {
@@ -239,7 +258,7 @@ class CustomFormSendingService {
               name: true,
               description: true,
               displayType: true,
-              Fields: {
+              CustomFormField: {
                 orderBy: { displayOrder: 'asc' },
                 select: {
                   id: true,
@@ -264,7 +283,7 @@ class CustomFormSendingService {
               }
             }
           },
-          Responses: {
+          RequestCustomFormResponse: {
             select: {
               id: true,
               fieldId: true,
@@ -274,7 +293,7 @@ class CustomFormSendingService {
               valueJson: true
             }
           },
-          SubmittedBy: {
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -282,7 +301,7 @@ class CustomFormSendingService {
               email: true
             }
           },
-          Request: {
+          AssistanceRequest: {
             select: {
               professional: {
                 select: {
@@ -301,7 +320,7 @@ class CustomFormSendingService {
         requestForms,
         'Form della richiesta recuperati con successo'
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nel recupero dei form della richiesta:', error);
       return ResponseFormatter.error('Errore nel recupero dei form');
     }
@@ -310,7 +329,7 @@ class CustomFormSendingService {
   /**
    * Ottiene un form specifico con le risposte
    */
-  async getFormWithResponses(requestCustomFormId: string) {
+  async getFormWithResponses(requestCustomFormId: string): Promise<unknown> {
     try {
       const isEnabled = await this.isModuleEnabled();
       if (!isEnabled) {
@@ -322,13 +341,13 @@ class CustomFormSendingService {
         include: {
           CustomForm: {
             include: {
-              Fields: {
+              CustomFormField: {
                 orderBy: { displayOrder: 'asc' }
               }
             }
           },
-          Responses: true,
-          Request: {
+          RequestCustomFormResponse: true,
+          AssistanceRequest: {
             select: {
               id: true,
               title: true,
@@ -347,7 +366,7 @@ class CustomFormSendingService {
         requestForm,
         'Form recuperato con successo'
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nel recupero del form:', error);
       return ResponseFormatter.error('Errore nel recupero del form');
     }
@@ -357,7 +376,7 @@ class CustomFormSendingService {
    * Salva le risposte di un form (save draft)
    * Permette salvataggi parziali senza completare il form
    */
-  async saveFormResponses(data: SubmitFormResponseData, req?: any) {
+  async saveFormResponses(data: SubmitFormResponseData, req?: unknown): Promise<unknown> {
     try {
       const isEnabled = await this.isModuleEnabled();
       if (!isEnabled) {
@@ -368,7 +387,7 @@ class CustomFormSendingService {
       const requestForm = await prisma.requestCustomForm.findUnique({
         where: { id: data.requestCustomFormId },
         include: {
-          Request: {
+          AssistanceRequest: {
             select: { clientId: true, professionalId: true }
           },
           CustomForm: {
@@ -383,7 +402,7 @@ class CustomFormSendingService {
 
       // Salva le risposte in transazione
       const savedResponses = await prisma.$transaction(async (tx) => {
-        const responses = [];
+        const responses: unknown[] = [];
         
         for (const response of data.responses) {
           const saved = await tx.requestCustomFormResponse.upsert({
@@ -394,16 +413,18 @@ class CustomFormSendingService {
               }
             },
             create: {
+              id: `rcfr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
               requestCustomFormId: data.requestCustomFormId,
               fieldId: response.fieldId,
               fieldName: response.fieldName,
-              fieldType: response.fieldType as any,
+              fieldType: response.fieldType,
               value: response.value,
-              valueJson: response.valueJson
+              valueJson: response.valueJson as Prisma.InputJsonValue,
+              updatedAt: new Date()
             },
             update: {
               value: response.value,
-              valueJson: response.valueJson,
+              valueJson: response.valueJson as Prisma.InputJsonValue,
               updatedAt: new Date()
             }
           });
@@ -415,13 +436,13 @@ class CustomFormSendingService {
       });
 
       // ✅ Audit Log
-      const requestInfo = req ? auditLogService.extractRequestInfo(req) : {};
+      const requestInfo = req ? auditLogService.extractRequestInfo(req as unknown as Request) : {};
       await auditLogService.log({
         ...requestInfo,
         userId: data.submittedBy,
-        ipAddress: requestInfo.ipAddress || 'system',
-        userAgent: requestInfo.userAgent || 'custom-form-sending-service',
-        action: 'UPDATE' as any,
+        ipAddress: (requestInfo as Record<string, unknown>).ipAddress as string || 'system',
+        userAgent: (requestInfo as Record<string, unknown>).userAgent as string || 'custom-form-sending-service',
+        action: 'UPDATE',
         entityType: 'RequestCustomFormResponse',
         entityId: data.requestCustomFormId,
         newValues: {
@@ -429,15 +450,15 @@ class CustomFormSendingService {
           isDraft: true
         },
         success: true,
-        severity: 'INFO' as any,
-        category: 'BUSINESS' as any
+        severity: 'INFO',
+        category: 'BUSINESS'
       });
 
       return ResponseFormatter.success(
         savedResponses,
         'Risposte salvate come bozza'
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nel salvataggio delle risposte:', error);
       return ResponseFormatter.error('Errore nel salvataggio delle risposte');
     }
@@ -447,7 +468,7 @@ class CustomFormSendingService {
    * Completa la compilazione del form (submit final)
    * Marca il form come completato e notifica il professionista
    */
-  async submitFormResponse(data: SubmitFormResponseData, req?: any) {
+  async submitFormResponse(data: SubmitFormResponseData, req?: unknown): Promise<unknown> {
     try {
       const isEnabled = await this.isModuleEnabled();
       if (!isEnabled) {
@@ -458,7 +479,7 @@ class CustomFormSendingService {
       const requestForm = await prisma.requestCustomForm.findUnique({
         where: { id: data.requestCustomFormId },
         include: {
-          Request: {
+          AssistanceRequest: {
             select: { 
               clientId: true, 
               professionalId: true,
@@ -468,7 +489,7 @@ class CustomFormSendingService {
           CustomForm: {
             select: { 
               name: true,
-              Fields: {
+              CustomFormField: {
                 where: { isRequired: true },
                 select: { id: true, code: true, label: true }
               }
@@ -482,9 +503,9 @@ class CustomFormSendingService {
       }
 
       // Verifica che tutte le risposte obbligatorie siano presenti
-      const requiredFieldIds = requestForm.CustomForm.Fields.map(f => f.id);
-      const providedFieldIds = data.responses.map(r => r.fieldId);
-      const missingFields = requiredFieldIds.filter(id => !providedFieldIds.includes(id));
+      const requiredFieldIds = requestForm.CustomForm.CustomFormField.map((f) => f.id);
+      const providedFieldIds = data.responses.map((r) => r.fieldId);
+      const missingFields = requiredFieldIds.filter((id: string) => !providedFieldIds.includes(id));
 
       if (missingFields.length > 0) {
         return ResponseFormatter.error(
@@ -497,7 +518,7 @@ class CustomFormSendingService {
       // Salva le risposte e marca come completato in transazione
       const result = await prisma.$transaction(async (tx) => {
         // Salva tutte le risposte
-        const responses = [];
+        const responses: unknown[] = [];
         for (const response of data.responses) {
           const saved = await tx.requestCustomFormResponse.upsert({
             where: {
@@ -507,16 +528,18 @@ class CustomFormSendingService {
               }
             },
             create: {
+              id: `rcfr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
               requestCustomFormId: data.requestCustomFormId,
               fieldId: response.fieldId,
               fieldName: response.fieldName,
-              fieldType: response.fieldType as any,
+              fieldType: response.fieldType,
               value: response.value,
-              valueJson: response.valueJson
+              valueJson: response.valueJson as Prisma.InputJsonValue,
+              updatedAt: new Date()
             },
             update: {
               value: response.value,
-              valueJson: response.valueJson,
+              valueJson: response.valueJson as Prisma.InputJsonValue,
               updatedAt: new Date()
             }
           });
@@ -537,13 +560,13 @@ class CustomFormSendingService {
       });
 
       // ✅ Audit Log
-      const requestInfo = req ? auditLogService.extractRequestInfo(req) : {};
+      const requestInfo = req ? auditLogService.extractRequestInfo(req as unknown as Request) : {};
       await auditLogService.log({
         ...requestInfo,
         userId: data.submittedBy,
-        ipAddress: requestInfo.ipAddress || 'system',
-        userAgent: requestInfo.userAgent || 'custom-form-sending-service',
-        action: 'UPDATE' as any,
+        ipAddress: (requestInfo as Record<string, unknown>).ipAddress as string || 'system',
+        userAgent: (requestInfo as Record<string, unknown>).userAgent as string || 'custom-form-sending-service',
+        action: 'UPDATE',
         entityType: 'RequestCustomForm',
         entityId: data.requestCustomFormId,
         newValues: {
@@ -552,17 +575,17 @@ class CustomFormSendingService {
           formName: requestForm.CustomForm.name
         },
         success: true,
-        severity: 'INFO' as any,
-        category: 'BUSINESS' as any
+        severity: 'INFO',
+        category: 'BUSINESS'
       });
 
       // ✅ Notifica il professionista
-      if (requestForm.Request.professionalId) {
+      if (requestForm.AssistanceRequest.professionalId) {
         await notificationService.sendToUser({
-          userId: requestForm.Request.professionalId,
+          userId: requestForm.AssistanceRequest.professionalId,
           type: 'custom_form_completed',
           title: 'Modulo Compilato dal Cliente',
-          message: `Il cliente ha completato il modulo "${requestForm.CustomForm.name}" per la richiesta "${requestForm.Request.title}"`,
+          message: `Il cliente ha completato il modulo "${requestForm.CustomForm.name}" per la richiesta "${requestForm.AssistanceRequest.title}"`,
           data: {
             requestId: requestForm.requestId,
             formId: requestForm.customFormId,
@@ -578,23 +601,23 @@ class CustomFormSendingService {
         result.completed,
         'Form completato con successo'
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nella compilazione del form:', error);
       
       // Log errore
-      const requestInfo = req ? auditLogService.extractRequestInfo(req) : {};
+      const requestInfo = req ? auditLogService.extractRequestInfo(req as unknown as Request) : {};
       await auditLogService.log({
         ...requestInfo,
         userId: data.submittedBy,
-        ipAddress: requestInfo.ipAddress || 'system',
-        userAgent: requestInfo.userAgent || 'custom-form-sending-service',
-        action: 'UPDATE' as any,
+        ipAddress: (requestInfo as Record<string, unknown>).ipAddress as string || 'system',
+        userAgent: (requestInfo as Record<string, unknown>).userAgent as string || 'custom-form-sending-service',
+        action: 'UPDATE',
         entityType: 'RequestCustomForm',
         entityId: data.requestCustomFormId,
         success: false,
-        errorMessage: (error as Error).message,
-        severity: 'ERROR' as any,
-        category: 'BUSINESS' as any
+        errorMessage: getErrorMessage(error),
+        severity: 'ERROR',
+        category: 'BUSINESS'
       });
       
       return ResponseFormatter.error('Errore nella compilazione del form');
@@ -605,7 +628,7 @@ class CustomFormSendingService {
    * Elimina un form inviato a una richiesta
    * Solo il professionista che l'ha inviato può eliminarlo
    */
-  async removeFormFromRequest(requestCustomFormId: string, userId: string, req?: any) {
+  async removeFormFromRequest(requestCustomFormId: string, userId: string, req?: unknown): Promise<unknown> {
     try {
       const isEnabled = await this.isModuleEnabled();
       if (!isEnabled) {
@@ -616,7 +639,7 @@ class CustomFormSendingService {
       const requestForm = await prisma.requestCustomForm.findUnique({
         where: { id: requestCustomFormId },
         include: {
-          Request: {
+          AssistanceRequest: {
             select: { professionalId: true }
           },
           CustomForm: {
@@ -630,7 +653,7 @@ class CustomFormSendingService {
       }
 
       // Verifica autorizzazione
-      if (requestForm.Request.professionalId !== userId) {
+      if (requestForm.AssistanceRequest.professionalId !== userId) {
         return ResponseFormatter.error('Non autorizzato a rimuovere questo form');
       }
 
@@ -651,13 +674,13 @@ class CustomFormSendingService {
       });
 
       // ✅ Audit Log
-      const requestInfo = req ? auditLogService.extractRequestInfo(req) : {};
+      const requestInfo = req ? auditLogService.extractRequestInfo(req as unknown as Request) : {};
       await auditLogService.log({
         ...requestInfo,
         userId,
-        ipAddress: requestInfo.ipAddress || 'system',
-        userAgent: requestInfo.userAgent || 'custom-form-sending-service',
-        action: 'DELETE' as any,
+        ipAddress: (requestInfo as Record<string, unknown>).ipAddress as string || 'system',
+        userAgent: (requestInfo as Record<string, unknown>).userAgent as string || 'custom-form-sending-service',
+        action: 'DELETE',
         entityType: 'RequestCustomForm',
         entityId: requestCustomFormId,
         oldValues: {
@@ -665,12 +688,12 @@ class CustomFormSendingService {
           isCompleted: requestForm.isCompleted
         },
         success: true,
-        severity: 'WARNING' as any,
-        category: 'BUSINESS' as any
+        severity: 'WARNING',
+        category: 'BUSINESS'
       });
 
       return ResponseFormatter.success(null, 'Form rimosso con successo');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nella rimozione del form:', error);
       return ResponseFormatter.error('Errore nella rimozione del form');
     }
@@ -680,13 +703,13 @@ class CustomFormSendingService {
    * Marca un form come verificato dal professionista
    * Solo il professionista della richiesta può verificare
    */
-  async verifyForm(requestCustomFormId: string, userId: string, isVerified: boolean, req?: any) {
+  async verifyForm(requestCustomFormId: string, userId: string, isVerified: boolean, req?: unknown): Promise<unknown> {
     try {
       // Verifica che il form esista
       const requestForm = await prisma.requestCustomForm.findUnique({
         where: { id: requestCustomFormId },
         include: {
-          Request: {
+          AssistanceRequest: {
             select: {
               id: true,
               title: true,
@@ -707,7 +730,7 @@ class CustomFormSendingService {
       }
 
       // Verifica che l'utente sia il professionista assegnato alla richiesta
-      if (requestForm.Request.professionalId !== userId) {
+      if (requestForm.AssistanceRequest.professionalId !== userId) {
         return ResponseFormatter.error('Solo il professionista assegnato può verificare questo form');
       }
 
@@ -726,21 +749,21 @@ class CustomFormSendingService {
       });
 
       // ✅ Audit Log
-      const requestInfo = req ? auditLogService.extractRequestInfo(req) : {};
+      const requestInfo = req ? auditLogService.extractRequestInfo(req as unknown as Request) : {};
       await auditLogService.log({
         ...requestInfo,
         userId,
-        ipAddress: requestInfo.ipAddress || 'system',
-        userAgent: requestInfo.userAgent || 'custom-form-sending-service',
-        action: 'UPDATE' as any,
+        ipAddress: (requestInfo as Record<string, unknown>).ipAddress as string || 'system',
+        userAgent: (requestInfo as Record<string, unknown>).userAgent as string || 'custom-form-sending-service',
+        action: 'UPDATE',
         entityType: 'RequestCustomForm',
         entityId: requestCustomFormId,
         newValues: {
           isVerifiedByProfessional: isVerified
         },
         success: true,
-        severity: 'INFO' as any,
-        category: 'BUSINESS' as any
+        severity: 'INFO',
+        category: 'BUSINESS'
       });
 
       const message = isVerified 
@@ -748,7 +771,7 @@ class CustomFormSendingService {
         : 'Verifica form rimossa';
 
       return ResponseFormatter.success(updatedForm, message);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nella verifica del form:', error);
       return ResponseFormatter.error('Errore nella verifica del form');
     }

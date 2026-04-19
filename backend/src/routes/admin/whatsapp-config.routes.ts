@@ -31,8 +31,8 @@ router.get('/config',
         accessToken: config?.accessToken || null,
         instanceId: config?.instanceId || null
       }, 'Configurazione WhatsApp recuperata'));
-    } catch (error) {
-      logger.error('Errore recupero configurazione WhatsApp:', error);
+    } catch (error: unknown) {
+      logger.error('Errore recupero configurazione WhatsApp:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Errore recupero configurazione', 'CONFIG_ERROR')
       );
@@ -87,8 +87,8 @@ router.post('/config',
         null,
         'Configurazione WhatsApp aggiornata con successo'
       ));
-    } catch (error) {
-      logger.error('Errore aggiornamento configurazione WhatsApp:', error);
+    } catch (error: unknown) {
+      logger.error('Errore aggiornamento configurazione WhatsApp:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Errore aggiornamento configurazione', 'UPDATE_ERROR')
       );
@@ -121,8 +121,8 @@ router.post('/test',
         { status },
         'Test connessione completato'
       ));
-    } catch (error) {
-      logger.error('Errore test connessione WhatsApp:', error);
+    } catch (error: unknown) {
+      logger.error('Errore test connessione WhatsApp:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error(
           'Test connessione fallito: ' + (error as Error).message,
@@ -151,8 +151,8 @@ router.delete('/config',
         null,
         'Configurazione WhatsApp disattivata'
       ));
-    } catch (error) {
-      logger.error('Errore disattivazione WhatsApp:', error);
+    } catch (error: unknown) {
+      logger.error('Errore disattivazione WhatsApp:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Errore disattivazione', 'DELETE_ERROR')
       );

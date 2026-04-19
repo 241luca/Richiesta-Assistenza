@@ -165,7 +165,7 @@ export default function DocumentCategoriesPage() {
       <CategoryForm
         category={editingCategory}
         categories={categories}
-        onSave={(data) => saveMutation.mutate(data)}
+        onSave={(data: any) => saveMutation.mutate(data)}
         onCancel={() => {
           setShowForm(false);
           setEditingCategory(null);

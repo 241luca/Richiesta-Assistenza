@@ -32,7 +32,7 @@ let pollingConfig: PollingConfig = {
  */
 export async function loadPollingConfig() {
   try {
-    const config = await prisma.systemConfiguration.findFirst({
+    const config = await (prisma as any).systemConfiguration.findFirst({
       where: { key: 'whatsapp_polling_config' }
     });
     
@@ -49,8 +49,8 @@ export async function loadPollingConfig() {
         await startMessagePolling(savedConfig.intervalSeconds);
       }
     }
-  } catch (error) {
-    logger.error('Errore caricamento config polling:', error);
+  } catch (error: unknown) {
+    logger.error('Errore caricamento config polling:', error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -59,7 +59,7 @@ export async function loadPollingConfig() {
  */
 async function savePollingConfig() {
   try {
-    await prisma.systemConfiguration.upsert({
+    await (prisma as any).systemConfiguration.upsert({
       where: { key: 'whatsapp_polling_config' },
       update: {
         value: JSON.stringify({
@@ -77,8 +77,8 @@ async function savePollingConfig() {
         description: 'Configurazione polling messaggi WhatsApp'
       }
     });
-  } catch (error) {
-    logger.error('Errore salvataggio config polling:', error);
+  } catch (error: unknown) {
+    logger.error('Errore salvataggio config polling:', error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -205,12 +205,12 @@ export async function checkNewMessages() {
     logger.info(`📱 Instance ID: ${instanceId}`);
     
     // Recupera ultimo messaggio per sapere da quando controllare
-    const lastMessage = await prisma.whatsAppMessage.findFirst({
+    const lastMessage = await (prisma.whatsAppMessage.findFirst as any)({
       where: { direction: 'inbound' },
-      orderBy: { receivedAt: 'desc' }
+      orderBy: { timestamp: 'desc' }
     });
     
-    const since = lastMessage?.receivedAt || new Date(Date.now() - 24 * 60 * 60 * 1000); // Default: ultime 24 ore
+    const since = (lastMessage as any)?.timestamp || new Date(Date.now() - 24 * 60 * 60 * 1000); // Default: ultime 24 ore
     
     logger.info(`🔍 Controllo messaggi da ${since.toLocaleString('it-IT')}`);
     
@@ -236,7 +236,7 @@ export async function checkNewMessages() {
       logger.info(`📋 Trovate ${chatsResponse.data?.length || 0} chat`);
       
       // Per ogni chat, recuperiamo i messaggi recenti
-      let allMessages = [];
+      let allMessages: any[] = [];
       
       if (chatsResponse.data && Array.isArray(chatsResponse.data)) {
         for (const chat of chatsResponse.data.slice(0, 10)) { // Limitiamo a 10 chat per non sovraccaricare
@@ -258,7 +258,7 @@ export async function checkNewMessages() {
               allMessages = allMessages.concat(messagesResponse.data.messages);
             }
           } catch (err) {
-            logger.warn(`⚠️ Errore recupero messaggi per chat ${chat.id}:`, err.message);
+            logger.warn(`⚠️ Errore recupero messaggi per chat ${chat.id}:`, (err as any)?.message || String(err));
           }
         }
       }
@@ -325,14 +325,14 @@ export async function checkNewMessages() {
       return { checked: true, newMessages: 0 };
     }
     
-    logger.error('❌ Errore polling messaggi:', error.message);
+    logger.error('❌ Errore polling messaggi:', error instanceof Error ? error.message : String(error));
     
     // Salva errore
     await savePollingConfig();
     
     return {
       checked: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     };
   }
 }
@@ -345,11 +345,11 @@ async function saveIncomingMessage(msgData: any): Promise<boolean> {
     // Controlla se il messaggio esiste già
     const messageId = msgData.message_id || msgData.id || `${msgData.from}_${msgData.timestamp}`;
     
-    const existing = await prisma.whatsAppMessage.findFirst({
+    const existing = await (prisma.whatsAppMessage.findFirst as any)({
       where: {
         OR: [
           {
-            metadata: {
+            rawData: {
               path: ['messageId'],
               equals: messageId
             }
@@ -359,7 +359,7 @@ async function saveIncomingMessage(msgData: any): Promise<boolean> {
               { phoneNumber: msgData.from || msgData.phone },
               { message: msgData.message || msgData.text },
               {
-                receivedAt: {
+                timestamp: {
                   gte: new Date(new Date(msgData.timestamp).getTime() - 1000),
                   lte: new Date(new Date(msgData.timestamp).getTime() + 1000)
                 }
@@ -375,7 +375,7 @@ async function saveIncomingMessage(msgData: any): Promise<boolean> {
     }
     
     // Salva nuovo messaggio
-    await prisma.whatsAppMessage.create({
+    await (prisma.whatsAppMessage.create as any)({
       data: {
         id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         phoneNumber: msgData.from || msgData.phone || 'unknown',
@@ -384,9 +384,8 @@ async function saveIncomingMessage(msgData: any): Promise<boolean> {
         status: 'received',
         direction: 'inbound',
         mediaUrl: msgData.media_url || msgData.media,
-        receivedAt: msgData.timestamp ? new Date(msgData.timestamp) : new Date(),
-        sentAt: msgData.sent_at ? new Date(msgData.sent_at) : (msgData.timestamp ? new Date(msgData.timestamp) : new Date()),
-        metadata: {
+        timestamp: msgData.timestamp ? new Date(msgData.timestamp) : new Date(),
+        rawData: {
           messageId: messageId,
           pushname: msgData.pushname || msgData.name,
           raw: msgData
@@ -407,7 +406,7 @@ async function saveIncomingMessage(msgData: any): Promise<boolean> {
     return true;
     
   } catch (error: any) {
-    logger.error('❌ Errore salvataggio messaggio:', error);
+    logger.error('❌ Errore salvataggio messaggio:', error instanceof Error ? error.message : String(error));
     return false;
   }
 }
@@ -421,7 +420,7 @@ export function getStatus(): PollingConfig {
 
 // Inizializza al caricamento del modulo
 loadPollingConfig().catch(error => {
-  logger.error('Errore inizializzazione polling:', error);
+  logger.error('Errore inizializzazione polling:', error instanceof Error ? error.message : String(error));
 });
 
 // Esporta le funzioni

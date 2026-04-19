@@ -182,7 +182,7 @@ async function forceFix() {
     console.log(`Preventivi accettati: ${acceptedQuotes}`);
     console.log(`Guadagni totali: €${earnings._sum.amount || 0}`);
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('ERRORE:', error);
   } finally {
     await prisma.$disconnect();

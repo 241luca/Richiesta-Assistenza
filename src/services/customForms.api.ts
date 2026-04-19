@@ -6,7 +6,7 @@ export interface CustomFormField {
   label: string;
   placeholder?: string;
   helpText?: string;
-  fieldType: 'TEXT' | 'TEXTAREA' | 'NUMBER' | 'DATE' | 'DATETIME' | 'CHECKBOX' | 'RADIO' | 'SELECT' | 'MULTISELECT' | 'FILE' | 'FILE_IMAGE' | 'SIGNATURE' | 'SLIDER' | 'RATING' | 'TAGS' | 'AUTOCOMPLETE' | 'LOCATION' | 'HIDDEN' | 'RICH_TEXT' | 'DIVIDER' | 'LABEL' | 'EMAIL' | 'PHONE' | 'ADDRESS';
+  fieldType: 'TEXT' | 'TEXTAREA' | 'NUMBER' | 'DATE' | 'DATETIME' | 'CHECKBOX' | 'RADIO' | 'SELECT' | 'MULTISELECT' | 'FILE' | 'FILE_IMAGE' | 'SIGNATURE' | 'SLIDER' | 'RATING' | 'TAGS' | 'AUTOCOMPLETE' | 'LOCATION' | 'HIDDEN' | 'RICH_TEXT' | 'DIVIDER' | 'LABEL' | 'EMAIL' | 'PHONE' | 'ADDRESS' | 'URL' | 'PASSWORD' | 'TIME' | 'BOOLEAN' | 'IMAGE';
   displayOrder: number;
   isRequired?: boolean;
   isReadonly?: boolean;

@@ -57,8 +57,8 @@ class AiProfessionalService {
       });
       
       logger.info('OpenAI client initialized successfully');
-    } catch (error) {
-      logger.error('Error initializing OpenAI:', error);
+    } catch (error: unknown) {
+      logger.error('Error initializing OpenAI:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -133,7 +133,7 @@ class AiProfessionalService {
           console.log('FINAL systemPrompt being used:', systemPrompt.substring(0, 100));
           console.log('=== END DEBUG ===\n');
 
-        } catch (error) {
+        } catch (error: unknown) {
           logger.warn('Errore nel recupero impostazioni personalizzate:', error);
         }
       }
@@ -165,17 +165,17 @@ class AiProfessionalService {
           const subcategory = await prisma.subcategory.findUnique({
             where: { id: chatRequest.subcategoryId },
             include: {
-              category: true
-            }
+              Category: true
+            } as any
           });
           
           if (subcategory) {
-            systemPrompt += `\n\nContesto: Stai assistendo per servizi di ${subcategory.category.name} - ${subcategory.name}.`;
+            systemPrompt += `\n\nContesto: Stai assistendo per servizi di ${(subcategory as any).Category.name} - ${subcategory.name}.`;
             if (subcategory.description) {
               systemPrompt += ` ${subcategory.description}`;
             }
           }
-        } catch (error) {
+        } catch (error: unknown) {
           logger.warn('Could not load subcategory context:', error);
         }
       }
@@ -207,7 +207,7 @@ class AiProfessionalService {
           } else {
             logger.info('⚠️ Knowledge Base found but no relevant context added');
           }
-        } catch (error) {
+        } catch (error: unknown) {
           logger.warn('❌ Could not enrich prompt with Knowledge Base:', error);
           // Continua senza Knowledge Base se c'è un errore
         }
@@ -274,7 +274,7 @@ class AiProfessionalService {
       };
       
     } catch (error: any) {
-      logger.error('Error in sendMessage:', error);
+      logger.error('Error in sendMessage:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -295,8 +295,8 @@ class AiProfessionalService {
       });
 
       return !!test.choices[0].message;
-    } catch (error) {
-      logger.error('OpenAI connection test failed:', error);
+    } catch (error: unknown) {
+      logger.error('OpenAI connection test failed:', error instanceof Error ? error.message : String(error));
       return false;
     }
   }

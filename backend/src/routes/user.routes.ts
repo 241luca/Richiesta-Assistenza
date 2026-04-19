@@ -75,8 +75,8 @@ router.get('/profile', authenticate, async (req: any, res) => {
       formattedUser,
       'User profile retrieved successfully'
     ));
-  } catch (error) {
-    logger.error('Error fetching user profile:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching user profile:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Error fetching user profile',
       'USER_PROFILE_ERROR'
@@ -190,8 +190,8 @@ router.put('/profile', authenticate, async (req: any, res) => {
       workAddressChanged ? 'Profilo aggiornato con successo. Le distanze delle tue richieste sono state ricalcolate.' : 'Profilo aggiornato con successo'
     ));
     
-  } catch (error) {
-    logger.error('Error updating user profile:', error);
+  } catch (error: unknown) {
+    logger.error('Error updating user profile:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento del profilo',
       'PROFILE_UPDATE_ERROR'
@@ -392,8 +392,8 @@ router.get('/search', authenticate, requireAdmin, async (req: any, res) => {
       `Trovati ${users.length} utenti`
     ));
     
-  } catch (error) {
-    logger.error('[USER SEARCH] Error:', error);
+  } catch (error: unknown) {
+    logger.error('[USER SEARCH] Error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nella ricerca utente',
       'SEARCH_ERROR'
@@ -437,8 +437,8 @@ router.get('/', authenticate, requireAdmin, async (req: any, res) => {
       'Lista utenti recuperata con successo'
     ));
     
-  } catch (error) {
-    logger.error('Error fetching users list:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching users list:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero della lista utenti',
       'FETCH_USERS_ERROR'
@@ -495,8 +495,8 @@ router.get('/my-clients', authenticate, async (req: any, res) => {
       uniqueClients,
       'Clienti recuperati con successo'
     ));
-  } catch (error) {
-    logger.error('Error fetching professional clients:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching professional clients:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recuperare i clienti',
       'FETCH_ERROR'
@@ -548,8 +548,8 @@ router.get('/professionals', authenticate, requireAdmin, async (req: any, res) =
       'Lista professionisti recuperata con successo'
     ));
     
-  } catch (error) {
-    logger.error('Error fetching professionals list:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching professionals list:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero della lista professionisti',
       'FETCH_PROFESSIONALS_ERROR'
@@ -616,8 +616,8 @@ router.get('/image-status', authenticate, async (req: any, res) => {
       userRole
     }));
 
-  } catch (error) {
-    logger.error('Errore nel recupero dello stato delle immagini:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero dello stato delle immagini:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore interno del server',
       'INTERNAL_SERVER_ERROR'
@@ -671,8 +671,8 @@ router.get('/:id', authenticate, async (req: any, res) => {
     const formattedUser = formatUser(user);
     return res.json(ResponseFormatter.success(formattedUser));
     
-  } catch (error) {
-    logger.error('Error fetching user by id:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching user by id:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Errore nel recupero utente', 'FETCH_USER_ERROR'));
   }
 });
@@ -743,7 +743,7 @@ router.put('/:id/approve', authenticate, requireAdmin, async (req: any, res) => 
         userRole: req.user.role,
         ipAddress: req.ip || 'unknown',
         userAgent: req.get('user-agent') || 'unknown',
-        action: 'PROFESSIONAL_APPROVED',
+        action: 'PROFESSIONAL_APPROVED' as any,
         entityType: 'User',
         entityId: id,
         endpoint: req.originalUrl,
@@ -755,7 +755,7 @@ router.put('/:id/approve', authenticate, requireAdmin, async (req: any, res) => 
         },
         success: true,
         severity: 'INFO',
-        category: 'ADMIN_ACTION'
+        category: 'ADMIN_ACTION' as any,
       }
     });
     
@@ -766,8 +766,8 @@ router.put('/:id/approve', authenticate, requireAdmin, async (req: any, res) => 
       `Professionista ${user.firstName} ${user.lastName} approvato con successo`
     ));
     
-  } catch (error) {
-    logger.error('Error approving professional:', error);
+  } catch (error: unknown) {
+    logger.error('Error approving professional:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'approvazione del professionista',
       'APPROVAL_ERROR'
@@ -848,7 +848,7 @@ router.put('/:id/reject', authenticate, requireAdmin, async (req: any, res) => {
         userRole: req.user.role,
         ipAddress: req.ip || 'unknown',
         userAgent: req.get('user-agent') || 'unknown',
-        action: 'PROFESSIONAL_REJECTED',
+        action: 'PROFESSIONAL_REJECTED' as any,
         entityType: 'User',
         entityId: id,
         endpoint: req.originalUrl,
@@ -860,7 +860,7 @@ router.put('/:id/reject', authenticate, requireAdmin, async (req: any, res) => {
         },
         success: true,
         severity: 'INFO',
-        category: 'ADMIN_ACTION'
+        category: 'ADMIN_ACTION' as any,
       }
     });
     
@@ -871,8 +871,8 @@ router.put('/:id/reject', authenticate, requireAdmin, async (req: any, res) => {
       `Professionista ${user.firstName} ${user.lastName} rifiutato`
     ));
     
-  } catch (error) {
-    logger.error('Error rejecting professional:', error);
+  } catch (error: unknown) {
+    logger.error('Error rejecting professional:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel rifiuto del professionista',
       'REJECTION_ERROR'

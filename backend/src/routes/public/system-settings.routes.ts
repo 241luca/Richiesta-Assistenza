@@ -39,8 +39,8 @@ router.get('/basic', async (req, res) => {
       settings,
       'Impostazioni pubbliche recuperate'
     ));
-  } catch (error) {
-    logger.error('Errore nel recupero delle impostazioni pubbliche:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero delle impostazioni pubbliche:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle impostazioni',
       'FETCH_ERROR'

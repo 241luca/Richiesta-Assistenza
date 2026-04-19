@@ -105,7 +105,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({ professionalId }) => {
                 Distribuzione valutazioni
               </h4>
               {[5, 4, 3, 2, 1].map((stars) => {
-                const count = stats.distribution[stars] || 0;
+                const count = (stats.distribution as any)[stars] || 0;
                 const percentage = stats.totalReviews > 0 
                   ? (count / stats.totalReviews) * 100 
                   : 0;

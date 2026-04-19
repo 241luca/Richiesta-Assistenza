@@ -35,6 +35,39 @@ import ErrorBanner from './ErrorBanner';
 import LoadingBadge from './LoadingBadge';
 import CalendarStats from './CalendarStats';
 import UpcomingInterventions from './UpcomingInterventions';
+import type { EventClickArg, EventDropArg, DateSelectArg, EventMountArg } from '@fullcalendar/core';
+
+// ============ TIPI ============
+interface Intervention {
+  id: string;
+  title?: string;
+  start?: string;
+  startDate?: string;
+  proposedDate?: string;
+  end?: string;
+  endDate?: string;
+  estimatedDuration?: number;
+  status?: string;
+  address?: string;
+  notes?: string;
+  price?: number;
+  urgent?: boolean;
+  clientConfirmed?: boolean;
+  client?: {
+    fullName: string;
+  };
+  category?: {
+    name: string;
+  };
+}
+
+interface CalendarSettingsData {
+  showWeekends?: boolean;
+  minTime?: string;
+  maxTime?: string;
+  timeSlotDuration?: number;
+  businessHours?: object;
+}
 
 // Configurazione italiana per FullCalendar
 const calendarConfig = {
@@ -53,7 +86,7 @@ const calendarConfig = {
 };
 
 // Colori per categorie di interventi
-const categoryColors = {
+const categoryColors: Record<string, string> = {
   pending: '#FFA500',      // Arancione - In attesa
   confirmed: '#4CAF50',    // Verde - Confermato
   inProgress: '#2196F3',   // Blu - In corso
@@ -65,11 +98,11 @@ const categoryColors = {
 };
 
 export default function ProfessionalCalendar() {
-  const calendarRef = useRef(null);
+  const calendarRef = useRef<FullCalendar | null>(null);
   const queryClient = useQueryClient();
   const [currentView, setCurrentView] = useState('timeGridWeek');
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedIntervention, setSelectedIntervention] = useState(null);
+  const [selectedIntervention, setSelectedIntervention] = useState<Intervention | null>(null);
   const [showInterventionModal, setShowInterventionModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAvailability, setShowAvailability] = useState(false);
@@ -92,7 +125,7 @@ export default function ProfessionalCalendar() {
   });
 
   // Estrai gli interventi dalla risposta
-  const interventions = interventionsResponse?.data || [];
+  const interventions: Intervention[] = interventionsResponse?.data || [];
 
   // Fetch impostazioni calendario
   const { data: calendarSettingsResponse } = useQuery({
@@ -104,7 +137,7 @@ export default function ProfessionalCalendar() {
   });
 
   // Estrai le impostazioni dalla risposta
-  const calendarSettings = calendarSettingsResponse?.data;
+  const calendarSettings: CalendarSettingsData | undefined = calendarSettingsResponse?.data;
 
   // Tipi per le mutation di interventi
   interface CreateInterventionVars {
@@ -124,7 +157,7 @@ export default function ProfessionalCalendar() {
   }
 
   // Mutation per creare/aggiornare interventi
-  const createInterventionMutation = useMutation<any, any, CreateInterventionVars>({
+  const createInterventionMutation = useMutation<unknown, unknown, CreateInterventionVars>({
     mutationFn: async (data: CreateInterventionVars) => {
       // Il backend si aspetta un formato specifico per gli interventi schedulati
       const formattedData = {
@@ -147,14 +180,15 @@ export default function ProfessionalCalendar() {
       toast.success('Intervento salvato con successo');
       setShowInterventionModal(false);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error('Error saving intervention:', error);
-      toast.error(error.response?.data?.message || 'Errore nel salvare l\'intervento');
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || 'Errore nel salvare l\'intervento');
     }
   });
 
   // Mutation per drag & drop
-  const updateInterventionDateMutation = useMutation<any, any, UpdateInterventionDateVars>({
+  const updateInterventionDateMutation = useMutation<unknown, unknown, UpdateInterventionDateVars>({
     mutationFn: async ({ id, start, end }: UpdateInterventionDateVars) => {
       return await api.patch(`/calendar/interventions/${id}/reschedule`, { start, end });
     },
@@ -169,12 +203,12 @@ export default function ProfessionalCalendar() {
   });
 
   // Trasforma i dati per FullCalendar
-  const calendarEvents = (interventions || []).map(intervention => ({
+  const calendarEvents = (interventions || []).map((intervention: Intervention) => ({
     id: intervention.id,
     title: intervention.title || `${intervention.client?.fullName} - ${intervention.category?.name}`,
     start: intervention.start || intervention.startDate || intervention.proposedDate,
     end: intervention.end || intervention.endDate || dayjs(intervention.proposedDate).add(intervention.estimatedDuration || 60, 'minute').toISOString(),
-    color: categoryColors[intervention.status] || '#3B82F6',
+    color: categoryColors[intervention.status || 'pending'] || '#3B82F6',
     extendedProps: {
       ...intervention,
       location: intervention.address,
@@ -187,17 +221,17 @@ export default function ProfessionalCalendar() {
       `status-${intervention.status}`,
       intervention.urgent && 'urgent',
       intervention.clientConfirmed && 'confirmed'
-    ].filter(Boolean)
+    ].filter(Boolean) as string[]
   })) || [];
 
   // Handler per il click su un evento
-  const handleEventClick = (info) => {
-    setSelectedIntervention(info.event.extendedProps);
+  const handleEventClick = (info: EventClickArg) => {
+    setSelectedIntervention(info.event.extendedProps as Intervention);
     setShowInterventionModal(true);
   };
 
   // Handler per il drag & drop
-  const handleEventDrop = (info) => {
+  const handleEventDrop = (info: EventDropArg) => {
     const { event } = info;
     
     // Verifica conflitti orari
@@ -213,8 +247,8 @@ export default function ProfessionalCalendar() {
     if (window.confirm(`Spostare l'intervento a ${dayjs(event.start).format('DD/MM/YYYY HH:mm')}?`)) {
       updateInterventionDateMutation.mutate({
         id: event.id,
-        start: event.start,
-        end: event.end
+        start: event.start!,
+        end: event.end!
       });
     } else {
       info.revert();
@@ -222,24 +256,25 @@ export default function ProfessionalCalendar() {
   };
 
   // Handler per la selezione di uno slot libero
-  const handleDateSelect = (info) => {
+  const handleDateSelect = (info: DateSelectArg) => {
     setSelectedIntervention({
-      start: info.start,
-      end: info.end,
-      allDay: info.allDay,
+      id: '',
+      start: info.start.toISOString(),
+      end: info.end.toISOString(),
       // ✅ FIX: Aggiungi anche startDate per il modale
-      startDate: info.start,
-      proposedDate: info.start
+      startDate: info.start.toISOString(),
+      proposedDate: info.start.toISOString()
     });
     setShowInterventionModal(true);
   };
 
   // Verifica conflitti di orario
-  const checkTimeConflict = (start, end, excludeId = null) => {
-    return interventions?.some(intervention => {
+  const checkTimeConflict = (start: Date | null, end: Date | null, excludeId: string | null = null): boolean => {
+    if (!start || !end) return false;
+    return interventions?.some((intervention: Intervention) => {
       if (intervention.id === excludeId) return false;
       
-      const intStart = new Date(intervention.startDate || intervention.proposedDate);
+      const intStart = new Date(intervention.startDate || intervention.proposedDate || '');
       const intEnd = new Date(intervention.endDate || 
         dayjs(intervention.proposedDate).add(intervention.estimatedDuration || 60, 'minute').toISOString()
       );
@@ -249,7 +284,7 @@ export default function ProfessionalCalendar() {
   };
 
   // Handler per il cambio di vista
-  const handleViewChange = (view) => {
+  const handleViewChange = (view: string) => {
     setCurrentView(view);
     if (calendarRef.current) {
       const calendarApi = calendarRef.current.getApi();
@@ -258,7 +293,7 @@ export default function ProfessionalCalendar() {
   };
 
   // Navigazione calendario
-  const handleNavigate = (action) => {
+  const handleNavigate = (action: string) => {
     if (calendarRef.current) {
       const calendarApi = calendarRef.current.getApi();
       switch(action) {
@@ -494,7 +529,6 @@ export default function ProfessionalCalendar() {
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
               initialView={currentView}
               headerToolbar={false} // Usiamo il nostro header custom
-              locale="it"
               firstDay={1} // Lunedì come primo giorno
               height="auto"
               events={calendarEvents}
@@ -511,10 +545,10 @@ export default function ProfessionalCalendar() {
               eventClick={handleEventClick}
               eventDrop={handleEventDrop}
               select={handleDateSelect}
-              eventResize={handleEventDrop}
+              eventResize={handleEventDrop as any}
               businessHours={calendarSettings?.businessHours}
               nowIndicator={true}
-              eventDidMount={(info) => {
+              eventDidMount={(info: EventMountArg) => {
                 // ✅ FIX: Tooltip semplificato senza HTML
                 const event = info.event;
                 const tooltipContent = [
@@ -527,7 +561,7 @@ export default function ProfessionalCalendar() {
                 info.el.setAttribute('title', tooltipContent);
               }}
               eventClassNames={(arg) => {
-                const classes = [];
+                const classes: string[] = [];
                 if (arg.event.extendedProps.urgent) classes.push('urgent-event');
                 if (arg.event.extendedProps.clientConfirmed) classes.push('confirmed-event');
                 return classes;

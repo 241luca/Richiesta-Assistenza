@@ -11,7 +11,7 @@ export function validate(schema: z.ZodSchema) {
         params: req.params
       });
       return next();
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof ZodError) {
         const errors = error.errors.map(err => ({
           field: err.path.join('.'),
@@ -41,7 +41,7 @@ export function validateBody(schema: z.ZodSchema) {
     try {
       req.body = await schema.parseAsync(req.body);
       return next();
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof ZodError) {
         const errors = error.errors.map(err => ({
           field: err.path.join('.'),
@@ -66,7 +66,7 @@ export function validateQuery(schema: z.ZodSchema) {
     try {
       req.query = await schema.parseAsync(req.query);
       return next();
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof ZodError) {
         const errors = error.errors.map(err => ({
           field: err.path.join('.'),
@@ -91,7 +91,7 @@ export function validateParams(schema: z.ZodSchema) {
     try {
       req.params = await schema.parseAsync(req.params);
       return next();
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof ZodError) {
         const errors = error.errors.map(err => ({
           field: err.path.join('.'),

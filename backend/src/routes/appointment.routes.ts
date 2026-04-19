@@ -24,7 +24,7 @@ router.post('/:id/confirm', async (req, res) => {
   
   // Forward alla route esistente
   const scheduledInterventionsRouter = await import('./scheduledInterventions');
-  return scheduledInterventionsRouter.default(req, res);
+  return scheduledInterventionsRouter.default(req as any, res as any, () => {});
 });
 
 /**
@@ -38,7 +38,7 @@ router.post('/:id/cancel', async (req, res) => {
   
   // Forward alla route esistente
   const scheduledInterventionsRouter = await import('./scheduledInterventions');
-  return scheduledInterventionsRouter.default(req, res);
+  return scheduledInterventionsRouter.default(req as any, res as any, () => {});
 });
 
 /**

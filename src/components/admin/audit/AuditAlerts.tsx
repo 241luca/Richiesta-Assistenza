@@ -30,11 +30,11 @@ interface Props {
   loading: boolean;
 }
 
-export default function AuditAlerts({ alerts, loading }: Props) {
+export default function AuditAlerts({ alerts = [], loading }: Props) {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Assicuriamoci che alerts sia sempre un array
-  const alertsList = Array.isArray(alerts) ? alerts : (alerts?.data || []);
+  const alertsList = Array.isArray(alerts) ? alerts : [];
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {

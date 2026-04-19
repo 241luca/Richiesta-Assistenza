@@ -222,8 +222,8 @@ router.get('/dashboard', async (req: any, res: any) => {
                         dashboardData.recentActivity.recentQuotes.length
       }
     ));
-  } catch (error) {
-    logger.error('Error fetching admin dashboard data:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching admin dashboard data:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to fetch admin dashboard data'));
   }
 });
@@ -283,8 +283,8 @@ router.get('/users', (req: any, res: any) => {
         }
       }
     ));
-  } catch (error) {
-    logger.error('Error fetching admin users data:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching admin users data:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to fetch admin users data'));
   }
 });
@@ -377,8 +377,8 @@ router.post('/verify-professional/:userId', async (req: any, res: any) => {
       }
     ));
     
-  } catch (error) {
-    logger.error('Error verifying professional:', error);
+  } catch (error: unknown) {
+    logger.error('Error verifying professional:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Errore durante la verifica del professionista'));
   }
 });
@@ -455,8 +455,8 @@ router.post('/unverify-professional/:userId', async (req: any, res: any) => {
       { reason }
     ));
     
-  } catch (error) {
-    logger.error('Error removing verification:', error);
+  } catch (error: unknown) {
+    logger.error('Error removing verification:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Errore durante la rimozione della verifica'));
   }
 });

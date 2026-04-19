@@ -180,8 +180,8 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
                   } else {
                     logger.warn(`No distance data returned for request ${request.id}`);
                   }
-                } catch (error) {
-                  logger.error(`Error calculating distance for request ${request.id}:`, error);
+                } catch (error: unknown) {
+                  logger.error(`Error calculating distance for request ${request.id}:`, error instanceof Error ? error.message : String(error));
                 }
                 return request;
               })
@@ -207,8 +207,8 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
         } else {
           logger.error(`Professional with id ${user.id} not found`);
         }
-      } catch (error) {
-        logger.error('Error calculating distances:', error);
+      } catch (error: unknown) {
+        logger.error('Error calculating distances:', error instanceof Error ? error.message : String(error));
         // Continue without distances if there's an error
       }
     }
@@ -218,8 +218,8 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
       total: formattedRequests.length
     }));
     
-  } catch (error) {
-    logger.error('Error fetching requests:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching requests:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle richieste',
       'FETCH_ERROR'
@@ -317,8 +317,8 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => 
       message: 'Richiesta creata con successo'
     }));
     
-  } catch (error) {
-    logger.error('Error creating request:', error);
+  } catch (error: unknown) {
+    logger.error('Error creating request:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nella creazione della richiesta',
       'CREATE_ERROR'
@@ -532,8 +532,8 @@ router.post('/for-client', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Au
         : 'Richiesta creata con successo per il cliente'
     }));
     
-  } catch (error) {
-    logger.error('Error creating request for Client:', error);
+  } catch (error: unknown) {
+    logger.error('Error creating request for Client:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nella creazione della richiesta per il cliente',
       'CREATE_ERROR'
@@ -599,8 +599,8 @@ router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
       request: formattedRequest 
     }));
     
-  } catch (error) {
-    logger.error('Error fetching request:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching request:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero della richiesta',
       'FETCH_ERROR'
@@ -720,8 +720,8 @@ router.post(
           'Richiesta cancellata con successo'
         )
       );
-    } catch (error) {
-      logger.error('Error cancelling request:', error);
+    } catch (error: unknown) {
+      logger.error('Error cancelling request:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Errore nella cancellazione della richiesta', 'CANCEL_ERROR')
       );
@@ -779,8 +779,8 @@ router.patch('/:id/coordinates', async (req: AuthRequest, res: Response, next: N
       }
     }));
     
-  } catch (error) {
-    logger.error('Error updating request coordinates:', error);
+  } catch (error: unknown) {
+    logger.error('Error updating request coordinates:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento delle coordinate',
       'UPDATE_ERROR'
@@ -873,8 +873,8 @@ router.post('/:id/assign', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Au
       'Richiesta assegnata con successo'
     ));
 
-  } catch (error) {
-    logger.error('Errore assegnazione richiesta:', error);
+  } catch (error: unknown) {
+    logger.error('Errore assegnazione richiesta:', error instanceof Error ? error.message : String(error));
     res.status(500).json(
       ResponseFormatter.error('Errore durante l\'assegnazione', 'ASSIGN_ERROR')
     );
@@ -939,8 +939,8 @@ router.patch('/:id/schedule', requireRole(['PROFESSIONAL']), async (req: AuthReq
       'Data intervento impostata con successo'
     ));
 
-  } catch (error) {
-    logger.error('Errore impostazione data:', error);
+  } catch (error: unknown) {
+    logger.error('Errore impostazione data:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Errore durante l\'impostazione della data', 'SCHEDULE_ERROR')
     );
@@ -1008,8 +1008,8 @@ router.get('/:id/pdf', async (req: AuthRequest, res: Response, next: NextFunctio
       }, 5000); // Delete after 5 seconds
     });
     
-  } catch (error) {
-    logger.error('Error generating request PDF:', error);
+  } catch (error: unknown) {
+    logger.error('Error generating request PDF:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Error generating PDF', 'PDF_ERROR'));
   }
 });
@@ -1110,8 +1110,8 @@ router.put('/:id/status', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Aut
       'Stato aggiornato con successo'
     ));
     
-  } catch (error) {
-    logger.error('Error updating request status:', error);
+  } catch (error: unknown) {
+    logger.error('Error updating request status:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Errore aggiornamento stato', 'UPDATE_ERROR'));
   }
 });
@@ -1167,8 +1167,8 @@ router.put('/:id/priority', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: A
       'Priorità aggiornata con successo'
     ));
     
-  } catch (error) {
-    logger.error('Error updating request priority:', error);
+  } catch (error: unknown) {
+    logger.error('Error updating request priority:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Errore aggiornamento priorità', 'UPDATE_ERROR'));
   }
 });
@@ -1284,8 +1284,8 @@ router.get('/:id/chat', async (req: AuthRequest, res: Response) => {
     
     return res.json(ResponseFormatter.success(formattedMessages, 'Messaggi recuperati'));
     
-  } catch (error) {
-    logger.error('Error fetching chat messages:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching chat messages:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Errore recupero messaggi', 'FETCH_ERROR'));
   }
 });
@@ -1404,8 +1404,8 @@ router.post('/:id/chat', async (req: AuthRequest, res: Response) => {
     
     return res.status(201).json(ResponseFormatter.success(formattedMessage, 'Messaggio inviato'));
     
-  } catch (error) {
-    logger.error('Error sending chat message:', error);
+  } catch (error: unknown) {
+    logger.error('Error sending chat message:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Errore invio messaggio', 'SEND_ERROR'));
   }
 });
@@ -1488,8 +1488,8 @@ router.patch('/:id/coordinates', async (req: AuthRequest, res: Response, next: N
       formatAssistanceRequest(updatedRequest),
       'Coordinate aggiornate con successo'
     ));
-  } catch (error) {
-    logger.error('Error updating request coordinates:', error);
+  } catch (error: unknown) {
+    logger.error('Error updating request coordinates:', error instanceof Error ? error.message : String(error));
     next(error);
   }
 });
@@ -1505,8 +1505,8 @@ router.get('/:id/forms', authenticate, async (req: AuthRequest, res: Response, n
     
     const result = await customFormService.getRequestForms(id);
     res.status(result.success ? 200 : 500).json(result);
-  } catch (error) {
-    logger.error('Error getting request forms:', error);
+  } catch (error: unknown) {
+    logger.error('Error getting request forms:', error instanceof Error ? error.message : String(error));
     next(error);
   }
 });

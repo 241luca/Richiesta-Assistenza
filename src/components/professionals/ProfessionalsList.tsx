@@ -37,7 +37,7 @@ export const ProfessionalsList: React.FC<ProfessionalsListProps> = ({
   const { data: stats } = useProfessionalsStats();
 
   const professionals = professionalsData?.data || [];
-  const meta = professionalsData?.meta || {};
+  const meta = professionalsData?.meta || { total: 0, showing: 0, hasMore: false };
 
   return (
     <div className="bg-white rounded-lg shadow">

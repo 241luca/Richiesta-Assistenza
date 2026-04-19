@@ -466,18 +466,18 @@ export default function SystemSettingsPage() {
                           </div>
                           {category}
                           <span className="ml-3 text-sm font-normal text-gray-500">
-                            ({categorySettings.length} impostazioni)
+                            ({(categorySettings as any[]).length} impostazioni)
                           </span>
                         </h2>
                       </div>
                       
                       <div className="divide-y divide-gray-100">
-                        {categorySettings.map((setting) => (
+                        {(categorySettings as any[]).map((setting) => (
                           <div key={setting.id} className="p-6 hover:bg-gray-50 transition-colors">
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex-1">
                                 <h3 className="font-semibold text-gray-900">
-                                  {setting.key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                  {setting.key.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
                                 </h3>
                                 {setting.description && (
                                   <p className="text-sm text-gray-600 mt-1">{setting.description}</p>

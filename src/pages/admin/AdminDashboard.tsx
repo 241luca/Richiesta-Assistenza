@@ -621,11 +621,11 @@ export default function AdminDashboard() {
                     ← Precedente
                   </button>
                   <span className="text-sm">
-                    Pagina {currentPage} di {data?.recentActivity?.pagination?.totalPages || 1}
+                    Pagina {currentPage} di {(data?.recentActivity as any)?.pagination?.totalPages || 1}
                   </span>
                   <button
-                    onClick={() => setCurrentPage(p => Math.min(data?.recentActivity?.pagination?.totalPages || 1, p + 1))}
-                    disabled={currentPage >= (data?.recentActivity?.pagination?.totalPages || 1)}
+                    onClick={() => setCurrentPage(p => Math.min((data?.recentActivity as any)?.pagination?.totalPages || 1, p + 1))}
+                    disabled={currentPage >= ((data?.recentActivity as any)?.pagination?.totalPages || 1)}
                     className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                   >
                     Successiva →

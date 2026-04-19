@@ -72,7 +72,7 @@ class PricingService {
       console.log(`[PricingService] Range calcolato:`, priceRange);
       return priceRange;
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[PricingService] Errore nel calcolo range prezzi:', error);
       throw new Error('Errore nel calcolo del range prezzi');
     }
@@ -88,10 +88,10 @@ class PricingService {
       console.log(`[PricingService] Calcolando pricing completo per categoria: ${categoryId}`);
 
       // Carica categoria con sottocategorie
-      const category = await prisma.category.findUnique({
+      const category = await (prisma.category.findUnique as any)({
         where: { id: categoryId },
         include: { 
-          subcategories: {
+          Subcategory: {
             where: { isActive: true },
             orderBy: { displayOrder: 'asc' }
           }
@@ -102,34 +102,36 @@ class PricingService {
         throw new Error('Categoria non trovata');
       }
 
+      const subcategories = (category as any).Subcategory || [];
+
       // Range generale della categoria
       const categoryRange = await this.getPriceRange(categoryId);
       
       // Range per ogni sottocategoria
       const subcategoriesRanges = await Promise.all(
-        category.subcategories.map(async (sub) => ({
+        subcategories.map(async (sub: any) => ({
           subcategory: sub,
           range: await this.getPriceRange(categoryId, sub.id)
         }))
       );
 
       // Filtra solo sottocategorie con dati sufficienti
-      const validSubcategoriesRanges = subcategoriesRanges.filter(s => s.range !== null);
+      const validSubcategoriesRanges = subcategoriesRanges.filter((s: any) => s.range !== null);
 
-      console.log(`[PricingService] Pricing categoria completato. Sottocategorie con dati: ${validSubcategoriesRanges.length}/${category.subcategories.length}`);
+      console.log(`[PricingService] Pricing categoria completato. Sottocategorie con dati: ${validSubcategoriesRanges.length}/${subcategories.length}`);
 
       return {
         category,
         overallRange: categoryRange,
         subcategoriesRanges: validSubcategoriesRanges,
         stats: {
-          totalSubcategories: category.subcategories.length,
+          totalSubcategories: subcategories.length,
           subcategoriesWithData: validSubcategoriesRanges.length,
           hasOverallData: categoryRange !== null
         }
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[PricingService] Errore nel calcolo pricing categoria:', error);
       throw error;
     }
@@ -163,7 +165,7 @@ class PricingService {
         lastSixMonths: true
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[PricingService] Errore nel calcolo statistiche:', error);
       throw error;
     }

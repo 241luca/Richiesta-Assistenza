@@ -99,8 +99,8 @@ router.get(
         categories, 
         'Categories retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('[CATEGORIES] Error fetching categories:', error);
+    } catch (error: unknown) {
+      logger.error('[CATEGORIES] Error fetching categories:', error instanceof Error ? error.message : String(error));
       res.json(ResponseFormatter.error(
         'Failed to fetch categories',
         'CATEGORIES_FETCH_ERROR'
@@ -129,7 +129,7 @@ router.get(
         category,
         'Category retrieved successfully'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       res.json(ResponseFormatter.error(
         'Failed to fetch category',
         'CATEGORY_FETCH_ERROR'
@@ -152,7 +152,7 @@ router.post(
         category,
         'Category created successfully'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       res.json(ResponseFormatter.error(
         'Failed to create category',
         'CATEGORY_CREATE_ERROR'
@@ -184,7 +184,7 @@ router.put(
         category,
         'Category updated successfully'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       res.json(ResponseFormatter.error(
         'Failed to update category',
         'CATEGORY_UPDATE_ERROR'
@@ -214,7 +214,7 @@ router.delete(
         null,
         'Category deleted successfully'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       res.json(ResponseFormatter.error(
         'Failed to delete category',
         'CATEGORY_DELETE_ERROR'

@@ -542,12 +542,12 @@ export default function RichTextEditor({
       )}
 
       {/* Custom styles for editor */}
-      <style jsx>{`
-        .rich-text-editor :global(.tox-tinymce) {
+      <style>{`
+        .rich-text-editor .tox-tinymce {
           border: 1px solid #e5e7eb;
           border-radius: 0.5rem;
         }
-        .rich-text-editor :global(.tox .tox-toolbar__primary) {
+        .rich-text-editor .tox .tox-toolbar__primary {
           background: #f9fafb;
         }
         .rich-text-editor.fullscreen {

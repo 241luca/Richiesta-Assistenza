@@ -93,7 +93,7 @@ async function quickCheck() {
     }
     
   } catch (error: any) {
-    console.error('❌ Errore:', error.message);
+    console.error('❌ Errore:', error instanceof Error ? error.message : String(error));
   }
 }
 

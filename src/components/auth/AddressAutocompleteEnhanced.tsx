@@ -37,7 +37,7 @@ export function AddressAutocomplete({
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
-  const { isLoaded, apiKeyConfigured } = useGoogleMaps();
+  const { isLoaded } = useGoogleMaps();
   
   // Aggiorna il valore quando cambia defaultValue
   useEffect(() => {
@@ -48,7 +48,7 @@ export function AddressAutocomplete({
 
   useEffect(() => {
     // Se Google Maps non è caricato, non fare nulla
-    if (!isLoaded || !apiKeyConfigured) {
+    if (!isLoaded) {
       return;
     }
 
@@ -141,14 +141,14 @@ export function AddressAutocomplete({
         window.google.maps.event.clearInstanceListeners(autocompleteRef.current);
       }
     };
-  }, [onAddressSelect, isLoaded, apiKeyConfigured]);
+  }, [onAddressSelect, isLoaded]);
 
   // Gestione manuale dell'input quando Google Maps non è disponibile
   const handleManualInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     setValue(e.target.value);
     
     // Se Google Maps non è disponibile, permetti l'input manuale
-    if (!isLoaded || !apiKeyConfigured) {
+    if (!isLoaded) {
       // Prova a estrarre informazioni base dall'input manuale
       const parts = e.target.value.split(',').map(p => p.trim());
       if (parts.length >= 2) {
@@ -200,17 +200,14 @@ export function AddressAutocomplete({
         <p className="text-sm text-red-600 mt-1">{error}</p>
       )}
       
-      {!apiKeyConfigured ? (
+      {!isLoaded && (
         <p className="text-xs text-amber-600 mt-1">
           ⚠️ Autocompletamento non disponibile - Inserisci l'indirizzo manualmente
         </p>
-      ) : isLoaded ? (
+      )}
+      {isLoaded && (
         <p className="text-xs text-gray-500 mt-1">
           💡 Inizia a digitare per vedere i suggerimenti
-        </p>
-      ) : (
-        <p className="text-xs text-gray-400 mt-1">
-          Caricamento autocompletamento...
         </p>
       )}
     </div>

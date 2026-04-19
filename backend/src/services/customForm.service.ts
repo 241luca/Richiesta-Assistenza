@@ -1,10 +1,17 @@
-import { PrismaClient, CustomForm, CustomFormField, CustomFormFieldType, CustomFormDisplayType, CustomFormCommissionStatus, CustomFormCommissionPriority } from '@prisma/client';
- import { ResponseFormatter } from '../utils/responseFormatter';
+import type { CustomForm, CustomFormField, CustomFormFieldType, CustomFormDisplayType } from '@prisma/client';
+import { prisma } from '../config/database';
+import { ResponseFormatter } from '../utils/responseFormatter';
 import { moduleService } from './module.service';
 import { auditLogService } from './auditLog.service';
 import { notificationService } from './notification.service';
 
-const prisma = new PrismaClient();
+// Helper per estrarre messaggio di errore
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  return String(error);
+}
 
 export interface CustomFormWithFields extends CustomForm {
   CustomFormField: CustomFormField[];
@@ -74,7 +81,7 @@ class CustomFormService {
   async isModuleEnabled(): Promise<boolean> {
     try {
       return await moduleService.isModuleEnabled('custom-forms');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore verifica modulo custom-forms:', error);
       return false;
     }
@@ -211,7 +218,7 @@ class CustomFormService {
       });
 
       return ResponseFormatter.success(customForms, 'Custom forms recuperati con successo');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nel recupero dei custom forms:', error);
       return ResponseFormatter.error('Errore nel recupero dei custom forms');
     }
@@ -250,7 +257,7 @@ class CustomFormService {
       }
 
       return ResponseFormatter.success(customForm, 'Custom form recuperato con successo');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nel recupero del custom form:', error);
       return ResponseFormatter.error('Errore nel recupero del custom form');
     }
@@ -294,7 +301,7 @@ class CustomFormService {
       }));
 
       return ResponseFormatter.success(transformedForms, 'Custom forms per professionista recuperati con successo');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nel recupero dei custom forms per professionista:', error);
       return ResponseFormatter.error('Errore nel recupero dei custom forms per professionista');
     }
@@ -327,7 +334,7 @@ class CustomFormService {
       });
 
       return ResponseFormatter.success(customForms, 'Custom forms per sottocategoria recuperati con successo');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nel recupero dei custom forms per sottocategoria:', error);
       return ResponseFormatter.error('Errore nel recupero dei custom forms per sottocategoria');
     }
@@ -370,7 +377,7 @@ class CustomFormService {
             version: 1,
             isDefault: false,
             isPublished: false
-          }
+          } as any
         });
 
         // ✅ NUOVO: Crea le relazioni con le categorie documento
@@ -413,7 +420,7 @@ class CustomFormService {
                   requiredIf: field.requiredIf
                 };
                 return tx.customFormField.create({
-                  data: fieldData
+                  data: fieldData as any
                 });
               })
             )
@@ -461,7 +468,7 @@ class CustomFormService {
       });
 
       return ResponseFormatter.success(customForm, 'Custom form creato con successo');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nella creazione del custom form:', error);
       
       // Log errore nell'audit log
@@ -474,7 +481,7 @@ class CustomFormService {
         action: 'CREATE' as any,
         entityType: 'CustomForm',
         success: false,
-        errorMessage: (error as Error).message,
+        errorMessage: getErrorMessage(error),
         severity: 'ERROR' as any,
         category: 'BUSINESS' as any
       });
@@ -496,7 +503,7 @@ class CustomFormService {
       // Verifica che il custom form esista
       const existingForm = await prisma.customForm.findUnique({
         where: { id },
-        include: { Fields: true }
+        include: { CustomFormField: true }
       });
 
       if (!existingForm) {
@@ -596,7 +603,7 @@ class CustomFormService {
                       showIf: field.showIf,
                       requiredIf: field.requiredIf,
                       customFormId: id
-                    }
+                    } as any
                   });
                 }
               })
@@ -613,7 +620,7 @@ class CustomFormService {
 
             await Promise.all(
               data.fields.map(field => 
-                tx.customFormField.create({
+                (tx.customFormField.create as any)({
                   data: {
                     code: field.code,
                     label: field.label,
@@ -707,7 +714,7 @@ class CustomFormService {
       }
 
       return ResponseFormatter.success(updatedForm, 'Custom form aggiornato con successo');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nell\'aggiornamento del custom form:', error);
       
       // Log errore
@@ -793,7 +800,7 @@ class CustomFormService {
       }
 
       return ResponseFormatter.success(customForm, 'Custom form pubblicato con successo');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nella pubblicazione del custom form:', error);
       
       // Log errore
@@ -884,7 +891,7 @@ class CustomFormService {
       }
 
       return ResponseFormatter.success(null, 'Custom form eliminato con successo');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nell\'eliminazione del custom form:', error);
       
       // Log errore
@@ -941,7 +948,7 @@ class CustomFormService {
       };
 
       return ResponseFormatter.success(stats, 'Statistiche custom forms recuperate con successo');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nel recupero delle statistiche:', error);
       return ResponseFormatter.error('Errore nel recupero delle statistiche');
     }
@@ -990,13 +997,13 @@ class CustomFormService {
           subcategoryId: subcategoryId // Assicurati che sia associato alla sottocategoria corretta
         },
         include: {
-          Fields: {
+          CustomFormField: {
             orderBy: { displayOrder: 'asc' }
           },
           Subcategory: {
             select: { id: true, name: true }
           },
-          Professional: {
+          User_CustomForm_professionalIdToUser: {
             select: { id: true, firstName: true, lastName: true }
           }
         }
@@ -1040,7 +1047,7 @@ class CustomFormService {
       }
 
       return ResponseFormatter.success(updatedCustomForm, 'Custom form impostato come default con successo');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nell\'impostazione del custom form come default:', error);
       
       // Log errore
@@ -1093,13 +1100,13 @@ class CustomFormService {
       const templates = await prisma.customForm.findMany({
         where,
         include: {
-          Fields: {
+          CustomFormField: {
             orderBy: { displayOrder: 'asc' }
           },
           Subcategory: {
             select: { id: true, name: true }
           },
-          CreatedBy: {
+          User_CustomForm_createdByToUser: {
             select: { id: true, firstName: true, lastName: true }
           }
         },
@@ -1110,7 +1117,7 @@ class CustomFormService {
       });
 
       return ResponseFormatter.success(templates, 'Template recuperati con successo');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nel recupero dei template:', error);
       return ResponseFormatter.error('Errore nel recupero dei template');
     }
@@ -1131,7 +1138,7 @@ class CustomFormService {
       const originalForm = await prisma.customForm.findUnique({
         where: { id: formId },
         include: {
-          Fields: {
+          CustomFormField: {
             orderBy: { displayOrder: 'asc' }
           }
         }
@@ -1149,7 +1156,7 @@ class CustomFormService {
       // Crea il clone in transazione
       const clonedForm = await prisma.$transaction(async (tx) => {
         // Crea il nuovo form
-        const newForm = await tx.customForm.create({
+        const newForm = await (tx.customForm.create as any)({
           data: {
             name: newName || `${originalForm.name} (Copia)`,
             description: originalForm.description,
@@ -1166,8 +1173,8 @@ class CustomFormService {
 
         // Clona tutti i campi
         const clonedFields = await Promise.all(
-          originalForm.Fields.map(field => 
-            tx.customFormField.create({
+          originalForm.CustomFormField.map(field => 
+            (tx.customFormField.create as any)({
               data: {
                 customFormId: newForm.id,
                 code: field.code,
@@ -1201,7 +1208,7 @@ class CustomFormService {
           }
         });
 
-        return { ...newForm, Fields: clonedFields };
+        return { ...newForm, CustomFormField: clonedFields };
       });
 
       // ✅ Audit Log
@@ -1240,7 +1247,7 @@ class CustomFormService {
       });
 
       return ResponseFormatter.success(clonedForm, 'Form clonato con successo');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nella clonazione del form:', error);
       
       // Log errore
@@ -1295,7 +1302,7 @@ class CustomFormService {
           professionalId: null // I template non appartengono a un professionista specifico
         },
         include: {
-          Fields: {
+          CustomFormField: {
             orderBy: { displayOrder: 'asc' }
           }
         }
@@ -1321,7 +1328,7 @@ class CustomFormService {
       });
 
       return ResponseFormatter.success(templateForm, 'Form marcato come template con successo');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nel marcare il form come template:', error);
       return ResponseFormatter.error('Errore nel marcare il form come template');
     }
@@ -1363,7 +1370,7 @@ class CustomFormService {
       });
 
       return ResponseFormatter.success(form, 'Template disattivato con successo');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nel rimuovere il template:', error);
       return ResponseFormatter.error('Errore nel rimuovere il template');
     }
@@ -1402,7 +1409,7 @@ class CustomFormService {
       }
 
       // Crea l'associazione (permettiamo invii multipli dello stesso form)
-      const requestForm = await prisma.requestCustomForm.create({
+      const requestForm = await (prisma.requestCustomForm.create as any)({
         data: {
           requestId,
           customFormId: formId,
@@ -1411,12 +1418,12 @@ class CustomFormService {
         include: {
           CustomForm: {
             include: {
-              Fields: {
+              CustomFormField: {
                 orderBy: { displayOrder: 'asc' }
               }
             }
           },
-          Request: {
+          AssistanceRequest: {
             select: {
               id: true,
               title: true,
@@ -1455,9 +1462,10 @@ class CustomFormService {
       });
 
       // ✅ Notification al cliente
-      if (requestForm.Request.client) {
+      const assistanceRequest = (requestForm as any).AssistanceRequest;
+      if (assistanceRequest?.client) {
         await notificationService.sendToUser({
-          userId: requestForm.Request.client.id,
+          userId: assistanceRequest.client.id,
           type: 'custom_form_sent',
           title: 'Nuovo Form da Compilare',
           message: `Il professionista ti ha inviato il form "${form.name}" per la richiesta "${request.title}"`,
@@ -1474,7 +1482,7 @@ class CustomFormService {
       }
 
       return ResponseFormatter.success(requestForm, 'Form inviato con successo al cliente');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nell\'invio del form:', error);
       
       // Log errore
@@ -1511,7 +1519,7 @@ class CustomFormService {
         include: {
           CustomForm: {
             include: {
-              Fields: {
+              CustomFormField: {
                 orderBy: { displayOrder: 'asc' }
               },
               Subcategory: {
@@ -1519,7 +1527,7 @@ class CustomFormService {
               }
             }
           },
-          Request: {
+          AssistanceRequest: {
             select: {
               id: true,
               requestNumber: true,
@@ -1532,16 +1540,16 @@ class CustomFormService {
               }
             }
           },
-          SubmittedBy: {
+          User: {
             select: { id: true, firstName: true, lastName: true }
           },
-          Responses: true
+          RequestCustomFormResponse: true
         },
         orderBy: { createdAt: 'desc' }
       });
 
       return ResponseFormatter.success(requestForms, 'Form della richiesta recuperati con successo');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nel recupero dei form della richiesta:', error);
       return ResponseFormatter.error('Errore nel recupero dei form');
     }
@@ -1575,7 +1583,7 @@ class CustomFormService {
 
         // Inserisci nuove risposte
         if (responses && responses.length > 0) {
-          await tx.requestCustomFormResponse.createMany({
+          await (tx.requestCustomFormResponse.createMany as any)({
             data: responses.map(r => ({
               requestCustomFormId,
               fieldId: r.fieldId,
@@ -1583,13 +1591,13 @@ class CustomFormService {
               fieldType: r.fieldType,
               value: r.value,
               valueJson: r.valueJson
-            }))
+            })) as any
           });
         }
       });
 
       return ResponseFormatter.success(null, 'Bozza salvata con successo');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nel salvataggio della bozza:', error);
       return ResponseFormatter.error('Errore nel salvataggio');
     }
@@ -1611,10 +1619,10 @@ class CustomFormService {
         include: {
           CustomForm: {
             include: {
-              Fields: true
+              CustomFormField: true
             }
           },
-          Request: {
+          AssistanceRequest: {
             select: {
               id: true,
               title: true,
@@ -1629,7 +1637,7 @@ class CustomFormService {
       }
 
       // Validazione: verifica campi obbligatori
-      const requiredFields = requestForm.CustomForm.Fields.filter(f => f.isRequired);
+      const requiredFields = requestForm.CustomForm.CustomFormField.filter(f => f.isRequired);
       const responseFieldIds = responses.map(r => r.fieldId);
       const missingFields = requiredFields.filter(f => !responseFieldIds.includes(f.id));
 
@@ -1645,7 +1653,7 @@ class CustomFormService {
         });
 
         // Inserisci nuove risposte
-        await tx.requestCustomFormResponse.createMany({
+        await (tx.requestCustomFormResponse.createMany as any)({
           data: responses.map(r => ({
             requestCustomFormId,
             fieldId: r.fieldId,
@@ -1653,7 +1661,7 @@ class CustomFormService {
             fieldType: r.fieldType,
             value: r.value,
             valueJson: r.valueJson
-          }))
+          })) as any
         });
 
         // Marca come completato
@@ -1687,17 +1695,17 @@ class CustomFormService {
       });
 
       // ✅ Notification al professional
-      if (requestForm.Request.professionalId) {
+      if (requestForm.AssistanceRequest.professionalId) {
         await notificationService.sendToUser({
-          userId: requestForm.Request.professionalId,
+          userId: requestForm.AssistanceRequest.professionalId,
           type: 'custom_form_completed',
           title: 'Form Completato',
-          message: `Il cliente ha completato il form "${requestForm.CustomForm.name}" per la richiesta "${requestForm.Request.title}"`,
+          message: `Il cliente ha completato il form "${requestForm.CustomForm.name}" per la richiesta "${requestForm.AssistanceRequest.title}"`,
           data: {
             formId: requestForm.customFormId,
             formName: requestForm.CustomForm.name,
             requestId: requestForm.requestId,
-            requestTitle: requestForm.Request.title,
+            requestTitle: requestForm.AssistanceRequest.title,
             requestFormId: requestCustomFormId
           },
           priority: 'normal',
@@ -1706,7 +1714,7 @@ class CustomFormService {
       }
 
       return ResponseFormatter.success(null, 'Form completato con successo');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nell\'invio del form:', error);
       
       // Log errore

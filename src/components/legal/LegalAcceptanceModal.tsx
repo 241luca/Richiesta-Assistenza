@@ -107,8 +107,8 @@ export default function LegalAcceptanceModal({
     setIsSubmitting(true);
     
     const acceptances = pendingDocuments
-      .filter(doc => acceptedDocs.has(doc.document.id))
-      .map(doc => ({
+      .filter((doc: any) => acceptedDocs.has(doc.document.id))
+      .map((doc: any) => ({
         documentId: doc.document.id,
         versionId: doc.version.id
       }));
@@ -122,8 +122,8 @@ export default function LegalAcceptanceModal({
 
   // All required documents accepted?
   const allRequiredAccepted = pendingDocuments
-    .filter(doc => doc.document.isRequired)
-    .every(doc => acceptedDocs.has(doc.document.id));
+    .filter((doc: any) => doc.document.isRequired)
+    .every((doc: any) => acceptedDocs.has(doc.document.id));
 
   if (!isOpen || pendingDocuments.length === 0) {
     return null;
@@ -315,7 +315,7 @@ export default function LegalAcceptanceModal({
             </button>
             
             <div className="flex space-x-1">
-              {pendingDocuments.map((doc, index) => (
+              {pendingDocuments.map((doc: any, index: number) => (
                 <button
                   key={doc.document.id}
                   onClick={() => setCurrentDocIndex(index)}

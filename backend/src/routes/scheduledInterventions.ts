@@ -55,22 +55,22 @@ router.get('/request/:requestId', async (req: AuthRequest, res: Response) => {
     
   } catch (error: any) {
     logError(req, 'Error fetching scheduled interventions', { 
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       requestId: req.params.requestId,
       errorType: error.name
     });
     
     // Gestisci errori di autorizzazione con status 403
-    if (error.name === 'AuthorizationError' || error.message.includes('Non autorizzato')) {
+    if (error.name === 'AuthorizationError' || error instanceof Error ? error.message : String(error).includes('Non autorizzato')) {
       return res.status(403).json(ResponseFormatter.error(
-        error.message || 'Non autorizzato a vedere questi interventi',
+        error instanceof Error ? error.message : String(error) || 'Non autorizzato a vedere questi interventi',
         'FORBIDDEN'
       ));
     }
     
     // Altri errori con status 500
     return res.status(500).json(ResponseFormatter.error(
-      error.message || 'Failed to fetch scheduled interventions',
+      error instanceof Error ? error.message : String(error) || 'Failed to fetch scheduled interventions',
       'FETCH_ERROR'
     ));
   }
@@ -109,13 +109,13 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     
   } catch (error: any) {
     logError(req, 'Error proposing interventions', { 
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       errorType: error.name
     });
     
     if (error.name === 'AuthorizationError') {
       return res.status(403).json(ResponseFormatter.error(
-        error.message || 'Non autorizzato a proporre interventi',
+        error instanceof Error ? error.message : String(error) || 'Non autorizzato a proporre interventi',
         'FORBIDDEN'
       ));
     }
@@ -186,14 +186,14 @@ router.put('/:id/respond', async (req: AuthRequest, res: Response) => {
     
   } catch (error: any) {
     logError(req, 'Error responding to intervention', { 
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       interventionId: req.params.id,
       errorType: error.name
     });
     
     if (error.name === 'AuthorizationError') {
       return res.status(403).json(ResponseFormatter.error(
-        error.message || 'Non autorizzato a rispondere a questo intervento',
+        error instanceof Error ? error.message : String(error) || 'Non autorizzato a rispondere a questo intervento',
         'FORBIDDEN'
       ));
     }
@@ -246,14 +246,14 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
     
   } catch (error: any) {
     logError(req, 'Error cancelling intervention', { 
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       interventionId: req.params.id,
       errorType: error.name
     });
     
     if (error.name === 'AuthorizationError') {
       return res.status(403).json(ResponseFormatter.error(
-        error.message || 'Non autorizzato a cancellare questo intervento',
+        error instanceof Error ? error.message : String(error) || 'Non autorizzato a cancellare questo intervento',
         'FORBIDDEN'
       ));
     }
@@ -299,14 +299,14 @@ router.put('/:id/complete', async (req: AuthRequest, res: Response) => {
     
   } catch (error: any) {
     logError(req, 'Error completing intervention', { 
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       interventionId: req.params.id,
       errorType: error.name
     });
     
     if (error.name === 'AuthorizationError') {
       return res.status(403).json(ResponseFormatter.error(
-        error.message || 'Non autorizzato a completare questo intervento',
+        error instanceof Error ? error.message : String(error) || 'Non autorizzato a completare questo intervento',
         'FORBIDDEN'
       ));
     }
@@ -350,14 +350,14 @@ router.put('/:id/accept', async (req: AuthRequest, res: Response) => {
     
   } catch (error: any) {
     logError(req, 'Error accepting intervention', { 
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       interventionId: req.params.id,
       errorType: error.name
     });
     
-    if (error.name === 'AuthorizationError' || error.message.includes('Non autorizzato')) {
+    if (error.name === 'AuthorizationError' || error instanceof Error ? error.message : String(error).includes('Non autorizzato')) {
       return res.status(403).json(ResponseFormatter.error(
-        error.message || 'Non autorizzato ad accettare questo intervento',
+        error instanceof Error ? error.message : String(error) || 'Non autorizzato ad accettare questo intervento',
         'FORBIDDEN'
       ));
     }
@@ -403,14 +403,14 @@ router.put('/:id/reject', async (req: AuthRequest, res: Response) => {
     
   } catch (error: any) {
     logError(req, 'Error rejecting intervention', { 
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       interventionId: req.params.id,
       errorType: error.name
     });
     
-    if (error.name === 'AuthorizationError' || error.message.includes('Non autorizzato')) {
+    if (error.name === 'AuthorizationError' || error instanceof Error ? error.message : String(error).includes('Non autorizzato')) {
       return res.status(403).json(ResponseFormatter.error(
-        error.message || 'Non autorizzato a rifiutare questo intervento',
+        error instanceof Error ? error.message : String(error) || 'Non autorizzato a rifiutare questo intervento',
         'FORBIDDEN'
       ));
     }
@@ -454,14 +454,14 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
     
   } catch (error: any) {
     logError(req, 'Error fetching intervention', { 
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       interventionId: req.params.id,
       errorType: error.name
     });
     
     if (error.name === 'AuthorizationError') {
       return res.status(403).json(ResponseFormatter.error(
-        error.message || 'Non autorizzato a vedere questo intervento',
+        error instanceof Error ? error.message : String(error) || 'Non autorizzato a vedere questo intervento',
         'FORBIDDEN'
       ));
     }

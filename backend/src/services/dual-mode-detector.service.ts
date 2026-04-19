@@ -67,10 +67,10 @@ export class DualModeDetector {
     whatsappInstanceId: string
   ): Promise<DetectionResult> {
     try {
-      const whatsappConfig = await prisma.professionalWhatsApp.findUnique({
+      const whatsappConfig = await (prisma.professionalWhatsApp.findUnique as any)({
         where: { instanceId: whatsappInstanceId },
         include: {
-          contacts: {
+          ProfessionalWhatsAppContact: {
             where: { phoneNumber },
           },
         },
@@ -88,6 +88,7 @@ export class DualModeDetector {
       }
 
       const config = whatsappConfig as WhatsAppConfigWithContacts;
+      config.contacts = (whatsappConfig as any).ProfessionalWhatsAppContact || [];
 
       // Controlla se è un numero bloccato
       if (config.blacklistedNumbers.includes(phoneNumber)) {
@@ -217,8 +218,8 @@ export class DualModeDetector {
         },
         suggestedAction: 'USE_DETECTED',
       };
-    } catch (error) {
-      logger.error('Error in detectSenderType:', error);
+    } catch (error: unknown) {
+      logger.error('Error in detectSenderType:', error instanceof Error ? error.message : String(error));
       return this.createDefaultResult(
         DetectionMode.CLIENT,
         0.5,
@@ -263,8 +264,8 @@ export class DualModeDetector {
         phoneNumber,
         ContactType.PROFESSIONAL
       );
-    } catch (error) {
-      logger.error('Error adding professional number:', error);
+    } catch (error: unknown) {
+      logger.error('Error adding professional number:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -305,8 +306,8 @@ export class DualModeDetector {
         phoneNumber,
         ContactType.TRUSTED
       );
-    } catch (error) {
-      logger.error('Error adding trusted number:', error);
+    } catch (error: unknown) {
+      logger.error('Error adding trusted number:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -353,8 +354,8 @@ export class DualModeDetector {
       logger.info(
         `Removed ${phoneNumber} from all lists in instance: ${instanceId}`
       );
-    } catch (error) {
-      logger.error('Error removing from lists:', error);
+    } catch (error: unknown) {
+      logger.error('Error removing from lists:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -375,7 +376,7 @@ export class DualModeDetector {
           overriddenBy: override.overriddenBy,
           reason: override.reason,
           shouldLearnFrom: override.shouldLearnFrom ?? true,
-        },
+        } as any,
       });
 
       const contactType = this.modeToContactType(
@@ -390,8 +391,8 @@ export class DualModeDetector {
       logger.info(
         `Recorded detection override: ${override.phoneNumber} from ${override.originalDetection} to ${override.overriddenTo}`
       );
-    } catch (error) {
-      logger.error('Error recording detection override:', error);
+    } catch (error: unknown) {
+      logger.error('Error recording detection override:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -401,9 +402,9 @@ export class DualModeDetector {
    */
   async getDetectionAccuracy(instanceId: string): Promise<number> {
     try {
-      const analytics = await prisma.professionalWhatsAppAnalytics.findMany({
+      const analytics = await (prisma.professionalWhatsAppAnalytics.findMany as any)({
         where: {
-          whatsapp: {
+          ProfessionalWhatsApp: {
             instanceId,
           },
         },
@@ -431,8 +432,8 @@ export class DualModeDetector {
 
       const accuracy = (correctDetections / totalDetections) * 100;
       return Math.round(accuracy * 100) / 100;
-    } catch (error) {
-      logger.error('Error calculating detection accuracy:', error);
+    } catch (error: unknown) {
+      logger.error('Error calculating detection accuracy:', error instanceof Error ? error.message : String(error));
       return 0;
     }
   }
@@ -517,10 +518,10 @@ export class DualModeDetector {
           phoneNumber,
           contactType,
           status: 'ACTIVE',
-        },
+        } as any,
       });
-    } catch (error) {
-      logger.error('Error updating contact classification:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating contact classification:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -565,8 +566,8 @@ export class DualModeDetector {
       }
 
       return null;
-    } catch (error) {
-      logger.error('Error getting latest override:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting latest override:', error instanceof Error ? error.message : String(error));
       return null;
     }
   }

@@ -67,8 +67,8 @@ export async function getAllTemplates(userId: string) {
       return t as any;
     });
     return templates as any;
-  } catch (error) {
-    logger.error('Error getting templates:', error);
+  } catch (error: unknown) {
+    logger.error('Error getting templates:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -107,8 +107,8 @@ export async function getTemplateById(id: string, userId: string) {
         })()
       : null;
     return template as any;
-  } catch (error) {
-    logger.error('Error getting template:', error);
+  } catch (error: unknown) {
+    logger.error('Error getting template:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -126,7 +126,7 @@ export async function createTemplate(data: CreateTemplateData) {
         User: {
           connect: { id: data.createdById }
         }
-      },
+      } as any,
       include: ({
         User: {
           select: {
@@ -145,8 +145,8 @@ export async function createTemplate(data: CreateTemplateData) {
     }
     logger.info('Template created:', { id: template.id, name: template.name });
     return template as any;
-  } catch (error) {
-    logger.error('Error creating template:', error);
+  } catch (error: unknown) {
+    logger.error('Error creating template:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -190,7 +190,7 @@ export async function createTemplateFromDocument(data: CreateFromDocumentData) {
         User: {
           connect: { id: data.createdById }
         }
-      },
+      } as any,
       include: ({
         User: {
           select: {
@@ -214,8 +214,8 @@ export async function createTemplateFromDocument(data: CreateFromDocumentData) {
     });
     
     return template as any;
-  } catch (error) {
-    logger.error('Error creating template from document:', error);
+  } catch (error: unknown) {
+    logger.error('Error creating template from document:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -265,8 +265,8 @@ export async function updateTemplate(id: string, userId: string, data: UpdateTem
     }
     logger.info('Template updated:', { id: updated.id });
     return updated as any;
-  } catch (error) {
-    logger.error('Error updating template:', error);
+  } catch (error: unknown) {
+    logger.error('Error updating template:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -296,8 +296,8 @@ export async function deleteTemplate(id: string, userId: string) {
 
     logger.info('Template deleted:', { id });
     return true;
-  } catch (error) {
-    logger.error('Error deleting template:', error);
+  } catch (error: unknown) {
+    logger.error('Error deleting template:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }

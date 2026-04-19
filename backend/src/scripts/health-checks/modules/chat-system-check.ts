@@ -57,8 +57,8 @@ export class ChatSystemHealthCheck extends BaseHealthCheck {
         this.result.score >= 80 ? 'success' : 'warning');
       
     } catch (error: any) {
-      this.log(`Critical error during chat check: ${error.message}`, 'error');
-      this.result.errors.push(`System check failed: ${error.message}`);
+      this.log(`Critical error during chat check: ${error instanceof Error ? error.message : String(error)}`, 'error');
+      this.result.errors.push(`System check failed: ${error instanceof Error ? error.message : String(error)}`);
       this.result.score = 0;
     } finally {
       await this.prisma.$disconnect();
@@ -96,7 +96,7 @@ export class ChatSystemHealthCheck extends BaseHealthCheck {
         name: 'message_database',
         description: 'Message database connectivity',
         status: CheckStatus.FAIL,
-        message: `Database error: ${error.message}`,
+        message: `Database error: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.CRITICAL,
         category: CheckCategory.CONNECTIVITY
       });
@@ -202,7 +202,7 @@ export class ChatSystemHealthCheck extends BaseHealthCheck {
         name: 'delivery_rate',
         description: 'Message delivery rate',
         status: CheckStatus.ERROR,
-        message: `Could not calculate: ${error.message}`,
+        message: `Could not calculate: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.MEDIUM,
         category: CheckCategory.PERFORMANCE
       });
@@ -245,7 +245,7 @@ export class ChatSystemHealthCheck extends BaseHealthCheck {
         name: 'unread_backlog',
         description: 'Unread messages backlog',
         status: CheckStatus.ERROR,
-        message: `Could not check: ${error.message}`,
+        message: `Could not check: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.LOW,
         category: CheckCategory.DATA_INTEGRITY
       });
@@ -287,7 +287,7 @@ export class ChatSystemHealthCheck extends BaseHealthCheck {
         name: 'room_integrity',
         description: 'Chat room data integrity',
         status: CheckStatus.ERROR,
-        message: `Could not verify: ${error.message}`,
+        message: `Could not verify: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.LOW,
         category: CheckCategory.DATA_INTEGRITY
       });
@@ -370,7 +370,7 @@ export class ChatSystemHealthCheck extends BaseHealthCheck {
         name: 'response_time',
         description: 'Average chat response time',
         status: CheckStatus.ERROR,
-        message: `Could not measure: ${error.message}`,
+        message: `Could not measure: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.MEDIUM,
         category: CheckCategory.PERFORMANCE
       });
@@ -406,7 +406,7 @@ export class ChatSystemHealthCheck extends BaseHealthCheck {
       this.addMetric('active_chat_users_24h', activeUsers.length);
       
     } catch (error: any) {
-      this.log(`Error calculating metrics: ${error.message}`, 'warning');
+      this.log(`Error calculating metrics: ${error instanceof Error ? error.message : String(error)}`, 'warning');
     }
   }
   

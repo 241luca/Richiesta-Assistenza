@@ -123,8 +123,8 @@ export class LegalDocumentService {
       }
 
       return pendingDocuments;
-    } catch (error) {
-      logger.error('Error getting pending documents for user:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting pending documents for user:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -196,8 +196,8 @@ export class LegalDocumentService {
       logger.info(`Legal document created: ${document.id} - ${document.displayName}`);
       
       return document;
-    } catch (error) {
-      logger.error('Error creating legal document:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating legal document:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -283,8 +283,8 @@ export class LegalDocumentService {
       logger.info(`Legal document version created: ${version.id} - v${version.version}`);
       
       return version;
-    } catch (error) {
-      logger.error('Error creating document version:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating document version:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -368,8 +368,8 @@ export class LegalDocumentService {
       logger.info(`Legal document version published: ${versionId}`);
       
       return result;
-    } catch (error) {
-      logger.error('Error publishing document version:', error);
+    } catch (error: unknown) {
+      logger.error('Error publishing document version:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -468,8 +468,8 @@ export class LegalDocumentService {
       logger.info(`Legal document accepted by user ${data.userId}: ${data.documentId} v${version.version}`);
       
       return acceptance;
-    } catch (error) {
-      logger.error('Error recording document acceptance:', error);
+    } catch (error: unknown) {
+      logger.error('Error recording document acceptance:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -498,8 +498,8 @@ export class LegalDocumentService {
       });
 
       return acceptances;
-    } catch (error) {
-      logger.error('Error getting user acceptance history:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting user acceptance history:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -529,7 +529,7 @@ export class LegalDocumentService {
       try {
         const templateService = await import('./notificationTemplate.service');
         template = await templateService.notificationTemplateService.getTemplateByCode('LEGAL_DOCUMENT_UPDATE');
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn('Template LEGAL_DOCUMENT_UPDATE not found, using default notification');
       }
 
@@ -557,7 +557,7 @@ export class LegalDocumentService {
               channels: ['websocket', 'email'],
               priority: NotificationPriority.HIGH
             });
-          } catch (error) {
+          } catch (error: unknown) {
             logger.warn(`Failed to send templated notification to user ${user.id}:`, error);
             // Fallback a notifica semplice
             await this.sendSimpleNotification(user.id, document, version, documentUrl);
@@ -569,8 +569,8 @@ export class LegalDocumentService {
       }
 
       logger.info(`Notified ${users.length} users about new version of ${document.displayName}`);
-    } catch (error) {
-      logger.error('Error notifying users about new version:', error);
+    } catch (error: unknown) {
+      logger.error('Error notifying users about new version:', error instanceof Error ? error.message : String(error));
       // Non rilanciare l'errore per non bloccare la pubblicazione
     }
   }
@@ -595,8 +595,8 @@ export class LegalDocumentService {
         },
         channels: ['websocket', 'email']
       });
-    } catch (error) {
-      logger.error(`Error sending simple notification to user ${userId}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Error sending simple notification to user ${userId}:`, error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -620,8 +620,8 @@ export class LegalDocumentService {
       
       // Qui potresti integrare un servizio di geolocalizzazione IP
       return null;
-    } catch (error) {
-      logger.error('Error getting country from IP:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting country from IP:', error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -655,8 +655,8 @@ export class LegalDocumentService {
       };
 
       return exportData;
-    } catch (error) {
-      logger.error('Error exporting user legal data:', error);
+    } catch (error: unknown) {
+      logger.error('Error exporting user legal data:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

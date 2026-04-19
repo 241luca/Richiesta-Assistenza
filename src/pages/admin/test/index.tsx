@@ -204,7 +204,7 @@ export default function AdminTestDashboard() {
         
       case 'suggestion':
         return (
-          <div key={index} className={`border-l-4 p-4 mt-2 ${SEVERITY_COLORS[item.severity || 'info']}`}>
+          <div key={index} className={`border-l-4 p-4 mt-2 ${(SEVERITY_COLORS as any)[item.severity || 'info']}`}>
             <div className="flex items-start space-x-2">
               <LightBulbIcon className="w-5 h-5 mt-0.5" />
               <div className="flex-1">

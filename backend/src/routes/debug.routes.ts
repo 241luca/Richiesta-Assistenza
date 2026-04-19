@@ -57,10 +57,10 @@ router.get('/find-professionals', async (req, res) => {
     });
     
   } catch (error: any) {
-    logger.error('[DEBUG] Error finding professionals:', error);
+    logger.error('[DEBUG] Error finding professionals:', error instanceof Error ? error.message : String(error));
     return res.status(500).json({
       success: false,
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       hint: 'Check if Subcategory table exists and has correct columns'
     });
   }
@@ -88,10 +88,10 @@ router.get('/table-check', async (req, res) => {
     });
     
   } catch (error: any) {
-    logger.error('[DEBUG] Error checking tables:', error);
+    logger.error('[DEBUG] Error checking tables:', error instanceof Error ? error.message : String(error));
     return res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -134,10 +134,10 @@ router.get('/simple-check', async (req, res) => {
     });
     
   } catch (error: any) {
-    logger.error('[DEBUG] Error in simple check:', error);
+    logger.error('[DEBUG] Error in simple check:', error instanceof Error ? error.message : String(error));
     return res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });

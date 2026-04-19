@@ -43,7 +43,7 @@ export async function execute(params: RestoreParams) {
     };
     
   } catch (error: any) {
-    logger.error('❌ Database restore failed:', error);
+    logger.error('❌ Database restore failed:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }

@@ -30,7 +30,7 @@ router.get('/',
         'Extended document types retrieved successfully'
       ));
     } catch (error: any) {
-      logger.error('Error fetching extended document types:', error);
+      logger.error('Error fetching extended document types:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to fetch extended document types',
         'FETCH_ERROR'
@@ -55,18 +55,18 @@ router.get('/:id',
         'Extended document type retrieved successfully'
       ));
     } catch (error: any) {
-      logger.error('Error fetching extended document type:', error);
+      logger.error('Error fetching extended document type:', error instanceof Error ? error.message : String(error));
       
-      if (error.message === 'Document type not found') {
+      if (error instanceof Error ? error.message : String(error) === 'Document type not found') {
         return res.status(404).json(ResponseFormatter.error(
           'Document type not found',
           'NOT_FOUND'
         ));
       }
 
-      if (error.message === 'Invalid document type ID') {
+      if (error instanceof Error ? error.message : String(error) === 'Invalid document type ID') {
         return res.status(400).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'INVALID_INPUT'
         ));
       }
@@ -109,25 +109,25 @@ router.post('/:id/link-template',
         'Form template linked successfully'
       ));
     } catch (error: any) {
-      logger.error('Error linking form template:', error);
+      logger.error('Error linking form template:', error instanceof Error ? error.message : String(error));
       
-      if (error.message === 'Document type not found') {
+      if (error instanceof Error ? error.message : String(error) === 'Document type not found') {
         return res.status(404).json(ResponseFormatter.error(
           'Document type not found',
           'NOT_FOUND'
         ));
       }
       
-      if (error.message.includes('Form template not found')) {
+      if (error instanceof Error ? error.message : String(error).includes('Form template not found')) {
         return res.status(404).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'NOT_FOUND'
         ));
       }
 
-      if (error.message.includes('Invalid parameters')) {
+      if (error instanceof Error ? error.message : String(error).includes('Invalid parameters')) {
         return res.status(400).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'INVALID_INPUT'
         ));
       }
@@ -160,18 +160,18 @@ router.delete('/:id/unlink-template/:templateId',
         'Form template unlinked successfully'
       ));
     } catch (error: any) {
-      logger.error('Error unlinking form template:', error);
+      logger.error('Error unlinking form template:', error instanceof Error ? error.message : String(error));
       
-      if (error.message === 'Form template link not found') {
+      if (error instanceof Error ? error.message : String(error) === 'Form template link not found') {
         return res.status(404).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'NOT_FOUND'
         ));
       }
 
-      if (error.message.includes('Invalid parameters')) {
+      if (error instanceof Error ? error.message : String(error).includes('Invalid parameters')) {
         return res.status(400).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'INVALID_INPUT'
         ));
       }
@@ -200,11 +200,11 @@ router.get('/:id/templates',
         'Form templates retrieved successfully'
       ));
     } catch (error: any) {
-      logger.error('Error fetching form templates:', error);
+      logger.error('Error fetching form templates:', error instanceof Error ? error.message : String(error));
       
-      if (error.message === 'Invalid document type ID') {
+      if (error instanceof Error ? error.message : String(error) === 'Invalid document type ID') {
         return res.status(400).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'INVALID_INPUT'
         ));
       }
@@ -246,18 +246,18 @@ router.put('/:id/default-template',
         'Default form template set successfully'
       ));
     } catch (error: any) {
-      logger.error('Error setting default form template:', error);
+      logger.error('Error setting default form template:', error instanceof Error ? error.message : String(error));
       
-      if (error.message.includes('not found')) {
+      if (error instanceof Error ? error.message : String(error).includes('not found')) {
         return res.status(404).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'NOT_FOUND'
         ));
       }
 
-      if (error.message.includes('Invalid parameters')) {
+      if (error instanceof Error ? error.message : String(error).includes('Invalid parameters')) {
         return res.status(400).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'INVALID_INPUT'
         ));
       }

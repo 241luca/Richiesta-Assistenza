@@ -99,7 +99,7 @@ export class GoogleMapsCacheService {
       // Carica statistiche esistenti
       await this.loadStats();
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn(`⚠️ Redis not available for Google Maps cache: ${(error as Error).message}`);
       logger.info('📦 Fallback to database-only cache mode');
       this.isRedisAvailable = false;
@@ -212,8 +212,8 @@ export class GoogleMapsCacheService {
       this.updateHitRate();
       return null;
 
-    } catch (error) {
-      logger.error(`❌ Cache retrieval error for ${type}:`, error);
+    } catch (error: unknown) {
+      logger.error(`❌ Cache retrieval error for ${type}:`, error instanceof Error ? error.message : String(error));
       this.stats.misses++;
       this.updateHitRate();
       return null;
@@ -260,8 +260,8 @@ export class GoogleMapsCacheService {
 
       logger.debug(`💾 Cached ${type}: ${input.substring(0, 50)}... (TTL: ${ttlSeconds}s)`);
 
-    } catch (error) {
-      logger.error(`❌ Cache save error for ${type}:`, error);
+    } catch (error: unknown) {
+      logger.error(`❌ Cache save error for ${type}:`, error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -340,7 +340,7 @@ export class GoogleMapsCacheService {
       };
 
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       result.errors.push(`General cleanup error: ${(error as Error).message}`);
       return result;
     }
@@ -365,7 +365,7 @@ export class GoogleMapsCacheService {
         try {
           const keys = await this.redisClient.keys(`${prefix}*`);
           cacheTypes[type] = keys.length;
-        } catch (error) {
+        } catch (error: unknown) {
           cacheTypes[type] = 0;
         }
       }
@@ -395,7 +395,7 @@ export class GoogleMapsCacheService {
           this.stats = { ...this.stats, ...JSON.parse(savedStats) };
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.debug('No existing stats found, starting fresh');
     }
   }
@@ -409,7 +409,7 @@ export class GoogleMapsCacheService {
         const statsKey = `${this.PREFIXES.STATS}current`;
         await this.redisClient.setex(statsKey, 24 * 60 * 60, JSON.stringify(this.stats)); // 24 ore
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.debug('Failed to save stats:', error);
     }
   }

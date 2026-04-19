@@ -83,7 +83,7 @@ router.get(
             notifyProfessionalOnReview: true,
             remindClientAfterDays: 3,
             notifyAdminOnProblematic: true,
-          },
+          } as any, // Type assertion for Prisma
         });
       }
 
@@ -91,7 +91,7 @@ router.get(
       res.json(ResponseFormatter.success(config, 'Configurazione caricata'));
     } catch (error: any) {
       console.error('ERROR in /admin/reviews/config:', error);
-      logger.error('Error fetching review config:', error);
+      logger.error('Error fetching review config:', error instanceof Error ? error.message : String(error));
       res.status(500).json(
         ResponseFormatter.error('Errore nel caricamento configurazione', 'FETCH_CONFIG_ERROR')
       );
@@ -119,7 +119,7 @@ router.post(
             ...validated,
             isEnabled: validated.isEnabled ?? true,
             anonymousReviews: validated.anonymousReviews ?? false,
-          },
+          } as any, // Type assertion
         });
       } else {
         // Aggiorna quella esistente
@@ -151,13 +151,13 @@ router.post(
       logger.info('Updated review config', { configId: config.id, userId: req.user.id });
 
       res.json(ResponseFormatter.success(config, 'Configurazione salvata con successo'));
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof z.ZodError) {
         res.status(400).json(
           ResponseFormatter.error('Dati non validi', 'VALIDATION_ERROR', error.errors)
         );
       } else {
-        logger.error('Error updating review config:', error);
+        logger.error('Error updating review config:', error instanceof Error ? error.message : String(error));
         res.status(500).json(
           ResponseFormatter.error('Errore nel salvataggio configurazione', 'UPDATE_CONFIG_ERROR')
         );
@@ -188,8 +188,8 @@ router.get(
       };
 
       res.json(ResponseFormatter.success(stats, 'Statistiche caricate'));
-    } catch (error) {
-      logger.error('Error fetching review analytics:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching review analytics:', error instanceof Error ? error.message : String(error));
       res.status(500).json(
         ResponseFormatter.error('Errore nel caricamento statistiche', 'ANALYTICS_ERROR')
       );
@@ -224,8 +224,8 @@ router.get(
 
       const exclusions = await ReviewExclusionService.getExclusions(filters);
       res.json(ResponseFormatter.success(exclusions, 'Esclusioni caricate'));
-    } catch (error) {
-      logger.error('Error fetching exclusions:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching exclusions:', error instanceof Error ? error.message : String(error));
       res.status(500).json(
         ResponseFormatter.error('Errore nel caricamento esclusioni', 'FETCH_EXCLUSIONS_ERROR')
       );
@@ -253,13 +253,13 @@ router.post(
 
       const exclusion = await ReviewExclusionService.createExclusion(exclusionData);
       res.json(ResponseFormatter.success(exclusion, 'Esclusione creata con successo'));
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof z.ZodError) {
         res.status(400).json(
           ResponseFormatter.error('Dati non validi', 'VALIDATION_ERROR', error.errors)
         );
       } else {
-        const message = error instanceof Error ? error.message : 'Errore nella creazione esclusione';
+        const message = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Errore nella creazione esclusione';
         const code = message.includes('non trovato') ? 'USER_NOT_FOUND' : 
                      message.includes('già esistente') ? 'EXCLUSION_EXISTS' : 'CREATE_EXCLUSION_ERROR';
         const status = message.includes('non trovato') ? 404 : 
@@ -284,8 +284,8 @@ router.delete(
       
       await ReviewExclusionService.removeExclusion(exclusionId, req.user.id);
       res.json(ResponseFormatter.success(null, 'Esclusione rimossa con successo'));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Errore nella rimozione esclusione';
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Errore nella rimozione esclusione';
       const status = message.includes('non trovata') ? 404 : 
                      message.includes('già disattivata') ? 400 : 500;
       const code = message.includes('non trovata') ? 'EXCLUSION_NOT_FOUND' : 
@@ -307,8 +307,8 @@ router.get(
     try {
       const stats = await ReviewExclusionService.getExclusionStats();
       res.json(ResponseFormatter.success(stats, 'Statistiche esclusioni caricate'));
-    } catch (error) {
-      logger.error('Error fetching exclusion stats:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching exclusion stats:', error instanceof Error ? error.message : String(error));
       res.status(500).json(
         ResponseFormatter.error('Errore nel caricamento statistiche', 'FETCH_STATS_ERROR')
       );

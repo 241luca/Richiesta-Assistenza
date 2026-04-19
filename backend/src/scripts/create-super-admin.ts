@@ -55,7 +55,7 @@ async function createSuperAdmin() {
     console.log('🔑 Password: admin123');
     console.log('=====================================');
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore:', error);
   } finally {
     await prisma.$disconnect();

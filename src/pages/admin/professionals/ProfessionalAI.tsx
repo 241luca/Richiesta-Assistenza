@@ -78,7 +78,7 @@ export default function ProfessionalAI() {
     enabled: !!selectedSubcategory
   });
 
-  const { data: kbDocuments = [] } = useQuery({
+  const { data: kbDocuments = [], refetch } = useQuery({
     queryKey: ['kb-documents', professionalId, selectedSubcategory],
     queryFn: async () => {
       if (!selectedSubcategory) return [];

@@ -26,7 +26,7 @@ prisma.$connect()
     logger.info('✅ Database connected successfully');
   })
   .catch((error) => {
-    logger.error('❌ Database connection failed:', error);
+    logger.error('❌ Database connection failed:', error instanceof Error ? error.message : String(error));
     // Don't exit, SQLite doesn't need a connection
   });
 

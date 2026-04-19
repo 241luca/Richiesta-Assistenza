@@ -3,7 +3,7 @@
  * Genera report PDF settimanali con statistiche e trend
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, LogSeverity, LogCategory } from '@prisma/client';
 import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -84,8 +84,8 @@ export class HealthCheckReportGenerator {
       logger.info(`✅ Weekly report generated: ${filename}`);
       return filepath;
 
-    } catch (error) {
-      logger.error('Error generating weekly report:', error);
+    } catch (error: unknown) {
+      logger.error('Error generating weekly report:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -371,8 +371,8 @@ export class HealthCheckReportGenerator {
     try {
       const admins = await prisma.user.findMany({
         where: {
-          role: { in: ['ADMIN', 'SUPER_ADMIN'] },
-          isActive: true
+          role: { in: ['ADMIN', 'SUPER_ADMIN'] }
+          // isActive field doesn't exist in User model
         }
       });
 
@@ -394,8 +394,8 @@ export class HealthCheckReportGenerator {
       }
 
       logger.info(`📧 Report sent to ${admins.length} administrators`);
-    } catch (error) {
-      logger.error('Error sending report to admins:', error);
+    } catch (error: unknown) {
+      logger.error('Error sending report to admins:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -437,16 +437,20 @@ export class HealthCheckReportGenerator {
     // 📝 AUDIT: Registra l'inizio della generazione report
     await auditLogService.log({
       userId: generatedBy || 'MANUAL',
-      action: 'HEALTH_REPORT_GENERATION_START',
+      action: 'CREATE' as any, // HEALTH_REPORT_GENERATION_START
       entityType: 'HealthCheck',
       entityId: 'report',
-      details: {
+      metadata: {
+        action: 'HEALTH_REPORT_GENERATION_START',
         startDate: typeof startDate === 'string' ? startDate : startDate.toISOString(),
         endDate: typeof endDate === 'string' ? endDate : endDate.toISOString(),
         format: format,
         triggeredBy: generatedBy || 'Manual Request',
         timestamp: new Date().toISOString()
       },
+      success: true,
+      severity: LogSeverity.INFO,
+      category: LogCategory.SYSTEM,
       ipAddress: '127.0.0.1',
       userAgent: 'Report Generator'
     });
@@ -467,10 +471,11 @@ export class HealthCheckReportGenerator {
       // 📝 AUDIT: Registra il successo della generazione
       await auditLogService.log({
         userId: generatedBy || 'MANUAL',
-        action: 'HEALTH_REPORT_GENERATION_SUCCESS',
+        action: 'UPDATE' as any, // HEALTH_REPORT_GENERATION_SUCCESS
         entityType: 'HealthCheck',
         entityId: 'report',
-        details: {
+        metadata: {
+          action: 'HEALTH_REPORT_GENERATION_SUCCESS',
           filename: path.basename(filepath),
           filepath: filepath,
           fileSizeKB: fileSizeKB,
@@ -481,6 +486,9 @@ export class HealthCheckReportGenerator {
           triggeredBy: generatedBy || 'Manual Request',
           timestamp: new Date().toISOString()
         },
+        success: true,
+        severity: LogSeverity.INFO,
+        category: LogCategory.SYSTEM,
         ipAddress: '127.0.0.1',
         userAgent: 'Report Generator'
       });
@@ -491,27 +499,32 @@ export class HealthCheckReportGenerator {
         filename: path.basename(filepath),
         filepath: filepath
       };
-    } catch (error) {
+    } catch (error: unknown) {
       // 📝 AUDIT: Registra il fallimento
       const executionTime = Date.now() - startTime;
       await auditLogService.log({
         userId: generatedBy || 'MANUAL',
-        action: 'HEALTH_REPORT_GENERATION_FAILED',
+        action: 'DELETE' as any, // HEALTH_REPORT_GENERATION_FAILED
         entityType: 'HealthCheck',
         entityId: 'report',
-        details: {
+        metadata: {
+          action: 'HEALTH_REPORT_GENERATION_FAILED',
           startDate: typeof startDate === 'string' ? startDate : startDate.toISOString(),
           endDate: typeof endDate === 'string' ? endDate : endDate.toISOString(),
           format: format,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
           executionTimeMs: executionTime,
           timestamp: new Date().toISOString()
         },
+        success: false,
+        severity: LogSeverity.ERROR,
+        category: LogCategory.SYSTEM,
+        errorMessage: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         ipAddress: '127.0.0.1',
         userAgent: 'Report Generator'
       });
       
-      logger.error('Error generating report:', error);
+      logger.error('Error generating report:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -548,8 +561,8 @@ export class HealthCheckReportGenerator {
 
       // Ordina per data modificato (più recente prima)
       return reports.sort((a, b) => b.modified.getTime() - a.modified.getTime());
-    } catch (error) {
-      logger.error('Error getting report history:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting report history:', error instanceof Error ? error.message : String(error));
       return [];
     }
   }
@@ -565,7 +578,7 @@ export class HealthCheckReportGenerator {
       await fs.promises.access(filepath, fs.constants.F_OK);
 
       return filepath;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.debug(`Report file not found: ${filename}`);
       return null;
     }

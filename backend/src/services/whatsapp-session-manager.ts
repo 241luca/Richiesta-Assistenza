@@ -17,7 +17,7 @@ let redis: any = null;
 try {
   const redisModule = require('../config/redis');
   redis = redisModule.redis || redisModule.default;
-} catch (error) {
+} catch (error: unknown) {
   logger.warn('Redis non disponibile, sessioni solo su DB e file');
 }
 
@@ -85,8 +85,8 @@ export class WhatsAppSessionManager {
       decrypted += decipher.final('utf8');
       
       return JSON.parse(decrypted);
-    } catch (error) {
-      logger.error('Errore decrittazione sessione:', error);
+    } catch (error: unknown) {
+      logger.error('Errore decrittazione sessione:', error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -107,8 +107,8 @@ export class WhatsAppSessionManager {
       await fs.writeFile(filePath, encrypted);
       logger.info('✅ Sessione salvata su file');
       results.push(true);
-    } catch (error) {
-      logger.error('❌ Errore salvataggio file:', error);
+    } catch (error: unknown) {
+      logger.error('❌ Errore salvataggio file:', error instanceof Error ? error.message : String(error));
       results.push(false);
     }
     
@@ -136,8 +136,8 @@ export class WhatsAppSessionManager {
       });
       logger.info('✅ Sessione salvata su database');
       results.push(true);
-    } catch (error) {
-      logger.error('❌ Errore salvataggio database:', error);
+    } catch (error: unknown) {
+      logger.error('❌ Errore salvataggio database:', error instanceof Error ? error.message : String(error));
       results.push(false);
     }
     
@@ -151,8 +151,8 @@ export class WhatsAppSessionManager {
         );
         logger.info('✅ Sessione salvata su Redis');
         results.push(true);
-      } catch (error) {
-        logger.error('❌ Errore salvataggio Redis:', error);
+      } catch (error: unknown) {
+        logger.error('❌ Errore salvataggio Redis:', error instanceof Error ? error.message : String(error));
         results.push(false);
       }
     }
@@ -181,7 +181,7 @@ export class WhatsAppSessionManager {
           const decrypted = this.decrypt(data);
           if (decrypted) return decrypted;
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn('⚠️ Redis non disponibile:', error);
       }
     }
@@ -210,8 +210,8 @@ export class WhatsAppSessionManager {
         
         if (decrypted) return decrypted;
       }
-    } catch (error) {
-      logger.error('❌ Errore recupero da database:', error);
+    } catch (error: unknown) {
+      logger.error('❌ Errore recupero da database:', error instanceof Error ? error.message : String(error));
     }
     
     // 3. Prova File
@@ -230,7 +230,7 @@ export class WhatsAppSessionManager {
         
         return decrypted;
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('⚠️ Nessun file sessione trovato');
     }
     
@@ -249,8 +249,8 @@ export class WhatsAppSessionManager {
       try {
         await redis.del(`whatsapp:session:${this.sessionName}`);
         logger.info('✅ Sessione eliminata da Redis');
-      } catch (error) {
-        logger.error('Errore eliminazione Redis:', error);
+      } catch (error: unknown) {
+        logger.error('Errore eliminazione Redis:', error instanceof Error ? error.message : String(error));
       }
     }
     
@@ -264,8 +264,8 @@ export class WhatsAppSessionManager {
         }
       });
       logger.info('✅ Sessione disattivata su database');
-    } catch (error) {
-      logger.error('Errore eliminazione database:', error);
+    } catch (error: unknown) {
+      logger.error('Errore eliminazione database:', error instanceof Error ? error.message : String(error));
     }
     
     // Elimina file
@@ -273,8 +273,8 @@ export class WhatsAppSessionManager {
       const dirPath = path.join(process.cwd(), 'tokens', this.sessionName);
       await fs.rm(dirPath, { recursive: true, force: true });
       logger.info('✅ File sessione eliminati');
-    } catch (error) {
-      logger.error('Errore eliminazione file:', error);
+    } catch (error: unknown) {
+      logger.error('Errore eliminazione file:', error instanceof Error ? error.message : String(error));
     }
   }
   
@@ -304,8 +304,8 @@ export class WhatsAppSessionManager {
       await fs.mkdir(path.dirname(backupPath), { recursive: true });
       await fs.writeFile(backupPath, this.encrypt(session));
       logger.info(`✅ Backup sessione creato: ${backupPath}`);
-    } catch (error) {
-      logger.error('Errore backup sessione:', error);
+    } catch (error: unknown) {
+      logger.error('Errore backup sessione:', error instanceof Error ? error.message : String(error));
     }
   }
 }

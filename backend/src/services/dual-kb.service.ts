@@ -85,8 +85,8 @@ export class DualKnowledgeBaseService {
 
       return mergedKB;
 
-    } catch (error) {
-      logger.error('Error getting KB for mode:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting KB for mode:', error instanceof Error ? error.message : String(error));
       // In caso di errore, ritorna KB di emergenza
       return this.getEmergencyKB(mode);
     }
@@ -162,8 +162,8 @@ export class DualKnowledgeBaseService {
       }
 
       logger.info(`Professional KB updated for subcategory ${subcategoryId}`);
-    } catch (error) {
-      logger.error('Error updating professional KB:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating professional KB:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -244,8 +244,8 @@ export class DualKnowledgeBaseService {
       }
 
       logger.info(`Client KB updated for subcategory ${subcategoryId}`);
-    } catch (error) {
-      logger.error('Error updating client KB:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating client KB:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -344,8 +344,8 @@ export class DualKnowledgeBaseService {
         materials: [],
         faqs: []
       };
-    } catch (error) {
-      logger.error('Error getting base KB:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting base KB:', error instanceof Error ? error.message : String(error));
       return {};
     }
   }
@@ -452,8 +452,8 @@ export class DualKnowledgeBaseService {
           client: clientLast
         }
       };
-    } catch (error) {
-      logger.error('Error getting KB usage stats:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting KB usage stats:', error instanceof Error ? error.message : String(error));
       return {};
     }
   }

@@ -23,8 +23,8 @@ router.get('/',
         fields,
         'Fields retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching fields:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching fields:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch fields', 'FETCH_ERROR')
       );
@@ -55,8 +55,8 @@ router.get('/stats',
         stats,
         'Field stats retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching field stats:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching field stats:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch stats', 'STATS_ERROR')
       );
@@ -77,8 +77,8 @@ router.get('/:id',
         'Field not found',
         'NOT_FOUND'
       ));
-    } catch (error) {
-      logger.error('Error fetching field:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching field:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch field', 'FETCH_ERROR')
       );
@@ -99,8 +99,8 @@ router.post('/',
         'Field creation not yet implemented',
         'NOT_IMPLEMENTED'
       ));
-    } catch (error) {
-      logger.error('Error creating field:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating field:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to create field', 'CREATE_ERROR')
       );
@@ -121,8 +121,8 @@ router.put('/:id',
         'Field update not yet implemented',
         'NOT_IMPLEMENTED'
       ));
-    } catch (error) {
-      logger.error('Error updating field:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating field:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to update field', 'UPDATE_ERROR')
       );
@@ -143,8 +143,8 @@ router.delete('/:id',
         'Field deletion not yet implemented',
         'NOT_IMPLEMENTED'
       ));
-    } catch (error) {
-      logger.error('Error deleting field:', error);
+    } catch (error: unknown) {
+      logger.error('Error deleting field:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to delete field', 'DELETE_ERROR')
       );

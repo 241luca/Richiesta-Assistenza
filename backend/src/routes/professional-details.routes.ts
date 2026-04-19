@@ -59,7 +59,7 @@ router.get('/:id', authenticate, async (req: any, res) => {
     logger.info(`   - Competenze: ${professional.ProfessionalUserSubcategory?.length || 0}`);
     
     // Se ha una professionId, recupera anche le categorie associate
-    let professionCategories = [];
+    let professionCategories: any[] = [];
     if (professional.professionId) {
       const profCats = await prisma.professionCategory.findMany({
         where: {
@@ -86,8 +86,8 @@ router.get('/:id', authenticate, async (req: any, res) => {
       'Dettagli professionista recuperati con successo'
     ));
     
-  } catch (error) {
-    logger.error('Error fetching professional details:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching professional details:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero dei dettagli',
       'FETCH_ERROR'
@@ -160,7 +160,7 @@ router.put('/:id/profession', authenticate, async (req: any, res) => {
     logger.info(`   New profession: ${updated.Profession?.name || 'none'}`);
     
     // Recupera anche le categorie se c'è una professione
-    let professionCategories = [];
+    let professionCategories: any[] = [];
     if (updated.professionId) {
       const profCats = await prisma.professionCategory.findMany({
         where: {
@@ -184,8 +184,8 @@ router.put('/:id/profession', authenticate, async (req: any, res) => {
       'Professione aggiornata con successo'
     ));
     
-  } catch (error) {
-    logger.error('Error updating profession:', error);
+  } catch (error: unknown) {
+    logger.error('Error updating profession:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento della professione',
       'UPDATE_ERROR'

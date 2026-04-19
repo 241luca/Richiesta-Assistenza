@@ -333,7 +333,7 @@ export default function BrevoTemplateManager() {
             setIsEditorOpen(false);
             setSelectedTemplate(null);
           }}
-          onSave={(data) => saveMutation.mutate(data)}
+          onSave={(data: any) => saveMutation.mutate(data)}
         />
       )}
     </div>

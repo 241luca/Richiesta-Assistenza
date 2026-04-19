@@ -83,7 +83,7 @@ async function ripristinaStripeOriginale() {
     console.log('\n✅ Chiavi Stripe ripristinate nel formato originale!');
     console.log('   Il sistema dovrebbe ora funzionare come prima.');
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Errore:', error);
   } finally {
     await prisma.$disconnect();

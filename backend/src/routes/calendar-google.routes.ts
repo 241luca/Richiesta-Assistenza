@@ -64,8 +64,8 @@ router.get('/check-config', requireRole(['PROFESSIONAL', 'ADMIN', 'SUPER_ADMIN']
       },
       'Configuration check'
     ));
-  } catch (error) {
-    logger.error('Error checking Google Calendar config:', error);
+  } catch (error: unknown) {
+    logger.error('Error checking Google Calendar config:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Failed to check configuration', 'CONFIG_ERROR'));
   }
 });
@@ -140,7 +140,7 @@ router.get('/status', requireRole(['PROFESSIONAL', 'ADMIN', 'SUPER_ADMIN']), asy
           },
           'Connected to Google Calendar'
         ));
-      } catch (error) {
+      } catch (error: unknown) {
         // Token non più valido, richiede nuova autorizzazione
         await prisma.googleCalendarToken.delete({
           where: { professionalId }
@@ -175,7 +175,7 @@ router.get('/status', requireRole(['PROFESSIONAL', 'ADMIN', 'SUPER_ADMIN']), asy
         },
         'Connected to Google Calendar'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       return res.json(ResponseFormatter.success(
         { 
           connected: false,
@@ -184,8 +184,8 @@ router.get('/status', requireRole(['PROFESSIONAL', 'ADMIN', 'SUPER_ADMIN']), asy
         'Connection check failed'
       ));
     }
-  } catch (error) {
-    logger.error('Error checking Google Calendar status:', error);
+  } catch (error: unknown) {
+    logger.error('Error checking Google Calendar status:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Failed to check status', 'STATUS_ERROR'));
   }
 });
@@ -222,11 +222,11 @@ router.post('/connect', requireRole(['PROFESSIONAL', 'ADMIN', 'SUPER_ADMIN']), a
       'Authorization URL generated'
     ));
   } catch (error: any) {
-    logger.error('Error initiating Google Calendar connection:', error);
+    logger.error('Error initiating Google Calendar connection:', error instanceof Error ? error.message : String(error));
     
-    if (error.message.includes('not configured')) {
+    if (error instanceof Error ? error.message : String(error).includes('not configured')) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'NOT_CONFIGURED'
       ));
     }
@@ -266,7 +266,7 @@ router.get('/callback', async (req, res) => {
       },
       create: {
         id: uuidv4(),
-        professional: { connect: { id: professionalId } },
+        professionalId: professionalId,
         accessToken: tokens.access_token!,
         refreshToken: tokens.refresh_token!,
         expiryDate: new Date(tokens.expiry_date!),
@@ -281,7 +281,7 @@ router.get('/callback', async (req, res) => {
       where: { professionalId },
       create: {
         id: uuidv4(),
-        professional: { connect: { id: professionalId } },
+        professionalId: professionalId,
         googleCalendarConnected: true,
         lastGoogleSync: new Date(),
         updatedAt: new Date()
@@ -296,8 +296,8 @@ router.get('/callback', async (req, res) => {
     
     // Reindirizza l'utente all'app con successo
     return res.redirect(`${process.env.FRONTEND_URL}/professional/calendar?google_connected=true`);
-  } catch (error) {
-    logger.error('Error in Google Calendar callback:', error);
+  } catch (error: unknown) {
+    logger.error('Error in Google Calendar callback:', error instanceof Error ? error.message : String(error));
     return res.redirect(`${process.env.FRONTEND_URL}/professional/calendar?google_error=true`);
   }
 });
@@ -323,8 +323,8 @@ router.post('/disconnect', requireRole(['PROFESSIONAL', 'ADMIN', 'SUPER_ADMIN'])
 
     logger.info('Google Calendar disconnected', { professionalId });
     return res.json(ResponseFormatter.success(null, 'Disconnected successfully'));
-  } catch (error) {
-    logger.error('Error disconnecting Google Calendar:', error);
+  } catch (error: unknown) {
+    logger.error('Error disconnecting Google Calendar:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Failed to disconnect', 'DISCONNECT_ERROR'));
   }
 });
@@ -363,8 +363,8 @@ router.get('/calendars', requireRole(['PROFESSIONAL', 'ADMIN', 'SUPER_ADMIN']), 
 
     logger.info('Google calendars retrieved', { professionalId, count: calendars.length });
     return res.json(ResponseFormatter.success(calendars, 'Calendars retrieved successfully'));
-  } catch (error) {
-    logger.error('Error fetching Google calendars:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching Google calendars:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Failed to fetch calendars', 'FETCH_ERROR'));
   }
 });
@@ -411,7 +411,7 @@ router.post('/sync', requireRole(['PROFESSIONAL', 'ADMIN', 'SUPER_ADMIN']), asyn
           await prisma.calendarBlock.create({
             data: {
               id: uuidv4(),
-              professional: { connect: { id: professionalId } },
+              professionalId: professionalId,
               startDateTime: new Date(event.start.dateTime),
               endDateTime: new Date(event.end.dateTime),
               reason: event.summary || 'Importato da Google Calendar',
@@ -434,7 +434,7 @@ router.post('/sync', requireRole(['PROFESSIONAL', 'ADMIN', 'SUPER_ADMIN']), asyn
           }
         },
         include: {
-          request: {
+          AssistanceRequest: {
             include: {
               client: true
             }
@@ -443,9 +443,10 @@ router.post('/sync', requireRole(['PROFESSIONAL', 'ADMIN', 'SUPER_ADMIN']), asyn
       });
 
       for (const intervention of interventions) {
+        const req = (intervention as any).AssistanceRequest || {};
         const event = {
-          summary: intervention.description || `Intervento - ${intervention.request.title}`,
-          description: `Cliente: ${intervention.request.client.fullName}\n${intervention.request.description || ''}`,
+          summary: intervention.description || `Intervento - ${req.title || ''}`,
+          description: `Cliente: ${req.client?.fullName || ''}\n${req.description || ''}`,
           start: {
             dateTime: intervention.proposedDate.toISOString(),
             timeZone: 'Europe/Rome'
@@ -456,7 +457,7 @@ router.post('/sync', requireRole(['PROFESSIONAL', 'ADMIN', 'SUPER_ADMIN']), asyn
             ).toISOString(),
             timeZone: 'Europe/Rome'
           },
-          location: intervention.request.address || ''
+          location: req.address || ''
         };
 
         await calendar.events.insert({
@@ -480,8 +481,8 @@ router.post('/sync', requireRole(['PROFESSIONAL', 'ADMIN', 'SUPER_ADMIN']), asyn
       { synced: syncedCount },
       `Sincronizzati ${syncedCount} eventi`
     ));
-  } catch (error) {
-    logger.error('Error syncing with Google Calendar:', error);
+  } catch (error: unknown) {
+    logger.error('Error syncing with Google Calendar:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Failed to sync', 'SYNC_ERROR'));
   }
 });
@@ -510,8 +511,8 @@ router.post('/configure', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Aut
 
     logger.info('Google Calendar credentials configured by admin', { adminId: req.user!.id });
     return res.json(ResponseFormatter.success(null, 'Credenziali Google Calendar configurate con successo'));
-  } catch (error) {
-    logger.error('Error configuring Google Calendar:', error);
+  } catch (error: unknown) {
+    logger.error('Error configuring Google Calendar:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Failed to configure credentials', 'CONFIG_ERROR'));
   }
 });
@@ -529,8 +530,8 @@ router.delete('/configure', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: A
 
     logger.info('Google Calendar configuration deleted by admin', { adminId: req.user!.id });
     return res.json(ResponseFormatter.success(null, 'Configurazione Google Calendar eliminata con successo'));
-  } catch (error) {
-    logger.error('Error deleting Google Calendar configuration:', error);
+  } catch (error: unknown) {
+    logger.error('Error deleting Google Calendar configuration:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Failed to delete configuration', 'DELETE_ERROR'));
   }
 });

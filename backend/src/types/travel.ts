@@ -23,7 +23,7 @@ export interface WorkAddress {
   longitude?: number;
 }
 
-export interface UserWithWorkAddress extends User {
+export interface UserWithWorkAddress {
   workAddress?: string;
   workCity?: string;
   workProvince?: string;

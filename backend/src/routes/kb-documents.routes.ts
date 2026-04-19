@@ -25,24 +25,24 @@ const storage = multer.diskStorage({
       try {
         const subcategory = await prisma.subcategory.findUnique({
           where: { id: subcategoryId },
-          include: { category: true }
+          include: { Category: true }
         });
         
         if (subcategory) {
           // Use slugs for folder names (more readable and URL-safe)
-          categorySlug = subcategory.category.slug || subcategory.category.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+          categorySlug = (subcategory as any).Category.slug || (subcategory as any).Category.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
           subcategorySlug = subcategory.slug || subcategory.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
           
           // Store info for later use
           (req as any).categoryInfo = {
             categoryId: subcategory.categoryId,
-            categoryName: subcategory.category.name,
+            categoryName: (subcategory as any).Category.name,
             categorySlug,
             subcategoryName: subcategory.name,
             subcategorySlug
           };
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error fetching subcategory info:', error);
       }
     }
@@ -65,7 +65,7 @@ const storage = multer.diskStorage({
       
       console.log(`📁 Creating upload directory: ${uploadDir}`);
       cb(null, uploadDir);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating upload directory:', error);
       cb(error as Error, uploadDir);
     }
@@ -120,12 +120,12 @@ router.post(
       if (subcategoryId) {
         const subcategory = await prisma.subcategory.findUnique({
           where: { id: subcategoryId },
-          include: { category: true }
+          include: { Category: true }
         });
         
         if (subcategory) {
           categoryId = subcategory.categoryId;
-          categoryName = subcategory.category.name;
+          categoryName = (subcategory as any).Category.name;
           // Add category info to request for multer
           req.body.categoryId = categoryId;
         }
@@ -168,7 +168,7 @@ router.post(
             title: file.originalname.replace(/\.[^/.]+$/, ''), // Remove extension
             description: `Documento per ${categoryInfo.categoryName} - ${categoryInfo.subcategoryName}`,
             documentType: 'manual',
-            Category: categoryInfo.categoryId,
+            category: categoryInfo.categoryId,
             subcategoryIds: subcategoryId ? [subcategoryId] : [],
             filePath: relativePath, // Store relative path
             content: '', // Will be populated by processing job
@@ -189,7 +189,7 @@ router.post(
               uploadPath: relativePath,
               timestamp: new Date().toISOString()
             }
-          }
+          } as any
         });
 
         // Log the upload for tracking
@@ -211,7 +211,7 @@ router.post(
           path: relativePath
         }, 'Document uploaded successfully'));
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Upload error:', error);
       next(error);
     }
@@ -246,7 +246,7 @@ router.get(
       }
 
       // Se non c'è subcategoryId, query normale
-      const documents = await prisma.knowledgeBaseDocument.findMany({
+      const documents = await (prisma.knowledgeBaseDocument.findMany as any)({
         where,
         select: {
           id: true,
@@ -257,7 +257,7 @@ router.get(
           language: true,
           tags: true,
           createdAt: true,
-          uploadedBy: {
+          User: {
             select: {
               id: true,
               firstName: true,
@@ -271,7 +271,7 @@ router.get(
       });
 
       res.json(ResponseFormatter.success(documents, 'Documents retrieved successfully'));
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -302,7 +302,7 @@ router.delete(
       if (document.filePath) {
         try {
           await fs.unlink(document.filePath);
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('Error deleting file:', error);
         }
       }
@@ -313,7 +313,7 @@ router.delete(
       });
 
       res.json(ResponseFormatter.success(null, 'Document deleted successfully'));
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -367,7 +367,7 @@ router.get(
           ]
         }
       }, 'Storage statistics retrieved'));
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -418,7 +418,7 @@ router.delete(
               }
             }
           }
-        } catch (error) {
+        } catch (error: unknown) {
           console.error(`Error checking directory ${dir}:`, error);
         }
       };
@@ -437,7 +437,7 @@ router.delete(
           ? 'Dry run completed. No files were deleted.' 
           : `Cleanup completed. ${deletedCount} files deleted.`
       }, 'Cleanup completed'));
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }

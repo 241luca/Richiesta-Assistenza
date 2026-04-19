@@ -74,9 +74,9 @@ router.get('/main', authenticate, async (req: AuthRequest, res: Response) => {
     return res.json(
       ResponseFormatter.success(user, 'Indirizzo principale recuperato')
     );
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    logger.error('Error fetching main address:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
+    logger.error('Error fetching main address:', error instanceof Error ? error.message : String(error));
     return res
       .status(500)
       .json(
@@ -154,17 +154,17 @@ router.put('/main', authenticate, async (req: AuthRequest, res: Response) => {
             `Indirizzo aggiornato. Ricalcolate ${updatedCount} distanze.`
           )
         );
-      } catch (error) {
-        logger.error('Failed to recalculate:', error);
+      } catch (error: unknown) {
+        logger.error('Failed to recalculate:', error instanceof Error ? error.message : String(error));
       }
     }
 
     return res.json(
       ResponseFormatter.success(updatedUser, 'Indirizzo principale aggiornato')
     );
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    logger.error('Error updating main address:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
+    logger.error('Error updating main address:', error instanceof Error ? error.message : String(error));
     return res
       .status(500)
       .json(
@@ -238,9 +238,9 @@ router.get('/work', authenticate, async (req: AuthRequest, res: Response) => {
     return res.json(
       ResponseFormatter.success(workData, 'Indirizzo di lavoro recuperato')
     );
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    logger.error('Error fetching work address:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
+    logger.error('Error fetching work address:', error instanceof Error ? error.message : String(error));
     return res
       .status(500)
       .json(
@@ -367,9 +367,9 @@ router.put('/work', authenticate, async (req: AuthRequest, res: Response) => {
             failCount++;
             logger.warn(`    ⚠️ Failed`);
           }
-        } catch (error) {
+        } catch (error: unknown) {
           failCount++;
-          logger.error(`    ❌ Error:`, error);
+          logger.error(`    ❌ Error:`, error instanceof Error ? error.message : String(error));
         }
       }
 
@@ -390,8 +390,8 @@ router.put('/work', authenticate, async (req: AuthRequest, res: Response) => {
           `Indirizzo di lavoro aggiornato. Ricalcolate ${successCount} distanze su ${assignedRequests.length} richieste.`
         )
       );
-    } catch (error) {
-      logger.error('❌ Failed to recalculate travel info:', error);
+    } catch (error: unknown) {
+      logger.error('❌ Failed to recalculate travel info:', error instanceof Error ? error.message : String(error));
 
       return res.json(
         ResponseFormatter.success(
@@ -400,9 +400,9 @@ router.put('/work', authenticate, async (req: AuthRequest, res: Response) => {
         )
       );
     }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    logger.error('Error updating work address:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
+    logger.error('Error updating work address:', error instanceof Error ? error.message : String(error));
     return res
       .status(500)
       .json(
@@ -449,9 +449,9 @@ router.post(
           `Ricalcolate ${updatedCount} distanze con successo`
         )
       );
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('Error in manual recalculation:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
+      logger.error('Error in manual recalculation:', error instanceof Error ? error.message : String(error));
       return res
         .status(500)
         .json(

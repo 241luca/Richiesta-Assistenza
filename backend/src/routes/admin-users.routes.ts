@@ -9,6 +9,28 @@ import { prisma } from '../config/database';
 
 const router = Router();
 
+// Helper per estrarre messaggio di errore in modo sicuro
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  return String(error);
+}
+
+// Helper per convertire query param in stringa
+function toStringParam(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && value.length > 0) return String(value[0]);
+  return '';
+}
+
+// Helper per convertire query param in numero
+function toNumberParam(value: unknown, defaultValue: number): number {
+  const str = toStringParam(value);
+  const num = parseInt(str, 10);
+  return isNaN(num) ? defaultValue : num;
+}
+
 // Middleware per verificare se l'utente è admin
 const requireAdmin = (req: any, res: any, next: any) => {
   if (req.user?.role !== 'ADMIN' && req.user?.role !== 'SUPER_ADMIN') {
@@ -83,66 +105,64 @@ const bulkActionSchema = z.object({
 // GET /api/admin/users - Lista completa utenti con filtri avanzati
 router.get('/', authenticate, requireAdmin, async (req: any, res) => {
   try {
-    const {
-      page = 1,
-      limit = 20,
-      search,
-      role,
-      isActive,
-      emailVerified,
-      sortBy = 'createdAt',
-      sortOrder = 'desc',
-      city,
-      province
-    } = req.query;
+    const pageNum = toNumberParam(req.query.page, 1);
+    const limitNum = toNumberParam(req.query.limit, 20);
+    const search = toStringParam(req.query.search) || undefined;
+    const role = toStringParam(req.query.role) || undefined;
+    const isActiveParam = toStringParam(req.query.isActive);
+    const emailVerifiedParam = toStringParam(req.query.emailVerified);
+    const sortBy = toStringParam(req.query.sortBy) || 'createdAt';
+    const sortOrder = toStringParam(req.query.sortOrder) || 'desc';
+    const city = toStringParam(req.query.city) || undefined;
+    const province = toStringParam(req.query.province) || undefined;
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
 
     // Prepara filtri
     const filters = {
       search,
       role,
-      isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
-      emailVerified: emailVerified === 'true' ? true : emailVerified === 'false' ? false : undefined,
+      isActive: isActiveParam === 'true' ? true : isActiveParam === 'false' ? false : undefined,
+      emailVerified: emailVerifiedParam === 'true' ? true : emailVerifiedParam === 'false' ? false : undefined,
       city,
       province,
       sortBy,
       sortOrder,
       skip,
-      take: parseInt(limit)
+      take: limitNum
     };
 
     const { users, total } = await userService.getUsers(filters);
 
     // Trasforma i dati per il frontend
-    const transformedUsers = users.map(user => ({
+    const transformedUsers = users.map((user: any) => ({
       ...user,
       isActive: user.status !== 'offline' && user.status !== 'deleted' && 
                 (!user.lockedUntil || new Date(user.lockedUntil) <= new Date()),
       blocked: user.lockedUntil ? new Date(user.lockedUntil) > new Date() : false,
-      requestsCount: user._count.clientRequests + 
-                     user._count.professionalRequests,
-      quotesCount: user._count.quotes
+      requestsCount: (user._count?.clientRequests || 0) + 
+                     (user._count?.professionalRequests || 0),
+      quotesCount: user._count?.quotes || 0
     }));
 
     // Ottieni statistiche
     const stats = await userService.getUserStats();
 
-    logger.info(`Admin ${req.user.id} fetched ${users.length} users (page ${page})`);
+    logger.info(`Admin ${req.user.id} fetched ${users.length} users (page ${pageNum})`);
 
     return res.json(ResponseFormatter.success({
       users: transformedUsers,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: pageNum,
+        limit: limitNum,
         total,
-        pages: Math.ceil(total / parseInt(limit))
+        pages: Math.ceil(total / limitNum)
       },
       stats
     }, 'Lista utenti recuperata con successo'));
 
-  } catch (error) {
-    logger.error('Error fetching users:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching users:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero della lista utenti',
       'FETCH_USERS_ERROR'
@@ -153,7 +173,8 @@ router.get('/', authenticate, requireAdmin, async (req: any, res) => {
 // GET /api/admin/users/search - Endpoint di ricerca specifico per compatibilità frontend
 router.get('/search', authenticate, requireAdmin, async (req: any, res) => {
   try {
-    const { q: query, role = 'CLIENT' } = req.query;
+    const query = toStringParam(req.query.q);
+    const role = toStringParam(req.query.role) || 'CLIENT';
     
     if (!query) {
       return res.status(400).json(ResponseFormatter.error(
@@ -162,8 +183,8 @@ router.get('/search', authenticate, requireAdmin, async (req: any, res) => {
       ));
     }
     
-    const searchQuery = query.toString().trim();
-    const roleFilter = role.toString().toUpperCase();
+    const searchQuery = query.trim();
+    const roleFilter = role.toUpperCase();
     
     logger.info(`[ADMIN USER SEARCH] Query: "${searchQuery}", Role: "${roleFilter}"`);
     
@@ -178,7 +199,7 @@ router.get('/search', authenticate, requireAdmin, async (req: any, res) => {
     const { users } = await userService.getUsers(filters);
     
     // Trasforma i dati per il frontend (formato compatibile con l'endpoint originale)
-    const transformedUsers = users.map(user => ({
+    const transformedUsers = users.map((user: any) => ({
       id: user.id,
       firstName: user.firstName,
       lastName: user.lastName,
@@ -218,8 +239,8 @@ router.get('/search', authenticate, requireAdmin, async (req: any, res) => {
       `Trovati ${transformedUsers.length} utenti`
     ));
     
-  } catch (error) {
-    logger.error('[ADMIN USER SEARCH] Error:', error);
+  } catch (error: unknown) {
+    logger.error('[ADMIN USER SEARCH] Error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nella ricerca utente',
       'SEARCH_ERROR'
@@ -292,7 +313,7 @@ router.get('/:id', authenticate, requireAdmin, async (req: any, res) => {
       totalPayments: totalPaymentsCount,
       lastActivity: loginHistory[0]?.createdAt || user.updatedAt,
       accountAge: Math.floor((Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24)), // giorni
-      unreadNotifications: notifications.filter(n => !n.isRead).length
+      unreadNotifications: notifications.filter((n: any) => !n.isRead).length
     };
 
     logger.info(`Admin ${req.user.id} viewed user details for ${userId}`);
@@ -305,10 +326,10 @@ router.get('/:id', authenticate, requireAdmin, async (req: any, res) => {
       recentQuotes: quotesNormalized
     }, 'Dettagli utente recuperati con successo'));
 
-  } catch (error) {
-    logger.error('Error fetching user details:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching user details:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
-      error.message || 'Errore nel recupero dei dettagli utente',
+      getErrorMessage(error) || 'Errore nel recupero dei dettagli utente',
       'FETCH_USER_DETAILS_ERROR'
     ));
   }
@@ -324,7 +345,7 @@ router.post('/', authenticate, requireAdmin, async (req: any, res) => {
     const newUser = await userService.createUser(validatedData);
 
     // Invia email di benvenuto se richiesto
-    if (validatedData.sendWelcomeEmail) {
+    if ((validatedData as any).sendWelcomeEmail) {
       await userService.sendWelcomeEmail(newUser.id);
     }
 
@@ -335,7 +356,7 @@ router.post('/', authenticate, requireAdmin, async (req: any, res) => {
       'Utente creato con successo'
     ));
 
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return res.status(400).json(ResponseFormatter.error(
         'Dati non validi',
@@ -343,9 +364,9 @@ router.post('/', authenticate, requireAdmin, async (req: any, res) => {
         error.errors
       ));
     }
-    logger.error('Error creating user:', error);
+    logger.error('Error creating user:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
-      error.message || 'Errore nella creazione utente',
+      getErrorMessage(error) || 'Errore nella creazione utente',
       'CREATE_USER_ERROR'
     ));
   }
@@ -369,7 +390,7 @@ router.put('/:id', authenticate, requireAdmin, async (req: any, res) => {
       'Utente aggiornato con successo'
     ));
 
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return res.status(400).json(ResponseFormatter.error(
         'Dati non validi',
@@ -377,9 +398,9 @@ router.put('/:id', authenticate, requireAdmin, async (req: any, res) => {
         error.errors
       ));
     }
-    logger.error('Error updating user:', error);
+    logger.error('Error updating user:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
-      error.message || 'Errore nell\'aggiornamento utente',
+      getErrorMessage(error) || 'Errore nell\'aggiornamento utente',
       'UPDATE_USER_ERROR'
     ));
   }
@@ -399,10 +420,10 @@ router.delete('/:id', authenticate, requireAdmin, async (req: any, res) => {
       'Utente eliminato con successo'
     ));
 
-  } catch (error) {
-    logger.error('Error deleting user:', error);
+  } catch (error: unknown) {
+    logger.error('Error deleting user:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
-      error.message || 'Errore nell\'eliminazione utente',
+      getErrorMessage(error) || 'Errore nell\'eliminazione utente',
       'DELETE_USER_ERROR'
     ));
   }
@@ -423,7 +444,7 @@ router.post('/:id/reset-password', authenticate, requireAdmin, async (req: any, 
       'Password reimpostata con successo'
     ));
 
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return res.status(400).json(ResponseFormatter.error(
         'Dati non validi',
@@ -431,9 +452,9 @@ router.post('/:id/reset-password', authenticate, requireAdmin, async (req: any, 
         error.errors
       ));
     }
-    logger.error('Error resetting password:', error);
+    logger.error('Error resetting password:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
-      error.message || 'Errore nel reset della password',
+      getErrorMessage(error) || 'Errore nel reset della password',
       'RESET_PASSWORD_ERROR'
     ));
   }
@@ -453,10 +474,10 @@ router.post('/:id/send-welcome-email', authenticate, requireAdmin, async (req: a
       'Email di benvenuto inviata con successo'
     ));
 
-  } catch (error) {
-    logger.error('Error sending welcome email:', error);
+  } catch (error: unknown) {
+    logger.error('Error sending welcome email:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
-      error.message || 'Errore nell\'invio email di benvenuto',
+      getErrorMessage(error) || 'Errore nell\'invio email di benvenuto',
       'SEND_EMAIL_ERROR'
     ));
   }
@@ -477,10 +498,10 @@ router.post('/:id/block', authenticate, requireAdmin, async (req: any, res) => {
       `Utente bloccato per ${days} giorni`
     ));
 
-  } catch (error) {
-    logger.error('Error blocking user:', error);
+  } catch (error: unknown) {
+    logger.error('Error blocking user:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
-      error.message || 'Errore nel blocco utente',
+      getErrorMessage(error) || 'Errore nel blocco utente',
       'BLOCK_USER_ERROR'
     ));
   }
@@ -500,10 +521,10 @@ router.post('/:id/unblock', authenticate, requireAdmin, async (req: any, res) =>
       'Utente sbloccato con successo'
     ));
 
-  } catch (error) {
-    logger.error('Error unblocking user:', error);
+  } catch (error: unknown) {
+    logger.error('Error unblocking user:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
-      error.message || 'Errore nello sblocco utente',
+      getErrorMessage(error) || 'Errore nello sblocco utente',
       'UNBLOCK_USER_ERROR'
     ));
   }
@@ -552,8 +573,8 @@ router.post('/bulk', authenticate, requireAdmin, async (req: any, res) => {
             break;
         }
         processedCount++;
-      } catch (error) {
-        logger.error(`Failed to ${action} user ${userId}:`, error);
+      } catch (innerError) {
+        logger.error(`Failed to ${action} user ${userId}:`, innerError);
       }
     }
 
@@ -565,7 +586,7 @@ router.post('/bulk', authenticate, requireAdmin, async (req: any, res) => {
       userIds
     }, `${actionMessage} con successo (${processedCount} utenti)`));
 
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return res.status(400).json(ResponseFormatter.error(
         'Dati non validi',
@@ -573,7 +594,7 @@ router.post('/bulk', authenticate, requireAdmin, async (req: any, res) => {
         error.errors
       ));
     }
-    logger.error('Error in bulk action:', error);
+    logger.error('Error in bulk action:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'azione di massa',
       'BULK_ACTION_ERROR'
@@ -624,8 +645,8 @@ router.get('/stats/overview', authenticate, requireAdmin, async (req: any, res) 
       'Statistiche utenti recuperate con successo'
     ));
 
-  } catch (error) {
-    logger.error('Error fetching user stats:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching user stats:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle statistiche',
       'FETCH_STATS_ERROR'
@@ -636,15 +657,20 @@ router.get('/stats/overview', authenticate, requireAdmin, async (req: any, res) 
 // GET /api/admin/users/export - Export utenti in CSV
 router.get('/export', authenticate, requireAdmin, async (req: any, res) => {
   try {
-    const { format = 'csv', ...filters } = req.query;
+    const format = toStringParam(req.query.format) || 'csv';
+    const roleFilter = toStringParam(req.query.role) || undefined;
+    const isActiveParam = toStringParam(req.query.isActive);
+    const emailVerifiedParam = toStringParam(req.query.emailVerified);
+    const cityFilter = toStringParam(req.query.city) || undefined;
+    const provinceFilter = toStringParam(req.query.province) || undefined;
 
     // Prepara filtri come in GET /
     const queryFilters = {
-      role: filters.role,
-      isActive: filters.isActive === 'true' ? true : filters.isActive === 'false' ? false : undefined,
-      emailVerified: filters.emailVerified === 'true',
-      city: filters.city,
-      province: filters.province
+      role: roleFilter,
+      isActive: isActiveParam === 'true' ? true : isActiveParam === 'false' ? false : undefined,
+      emailVerified: emailVerifiedParam === 'true',
+      city: cityFilter,
+      province: provinceFilter
     };
 
     const { users } = await userService.getUsers(queryFilters);
@@ -655,10 +681,10 @@ router.get('/export', authenticate, requireAdmin, async (req: any, res) => {
         // Header
         'ID,Email,Username,Nome,Cognome,Ruolo,Telefono,Città,Provincia,Professione,Verificato,Stato,Bloccato,Registrato,Ultimo Accesso',
         // Data
-        ...users.map(u => [
+        ...users.map((u: any) => [
           u.id,
           u.email,
-          u.username,
+          u.username || '',
           u.firstName,
           u.lastName,
           u.role,
@@ -669,8 +695,8 @@ router.get('/export', authenticate, requireAdmin, async (req: any, res) => {
           u.emailVerified ? 'Si' : 'No',
           u.status,
           u.lockedUntil && new Date(u.lockedUntil) > new Date() ? 'Si' : 'No',
-          u.createdAt.toISOString(),
-          u.lastLoginAt?.toISOString() || ''
+          u.createdAt ? new Date(u.createdAt).toISOString() : '',
+          u.lastLoginAt ? new Date(u.lastLoginAt).toISOString() : ''
         ].join(','))
       ].join('\n');
 
@@ -685,8 +711,8 @@ router.get('/export', authenticate, requireAdmin, async (req: any, res) => {
       ));
     }
 
-  } catch (error) {
-    logger.error('Error exporting users:', error);
+  } catch (error: unknown) {
+    logger.error('Error exporting users:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'export degli utenti',
       'EXPORT_ERROR'
@@ -708,32 +734,33 @@ router.get('/professionals-by-subcategory/:subcategoryId', authenticate, require
         subcategoryId: subcategoryId 
       },
       include: {
-        user: true
+        User: true
       }
-    });
+    }) as any[];
     
     logger.info(`Raw associations found: ${associations.length}`);
     
     if (associations.length > 0) {
       // Mappa tutti i professionisti trovati
-      const professionals = associations.map(assoc => {
-        logger.info(`Professional: ${assoc.user.firstName} ${assoc.user.lastName}, Status: ${assoc.user.status}, Role: ${assoc.user.role}`);
+      const professionals = associations.map((assoc: any) => {
+        const user = assoc.User || {};
+        logger.info(`Professional: ${user.firstName} ${user.lastName}, Status: ${user.status}, Role: ${user.role}`);
         
         return {
-          id: assoc.user.id,
-          firstName: assoc.user.firstName,
-          lastName: assoc.user.lastName,
-          email: assoc.user.email,
-          phone: assoc.user.phone,
-          city: assoc.user.city,
-          province: assoc.user.province,
-          hourlyRate: assoc.user.hourlyRate ? Number(assoc.user.hourlyRate) : null,
-          profession: assoc.user.profession,
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          phone: user.phone,
+          city: user.city,
+          province: user.province,
+          hourlyRate: user.hourlyRate ? Number(user.hourlyRate) : null,
+          profession: user.profession,
           experienceYears: assoc.experienceYears || 0,
           hasCertifications: !!assoc.certifications,
           isGeneric: false,
-          status: assoc.user.status,  // Includiamo lo status per debug
-          role: assoc.user.role        // Includiamo il role per debug
+          status: user.status,  // Includiamo lo status per debug
+          role: user.role        // Includiamo il role per debug
         };
       });
       
@@ -753,8 +780,8 @@ router.get('/professionals-by-subcategory/:subcategoryId', authenticate, require
       `Nessun professionista abilitato per questa sottocategoria`
     ));
     
-  } catch (error) {
-    logger.error('Error fetching professionals by subcategory:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching professionals by subcategory:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero dei professionisti',
       'FETCH_ERROR'
@@ -768,19 +795,19 @@ router.get('/debug-subcategory/:subcategoryId', authenticate, requireAdmin, asyn
     const { subcategoryId } = req.params;
     
     // 1. Verifica sottocategoria
-    const subcategory = await prisma.subcategory.findUnique({
+    const subcategory = await (prisma.subcategory.findUnique as any)({
       where: { id: subcategoryId },
       include: {
-        category: true
+        Category: true
       }
     });
     
     // 2. Conta associazioni
-    const associations = await prisma.professionalUserSubcategory.findMany({
+    const associations = await (prisma.professionalUserSubcategory.findMany as any)({
       where: { subcategoryId },
       include: {
-        user: true,
-        subcategory: true
+        User: true,
+        Subcategory: true
       }
     });
     
@@ -799,15 +826,15 @@ router.get('/debug-subcategory/:subcategoryId', authenticate, requireAdmin, asyn
     return res.json(ResponseFormatter.success({
       subcategory: subcategory || 'NOT FOUND',
       associationsCount: associations.length,
-      associations: associations.map(a => ({
+      associations: associations.map((a: any) => ({
         userId: a.userId,
-        userName: `${a.user.firstName} ${a.user.lastName}`,
-        userStatus: a.user.status,
-        userRole: a.user.role,
+        userName: `${a.User?.firstName || ''} ${a.User?.lastName || ''}`,
+        userStatus: a.User?.status,
+        userRole: a.User?.role,
         experienceYears: a.experienceYears
       })),
       allProfessionalsCount: allProfessionals.length,
-      allProfessionals: allProfessionals.map(p => ({
+      allProfessionals: allProfessionals.map((p: any) => ({
         id: p.id,
         name: `${p.firstName} ${p.lastName}`,
         status: p.status,
@@ -815,8 +842,8 @@ router.get('/debug-subcategory/:subcategoryId', authenticate, requireAdmin, asyn
       }))
     }, 'Debug info'));
     
-  } catch (error) {
-    logger.error('Debug error:', error);
+  } catch (error: unknown) {
+    logger.error('Debug error:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Debug error', 'ERROR'));
   }
 });

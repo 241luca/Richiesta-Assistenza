@@ -41,9 +41,9 @@ export class TravelService {
         return null;
       }
 
-      return await this.getProfessionalStartingPoint(professional);
-    } catch (error) {
-      logger.error('Error getting professional coordinates:', error);
+      return await this.getProfessionalStartingPoint(professional as any);
+    } catch (error: unknown) {
+      logger.error('Error getting professional coordinates:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -62,8 +62,8 @@ export class TravelService {
       }
 
       return await this.getRequestDestination(request);
-    } catch (error) {
-      logger.error('Error getting request coordinates:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting request coordinates:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -91,21 +91,21 @@ export class TravelService {
         return null;
       }
 
-      const workAddress: WorkAddress = {
-        workAddress: professional.workAddress,
-        workCity: professional.workCity,
-        workProvince: professional.workProvince,
-        workPostalCode: professional.workPostalCode,
-        workLatitude: professional.workLatitude,
-        workLongitude: professional.workLongitude,
+      const workAddress = {
+        workAddress: professional.workAddress || undefined,
+        workCity: professional.workCity || undefined,
+        workProvince: professional.workProvince || undefined,
+        workPostalCode: professional.workPostalCode || undefined,
+        workLatitude: professional.workLatitude || undefined,
+        workLongitude: professional.workLongitude || undefined,
         useResidenceAsWorkAddress: professional.useResidenceAsWorkAddress || false,
         travelRatePerKm: professional.travelRatePerKm ? Number(professional.travelRatePerKm) : undefined // Il database contiene già centesimi
-      };
+      } as WorkAddress;
 
       return workAddress;
 
-    } catch (error) {
-      logger.error('Error getting work address:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting work address:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -119,7 +119,10 @@ export class TravelService {
     travelRatePerKm: number = 50 // Default €0.50/km in centesimi
   ): Promise<TravelInfo | null> {
     try {
-      const distanceData = await geocodingService.calculateDistance(origin, destination);
+      const distanceData = await geocodingService.calculateDistance(
+        { lat: origin.latitude, lng: origin.longitude },
+        { lat: destination.latitude, lng: destination.longitude }
+      );
       
       if (!distanceData) {
         logger.warn('Unable to calculate distance between points');
@@ -137,8 +140,8 @@ export class TravelService {
       logger.info(`Travel calculated: ${result.distance}km, ${result.duration}min, €${cost/100}`);
       return result;
 
-    } catch (error) {
-      logger.error('Error calculating travel info:', error);
+    } catch (error: unknown) {
+      logger.error('Error calculating travel info:', error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -243,8 +246,8 @@ export class TravelService {
 
       return coordinates;
 
-    } catch (error) {
-      logger.error('Error getting professional starting point:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting professional starting point:', error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -286,8 +289,8 @@ export class TravelService {
       logger.warn(`Unable to determine destination for request ${request.id}`);
       return null;
 
-    } catch (error) {
-      logger.error('Error getting request destination:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting request destination:', error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -336,7 +339,7 @@ export class TravelService {
       }
 
       // Calcola le coordinate di partenza e destinazione
-      const startingPoint = await this.getProfessionalStartingPoint(professional);
+      const startingPoint = await this.getProfessionalStartingPoint(professional as any);
       const destination = await this.getRequestDestination(request);
 
       if (!startingPoint || !destination) {
@@ -348,8 +351,8 @@ export class TravelService {
 
       return await this.calculateTravelInfo(startingPoint, destination, travelRate);
 
-    } catch (error) {
-      logger.error('Error calculating request travel info:', error);
+    } catch (error: unknown) {
+      logger.error('Error calculating request travel info:', error instanceof Error ? error.message : String(error));
       throw error; // I services lanciano eccezioni, non usano ResponseFormatter
     }
   }
@@ -403,8 +406,8 @@ export class TravelService {
       logger.info(`Work address updated for professional ${professionalId}`);
       return updatedUser;
 
-    } catch (error) {
-      logger.error('Error updating work address:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating work address:', error instanceof Error ? error.message : String(error));
       throw error; // I services lanciano eccezioni
     }
   }
@@ -454,8 +457,8 @@ export class TravelService {
 
       return results;
 
-    } catch (error) {
-      logger.error('Error calculating multiple requests travel info:', error);
+    } catch (error: unknown) {
+      logger.error('Error calculating multiple requests travel info:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -529,7 +532,7 @@ export class TravelService {
       }
 
       // Ottieni le coordinate di partenza del professionista
-      const startingPoint = await this.getProfessionalStartingPoint(professional);
+      const startingPoint = await this.getProfessionalStartingPoint(professional as any);
 
       if (!startingPoint) {
         logger.error('Unable to determine professional starting point');
@@ -557,7 +560,10 @@ export class TravelService {
           }
 
           // Calcola distanza usando Google Maps
-          const distanceData = await geocodingService.calculateDistance(startingPoint, destination);
+          const distanceData = await geocodingService.calculateDistance(
+            { lat: startingPoint.latitude, lng: startingPoint.longitude },
+            { lat: destination.latitude, lng: destination.longitude }
+          );
 
           if (!distanceData) {
             logger.warn(`Unable to calculate distance for request ${request.id}`);
@@ -593,7 +599,7 @@ export class TravelService {
 
         } catch (error: any) {
           failed++;
-          const errorMsg = `Request ${request.id}: ${error.message}`;
+          const errorMsg = `Request ${request.id}: ${error instanceof Error ? error.message : String(error)}`;
           errors.push(errorMsg);
           logger.error(errorMsg);
         }
@@ -603,8 +609,8 @@ export class TravelService {
 
       return { total, success, failed, errors };
 
-    } catch (error) {
-      logger.error('Error recalculating active requests travel info:', error);
+    } catch (error: unknown) {
+      logger.error('Error recalculating active requests travel info:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -660,8 +666,8 @@ export class TravelService {
 
       return travelInfo;
 
-    } catch (error) {
-      logger.error('Error calculating and saving travel info:', error);
+    } catch (error: unknown) {
+      logger.error('Error calculating and saving travel info:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

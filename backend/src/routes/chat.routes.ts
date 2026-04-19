@@ -68,9 +68,9 @@ router.get('/:requestId/messages', authenticate, async (req: any, res: Response)
       'Messaggi recuperati con successo'
     ));
   } catch (error: any) {
-    logger.error('Error fetching chat messages:', error);
+    logger.error('Error fetching chat messages:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
-      error.message || 'Errore nel recupero dei messaggi',
+      error instanceof Error ? error.message : String(error) || 'Errore nel recupero dei messaggi',
       'FETCH_MESSAGES_ERROR'
     ));
   }
@@ -111,9 +111,9 @@ router.post('/:requestId/messages', authenticate, upload.array('attachments', 5)
       'Messaggio inviato con successo'
     ));
   } catch (error: any) {
-    logger.error('Error sending chat message:', error);
+    logger.error('Error sending chat message:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
-      error.message || 'Errore nell\'invio del messaggio',
+      error instanceof Error ? error.message : String(error) || 'Errore nell\'invio del messaggio',
       'SEND_MESSAGE_ERROR'
     ));
   }
@@ -140,9 +140,9 @@ router.put('/messages/:messageId', authenticate, async (req: any, res: Response)
       'Messaggio modificato con successo'
     ));
   } catch (error: any) {
-    logger.error('Error updating chat message:', error);
+    logger.error('Error updating chat message:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
-      error.message || 'Errore nella modifica del messaggio',
+      error instanceof Error ? error.message : String(error) || 'Errore nella modifica del messaggio',
       'UPDATE_MESSAGE_ERROR'
     ));
   }
@@ -164,9 +164,9 @@ router.delete('/messages/:messageId', authenticate, async (req: any, res: Respon
       'Messaggio eliminato con successo'
     ));
   } catch (error: any) {
-    logger.error('Error deleting chat message:', error);
+    logger.error('Error deleting chat message:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
-      error.message || 'Errore nell\'eliminazione del messaggio',
+      error instanceof Error ? error.message : String(error) || 'Errore nell\'eliminazione del messaggio',
       'DELETE_MESSAGE_ERROR'
     ));
   }
@@ -188,9 +188,9 @@ router.get('/:requestId/unread-count', authenticate, async (req: any, res: Respo
       'Conteggio messaggi non letti recuperato'
     ));
   } catch (error: any) {
-    logger.error('Error getting unread count:', error);
+    logger.error('Error getting unread count:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
-      error.message || 'Errore nel conteggio messaggi non letti',
+      error instanceof Error ? error.message : String(error) || 'Errore nel conteggio messaggi non letti',
       'UNREAD_COUNT_ERROR'
     ));
   }
@@ -212,9 +212,9 @@ router.post('/:requestId/mark-read', authenticate, async (req: any, res: Respons
       'Messaggi segnati come letti'
     ));
   } catch (error: any) {
-    logger.error('Error marking messages as read:', error);
+    logger.error('Error marking messages as read:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
-      error.message || 'Errore nel segnare i messaggi come letti',
+      error instanceof Error ? error.message : String(error) || 'Errore nel segnare i messaggi come letti',
       'MARK_READ_ERROR'
     ));
   }
@@ -237,9 +237,9 @@ router.get('/:requestId/access', authenticate, async (req: any, res: Response) =
       'Stato accesso chat verificato'
     ));
   } catch (error: any) {
-    logger.error('Error checking chat access:', error);
+    logger.error('Error checking chat access:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
-      error.message || 'Errore nella verifica accesso chat',
+      error instanceof Error ? error.message : String(error) || 'Errore nella verifica accesso chat',
       'ACCESS_CHECK_ERROR'
     ));
   }

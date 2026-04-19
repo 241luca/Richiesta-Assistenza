@@ -15,7 +15,7 @@ interface AuditLog {
   entityId?: string;
   success: boolean;
   ipAddress: string;
-  userAgent: string;
+  userAgent?: string;
   endpoint?: string;
   method?: string;
   responseTime?: number;
@@ -55,7 +55,7 @@ export default function AuditLogDetail({ log, isOpen, onClose }: Props) {
   };
 
   const getSeverityBadge = (severity: string) => {
-    const colors = {
+    const colors: Record<string, string> = {
       'CRITICAL': 'bg-red-100 text-red-800',
       'ERROR': 'bg-red-50 text-red-600',
       'WARNING': 'bg-yellow-50 text-yellow-600',

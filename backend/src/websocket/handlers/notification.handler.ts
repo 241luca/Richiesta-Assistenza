@@ -42,8 +42,8 @@ export function handleNotificationEvents(socket: AuthenticatedSocket, io: Server
         notifications,
         count: notifications.length
       });
-    } catch (error) {
-      logger.error('Error fetching unread notifications:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching unread notifications:', error instanceof Error ? error.message : String(error));
       socket.emit('error', { message: 'Failed to fetch notifications' });
     }
   });
@@ -86,8 +86,8 @@ export function handleNotificationEvents(socket: AuthenticatedSocket, io: Server
       });
 
       socket.emit('notification:unreadCount', { count: unreadCount });
-    } catch (error) {
-      logger.error('Error marking notification as read:', error);
+    } catch (error: unknown) {
+      logger.error('Error marking notification as read:', error instanceof Error ? error.message : String(error));
       socket.emit('error', { message: 'Failed to mark notification as read' });
     }
   });
@@ -110,8 +110,8 @@ export function handleNotificationEvents(socket: AuthenticatedSocket, io: Server
 
       socket.emit('notification:allMarked', { success: true });
       socket.emit('notification:unreadCount', { count: 0 });
-    } catch (error) {
-      logger.error('Error marking all notifications as read:', error);
+    } catch (error: unknown) {
+      logger.error('Error marking all notifications as read:', error instanceof Error ? error.message : String(error));
       socket.emit('error', { message: 'Failed to mark all notifications as read' });
     }
   });
@@ -147,8 +147,8 @@ export function handleNotificationEvents(socket: AuthenticatedSocket, io: Server
       });
 
       socket.emit('notification:unreadCount', { count: unreadCount });
-    } catch (error) {
-      logger.error('Error deleting notification:', error);
+    } catch (error: unknown) {
+      logger.error('Error deleting notification:', error instanceof Error ? error.message : String(error));
       socket.emit('error', { message: 'Failed to delete notification' });
     }
   });
@@ -167,8 +167,8 @@ export function handleNotificationEvents(socket: AuthenticatedSocket, io: Server
         pushNotifications: true,
         smsNotifications: false
       });
-    } catch (error) {
-      logger.error('Error fetching notification preferences:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching notification preferences:', error instanceof Error ? error.message : String(error));
       socket.emit('error', { message: 'Failed to fetch preferences' });
     }
   });
@@ -189,8 +189,8 @@ export function handleNotificationEvents(socket: AuthenticatedSocket, io: Server
       });
 
       socket.emit('notification:preferencesUpdated', updated);
-    } catch (error) {
-      logger.error('Error updating notification preferences:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating notification preferences:', error instanceof Error ? error.message : String(error));
       socket.emit('error', { message: 'Failed to update preferences' });
     }
   });
@@ -244,8 +244,8 @@ export async function sendNotificationToUser(
 
     logger.info(`Notification sent to user ${userId}: ${notification.title}`);
     return saved;
-  } catch (error) {
-    logger.error('Error sending notification:', error);
+  } catch (error: unknown) {
+    logger.error('Error sending notification:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -293,8 +293,8 @@ export async function broadcastNotificationToOrganization(
     });
 
     return notifications;
-  } catch (error) {
-    logger.error('Error broadcasting notification:', error);
+  } catch (error: unknown) {
+    logger.error('Error broadcasting notification:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -370,8 +370,8 @@ export async function sendNotificationToGroup(
 
     logger.info(`Notification sent to ${userIds.length} users: ${notification.title}`);
     return notifications;
-  } catch (error) {
-    logger.error('Error sending notification to group:', error);
+  } catch (error: unknown) {
+    logger.error('Error sending notification to group:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }

@@ -16,10 +16,10 @@ router.get('/config', async (req: Request, res: Response) => {
       data: config
     });
   } catch (error: any) {
-    logger.error('[SmartDocsConfig] GET /config failed', error);
+    logger.error('[SmartDocsConfig] GET /config failed', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -36,10 +36,10 @@ router.put('/config', async (req: Request, res: Response) => {
       data: config
     });
   } catch (error: any) {
-    logger.error('[SmartDocsConfig] PUT /config failed', error);
+    logger.error('[SmartDocsConfig] PUT /config failed', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -56,10 +56,10 @@ router.get('/config/categories', async (req: Request, res: Response) => {
       data: exclusions
     });
   } catch (error: any) {
-    logger.error('[SmartDocsConfig] GET /config/categories failed', error);
+    logger.error('[SmartDocsConfig] GET /config/categories failed', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -76,10 +76,10 @@ router.post('/config/categories', async (req: Request, res: Response) => {
       data: exclusion
     });
   } catch (error: any) {
-    logger.error('[SmartDocsConfig] POST /config/categories failed', error);
+    logger.error('[SmartDocsConfig] POST /config/categories failed', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -95,10 +95,10 @@ router.delete('/config/categories/:id', async (req: Request, res: Response) => {
       success: true
     });
   } catch (error: any) {
-    logger.error('[SmartDocsConfig] DELETE /config/categories/:id failed', error);
+    logger.error('[SmartDocsConfig] DELETE /config/categories/:id failed', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -115,10 +115,10 @@ router.get('/config/users', async (req: Request, res: Response) => {
       data: overrides
     });
   } catch (error: any) {
-    logger.error('[SmartDocsConfig] GET /config/users failed', error);
+    logger.error('[SmartDocsConfig] GET /config/users failed', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -138,10 +138,10 @@ router.get('/config/users/:userId/:userType', async (req: Request, res: Response
       data: override
     });
   } catch (error: any) {
-    logger.error('[SmartDocsConfig] GET /config/users/:userId/:userType failed', error);
+    logger.error('[SmartDocsConfig] GET /config/users/:userId/:userType failed', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -162,10 +162,10 @@ router.put('/config/users/:userId/:userType', async (req: Request, res: Response
       data: override
     });
   } catch (error: any) {
-    logger.error('[SmartDocsConfig] PUT /config/users/:userId/:userType failed', error);
+    logger.error('[SmartDocsConfig] PUT /config/users/:userId/:userType failed', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -184,10 +184,10 @@ router.delete('/config/users/:userId/:userType', async (req: Request, res: Respo
       success: true
     });
   } catch (error: any) {
-    logger.error('[SmartDocsConfig] DELETE /config/users/:userId/:userType failed', error);
+    logger.error('[SmartDocsConfig] DELETE /config/users/:userId/:userType failed', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -206,10 +206,10 @@ router.get('/config/entities', async (req: Request, res: Response) => {
       data: exclusions
     });
   } catch (error: any) {
-    logger.error('[SmartDocsConfig] GET /config/entities failed', error);
+    logger.error('[SmartDocsConfig] GET /config/entities failed', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -226,10 +226,10 @@ router.post('/config/entities', async (req: Request, res: Response) => {
       data: exclusion
     });
   } catch (error: any) {
-    logger.error('[SmartDocsConfig] POST /config/entities failed', error);
+    logger.error('[SmartDocsConfig] POST /config/entities failed', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -245,10 +245,10 @@ router.delete('/config/entities/:id', async (req: Request, res: Response) => {
       success: true
     });
   } catch (error: any) {
-    logger.error('[SmartDocsConfig] DELETE /config/entities/:id failed', error);
+    logger.error('[SmartDocsConfig] DELETE /config/entities/:id failed', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -265,10 +265,10 @@ router.post('/config/check-sync', async (req: Request, res: Response) => {
       data: { enabled }
     });
   } catch (error: any) {
-    logger.error('[SmartDocsConfig] POST /config/check-sync failed', error);
+    logger.error('[SmartDocsConfig] POST /config/check-sync failed', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -288,10 +288,10 @@ router.get('/config/user-config/:userId/:userType', async (req: Request, res: Re
       data: config
     });
   } catch (error: any) {
-    logger.error('[SmartDocsConfig] GET /config/user-config/:userId/:userType failed', error);
+    logger.error('[SmartDocsConfig] GET /config/user-config/:userId/:userType failed', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 });

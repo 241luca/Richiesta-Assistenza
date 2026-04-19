@@ -13,6 +13,12 @@ interface ChatMessage {
   senderName: string;
   senderRole: string;
   createdAt: string;
+  attachments?: Array<{
+    name: string;
+    size: number;
+    type: string;
+    url?: string;
+  }>;
 }
 
 export default function RequestChat() {

@@ -16,7 +16,8 @@
 
 import { prisma } from '../config/database';
 import { notificationService } from './notification.service';
-import { googleMapsService } from './googleMaps.service';
+import { GoogleMapsService } from './googleMaps.service';
+const googleMapsService = new GoogleMapsService();
 import { logger } from '../utils/logger';
 import { auditLogService } from './auditLog.service';
 
@@ -110,15 +111,15 @@ export class LocationService {
           }
         },
         include: {
-          client: {
+          User_AssistanceRequest_clientIdToUser: {
             select: {
               id: true,
               firstName: true,
               lastName: true,
-              notificationPreference: true
+              NotificationPreference: true
             }
           }
-        }
+        } as any
       });
 
       logger.info(`[LocationService] Found ${activeRequests.length} active requests for professional ${professionalId}`);
@@ -159,9 +160,9 @@ export class LocationService {
 
       return location;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[LocationService] Error updating professional location:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         professionalId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -257,9 +258,9 @@ export class LocationService {
         distance: `${(eta.distance / 1000).toFixed(1)} km`
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[LocationService] Error processing location update for request:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         requestId: request.id,
         professionalId
       });
@@ -323,9 +324,9 @@ export class LocationService {
         professional: professional.firstName
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[LocationService] Error handling professional arriving:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         requestId: request.id
       });
     }
@@ -385,9 +386,9 @@ export class LocationService {
         professional: professional.firstName
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[LocationService] Error handling professional nearby:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         requestId: request.id
       });
     }
@@ -430,13 +431,13 @@ export class LocationService {
         throw new Error(`Google Maps API error: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
       
       if (data.status !== 'OK') {
         throw new Error(`Google Maps API status: ${data.status}`);
       }
 
-      const element = data.rows[0]?.elements[0];
+      const element = data.rows?.[0]?.elements?.[0];
 
       if (!element || element.status !== 'OK') {
         logger.warn('[LocationService] Google Maps could not calculate route', {
@@ -463,9 +464,9 @@ export class LocationService {
 
       return eta;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[LocationService] Error calculating ETA:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         from,
         to,
         stack: error instanceof Error ? error.stack : undefined

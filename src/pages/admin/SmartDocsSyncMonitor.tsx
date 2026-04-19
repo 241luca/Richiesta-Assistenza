@@ -318,7 +318,7 @@ export default function SmartDocsSyncMonitor() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredJobs.map((job) => (
+                  {filteredJobs.map((job: any) => (
                     <tr key={job.id} className="border-b hover:bg-gray-50">
                       <td className="p-3">
                         <div className="flex items-center gap-2">
@@ -327,7 +327,7 @@ export default function SmartDocsSyncMonitor() {
                         </div>
                       </td>
                       <td className="p-3">
-                        <Badge variant="outline">{job.entity_type}</Badge>
+                        <Badge variant="info">{job.entity_type}</Badge>
                       </td>
                       <td className="p-3 font-mono text-sm">{job.entity_id}</td>
                       <td className="p-3">
@@ -363,12 +363,12 @@ export default function SmartDocsSyncMonitor() {
           )}
 
           {/* Error messages */}
-          {filteredJobs.some(j => j.status === 'failed') && (
+          {filteredJobs.some((j: any) => j.status === 'failed') && (
             <div className="mt-4 space-y-2">
               <h4 className="font-semibold text-sm">Errori:</h4>
               {filteredJobs
-                .filter(j => j.status === 'failed' && j.error_message)
-                .map(job => (
+                .filter((j: any) => j.status === 'failed' && j.error_message)
+                .map((job: any) => (
                   <Alert key={job.id} variant="destructive">
                     <AlertDescription>
                       <span className="font-mono text-xs">{job.entity_id}</span>: {job.error_message}

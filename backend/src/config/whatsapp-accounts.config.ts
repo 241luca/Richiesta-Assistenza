@@ -54,8 +54,8 @@ export async function sendFromSpecificAccount(
   try {
     await multiAccountService.sendMessage(accountName, recipient, message);
     logger.info(`✅ Messaggio inviato da ${accountName}`);
-  } catch (error) {
-    logger.error(`❌ Errore invio da ${accountName}:`, error);
+  } catch (error: unknown) {
+    logger.error(`❌ Errore invio da ${accountName}:`, error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -63,7 +63,7 @@ export async function sendFromSpecificAccount(
  * Esempio: Broadcast a tutti gli account
  */
 export async function broadcastToAllAccounts(recipient: string, message: string) {
-  const accounts = multiAccountService.getAllAccountsStatus();
+  const accounts = await multiAccountService.getAllAccountsStatus();
   
   for (const account of accounts) {
     if (account.isConnected) {
@@ -73,8 +73,8 @@ export async function broadcastToAllAccounts(recipient: string, message: string)
           recipient, 
           `[${account.description}] ${message}`
         );
-      } catch (error) {
-        logger.error(`Errore broadcast da ${account.sessionName}:`, error);
+      } catch (error: unknown) {
+        logger.error(`Errore broadcast da ${account.sessionName}:`, error instanceof Error ? error.message : String(error));
       }
     }
   }

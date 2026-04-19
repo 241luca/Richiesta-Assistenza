@@ -432,12 +432,8 @@ export class KnowledgeGraphService {
       }
     }
 
-    // Default: related if same type or high combined importance
-    if (entity1.type === entity2.type || 
-        entity1.importance + entity2.importance > 1.0) {
-      return 'related_to';
-    }
-
+    // ✅ DISABLED: No generic relationships (related_to, similar_to)
+    // Only explicit pattern-based relationships are created
     return null;
   }
 
@@ -472,60 +468,104 @@ export class KnowledgeGraphService {
     relationships: Relationship[]
   ): Promise<void> {
     try {
-      // Save entities
+      // Map extraction entity IDs to actual database entity IDs
+      const entityIdMap = new Map<string, string>();
+
+      // Save entities WITH ALL AVAILABLE FIELDS
       for (const entity of entities) {
-        await this.db.query(
+        const result = await this.db.query(
           `INSERT INTO smartdocs.kg_entities (
-            id, document_id, name, normalized_name, type, 
-            importance, confidence, aliases, frequency,
-            document_ids, chunk_ids
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            id, document_id, name, normalized_name, type, importance, confidence,
+            aliases, canonical_form, description, definition, document_ids, chunk_ids,
+            frequency, first_occurrence_position, properties, attributes, related_entity_ids,
+            is_canonical, canonical_entity_id, merged_from_ids, first_seen, last_seen,
+            created_at, updated_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, NOW(), NOW(), NOW(), NOW()
+          )
           ON CONFLICT (document_id, normalized_name, type) 
           DO UPDATE SET
             importance = GREATEST(EXCLUDED.importance, smartdocs.kg_entities.importance),
             frequency = smartdocs.kg_entities.frequency + 1,
-            last_seen = NOW()`,
+            last_seen = NOW()
+          RETURNING id`,
           [
-            entity.id,
-            documentId,
-            entity.name,
-            entity.normalizedName,
-            entity.type,
-            entity.importance,
-            entity.confidence,
-            entity.aliases,
-            entity.frequency,
-            entity.documentIds,
-            entity.chunkIds
+            entity.id,                                     // id
+            documentId,                                    // document_id
+            entity.name,                                   // name
+            entity.normalizedName,                         // normalized_name
+            entity.type,                                   // type
+            entity.importance,                             // importance
+            entity.confidence,                             // confidence
+            entity.aliases,                                // aliases (text[] ARRAY - NO JSON.stringify!)
+            entity.name,                                   // canonical_form (use original name)
+            null,                                          // description
+            null,                                          // definition
+            entity.documentIds,                            // document_ids (text[] ARRAY - NO JSON.stringify!)
+            entity.chunkIds,                               // chunk_ids (text[] ARRAY - NO JSON.stringify!)
+            entity.frequency,                              // frequency
+            0,                                             // first_occurrence_position
+            JSON.stringify({}),                            // properties (JSONB)
+            JSON.stringify({}),                            // attributes (JSONB)
+            [],                                            // related_entity_ids (text[] ARRAY - empty for now)
+            true,                                          // is_canonical
+            null,                                          // canonical_entity_id
+            []                                             // merged_from_ids (text[] ARRAY - empty for now)
           ]
         );
+
+        // Map the extraction ID to the actual database ID
+        if (result.rows && result.rows.length > 0) {
+          entityIdMap.set(entity.id, result.rows[0].id);
+        }
       }
 
-      // Save relationships
+      // Save relationships WITH ALL AVAILABLE FIELDS using mapped entity IDs
       for (const rel of relationships) {
+        // Get the actual database IDs for both entities
+        const actualEntity1Id = entityIdMap.get(rel.entity1Id) || rel.entity1Id;
+        const actualEntity2Id = entityIdMap.get(rel.entity2Id) || rel.entity2Id;
+
+        // Verify both entities exist before trying to create relationship
+        if (!entityIdMap.has(rel.entity1Id) || !entityIdMap.has(rel.entity2Id)) {
+          logger.warn(`[KnowledgeGraph] Skipping relationship ${rel.id}: entity not found in map (entity1: ${rel.entity1Id}, entity2: ${rel.entity2Id})`);
+          continue;
+        }
+
+        // ✅ Skip self-referential relationships (violates no_self_relationship constraint)
+        if (actualEntity1Id === actualEntity2Id) {
+          logger.debug(`[KnowledgeGraph] Skipping self-referential relationship: ${actualEntity1Id} -> ${actualEntity2Id}`);
+          continue;
+        }
+
         await this.db.query(
           `INSERT INTO smartdocs.kg_relationships (
-            id, document_id, entity1_id, entity2_id, 
-            relationship_type, strength, confidence,
-            is_bidirectional, evidence, supporting_documents, frequency
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            id, document_id, entity1_id, entity2_id, relationship_type, strength, confidence,
+            is_bidirectional, evidence, supporting_documents, frequency, context, reason,
+            properties, first_observed, last_observed, created_at, updated_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW(), NOW(), NOW()
+          )
           ON CONFLICT (entity1_id, entity2_id, relationship_type)
           DO UPDATE SET
             frequency = smartdocs.kg_relationships.frequency + 1,
             strength = GREATEST(EXCLUDED.strength, smartdocs.kg_relationships.strength),
             last_observed = NOW()`,
           [
-            rel.id,
-            documentId,
-            rel.entity1Id,
-            rel.entity2Id,
-            rel.relationshipType,
-            rel.strength,
-            rel.confidence,
-            rel.isBidirectional,
-            rel.evidence,
-            rel.supportingDocuments,
-            rel.frequency
+            rel.id,                           // id
+            documentId,                       // document_id
+            actualEntity1Id,                  // entity1_id (use mapped ID)
+            actualEntity2Id,                  // entity2_id (use mapped ID)
+            rel.relationshipType,             // relationship_type
+            rel.strength,                     // strength
+            rel.confidence,                   // confidence
+            rel.isBidirectional,              // is_bidirectional
+            rel.evidence,                     // evidence (text[] array)
+            rel.supportingDocuments,          // supporting_documents (text[] array)
+            rel.frequency,                    // frequency
+            null,                             // context
+            null,                             // reason
+            JSON.stringify({})                // properties (JSONB)
           ]
         );
       }

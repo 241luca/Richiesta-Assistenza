@@ -119,12 +119,12 @@ async function geocodeAllRequests() {
         await new Promise(resolve => setTimeout(resolve, 200));
 
       } catch (error: any) {
-        console.log(`${progress} ❌ ERROR - ${error.message || 'Errore sconosciuto'}`);
+        console.log(`${progress} ❌ ERROR - ${error instanceof Error ? error.message : String(error) || 'Errore sconosciuto'}`);
         stats.failed++;
         stats.errors.push({
           id: request.id,
           address: fullAddress,
-          error: error.message || 'Errore sconosciuto'
+          error: error instanceof Error ? error.message : String(error) || 'Errore sconosciuto'
         });
       }
     }
@@ -151,7 +151,7 @@ async function geocodeAllRequests() {
 
     return stats;
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('\n❌ ERRORE CRITICO:', error);
     throw error;
   } finally {

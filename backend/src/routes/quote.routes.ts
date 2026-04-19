@@ -203,9 +203,9 @@ router.get(
           },
         })
       );
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('Error in GET /api/quotes:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
+      logger.error('Error in GET /api/quotes:', error instanceof Error ? error.message : String(error));
       res
         .status(500)
         .json(
@@ -317,8 +317,8 @@ router.post(
       return res
         .status(201)
         .json(ResponseFormatter.success(quote, 'Preventivo creato con successo'));
-    } catch (error) {
-      logger.error('Error creating quote:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating quote:', error instanceof Error ? error.message : String(error));
       next(error);
     }
   }
@@ -420,8 +420,8 @@ router.get(
       };
 
       res.json(ResponseFormatter.success(transformedQuote));
-    } catch (error) {
-      logger.error('Error in GET /api/quotes/:id:', error);
+    } catch (error: unknown) {
+      logger.error('Error in GET /api/quotes/:id:', error instanceof Error ? error.message : String(error));
       res
         .status(500)
         .json(
@@ -538,12 +538,12 @@ router.put(
       return res.json(
         ResponseFormatter.success(updatedQuote, 'Preventivo aggiornato con successo')
       );
-    } catch (error) {
-      logger.error('Error updating quote:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating quote:', error instanceof Error ? error.message : String(error));
       if (error instanceof AppError) {
         return res
           .status(error.statusCode)
-          .json(ResponseFormatter.error(error.message, error.code || 'UPDATE_ERROR'));
+          .json(ResponseFormatter.error(error instanceof Error ? error.message : String(error), error.code || 'UPDATE_ERROR'));
       }
       return res
         .status(500)
@@ -675,8 +675,8 @@ router.delete(
           'Preventivo cancellato con successo'
         )
       );
-    } catch (error) {
-      logger.error('Error deleting quote:', error);
+    } catch (error: unknown) {
+      logger.error('Error deleting quote:', error instanceof Error ? error.message : String(error));
       res
         .status(500)
         .json(
@@ -748,8 +748,8 @@ router.get(
           'Cronologia revisioni recuperata con successo'
         )
       );
-    } catch (error) {
-      logger.error('Error fetching quote revisions:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching quote revisions:', error instanceof Error ? error.message : String(error));
       res
         .status(500)
         .json(
@@ -877,8 +877,8 @@ router.post(
       return res.json(
         ResponseFormatter.success(updatedQuote, 'Preventivo accettato con successo!')
       );
-    } catch (error) {
-      logger.error('Error accepting quote:', error);
+    } catch (error: unknown) {
+      logger.error('Error accepting quote:', error instanceof Error ? error.message : String(error));
       return res
         .status(500)
         .json(
@@ -1008,8 +1008,8 @@ router.post(
       return res.json(
         ResponseFormatter.success(updatedQuote, 'Preventivo rifiutato')
       );
-    } catch (error) {
-      logger.error('Error rejecting quote:', error);
+    } catch (error: unknown) {
+      logger.error('Error rejecting quote:', error instanceof Error ? error.message : String(error));
       return res
         .status(500)
         .json(
@@ -1088,8 +1088,8 @@ router.get('/:id/pdf', authenticate, async (req: AuthRequest, res: Response) => 
         }
       }, 5000);
     });
-  } catch (error) {
-    logger.error('Error generating quote PDF:', error);
+  } catch (error: unknown) {
+    logger.error('Error generating quote PDF:', error instanceof Error ? error.message : String(error));
     res
       .status(500)
       .json(ResponseFormatter.error('Error generating PDF', 'PDF_ERROR'));

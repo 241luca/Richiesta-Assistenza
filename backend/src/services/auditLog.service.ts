@@ -74,7 +74,7 @@ class AuditLogService {
       await this.checkAlerts(auditLog);
 
       return auditLog;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ AUDIT LOG ERROR - DETTAGLIO COMPLETO:');
       console.error('Error object:', error);
       console.error('Data che stava cercando di salvare:', JSON.stringify(data, null, 2));
@@ -145,7 +145,7 @@ class AuditLogService {
           await this.triggerAlert(alert, log);
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error checking alerts:', error);
     }
   }

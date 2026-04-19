@@ -29,9 +29,9 @@ router.post('/polling/start', async (req, res) => {
     }, 'Polling avviato'));
     
   } catch (error: any) {
-    logger.error('Errore avvio polling:', error);
+    logger.error('Errore avvio polling:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore avvio polling', 'POLLING_START_ERROR')
+      ResponseFormatter.error(error instanceof Error ? error.message : String(error) || 'Errore avvio polling', 'POLLING_START_ERROR')
     );
   }
 });
@@ -51,9 +51,9 @@ router.post('/polling/stop', async (req, res) => {
     }, 'Polling fermato'));
     
   } catch (error: any) {
-    logger.error('Errore stop polling:', error);
+    logger.error('Errore stop polling:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore stop polling', 'POLLING_STOP_ERROR')
+      ResponseFormatter.error(error instanceof Error ? error.message : String(error) || 'Errore stop polling', 'POLLING_STOP_ERROR')
     );
   }
 });
@@ -75,9 +75,9 @@ router.post('/polling/check', async (req, res) => {
     }, 'Controllo eseguito'));
     
   } catch (error: any) {
-    logger.error('Errore controllo messaggi:', error);
+    logger.error('Errore controllo messaggi:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore controllo messaggi', 'CHECK_ERROR')
+      ResponseFormatter.error(error instanceof Error ? error.message : String(error) || 'Errore controllo messaggi', 'CHECK_ERROR')
     );
   }
 });
@@ -96,9 +96,9 @@ router.get('/polling/status', async (req, res) => {
     ));
     
   } catch (error: any) {
-    logger.error('Errore stato polling:', error);
+    logger.error('Errore stato polling:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
-      ResponseFormatter.error(error.message || 'Errore stato polling', 'STATUS_ERROR')
+      ResponseFormatter.error(error instanceof Error ? error.message : String(error) || 'Errore stato polling', 'STATUS_ERROR')
     );
   }
 });

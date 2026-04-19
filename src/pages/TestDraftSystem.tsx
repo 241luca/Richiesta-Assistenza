@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { useFormDraft } from '../hooks/useFormDraft';
+import { useFormDraft, DraftData } from '../hooks/useFormDraft';
 import { DraftBanner, DraftIndicator } from '../components/drafts';
 
 export default function TestDraftSystem() {
@@ -15,7 +15,7 @@ export default function TestDraftSystem() {
   });
   
   const [showBanner, setShowBanner] = useState(false);
-  const [draft, setDraft] = useState(null);
+  const [draft, setDraft] = useState<DraftData<any> | null>(null);
 
   // Test del hook useFormDraft
   const { loadDraft, clearDraft, hasDraft, getDraftInfo } = useFormDraft(
@@ -65,7 +65,7 @@ export default function TestDraftSystem() {
       {showBanner && draft && getDraftInfo() && (
         <div className="mb-6">
           <DraftBanner
-            draftInfo={getDraftInfo()}
+            draftInfo={getDraftInfo()!}
             onRestore={handleRestore}
             onDismiss={handleDismiss}
           />
@@ -129,7 +129,7 @@ export default function TestDraftSystem() {
         </p>
         {getDraftInfo() && (
           <p className="text-sm text-gray-600">
-            <strong>Draft Info:</strong> {getDraftInfo().fieldsCount} campi, salvato {getDraftInfo().timeAgo}
+            <strong>Draft Info:</strong> {getDraftInfo()!.fieldsCount} campi, salvato {getDraftInfo()!.timeAgo}
           </p>
         )}
       </div>

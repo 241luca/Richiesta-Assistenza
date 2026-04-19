@@ -79,7 +79,7 @@ export class SmartDocsClientService {
         return config;
       },
       (error) => {
-        logger.error('[SmartDocs] Request error', error);
+        logger.error('[SmartDocs] Request error', error instanceof Error ? error.message : String(error));
         return Promise.reject(error);
       }
     );
@@ -96,7 +96,7 @@ export class SmartDocsClientService {
       (error) => {
         logger.error('[SmartDocs] Response error', {
           status: error.response?.status,
-          message: error.message,
+          message: error instanceof Error ? error.message : String(error),
           url: error.config?.url
         });
         return Promise.reject(error);
@@ -122,8 +122,8 @@ export class SmartDocsClientService {
       });
       this.enabled = module?.isEnabled ?? false;
       logger.info('[SmartDocs] Module status checked', { enabled: this.enabled });
-    } catch (error) {
-      logger.error('[SmartDocs] Error checking module status:', error);
+    } catch (error: unknown) {
+      logger.error('[SmartDocs] Error checking module status:', error instanceof Error ? error.message : String(error));
       this.enabled = false;
     }
   }
@@ -143,8 +143,8 @@ export class SmartDocsClientService {
     try {
       const response = await this.client.get('/health');
       return response.data;
-    } catch (error) {
-      logger.error('[SmartDocs] Health check failed', error);
+    } catch (error: unknown) {
+      logger.error('[SmartDocs] Health check failed', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -252,7 +252,7 @@ export class SmartDocsClientService {
       return response.data.data;
     } catch (error: any) {
       logger.error('[SmartDocs] Failed to ingest document', {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         type: params.type,
         title: params.title
       });
@@ -275,7 +275,7 @@ export class SmartDocsClientService {
       return response.data.data;
     } catch (error: any) {
       logger.error('[SmartDocs] Query failed', {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         question: params.question
       });
       throw error;

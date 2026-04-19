@@ -17,7 +17,7 @@ router.get('/config', authenticate, async (req: any, res) => {
       config,
       'Configurazione recuperata con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero configurazione:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero della configurazione',
@@ -35,7 +35,7 @@ router.put('/config', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async
       config,
       'Configurazione aggiornata con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore aggiornamento configurazione:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento della configurazione',
@@ -55,7 +55,7 @@ router.get('/field-types', authenticate, async (req: any, res) => {
       fieldTypes,
       'Tipi campo recuperati con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero tipi campo:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero dei tipi campo',
@@ -78,7 +78,7 @@ router.post('/field-types', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']),
     
     if (error.statusCode === 400) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'FIELD_TYPE_VALIDATION_ERROR'
       ));
     }
@@ -99,7 +99,7 @@ router.put('/field-types/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN'
       fieldType,
       'Tipo campo aggiornato con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore aggiornamento tipo campo:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento del tipo campo',
@@ -122,14 +122,14 @@ router.delete('/field-types/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADM
     
     if (error.statusCode === 403) {
       return res.status(403).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'FIELD_TYPE_DELETE_FORBIDDEN'
       ));
     }
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'FIELD_TYPE_NOT_FOUND'
       ));
     }
@@ -152,7 +152,7 @@ router.get('/statuses', authenticate, async (req: any, res) => {
       statuses,
       'Stati recuperati con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero stati:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero degli stati',
@@ -175,7 +175,7 @@ router.post('/statuses', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), as
     
     if (error.statusCode === 400) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'STATUS_VALIDATION_ERROR'
       ));
     }
@@ -196,7 +196,7 @@ router.put('/statuses/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']),
       status,
       'Stato aggiornato con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore aggiornamento stato:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento dello stato',
@@ -216,7 +216,7 @@ router.get('/types', authenticate, async (req: any, res) => {
       types,
       'Tipi intervento recuperati con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero tipi intervento:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero dei tipi intervento',
@@ -253,7 +253,7 @@ router.put('/types/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), as
       type,
       'Tipo intervento aggiornato con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore aggiornamento tipo intervento:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento del tipo intervento',
@@ -273,7 +273,7 @@ router.get('/sections', authenticate, async (req: any, res) => {
       sections,
       'Sezioni recuperate con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero sezioni:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle sezioni',
@@ -310,7 +310,7 @@ router.put('/sections/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']),
       section,
       'Sezione aggiornata con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore aggiornamento sezione:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento della sezione',

@@ -97,7 +97,7 @@ class PaymentListService {
               }
             },
             refunds: true,
-          },
+          } as any,
           orderBy: {
             createdAt: 'desc'
           },
@@ -113,8 +113,8 @@ class PaymentListService {
         limit: filters.limit || 50,
         offset: filters.offset || 0
       };
-    } catch (error) {
-      logger.error('Error getting payments:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting payments:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

@@ -283,9 +283,9 @@ export default function DocumentNotificationsPage() {
                     <label className="block text-sm font-medium text-gray-700">Corpo del Messaggio</label>
                     <div className="text-xs text-gray-500">
                       Variabili disponibili: 
-                      <button type="button" onClick={() => addVariable('userName')} className="ml-2 text-blue-600 hover:text-blue-800">{{userName}}</button>
-                      <button type="button" onClick={() => addVariable('documentName')} className="ml-2 text-blue-600 hover:text-blue-800">{{documentName}}</button>
-                      <button type="button" onClick={() => addVariable('date')} className="ml-2 text-blue-600 hover:text-blue-800">{{date}}</button>
+                      <button type="button" onClick={() => addVariable('userName')} className="ml-2 text-blue-600 hover:text-blue-800">{'{userName}'}</button>
+                      <button type="button" onClick={() => addVariable('documentName')} className="ml-2 text-blue-600 hover:text-blue-800">{'{documentName}'}</button>
+                      <button type="button" onClick={() => addVariable('date')} className="ml-2 text-blue-600 hover:text-blue-800">{'{date}'}</button>
                     </div>
                   </div>
                   <textarea

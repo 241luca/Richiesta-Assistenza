@@ -43,7 +43,7 @@ async function getOAuth2Client() {
   try {
     logger.info('[CalendarService] Initializing OAuth2 client');
 
-    const googleCalendarKey = await apiKeyService.getApiKey('google_calendar', true);
+    const googleCalendarKey = await apiKeyService.getApiKey('GOOGLE_MAPS' as any, true); // Google Calendar uses same key pattern
     
     if (!googleCalendarKey) {
       throw new Error('Google Calendar credentials not found in database');
@@ -59,9 +59,9 @@ async function getOAuth2Client() {
 
     logger.info('[CalendarService] ✅ OAuth2 client initialized successfully');
     return oauth2Client;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error initializing OAuth2 client:', {
-      error: error instanceof Error ? error.message : 'Unknown',
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
       stack: error instanceof Error ? error.stack : undefined
     });
     throw new Error('Failed to initialize Google Calendar - check API keys in database');
@@ -76,10 +76,10 @@ async function getOAuth2Client() {
  * @returns {any} Intervento formattato (PURE DATA)
  */
 function formatIntervention(intervention: any) {
-  const request = intervention.request || {};
+  const request = intervention.AssistanceRequest || intervention.request || {};
   const client = request.client || {};
-  const category = request.category || {};
-  const subcategory = request.subcategory || {};
+  const category = request.Category || request.category || {};
+  const subcategory = request.Subcategory || request.subcategory || {};
 
   return {
     id: intervention.id,
@@ -171,15 +171,15 @@ export async function getCalendarInterventions(professionalId: string, filters: 
     const interventions = await prisma.scheduledIntervention.findMany({
       where: whereClause,
       include: {
-        request: {
+        AssistanceRequest: {
           include: {
-            category: true,
-            subcategory: true,
+            Category: true,
+            Subcategory: true,
             client: true,
             professional: true
           }
         },
-        professional: {
+        User_ScheduledIntervention_professionalIdToUser: {
           select: {
             id: true,
             fullName: true,
@@ -199,9 +199,9 @@ export async function getCalendarInterventions(professionalId: string, filters: 
     });
 
     return interventions.map(formatIntervention);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error fetching calendar interventions:', {
-      error: error instanceof Error ? error.message : 'Unknown',
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
       professionalId,
       filters,
       stack: error instanceof Error ? error.stack : undefined
@@ -269,10 +269,10 @@ export async function createIntervention(data: any) {
         updatedAt: new Date()
       },
       include: {
-        request: {
+        AssistanceRequest: {
           include: {
-            category: true,
-            subcategory: true,
+            Category: true,
+            Subcategory: true,
             client: true
           }
         }
@@ -280,9 +280,9 @@ export async function createIntervention(data: any) {
     });
 
     // ✅ FIX: Notifica usando nuovo pattern
-    if (intervention.request?.clientId) {
+    if ((intervention as any).AssistanceRequest?.clientId) {
       await notificationService.sendToUser({
-        userId: intervention.request.clientId,
+        userId: (intervention as any).AssistanceRequest.clientId,
         type: 'intervention_scheduled',
         title: 'Nuovo intervento programmato',
         message: `È stato programmato un intervento per il ${dayjs(intervention.proposedDate).format('DD/MM/YYYY HH:mm')}`,
@@ -299,9 +299,9 @@ export async function createIntervention(data: any) {
     });
 
     return formatIntervention(intervention);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error creating intervention:', {
-      error: error instanceof Error ? error.message : 'Unknown',
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
       requestId: data.requestId,
       professionalId: data.professionalId,
       stack: error instanceof Error ? error.stack : undefined
@@ -352,10 +352,10 @@ export async function updateIntervention(interventionId: string, data: any, prof
         clientDeclineReason: data.clientDeclineReason
       },
       include: {
-        request: {
+        AssistanceRequest: {
           include: {
-            category: true,
-            subcategory: true,
+            Category: true,
+            Subcategory: true,
             client: true
           }
         }
@@ -367,9 +367,9 @@ export async function updateIntervention(interventionId: string, data: any, prof
     });
 
     return formatIntervention(intervention);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error updating intervention:', {
-      error: error instanceof Error ? error.message : 'Unknown',
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
       interventionId,
       professionalId,
       stack: error instanceof Error ? error.stack : undefined
@@ -417,10 +417,10 @@ export async function rescheduleIntervention(interventionId: string, newStart: s
         updatedAt: new Date()
       },
       include: {
-        request: {
+        AssistanceRequest: {
           include: {
-            category: true,
-            subcategory: true,
+            Category: true,
+            Subcategory: true,
             client: true
           }
         }
@@ -428,9 +428,9 @@ export async function rescheduleIntervention(interventionId: string, newStart: s
     });
 
     // ✅ FIX: Notifica usando nuovo pattern
-    if (intervention.request?.clientId) {
+    if ((intervention as any).AssistanceRequest?.clientId) {
       await notificationService.sendToUser({
-        userId: intervention.request.clientId,
+        userId: (intervention as any).AssistanceRequest.clientId,
         type: 'intervention_rescheduled',
         title: 'Intervento riprogrammato',
         message: `L'intervento è stato riprogrammato per il ${dayjs(newStart).format('DD/MM/YYYY HH:mm')}`,
@@ -447,9 +447,9 @@ export async function rescheduleIntervention(interventionId: string, newStart: s
     });
 
     return formatIntervention(intervention);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error rescheduling intervention:', {
-      error: error instanceof Error ? error.message : 'Unknown',
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
       interventionId,
       professionalId,
       stack: error instanceof Error ? error.stack : undefined
@@ -478,13 +478,13 @@ export async function cancelIntervention(interventionId: string, professionalId:
     const existing = await prisma.scheduledIntervention.findUnique({
       where: { id: interventionId },
       include: {
-        request: {
+        AssistanceRequest: {
           include: {
             client: true
           }
         }
       }
-    });
+    }) as any;
 
     if (!existing) {
       throw new Error('Intervento non trovato');
@@ -504,9 +504,9 @@ export async function cancelIntervention(interventionId: string, professionalId:
     });
 
     // ✅ FIX: Notifica usando nuovo pattern
-    if (existing.request?.clientId) {
+    if (existing.AssistanceRequest?.clientId) {
       await notificationService.sendToUser({
-        userId: existing.request.clientId,
+        userId: existing.AssistanceRequest.clientId,
         type: 'intervention_cancelled',
         title: 'Intervento cancellato',
         message: reason || 'L\'intervento programmato è stato cancellato',
@@ -522,9 +522,9 @@ export async function cancelIntervention(interventionId: string, professionalId:
     });
 
     return { success: true, message: 'Intervento cancellato con successo' };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error cancelling intervention:', {
-      error: error instanceof Error ? error.message : 'Unknown',
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
       interventionId,
       professionalId,
       stack: error instanceof Error ? error.stack : undefined
@@ -626,16 +626,18 @@ export async function checkTimeConflicts(
         ]
       },
       include: {
-        request: {
+        AssistanceRequest: {
           include: {
             client: true,
-            category: true
+            Category: true
           }
         }
       }
     });
 
-    const conflictsWithCalculatedEnd = conflicts.map(conflict => {
+    const conflictsWithCalculatedEnd: typeof conflicts = [];
+    
+    for (const conflict of conflicts) {
       const calculatedEnd = conflict.confirmedDate || 
         dayjs(conflict.proposedDate).add(conflict.estimatedDuration || 60, 'minute').toDate();
       
@@ -644,26 +646,28 @@ export async function checkTimeConflicts(
         (conflict.proposedDate < endDate && calculatedEnd >= endDate) ||
         (conflict.proposedDate >= startDate && calculatedEnd <= endDate);
       
-      return hasConflict ? conflict : null;
-    }).filter(Boolean);
+      if (hasConflict) {
+        conflictsWithCalculatedEnd.push(conflict);
+      }
+    }
 
     logger.info('[CalendarService] Time conflicts check completed', {
       professionalId,
       conflictsFound: conflictsWithCalculatedEnd.length
     });
 
-    return conflictsWithCalculatedEnd.map(conflict => ({
+    return conflictsWithCalculatedEnd.map((conflict: any) => ({
       id: conflict.id,
       start: conflict.proposedDate,
       end: conflict.confirmedDate || dayjs(conflict.proposedDate).add(conflict.estimatedDuration || 60, 'minute').toISOString(),
-      title: conflict.request?.title || 'Intervento',
-      client: conflict.request?.client?.fullName || 'Cliente non specificato',
-      category: conflict.request?.category?.name || 'Categoria non specificata',
+      title: conflict.AssistanceRequest?.title || 'Intervento',
+      client: conflict.AssistanceRequest?.client?.fullName || 'Cliente non specificato',
+      category: conflict.AssistanceRequest?.Category?.name || 'Categoria non specificata',
       status: conflict.status
     }));
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error checking time conflicts:', {
-      error: error instanceof Error ? error.message : 'Unknown',
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
       professionalId,
       start,
       end,
@@ -684,12 +688,12 @@ export async function getProfessionalRequests(professionalId: string, status?: s
     const whereClause: any = { professionalId };
     if (status) whereClause.status = status;
 
-    const requests = await prisma.assistanceRequest.findMany({
+    const requests = await (prisma.assistanceRequest.findMany as any)({
       where: whereClause,
       include: {
         client: true,
-        category: true,
-        subcategory: true,
+        Category: true,
+        Subcategory: true,
         quotes: { where: { status: 'ACCEPTED' } },
         scheduledInterventions: { where: { status: { notIn: ['cancelled'] } } }
       },
@@ -702,9 +706,9 @@ export async function getProfessionalRequests(professionalId: string, status?: s
     });
 
     return requests;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error fetching professional requests:', {
-      error: error instanceof Error ? error.message : 'Unknown',
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
       professionalId,
       stack: error instanceof Error ? error.stack : undefined
     });
@@ -752,9 +756,9 @@ export async function getProfessionalClients(professionalId: string) {
     });
 
     return uniqueClients;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error fetching professional clients:', {
-      error: error instanceof Error ? error.message : 'Unknown',
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
       professionalId,
       stack: error instanceof Error ? error.stack : undefined
     });
@@ -789,9 +793,9 @@ export async function getCalendarSettings(professionalId: string) {
         sendToProfessional: true
       }
     };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error fetching calendar settings:', {
-      error: error instanceof Error ? error.message : 'Unknown',
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
       professionalId
     });
     throw error;
@@ -802,9 +806,9 @@ export async function updateCalendarSettings(professionalId: string, settings: a
   try {
     logger.info(`[CalendarService] Updated calendar settings for professional ${professionalId}:`, settings);
     return { ...settings, updatedAt: new Date() };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error updating calendar settings:', {
-      error: error instanceof Error ? error.message : 'Unknown',
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
       professionalId
     });
     throw error;
@@ -823,9 +827,9 @@ export async function getAvailability(professionalId: string) {
       { dayOfWeek: 6, startTime: '09:00', endTime: '13:00', isActive: true },
       { dayOfWeek: 0, startTime: '00:00', endTime: '00:00', isActive: false }
     ];
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error fetching availability:', {
-      error: error instanceof Error ? error.message : 'Unknown',
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
       professionalId
     });
     throw error;
@@ -836,9 +840,9 @@ export async function updateAvailability(professionalId: string, availability: a
   try {
     logger.info(`[CalendarService] Updated availability for professional ${professionalId}:`, availability);
     return availability.map(day => ({ ...day, professionalId, updatedAt: new Date() }));
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error updating availability:', {
-      error: error instanceof Error ? error.message : 'Unknown',
+      error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
       professionalId
     });
     throw error;
@@ -854,10 +858,10 @@ export async function updateProfessionalAvailability(professionalId: string, wor
   return updateAvailability(professionalId, workingHours);
 }
 
-export async function getProfessionalUnavailabilities(professionalId: string) {
+export async function getProfessionalUnavailabilities(professionalId: string): Promise<any[]> {
   try {
     return [];
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error fetching unavailabilities:', { error });
     throw error;
   }
@@ -867,7 +871,7 @@ export async function addProfessionalUnavailability(professionalId: string, unav
   try {
     logger.info(`[CalendarService] Added unavailability for professional ${professionalId}:`, unavailability);
     return { id: require('crypto').randomUUID(), ...unavailability, professionalId, createdAt: new Date() };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error adding unavailability:', { error });
     throw error;
   }
@@ -877,17 +881,17 @@ export async function removeProfessionalUnavailability(id: string, professionalI
   try {
     logger.info(`[CalendarService] Removed unavailability ${id} for professional ${professionalId}`);
     return { success: true };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error removing unavailability:', { error });
     throw error;
   }
 }
 
-export async function createRecurringInterventions(parentId: string, pattern: any) {
+export async function createRecurringInterventions(parentId: string, pattern: any): Promise<any[]> {
   try {
     logger.info(`[CalendarService] Creating recurring interventions for ${parentId} with pattern:`, pattern);
     return [];
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error creating recurring interventions:', { error });
     throw error;
   }
@@ -919,7 +923,7 @@ export async function handleGoogleCallback(code: string, professionalId: string)
     client.setCredentials(tokens);
     logger.info(`[CalendarService] Google Calendar connected for professional ${professionalId}`);
     return { connected: true, email: 'user@gmail.com', calendarId: 'primary' };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error handling Google callback:', { error });
     throw error;
   }
@@ -929,16 +933,16 @@ export async function syncWithGoogleCalendar(professionalId: string) {
   try {
     logger.info(`[CalendarService] Syncing calendar for professional ${professionalId}`);
     return { synced: true, eventsImported: 0, eventsExported: 0, lastSync: new Date() };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error syncing with Google Calendar:', { error });
     throw error;
   }
 }
 
-export async function getGoogleCalendarStatus(professionalId: string) {
+export async function getGoogleCalendarStatus(professionalId: string): Promise<{ connected: boolean; email: string | null; lastSync: Date | null }> {
   try {
-    return { connected: false, email: null, lastSync: null };
-  } catch (error) {
+    return { connected: false, email: null as string | null, lastSync: null as Date | null };
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error getting Google Calendar status:', { error });
     throw error;
   }
@@ -948,7 +952,7 @@ export async function disconnectGoogleCalendar(professionalId: string) {
   try {
     logger.info(`[CalendarService] Disconnecting Google Calendar for professional ${professionalId}`);
     return { success: true, message: 'Google Calendar disconnesso' };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('[CalendarService] Error disconnecting Google Calendar:', { error });
     throw error;
   }

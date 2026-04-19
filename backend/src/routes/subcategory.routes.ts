@@ -72,9 +72,9 @@ router.get(
         formatSubcategoryList(subcategories),
         'Subcategories retrieved successfully'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Subcategory route error:', error);
-      logger.error('Subcategory route error:', error);
+      logger.error('Subcategory route error:', error instanceof Error ? error.message : String(error));
       next(error);
     }
   }
@@ -96,9 +96,9 @@ router.get(
         formatSubcategoryList(subcategories),
         'Subcategories retrieved successfully'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Subcategory route error:', error);
-      logger.error('Subcategory route error:', error);
+      logger.error('Subcategory route error:', error instanceof Error ? error.message : String(error));
       next(error);
     }
   }
@@ -127,9 +127,9 @@ router.get(
         formatSubcategory(subcategory),
         'Subcategory retrieved successfully'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Subcategory route error:', error);
-      logger.error('Subcategory route error:', error);
+      logger.error('Subcategory route error:', error instanceof Error ? error.message : String(error));
       next(error);
     }
   }
@@ -152,9 +152,9 @@ router.post(
         formatSubcategory(subcategory),
         'Subcategory created successfully'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Subcategory route error:', error);
-      logger.error('Subcategory route error:', error);
+      logger.error('Subcategory route error:', error instanceof Error ? error.message : String(error));
       next(error);
     }
   }
@@ -186,9 +186,9 @@ router.put(
         formatSubcategory(subcategory),
         'Subcategory updated successfully'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Subcategory route error:', error);
-      logger.error('Subcategory route error:', error);
+      logger.error('Subcategory route error:', error instanceof Error ? error.message : String(error));
       next(error);
     }
   }
@@ -218,9 +218,9 @@ router.delete(
         null,
         'Subcategory deleted successfully'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Subcategory route error:', error);
-      logger.error('Subcategory route error:', error);
+      logger.error('Subcategory route error:', error instanceof Error ? error.message : String(error));
       next(error);
     }
   }
@@ -248,9 +248,9 @@ router.get(
         subcategories,
         'Subcategories retrieved successfully'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Subcategory route error:', error);
-      logger.error('Subcategory route error:', error);
+      logger.error('Subcategory route error:', error instanceof Error ? error.message : String(error));
       next(error);
     }
   }
@@ -271,9 +271,9 @@ router.get(
         professionals,
         'Professionals retrieved successfully'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Subcategory route error:', error);
-      logger.error('Subcategory route error:', error);
+      logger.error('Subcategory route error:', error instanceof Error ? error.message : String(error));
       next(error);
     }
   }
@@ -296,9 +296,9 @@ router.post(
         aiSettings,
         'AI settings updated successfully'
       ));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Subcategory route error:', error);
-      logger.error('Subcategory route error:', error);
+      logger.error('Subcategory route error:', error instanceof Error ? error.message : String(error));
       next(error);
     }
   }

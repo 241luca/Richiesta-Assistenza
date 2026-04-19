@@ -44,7 +44,7 @@ export default function ContactVisibilitySettings() {
   // Aggiorna settings quando arrivano dal server
   React.useEffect(() => {
     if (settings) {
-      setFormData(settings);
+      setFormData(settings.data || settings);
     }
   }, [settings]);
 

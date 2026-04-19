@@ -70,8 +70,8 @@ export class PaymentService {
       logger.info(`Stripe loaded in ${this.stripeConfig.mode} mode`);
       return this.stripeConfig;
       
-    } catch (error) {
-      logger.error('Failed to load Stripe config:', error);
+    } catch (error: unknown) {
+      logger.error('Failed to load Stripe config:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -95,7 +95,7 @@ export class PaymentService {
     const config = await this.loadStripeConfig();
     
     this.stripeClient = new Stripe(config.secretKey, {
-      apiVersion: '2024-06-20',
+      apiVersion: '2024-06-20' as any,
       typescript: true,
     });
 
@@ -123,8 +123,8 @@ export class PaymentService {
       const stripe = await this.getStripeClient();
       await stripe.balance.retrieve();
       return true;
-    } catch (error) {
-      logger.error('Stripe connection test failed:', error);
+    } catch (error: unknown) {
+      logger.error('Stripe connection test failed:', error instanceof Error ? error.message : String(error));
       return false;
     }
   }
@@ -148,8 +148,8 @@ export class PaymentService {
         amount: amount,
         currency: 'EUR',
       };
-    } catch (error) {
-      logger.error('Create payment intent error:', error);
+    } catch (error: unknown) {
+      logger.error('Create payment intent error:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

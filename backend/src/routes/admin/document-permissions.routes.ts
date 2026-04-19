@@ -23,8 +23,8 @@ router.get('/',
         permissions,
         'Permissions retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching permissions:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching permissions:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch permissions', 'FETCH_ERROR')
       );
@@ -56,8 +56,8 @@ router.get('/stats',
         stats,
         'Permission stats retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching permission stats:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching permission stats:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch stats', 'STATS_ERROR')
       );
@@ -78,8 +78,8 @@ router.get('/:id',
         'Permission not found',
         'NOT_FOUND'
       ));
-    } catch (error) {
-      logger.error('Error fetching permission:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching permission:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch permission', 'FETCH_ERROR')
       );
@@ -100,8 +100,8 @@ router.post('/',
         'Permission creation not yet implemented',
         'NOT_IMPLEMENTED'
       ));
-    } catch (error) {
-      logger.error('Error creating permission:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating permission:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to create permission', 'CREATE_ERROR')
       );
@@ -122,8 +122,8 @@ router.put('/:id',
         'Permission update not yet implemented',
         'NOT_IMPLEMENTED'
       ));
-    } catch (error) {
-      logger.error('Error updating permission:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating permission:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to update permission', 'UPDATE_ERROR')
       );
@@ -144,8 +144,8 @@ router.delete('/:id',
         'Permission deletion not yet implemented',
         'NOT_IMPLEMENTED'
       ));
-    } catch (error) {
-      logger.error('Error deleting permission:', error);
+    } catch (error: unknown) {
+      logger.error('Error deleting permission:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to delete permission', 'DELETE_ERROR')
       );

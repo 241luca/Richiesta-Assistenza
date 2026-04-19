@@ -84,7 +84,7 @@ async function setupWhatsAppConfig() {
       console.log('4. Scansiona il QR code con WhatsApp sul telefono');
     }
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Errore configurazione WhatsApp:', error);
   } finally {
     await prisma.$disconnect();

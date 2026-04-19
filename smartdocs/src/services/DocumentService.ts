@@ -113,12 +113,127 @@ export class DocumentService {
   }
 
   private async extractTextContent(file: any): Promise<string> {
-    // TODO: Implement text extraction based on file type
-    // For now, just read text files
-    if (file.mimetype.startsWith('text/')) {
-      return fs.readFileSync(file.path, 'utf-8');
+    try {
+      // ✅ File size check (50MB max)
+      const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+      const fileSize = file.size || (fs.existsSync(file.path) ? fs.statSync(file.path).size : 0);
+      
+      if (fileSize > MAX_FILE_SIZE) {
+        logger.warn(`[DocumentService] File too large: ${fileSize} bytes (max: ${MAX_FILE_SIZE})`);
+        return '';
+      }
+
+      // ✅ Plain text files
+      if (file.mimetype.startsWith('text/')) {
+        return fs.readFileSync(file.path, 'utf-8');
+      }
+      
+      // ✅ PDF extraction
+      if (file.mimetype === 'application/pdf' || 
+          file.originalname?.toLowerCase().endsWith('.pdf')) {
+        try {
+          const pdfParse = require('pdf-parse');
+          const dataBuffer = fs.readFileSync(file.path);
+          
+          // Timeout wrapper for PDF parsing
+          const data: any = await this.withTimeout(
+            pdfParse(dataBuffer),
+            30000,
+            'PDF extraction timeout'
+          );
+          
+          logger.info(`[DocumentService] Extracted ${data.numpages} pages from PDF (${data.text.length} chars)`);
+          return data.text;
+        } catch (pdfError: any) {
+          logger.warn('[DocumentService] PDF extraction failed:', pdfError.message);
+          return '';
+        }
+      }
+      
+      // ✅ DOCX extraction
+      if (file.mimetype?.includes('wordprocessingml') || 
+          file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+          file.originalname?.toLowerCase().endsWith('.docx')) {
+        try {
+          const mammoth = require('mammoth');
+          
+          const result: any = await this.withTimeout(
+            mammoth.extractRawText({ path: file.path }),
+            30000,
+            'DOCX extraction timeout'
+          );
+          
+          logger.info(`[DocumentService] Extracted DOCX: ${result.value.length} chars`);
+          return result.value;
+        } catch (docxError: any) {
+          logger.warn('[DocumentService] DOCX extraction failed:', docxError.message);
+          return '';
+        }
+      }
+      
+      // ✅ XLSX extraction
+      if (file.mimetype?.includes('spreadsheetml') || 
+          file.mimetype === 'application/vnd.ms-excel' ||
+          file.originalname?.toLowerCase().endsWith('.xlsx') ||
+          file.originalname?.toLowerCase().endsWith('.xls')) {
+        try {
+          const xlsx = require('xlsx');
+          const workbook = xlsx.readFile(file.path);
+          let fullText = '';
+          
+          for (const sheetName of workbook.SheetNames) {
+            fullText += `\n## Sheet: ${sheetName}\n`;
+            const sheet = workbook.Sheets[sheetName];
+            const csv = xlsx.utils.sheet_to_csv(sheet, {
+              RS: '\n',
+              FS: ' | '
+            });
+            fullText += csv;
+          }
+          
+          logger.info(`[DocumentService] Extracted XLSX: ${workbook.SheetNames.length} sheets, ${fullText.length} chars`);
+          return fullText;
+        } catch (xlsxError: any) {
+          logger.warn('[DocumentService] XLSX extraction failed:', xlsxError.message);
+          return '';
+        }
+      }
+      
+      // ✅ CSV as text
+      if (file.mimetype === 'text/csv' || file.originalname?.endsWith('.csv')) {
+        return fs.readFileSync(file.path, 'utf-8');
+      }
+      
+      // ✅ JSON as formatted text
+      if (file.mimetype === 'application/json' || file.originalname?.endsWith('.json')) {
+        const raw = fs.readFileSync(file.path, 'utf-8');
+        try {
+          const parsed = JSON.parse(raw);
+          return JSON.stringify(parsed, null, 2);
+        } catch {
+          return raw; // Return raw if parsing fails
+        }
+      }
+      
+      logger.warn(`[DocumentService] Unsupported file type: ${file.mimetype}`);
+      return '';
+      
+    } catch (error: any) {
+      logger.error('[DocumentService] Unexpected error in extractTextContent:', error);
+      return '';
     }
-    return '';
+  }
+
+  /**
+   * Timeout wrapper for async operations
+   */
+  private withTimeout<T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) => 
+        setTimeout(() => reject(new Error(errorMessage)), ms)
+      )
+    ]);
   }
 
   private getMimeType(filename: string): string {

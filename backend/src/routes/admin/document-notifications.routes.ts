@@ -23,8 +23,8 @@ router.get('/',
         templates,
         'Notification templates retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching notification templates:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching notification templates:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch templates', 'FETCH_ERROR')
       );
@@ -62,8 +62,8 @@ router.get('/stats',
         stats,
         'Notification stats retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching notification stats:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching notification stats:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch stats', 'STATS_ERROR')
       );
@@ -84,8 +84,8 @@ router.get('/:id',
         'Notification template not found',
         'NOT_FOUND'
       ));
-    } catch (error) {
-      logger.error('Error fetching notification template:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching notification template:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch template', 'FETCH_ERROR')
       );
@@ -106,8 +106,8 @@ router.post('/',
         'Notification template creation not yet implemented',
         'NOT_IMPLEMENTED'
       ));
-    } catch (error) {
-      logger.error('Error creating notification template:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating notification template:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to create template', 'CREATE_ERROR')
       );
@@ -128,8 +128,8 @@ router.put('/:id',
         'Notification template update not yet implemented',
         'NOT_IMPLEMENTED'
       ));
-    } catch (error) {
-      logger.error('Error updating notification template:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating notification template:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to update template', 'UPDATE_ERROR')
       );
@@ -150,8 +150,8 @@ router.delete('/:id',
         'Notification template deletion not yet implemented',
         'NOT_IMPLEMENTED'
       ));
-    } catch (error) {
-      logger.error('Error deleting notification template:', error);
+    } catch (error: unknown) {
+      logger.error('Error deleting notification template:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to delete template', 'DELETE_ERROR')
       );
@@ -172,8 +172,8 @@ router.post('/test',
         { sent: true, message: 'Test notification sent' },
         'Test notification sent successfully'
       ));
-    } catch (error) {
-      logger.error('Error sending test notification:', error);
+    } catch (error: unknown) {
+      logger.error('Error sending test notification:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to send test notification', 'SEND_ERROR')
       );

@@ -59,7 +59,7 @@ export async function execute(params: CleanupParams = { days: 90, tables: 'all' 
     };
     
   } catch (error: any) {
-    logger.error('❌ Data cleanup failed:', error);
+    logger.error('❌ Data cleanup failed:', error instanceof Error ? error.message : String(error));
     throw error;
   } finally {
     await prisma.$disconnect();

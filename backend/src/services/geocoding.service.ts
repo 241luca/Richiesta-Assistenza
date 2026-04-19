@@ -54,8 +54,8 @@ export class GeocodingService {
       this.apiKey = apiKeyData.key;
       logger.debug(`Google Maps API key loaded successfully (${this.apiKey.length} chars)`);
       return this.apiKey;
-    } catch (error) {
-      logger.error('Error loading Google Maps API key from database:', error);
+    } catch (error: unknown) {
+      logger.error('Error loading Google Maps API key from database:', error instanceof Error ? error.message : String(error));
       throw new Error('Failed to load Google Maps API key - check database configuration');
     }
   }
@@ -97,8 +97,8 @@ export class GeocodingService {
 
       logger.warn(`No results found for address: ${address}`);
       return null;
-    } catch (error) {
-      logger.error('Geocoding error:', error);
+    } catch (error: unknown) {
+      logger.error('Geocoding error:', error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -138,8 +138,8 @@ export class GeocodingService {
 
       logger.warn(`No results found for coordinates: ${lat}, ${lng}`);
       return null;
-    } catch (error) {
-      logger.error('Reverse geocoding error:', error);
+    } catch (error: unknown) {
+      logger.error('Reverse geocoding error:', error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -168,7 +168,7 @@ export class GeocodingService {
           destinations: [{ lat: destination.lat, lng: destination.lng }],
           key: apiKey,
           language: Language.it,
-          units: 'metric',
+          units: 'metric' as any,
         },
       });
 
@@ -196,8 +196,8 @@ export class GeocodingService {
 
       logger.warn('No distance results found');
       return null;
-    } catch (error) {
-      logger.error('Distance calculation error:', error);
+    } catch (error: unknown) {
+      logger.error('Distance calculation error:', error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -284,7 +284,7 @@ export class GeocodingService {
           optimizeWaypoints: true,
           key: apiKey,
           language: Language.it,
-        },
+        } as any,
       });
 
       if (response.data.routes && response.data.routes.length > 0) {
@@ -299,8 +299,8 @@ export class GeocodingService {
       }
 
       return null;
-    } catch (error) {
-      logger.error('Route optimization error:', error);
+    } catch (error: unknown) {
+      logger.error('Route optimization error:', error instanceof Error ? error.message : String(error));
       return null;
     }
   }

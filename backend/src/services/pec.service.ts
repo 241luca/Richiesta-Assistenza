@@ -227,14 +227,14 @@ class PecService {
       // Verifica connessione
       this.transporter.verify((error: Error | null, success: boolean) => {
         if (error) {
-          logger.error('Errore verifica PEC:', error);
+          logger.error('Errore verifica PEC:', error instanceof Error ? error.message : String(error));
         } else {
           logger.info('✅ Servizio PEC pronto');
         }
       });
       
-    } catch (error) {
-      logger.error('Errore inizializzazione PEC:', error);
+    } catch (error: unknown) {
+      logger.error('Errore inizializzazione PEC:', error instanceof Error ? error.message : String(error));
     }
   }
   
@@ -259,8 +259,10 @@ class PecService {
           'X-Priority': message.priority === 'high' ? '1' : '3',
           'X-MSMail-Priority': message.priority === 'high' ? 'High' : 'Normal',
           'Importance': message.priority === 'high' ? 'high' : 'normal',
-          'Return-Receipt-To': message.returnReceipt ? process.env.PEC_EMAIL : undefined,
-          'Disposition-Notification-To': message.returnReceipt ? process.env.PEC_EMAIL : undefined
+          ...(message.returnReceipt && process.env.PEC_EMAIL ? {
+            'Return-Receipt-To': process.env.PEC_EMAIL,
+            'Disposition-Notification-To': process.env.PEC_EMAIL
+          } : {})
         }
       };
       
@@ -289,9 +291,9 @@ class PecService {
       
       return result;
       
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Errore sconosciuto';
-      logger.error('Errore invio PEC:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Errore sconosciuto';
+      logger.error('Errore invio PEC:', error instanceof Error ? error.message : String(error));
       
       // Log audit errore
       await auditLogService.log({
@@ -453,9 +455,9 @@ class PecService {
         messageId: result.messageId || 'unknown'
       };
       
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Errore sconosciuto';
-      logger.error('Errore invio reclamo PEC:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Errore sconosciuto';
+      logger.error('Errore invio reclamo PEC:', error instanceof Error ? error.message : String(error));
       
       // Notifica errore
       await notificationService.sendToUser({
@@ -499,8 +501,8 @@ class PecService {
       
       logger.info(`${recentLogs.length} reclami recenti trovati nei log`);
       
-    } catch (error) {
-      logger.error('Errore controllo ricevute PEC:', error);
+    } catch (error: unknown) {
+      logger.error('Errore controllo ricevute PEC:', error instanceof Error ? error.message : String(error));
     }
   }
 }
@@ -549,7 +551,7 @@ Esempio: "Voglio fare reclamo a ENEL per bolletta errata"`;
           orderBy: { createdAt: 'desc' },
           take: 1
         }
-      }
+      } as any
     });
     
     if (!userData) {
@@ -611,8 +613,8 @@ Vuoi procedere?
 
 ID Bozza: ${draftId.slice(-6)}`;
     
-  } catch (error) {
-    logger.error('Errore gestione reclamo WhatsApp:', error);
+  } catch (error: unknown) {
+    logger.error('Errore gestione reclamo WhatsApp:', error instanceof Error ? error.message : String(error));
     return 'Si è verificato un errore. Riprova più tardi o contatta il supporto.';
   }
 }
@@ -677,7 +679,7 @@ export async function confirmAndSendComplaint(
     await auditLogService.log({
       action: 'USER_UPDATED' as any, // ✅ FIX: Usa azione valida
       entityType: 'ComplaintDraft',
-      entityId: draftLog.entityId,
+      entityId: draftLog.entityId || '',
       userId: userId,
       ipAddress: 'whatsapp',
       userAgent: 'whatsapp-integration',
@@ -704,8 +706,8 @@ Riceverai notifica quando arriverà la risposta.
 
 Per controllare lo stato: STATO RECLAMO ${complaint.id.slice(-6)}`;
     
-  } catch (error) {
-    logger.error('Errore conferma reclamo:', error);
+  } catch (error: unknown) {
+    logger.error('Errore conferma reclamo:', error instanceof Error ? error.message : String(error));
     return '❌ Errore nell\'invio del reclamo. Il team tecnico è stato notificato.';
   }
 }
@@ -738,7 +740,7 @@ function detectCompany(text: string): DetectedCompany | null {
 if (process.env.PEC_ENABLED === 'true') {
   setInterval(() => {
     pecService.checkReceipts().catch((error: Error) => {
-      logger.error('Errore nel controllo ricevute schedulato:', error);
+      logger.error('Errore nel controllo ricevute schedulato:', error instanceof Error ? error.message : String(error));
     });
   }, 60 * 60 * 1000); // Ogni ora
 }

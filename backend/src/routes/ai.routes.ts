@@ -44,8 +44,8 @@ router.post('/chat', authenticate, async (req: any, res) => {
       response,
       'AI response generated successfully'
     ));
-  } catch (error) {
-    logger.error('Error in AI chat:', error);
+  } catch (error: unknown) {
+    logger.error('Error in AI chat:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Failed to generate AI response',
       'AI_ERROR'
@@ -82,19 +82,19 @@ router.post('/categorize-request', authenticate, validateRequest(categorizeSchem
     }
     
     // Recupera le categorie disponibili dal database
-    const categories = await prisma.category.findMany({
+    const categories = await (prisma.category.findMany as any)({
       where: { isActive: true },
       include: {
-        subcategories: {
+        Subcategory: {
           where: { isActive: true }
         }
       }
     });
     
-    const categoryList = categories.map(cat => ({
+    const categoryList = categories.map((cat: any) => ({
       id: cat.id,
       name: cat.name,
-      subcategories: cat.subcategories.map(sub => ({ id: sub.id, name: sub.name }))
+      subcategories: (cat.Subcategory || []).map((sub: any) => ({ id: sub.id, name: sub.name }))
     }));
     
     // Chiama il servizio AI per la categorizzazione
@@ -140,8 +140,8 @@ Rispondi SOLO con un oggetto JSON valido:
       }
       
       // Verifica che categoria e sottocategoria esistano nel database
-      const category = categories.find(c => c.id === result.categoryId);
-      const subcategory = category?.subcategories.find(s => s.id === result.subcategoryId);
+      const category = categories.find((c: any) => c.id === result.categoryId);
+      const subcategory = (category?.Subcategory || []).find((s: any) => s.id === result.subcategoryId);
       
       if (!category || !subcategory) {
         throw new Error('Categoria o sottocategoria non valida');
@@ -155,14 +155,14 @@ Rispondi SOLO con un oggetto JSON valido:
       logger.warn('AI response parsing failed:', { aiResponse, error: parseError });
       
       // Fallback: categoria generica
-      const genericCategory = categories.find(c => c.name.toLowerCase().includes('altro'));
-      const genericSubcategory = genericCategory?.subcategories[0];
+      const genericCategory = categories.find((c: any) => c.name.toLowerCase().includes('altro'));
+      const genericSubcategory = (genericCategory?.Subcategory || [])[0];
       
       result = {
         categoryId: genericCategory?.id || categories[0]?.id,
         categoryName: genericCategory?.name || categories[0]?.name,
-        subcategoryId: genericSubcategory?.id || categories[0]?.subcategories[0]?.id,
-        subcategoryName: genericSubcategory?.name || categories[0]?.subcategories[0]?.name,
+        subcategoryId: genericSubcategory?.id || (categories[0]?.Subcategory || [])[0]?.id,
+        subcategoryName: genericSubcategory?.name || (categories[0]?.Subcategory || [])[0]?.name,
         priority: 'MEDIUM',
         estimatedDuration: 60,
         confidence: 0.5,
@@ -177,8 +177,8 @@ Rispondi SOLO con un oggetto JSON valido:
       'Richiesta categorizzata con successo'
     ));
     
-  } catch (error) {
-    logger.error('Error in AI categorization:', error);
+  } catch (error: unknown) {
+    logger.error('Error in AI categorization:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nella categorizzazione automatica',
       'AI_CATEGORIZATION_ERROR'
@@ -211,8 +211,8 @@ router.get('/health', async (req, res) => {
       status,
       'AI service health check'
     ));
-  } catch (error) {
-    logger.error('Error checking AI health:', error);
+  } catch (error: unknown) {
+    logger.error('Error checking AI health:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Failed to check AI service health',
       'HEALTH_CHECK_ERROR'

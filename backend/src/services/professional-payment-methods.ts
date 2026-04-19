@@ -26,13 +26,13 @@ class ProfessionalPaymentService {
         pendingAmount: 0,
         platformFees: 0,
         netRevenue: 0,
-        lastPayout: null,
-        nextPayout: null,
+        lastPayout: null as any,
+        nextPayout: null as any,
         byStatus: {},
-        recentPayments: []
+        recentPayments: [] as any[]
       };
-    } catch (error) {
-      logger.error('Error getting professional stats:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting professional stats:', error instanceof Error ? error.message : String(error));
       return {
         totalRevenue: 0,
         totalTransactions: 0,
@@ -40,10 +40,10 @@ class ProfessionalPaymentService {
         pendingAmount: 0,
         platformFees: 0,
         netRevenue: 0,
-        lastPayout: null,
-        nextPayout: null,
+        lastPayout: null as any,
+        nextPayout: null as any,
         byStatus: {},
-        recentPayments: []
+        recentPayments: [] as any[]
       };
     }
   }
@@ -60,12 +60,12 @@ class ProfessionalPaymentService {
       limit?: number;
       offset?: number;
     }
-  ) {
+  ): Promise<any[]> {
     try {
       // Ritorna lista vuota per ora
       return [];
-    } catch (error) {
-      logger.error('Error getting professional payments:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting professional payments:', error instanceof Error ? error.message : String(error));
       return [];
     }
   }
@@ -83,8 +83,8 @@ class ProfessionalPaymentService {
         status: 'PENDING',
         createdAt: new Date()
       };
-    } catch (error) {
-      logger.error('Error requesting payout:', error);
+    } catch (error: unknown) {
+      logger.error('Error requesting payout:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

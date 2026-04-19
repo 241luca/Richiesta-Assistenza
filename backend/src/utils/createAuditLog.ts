@@ -17,12 +17,12 @@ export async function createAuditLog(data: {
   metadata?: any;
 }) {
   try {
-    await auditLogService.create({
+    await auditLogService.log({
       ...data,
       severity: data.success ? LogSeverity.INFO : LogSeverity.WARNING,
       category: LogCategory.BUSINESS
-    });
-  } catch (error) {
+    } as any);
+  } catch (error: unknown) {
     console.error('Failed to create audit log:', error);
   }
 }

@@ -377,7 +377,7 @@ export class InvoiceService {
           
           professionalId: userId,
           status: 'DRAFT'
-        }
+        } as any
       });
       
       if (await this.requiresElectronicInvoice(data.customerType || 'PRIVATE', data)) {
@@ -394,7 +394,7 @@ export class InvoiceService {
       
     } catch (error: unknown) {
       logger.error('[InvoiceService] Error creating invoice:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         userId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -409,15 +409,15 @@ export class InvoiceService {
     try {
       logger.info('[InvoiceService] Generating invoice from payment', { paymentId });
 
-      const payment = await prisma.payment.findUnique({
+      const payment = await (prisma.payment.findUnique as any)({
         where: { id: paymentId },
         include: {
-          client: true,
-          professional: true,
-          request: true,
-          quote: true
+          User_Payment_clientIdToUser: true,
+          User_Payment_professionalIdToUser: true,
+          AssistanceRequest: true,
+          Quote: true
         }
-      }) as PaymentWithRelations | null;
+      }) as unknown as PaymentWithRelations | null;
 
       if (!payment) {
         throw new Error('Payment not found');
@@ -467,7 +467,7 @@ export class InvoiceService {
 
     } catch (error: unknown) {
       logger.error('[InvoiceService] Error generating invoice from payment:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         paymentId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -482,14 +482,14 @@ export class InvoiceService {
     try {
       logger.info('[InvoiceService] Getting invoice', { invoiceId });
 
-      const invoice = await prisma.invoice.findUnique({
+      const invoice = await (prisma.invoice.findUnique as any)({
         where: { id: invoiceId },
         include: {
-          professional: true,
-          customer: true,
-          payment: true,
-          quote: true,
-          request: true
+          User_Invoice_professionalIdToUser: true,
+          User_Invoice_customerIdToUser: true,
+          Payment: true,
+          Quote: true,
+          AssistanceRequest: true
         }
       });
 
@@ -500,7 +500,7 @@ export class InvoiceService {
       return invoice as Invoice;
     } catch (error: unknown) {
       logger.error('[InvoiceService] Error getting invoice:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         invoiceId
       });
       throw error;
@@ -564,14 +564,14 @@ export class InvoiceService {
 
       const total = await prisma.invoice.count({ where });
 
-      const invoices = await prisma.invoice.findMany({
+      const invoices = await (prisma.invoice.findMany as any)({
         where,
         skip: (pagination.page - 1) * pagination.limit,
         take: pagination.limit,
         orderBy: { [pagination.sortBy]: pagination.sortOrder },
         include: {
-          professional: true,
-          customer: true
+          User_Invoice_professionalIdToUser: true,
+          User_Invoice_customerIdToUser: true
         }
       });
 
@@ -585,7 +585,7 @@ export class InvoiceService {
       };
     } catch (error: unknown) {
       logger.error('[InvoiceService] Error listing invoices:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         filters
       });
       throw error;
@@ -601,7 +601,7 @@ export class InvoiceService {
 
       const invoice = await prisma.invoice.update({
         where: { id: invoiceId },
-        data: updates
+        data: updates as any // Type assertion for complex Prisma partial types
       });
 
       logger.info('[InvoiceService] Invoice updated successfully', { invoiceId });
@@ -609,7 +609,7 @@ export class InvoiceService {
       return invoice;
     } catch (error: unknown) {
       logger.error('[InvoiceService] Error updating invoice:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         invoiceId
       });
       throw error;
@@ -661,7 +661,7 @@ export class InvoiceService {
       return updated;
     } catch (error: unknown) {
       logger.error('[InvoiceService] Error recording payment:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         invoiceId
       });
       throw error;
@@ -678,11 +678,11 @@ export class InvoiceService {
     try {
       logger.info('[InvoiceService] Sending invoice email', { invoiceId, emailOptions });
 
-      const invoice = await prisma.invoice.findUnique({
+      const invoice = await (prisma.invoice.findUnique as any)({
         where: { id: invoiceId },
         include: {
-          professional: true,
-          customer: true
+          User_Invoice_professionalIdToUser: true,
+          User_Invoice_customerIdToUser: true
         }
       }) as InvoiceWithRelations | null;
 
@@ -727,7 +727,7 @@ export class InvoiceService {
       logger.info('[InvoiceService] Invoice email sent successfully', { invoiceId });
     } catch (error: unknown) {
       logger.error('[InvoiceService] Error sending invoice email:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         invoiceId
       });
       throw error;
@@ -772,7 +772,7 @@ export class InvoiceService {
       };
     } catch (error: unknown) {
       logger.error('[InvoiceService] Error generating electronic invoice:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         invoiceId
       });
       throw error;
@@ -827,7 +827,7 @@ export class InvoiceService {
       };
     } catch (error: unknown) {
       logger.error('[InvoiceService] Error getting statistics:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         professionalId
       });
       throw error;
@@ -899,7 +899,7 @@ export class InvoiceService {
 
     } catch (error: unknown) {
       logger.error('[InvoiceService] Error creating electronic invoice:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         invoiceId: invoice.id,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -984,11 +984,11 @@ export class InvoiceService {
    */
   async sendInvoiceToCustomer(invoiceId: string): Promise<void> {
     try {
-      const invoice = await prisma.invoice.findUnique({
+      const invoice = await (prisma.invoice.findUnique as any)({
         where: { id: invoiceId },
         include: {
-          professional: true,
-          customer: true
+          User_Invoice_professionalIdToUser: true,
+          User_Invoice_customerIdToUser: true
         }
       }) as InvoiceWithRelations | null;
       
@@ -1043,7 +1043,7 @@ export class InvoiceService {
       
     } catch (error: unknown) {
       logger.error('[InvoiceService] Error sending invoice:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         invoiceId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -1061,11 +1061,11 @@ export class InvoiceService {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const PDFDocument = require('pdfkit');
       
-      const invoice = await prisma.invoice.findUnique({
+      const invoice = await (prisma.invoice.findUnique as any)({
         where: { id: invoiceId },
         include: {
-          professional: true,
-          customer: true
+          User_Invoice_professionalIdToUser: true,
+          User_Invoice_customerIdToUser: true
         }
       }) as InvoiceWithRelations | null;
       
@@ -1213,7 +1213,7 @@ export class InvoiceService {
       });
     } catch (error: unknown) {
       logger.error('[InvoiceService] Error generating PDF:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         invoiceId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -1297,7 +1297,7 @@ export class InvoiceService {
       
     } catch (error: unknown) {
       logger.error('[InvoiceService] Error updating payment status:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         invoiceId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -1369,7 +1369,7 @@ export class InvoiceService {
       
     } catch (error: unknown) {
       logger.error('[InvoiceService] Error registering partial payment:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         invoiceId,
         amount,
         stack: error instanceof Error ? error.stack : undefined
@@ -1430,7 +1430,7 @@ export class InvoiceService {
           
           userId,
           status: 'ISSUED',
-        }
+        } as any
       });
       
       await prisma.invoice.update({
@@ -1450,7 +1450,7 @@ export class InvoiceService {
       
     } catch (error: unknown) {
       logger.error('[InvoiceService] Error creating credit note:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         originalInvoiceId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -1521,7 +1521,7 @@ export class InvoiceService {
       
     } catch (error: unknown) {
       logger.error('[InvoiceService] Error sending payment reminder:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         invoiceId,
         stack: error instanceof Error ? error.stack : undefined
       });

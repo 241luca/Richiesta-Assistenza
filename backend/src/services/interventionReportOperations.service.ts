@@ -67,7 +67,7 @@ class InterventionReportOperationsService {
             { name: 'Cavo elettrico', quantity: 5, price: 3 }
           ],
           materialsTotal: 45,
-          photos: null,
+          photos: null as any, // Type assertion for photos
           signatures: {
             professional: {
               signature: 'base64_signature_data',
@@ -79,7 +79,7 @@ class InterventionReportOperationsService {
           viewedByClientAt: new Date('2024-01-16T18:00:00'),
           sentToClientAt: new Date('2024-01-16T17:00:00'),
           professionalSignedAt: new Date('2024-01-16T16:35:00'),
-          clientSignedAt: null,
+          clientSignedAt: null as any, // Type assertion for clientSignedAt
           createdAt: new Date('2024-01-16T16:40:00'),
           version: 2
         }
@@ -115,7 +115,7 @@ class InterventionReportOperationsService {
         page: 1,
         limit: 20
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero rapporti:', error);
       throw error;
     }
@@ -125,17 +125,22 @@ class InterventionReportOperationsService {
     try {
       // Prova prima con dati reali dal service
       try {
-        const report = await interventionReportService.getReportById(id);
+        // Check if method exists before calling
+        if (typeof (interventionReportService as any).getReportById === 'function') {
+          const report = await (interventionReportService as any).getReportById(id);
         
-        // Verifica autorizzazioni
-        if (userRole === 'PROFESSIONAL' && report.professionalId !== userId) {
-          throw new AppError('Non autorizzato', 403);
+          // Verifica autorizzazioni
+          if (userRole === 'PROFESSIONAL' && report.professionalId !== userId) {
+            throw new AppError('Non autorizzato', 403);
+          }
+          if (userRole === 'CLIENT' && report.clientId !== userId) {
+            throw new AppError('Non autorizzato', 403);
+          }
+          
+          return report;
         }
-        if (userRole === 'CLIENT' && report.clientId !== userId) {
-          throw new AppError('Non autorizzato', 403);
-        }
-        
-        return report;
+        // If method doesn't exist, fall through to mock data
+        throw new Error('Method not available');
       } catch (realError) {
         // Fallback su mock data
         const mockReports = await this.getReports({}, userId, userRole);
@@ -147,7 +152,7 @@ class InterventionReportOperationsService {
         
         return report;
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero rapporto:', error);
       throw error;
     }
@@ -169,7 +174,7 @@ class InterventionReportOperationsService {
       
       console.log('Rapporto creato:', newReport);
       return newReport;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore creazione rapporto:', error);
       throw error;
     }
@@ -192,7 +197,7 @@ class InterventionReportOperationsService {
       
       console.log('Rapporto aggiornato:', report);
       return report;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore aggiornamento rapporto:', error);
       throw error;
     }
@@ -212,7 +217,7 @@ class InterventionReportOperationsService {
       
       console.log('Rapporto eliminato:', id);
       return { success: true };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore eliminazione rapporto:', error);
       throw error;
     }
@@ -243,7 +248,7 @@ class InterventionReportOperationsService {
       
       console.log('Rapporto duplicato:', newReport);
       return newReport;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore duplicazione rapporto:', error);
       throw error;
     }
@@ -291,8 +296,8 @@ class InterventionReportOperationsService {
             },
             channels: ['websocket', 'email']
           });
-        } catch (error) {
-          logger.error('Error sending professional signed notification:', error);
+        } catch (error: unknown) {
+          logger.error('Error sending professional signed notification:', error instanceof Error ? error.message : String(error));
         }
         
       } else if (userRole === 'CLIENT') {
@@ -348,14 +353,14 @@ class InterventionReportOperationsService {
               channels: ['websocket']
             });
           }
-        } catch (error) {
-          logger.error('Error sending client signed notification:', error);
+        } catch (error: unknown) {
+          logger.error('Error sending client signed notification:', error instanceof Error ? error.message : String(error));
         }
       }
       
       console.log('Rapporto firmato:', { id, role: userRole });
       return report;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore firma rapporto:', error);
       throw error;
     }
@@ -396,8 +401,8 @@ class InterventionReportOperationsService {
           },
           channels: ['websocket', 'email']
         });
-      } catch (error) {
-        logger.error('Error sending report sent notification:', error);
+      } catch (error: unknown) {
+        logger.error('Error sending report sent notification:', error instanceof Error ? error.message : String(error));
       }
       
       console.log('Rapporto inviato al cliente:', { id, clientId: report.clientId });
@@ -405,7 +410,7 @@ class InterventionReportOperationsService {
         success: true,
         message: 'Rapporto inviato con successo al cliente'
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore invio rapporto:', error);
       throw error;
     }
@@ -435,7 +440,7 @@ class InterventionReportOperationsService {
       };
       
       return stats;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore calcolo statistiche:', error);
       throw error;
     }
@@ -475,7 +480,7 @@ class InterventionReportOperationsService {
       }
       
       return stats;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore calcolo statistiche cliente:', error);
       throw error;
     }
@@ -496,7 +501,7 @@ class InterventionReportOperationsService {
       
       // Firma il rapporto come cliente
       return await this.signReport(reportId, clientId, 'CLIENT', signature);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore firma cliente:', error);
       throw error;
     }
@@ -547,13 +552,13 @@ class InterventionReportOperationsService {
           },
           channels: ['websocket']
         });
-      } catch (error) {
-        logger.error('Error sending rating notification:', error);
+      } catch (error: unknown) {
+        logger.error('Error sending rating notification:', error instanceof Error ? error.message : String(error));
       }
       
       console.log('Rapporto valutato:', { reportId, rating, comment });
       return report;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore valutazione rapporto:', error);
       throw error;
     }

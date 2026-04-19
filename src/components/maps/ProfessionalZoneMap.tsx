@@ -6,7 +6,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { GoogleMap, DrawingManager, Polygon, Circle, Rectangle } from '@react-google-maps/api';
 import { TrashIcon, PencilIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import { useGoogleMaps, defaultMapOptions, defaultCenter, ZOOM_LEVELS } from '../../contexts/GoogleMapsContext';
+import { useGoogleMaps } from '../../contexts/GoogleMapsContext';
 import toast from 'react-hot-toast';
 
 interface Zone {
@@ -29,6 +29,20 @@ interface ProfessionalZoneMapProps {
 const containerStyle = {
   width: '100%',
   height: '500px',
+};
+
+const defaultCenter = {
+  lat: 41.9028,
+  lng: 12.4964,
+};
+
+const ZOOM_LEVELS = {
+  REGION: 10,
+};
+
+const defaultMapOptions = {
+  streetViewControl: false,
+  mapTypeControl: false,
 };
 
 const drawingOptions = {

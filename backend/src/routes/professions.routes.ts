@@ -49,11 +49,11 @@ router.get('/', async (req: Request, res: Response) => {
       'Professions retrieved successfully'
     ));
   } catch (error: any) {
-    logger.error('Error fetching professions:', error);
+    logger.error('Error fetching professions:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Failed to fetch professions',
       'FETCH_ERROR',
-      error.message
+      error instanceof Error ? error.message : String(error)
     ));
   }
 });
@@ -142,11 +142,11 @@ router.put('/user/:userId', authenticate, async (req: any, res: Response) => {
       'User profession updated successfully'
     ));
   } catch (error: any) {
-    logger.error('Error updating user profession:', error);
+    logger.error('Error updating user profession:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Failed to update user profession',
       'UPDATE_ERROR',
-      error.message
+      error instanceof Error ? error.message : String(error)
     ));
   }
 });
@@ -192,11 +192,11 @@ router.get('/:id', async (req: Request, res: Response) => {
       'Profession retrieved successfully'
     ));
   } catch (error: any) {
-    logger.error('Error fetching profession:', error);
+    logger.error('Error fetching profession:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Failed to fetch profession',
       'FETCH_ERROR',
-      error.message
+      error instanceof Error ? error.message : String(error)
     ));
   }
 });
@@ -259,11 +259,11 @@ router.post('/', authenticate, async (req: any, res: Response) => {
       'Profession created successfully'
     ));
   } catch (error: any) {
-    logger.error('Error creating profession:', error);
+    logger.error('Error creating profession:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Failed to create profession',
       'CREATE_ERROR',
-      error.message
+      error instanceof Error ? error.message : String(error)
     ));
   }
 });
@@ -338,11 +338,11 @@ router.put('/:id', authenticate, async (req: any, res: Response) => {
       'Profession updated successfully'
     ));
   } catch (error: any) {
-    logger.error('Error updating profession:', error);
+    logger.error('Error updating profession:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Failed to update profession',
       'UPDATE_ERROR',
-      error.message
+      error instanceof Error ? error.message : String(error)
     ));
   }
 });
@@ -384,11 +384,11 @@ router.delete('/:id', authenticate, async (req: any, res: Response) => {
       'Profession deleted successfully'
     ));
   } catch (error: any) {
-    logger.error('Error deleting profession:', error);
+    logger.error('Error deleting profession:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Failed to delete profession',
       'DELETE_ERROR',
-      error.message
+      error instanceof Error ? error.message : String(error)
     ));
   }
 });

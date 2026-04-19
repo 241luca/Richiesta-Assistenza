@@ -120,8 +120,8 @@ class TravelCalculationService {
         durationText: result.durationText,
         cost,
       };
-    } catch (error) {
-      logger.error('❌ Error calculating travel info:', error);
+    } catch (error: unknown) {
+      logger.error('❌ Error calculating travel info:', error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -153,8 +153,8 @@ class TravelCalculationService {
 
       logger.info(`✅ Travel info saved for request ${requestId}`);
       return true;
-    } catch (error) {
-      logger.error('❌ Error saving travel info:', error);
+    } catch (error: unknown) {
+      logger.error('❌ Error saving travel info:', error instanceof Error ? error.message : String(error));
       return false;
     }
   }
@@ -192,8 +192,8 @@ class TravelCalculationService {
 
       logger.info(`✅ Recalculated ${updated}/${requests.length} requests for professional ${professionalId}`);
       return updated;
-    } catch (error) {
-      logger.error('❌ Error recalculating for professional:', error);
+    } catch (error: unknown) {
+      logger.error('❌ Error recalculating for professional:', error instanceof Error ? error.message : String(error));
       return 0;
     }
   }
@@ -218,8 +218,8 @@ class TravelCalculationService {
       }
 
       return await this.calculateAndSave(requestId, request.professional.id);
-    } catch (error) {
-      logger.error('❌ Error recalculating for request:', error);
+    } catch (error: unknown) {
+      logger.error('❌ Error recalculating for request:', error instanceof Error ? error.message : String(error));
       return false;
     }
   }

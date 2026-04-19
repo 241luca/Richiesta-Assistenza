@@ -110,7 +110,7 @@ export default function ProfessionCategoriesPage() {
 
     updateMutation.mutate({
       professionId: selectedProfession,
-      categoryIds: Array.from(finalCategories)
+      categoryIds: Array.from(finalCategories) as string[]
     });
   };
 

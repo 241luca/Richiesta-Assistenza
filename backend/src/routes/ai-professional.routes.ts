@@ -73,9 +73,9 @@ router.post('/chat', authenticate, async (req: any, res) => {
       ));
     }
 
-    logger.error('Errore chat AI:', error);
+    logger.error('Errore chat AI:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
-      error.message || 'Errore nella generazione della risposta',
+      error instanceof Error ? error.message : String(error) || 'Errore nella generazione della risposta',
       'AI_ERROR'
     ));
   }
@@ -108,8 +108,8 @@ router.get('/health', async (req, res) => {
       status,
       'Stato servizio AI'
     ));
-  } catch (error) {
-    logger.error('Errore health check AI:', error);
+  } catch (error: unknown) {
+    logger.error('Errore health check AI:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore controllo servizio',
       'HEALTH_ERROR'
@@ -129,8 +129,8 @@ router.get('/stats', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async 
       stats,
       'Statistiche AI recuperate'
     ));
-  } catch (error) {
-    logger.error('Errore recupero statistiche:', error);
+  } catch (error: unknown) {
+    logger.error('Errore recupero statistiche:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore recupero statistiche',
       'STATS_ERROR'
@@ -150,8 +150,8 @@ router.delete('/conversation/:id', authenticate, async (req: any, res) => {
       { cleared: true },
       'Conversazione cancellata'
     ));
-  } catch (error) {
-    logger.error('Errore cancellazione conversazione:', error);
+  } catch (error: unknown) {
+    logger.error('Errore cancellazione conversazione:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore cancellazione',
       'DELETE_ERROR'
@@ -180,8 +180,8 @@ router.get('/config/subcategory/:id', authenticate, async (req, res) => {
       config,
       'Configurazione recuperata'
     ));
-  } catch (error) {
-    logger.error('Errore recupero config:', error);
+  } catch (error: unknown) {
+    logger.error('Errore recupero config:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore recupero configurazione',
       'CONFIG_ERROR'
@@ -217,7 +217,6 @@ router.post('/config/subcategory/:id',
             id: uuidv4(),
             updatedAt: new Date(),
             Subcategory: { connect: { id } },
-            systemPrompt: validatedData.systemPrompt,
             ...validatedData
           }
         });
@@ -236,7 +235,7 @@ router.post('/config/subcategory/:id',
         ));
       }
 
-      logger.error('Errore configurazione AI:', error);
+      logger.error('Errore configurazione AI:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Errore configurazione',
         'CONFIG_ERROR'
@@ -273,8 +272,8 @@ router.get('/config/professional', authenticate, async (req: any, res) => {
       customizations,
       'Personalizzazioni recuperate'
     ));
-  } catch (error) {
-    logger.error('Errore recupero personalizzazioni:', error);
+  } catch (error: unknown) {
+    logger.error('Errore recupero personalizzazioni:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore recupero personalizzazioni',
       'FETCH_ERROR'
@@ -345,8 +344,8 @@ router.post('/config/professional/:subcategoryId',
         result,
         existing ? 'Personalizzazione aggiornata' : 'Personalizzazione creata'
       ));
-    } catch (error) {
-      logger.error('Errore personalizzazione AI:', error);
+    } catch (error: unknown) {
+      logger.error('Errore personalizzazione AI:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Errore personalizzazione',
         'CUSTOMIZATION_ERROR'

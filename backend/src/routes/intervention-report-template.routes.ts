@@ -17,7 +17,7 @@ router.get('/', authenticate, async (req: any, res) => {
       templates,
       'Template recuperati con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero template:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero dei template',
@@ -40,7 +40,7 @@ router.get('/:id', authenticate, async (req: any, res) => {
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'TEMPLATE_NOT_FOUND'
       ));
     }
@@ -66,7 +66,7 @@ router.post('/', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req
     
     if (error.statusCode === 400) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'TEMPLATE_VALIDATION_ERROR'
       ));
     }
@@ -96,7 +96,7 @@ router.put('/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (r
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'TEMPLATE_NOT_FOUND'
       ));
     }
@@ -122,14 +122,14 @@ router.delete('/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async
     
     if (error.statusCode === 403) {
       return res.status(403).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'TEMPLATE_DELETE_FORBIDDEN'
       ));
     }
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'TEMPLATE_NOT_FOUND'
       ));
     }
@@ -159,7 +159,7 @@ router.post('/:id/clone', authenticate, async (req: any, res) => {
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'TEMPLATE_NOT_FOUND'
       ));
     }
@@ -182,7 +182,7 @@ router.get('/:id/fields', authenticate, async (req: any, res) => {
       fields,
       'Campi template recuperati con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero campi template:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero dei campi del template',
@@ -208,14 +208,14 @@ router.post('/:id/fields', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), 
     
     if (error.statusCode === 400) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'FIELD_VALIDATION_ERROR'
       ));
     }
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'TEMPLATE_NOT_FOUND'
       ));
     }
@@ -245,7 +245,7 @@ router.put('/:templateId/fields/:fieldId', authenticate, requireRole(['ADMIN', '
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'FIELD_NOT_FOUND'
       ));
     }
@@ -274,7 +274,7 @@ router.delete('/:templateId/fields/:fieldId', authenticate, requireRole(['ADMIN'
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'FIELD_NOT_FOUND'
       ));
     }
@@ -303,7 +303,7 @@ router.post('/:id/fields/reorder', authenticate, requireRole(['ADMIN', 'SUPER_AD
     
     if (error.statusCode === 404) {
       return res.status(404).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'TEMPLATE_NOT_FOUND'
       ));
     }

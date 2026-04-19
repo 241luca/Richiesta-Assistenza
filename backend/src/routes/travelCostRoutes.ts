@@ -28,16 +28,16 @@ router.get('/professional/:professionalId/cost-settings', authenticate, async (r
       ]
     };
     
-    return ResponseFormatter.success(res, defaultSettings, 'Impostazioni di default');
-  } catch (error) {
+    return ResponseFormatter.success(defaultSettings, 'Impostazioni di default');
+  } catch (error: unknown) {
     console.error('Error in cost-settings:', error);
-    return ResponseFormatter.error(res, 'Errore nel recupero delle impostazioni');
+    return ResponseFormatter.error('Errore nel recupero delle impostazioni');
   }
 });
 
 // Altri endpoint che potrebbero esistere
 router.get('/cost-settings', authenticate, async (req, res) => {
-  return ResponseFormatter.success(res, {}, 'OK');
+  return ResponseFormatter.success({}, 'OK');
 });
 
 export default router;

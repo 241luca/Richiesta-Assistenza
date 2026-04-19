@@ -89,7 +89,7 @@ export async function authenticate(
   } catch (error: any) {
     logger.error('Authentication error:', {
       requestId: req.requestId || 'unknown',
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       stack: error.stack
     });
 
@@ -175,7 +175,7 @@ export async function optionalAuth(
     }
 
     next();
-  } catch (error) {
+  } catch (error: unknown) {
     // For optional auth, we don't fail on errors
     logger.debug('Optional auth error (non-fatal):', {
       requestId: req.requestId || 'unknown',

@@ -471,42 +471,159 @@ router.get('/search/semantic', async (req: Request, res: Response) => {
 
 /**
  * GET /api/system/stats
- * Statistiche GLOBALI del sistema
+ * Statistiche GLOBALI del sistema o per un CONTAINER specifico
+ * 
+ * Query params:
+ * - containerId (opzionale): filtra le statistiche per un container specifico
  * 
  * Serve per:
  * - Monitorare lo stato globale
  * - Capire quanti documenti sono stati processati
- * - Vedere la distribuzione dei dati
+ * - Vedere la distribuzione dei dati per container
  */
 router.get('/system/stats', async (req: Request, res: Response) => {
   try {
-    const statsQuery = `
-      SELECT 
-        (SELECT COUNT(*) FROM smartdocs.containers) as total_containers,
-        (SELECT COUNT(*) FROM smartdocs.documents) as total_documents,
-        (SELECT COUNT(*) FROM smartdocs.documents WHERE processing_status = 'COMPLETED') as completed_documents,
-        (SELECT COUNT(*) FROM smartdocs.documents WHERE processing_status = 'FAILED') as failed_documents,
-        (SELECT COUNT(*) FROM smartdocs.embeddings) as total_chunks,
-        (SELECT COUNT(*) FROM smartdocs.kg_entities) as total_entities,
-        (SELECT COUNT(*) FROM smartdocs.kg_relationships) as total_relationships,
-        (SELECT AVG(word_count) FROM smartdocs.chunk_metadata) as avg_chunk_size,
-        (SELECT SUM(file_size) FROM smartdocs.documents) as total_storage_bytes
-    `;
-
-    const result = await db.query(statsQuery);
-
-    res.json({
-      success: true,
-      data: {
-        system_statistics: result.rows[0] || {}
+    const { containerId } = req.query;
+    console.log('📊 [SystemAPI] Request stats for containerId:', containerId);
+    
+    if (containerId) {
+      // Statistiche per UN CONTAINER specifico - QUERY MOLTO SEMPLIFICATA
+      console.log('🔍 [SystemAPI] Loading stats for container:', containerId);
+      
+      // Primo: carica i documenti del container
+      const docsResult = await db.query(
+        `SELECT COUNT(*) as count FROM smartdocs.documents WHERE container_id = $1::uuid`,
+        [containerId]
+      );
+      const totalDocs = parseInt(docsResult.rows[0]?.count || 0);
+      console.log('✅ Total documents:', totalDocs);
+      
+      // Secondo: carica la dimensione totale
+      const sizeResult = await db.query(
+        `SELECT SUM(CAST(file_size AS BIGINT)) as total FROM smartdocs.documents WHERE container_id = $1::uuid`,
+        [containerId]
+      );
+      const totalSize = sizeResult.rows[0]?.total || 0;
+      console.log('✅ Total storage bytes:', totalSize);
+      console.log('🔍 All docs for size calculation:', await db.query(
+        `SELECT id, file_size FROM smartdocs.documents WHERE container_id = $1::uuid LIMIT 3`,
+        [containerId]
+      ).then((r: any) => JSON.stringify(r.rows)));
+      
+      // Terzo: embeddings del container
+      let totalEmbeddings = 0;
+      try {
+        const embResult = await db.query(
+          `SELECT COUNT(DISTINCT e.id) as count FROM smartdocs.embeddings e 
+           WHERE e.document_id IN (SELECT id FROM smartdocs.documents WHERE container_id = $1::uuid)`,
+          [containerId]
+        );
+        totalEmbeddings = parseInt(embResult.rows[0]?.count || 0);
+        console.log('✅ Total embeddings:', totalEmbeddings);
+      } catch (e) {
+        console.warn('⚠️ Error loading embeddings:', (e as any).message);
       }
-    });
+      
+      // Quarto: chunks del container
+      let totalChunks = 0;
+      try {
+        const chunksResult = await db.query(
+          `SELECT COUNT(*) as count FROM smartdocs.chunk_metadata cm 
+           WHERE cm.document_id IN (SELECT id FROM smartdocs.documents WHERE container_id = $1::uuid)`,
+          [containerId]
+        );
+        totalChunks = parseInt(chunksResult.rows[0]?.count || 0);
+        console.log('✅ Total chunks:', totalChunks);
+        // Debug: check if chunk_metadata table has data
+        const chunksDebug = await db.query(
+          `SELECT COUNT(*) as count FROM smartdocs.chunk_metadata LIMIT 1`,
+          []
+        );
+        console.log('🔍 Total chunks in DB:', chunksDebug.rows[0]?.count);
+      } catch (e) {
+        console.warn('⚠️ Error loading chunks:', (e as any).message);
+      }
+      
+      // Quinto: entities del container
+      let totalEntities = 0;
+      try {
+        const entResult = await db.query(
+          `SELECT COUNT(DISTINCT ke.id) as count FROM smartdocs.kg_entities ke 
+           WHERE ke.document_id IN (SELECT id FROM smartdocs.documents WHERE container_id = $1::uuid)`,
+          [containerId]
+        );
+        totalEntities = parseInt(entResult.rows[0]?.count || 0);
+        console.log('✅ Total entities:', totalEntities);
+      } catch (e) {
+        console.warn('⚠️ Error loading entities:', (e as any).message);
+      }
+      
+      // Sesto: relationships del container
+      let totalRelationships = 0;
+      try {
+        const relResult = await db.query(
+          `SELECT COUNT(*) as count FROM smartdocs.kg_relationships 
+           WHERE document_id IN (SELECT id FROM smartdocs.documents WHERE container_id = $1::uuid)`,
+          [containerId]
+        );
+        totalRelationships = parseInt(relResult.rows[0]?.count || 0);
+        console.log('✅ Total relationships:', totalRelationships);
+      } catch (e) {
+        console.warn('⚠️ Error loading relationships:', (e as any).message);
+      }
+      
+      const finalStats = {
+        container_id: containerId,
+        total_documents: totalDocs,
+        total_embeddings: totalEmbeddings,
+        total_chunks: totalChunks,
+        total_entities: totalEntities,
+        total_relationships: totalRelationships,
+        total_storage_bytes: totalSize
+      };
+      
+      console.log('✅ [SystemAPI] Final stats:', JSON.stringify(finalStats, null, 2));
+      
+      res.json({
+        success: true,
+        data: {
+          statistics: finalStats
+        }
+      });
+    } else {
+      // Statistiche GLOBALI (tutti i container)
+      const statsQuery = `
+        SELECT 
+          'GLOBAL'::text as scope,
+          (SELECT COUNT(*) FROM smartdocs.containers) as total_containers,
+          (SELECT COUNT(*) FROM smartdocs.documents) as total_documents,
+          (SELECT COUNT(DISTINCT id) FROM smartdocs.embeddings) as total_embeddings,
+          (SELECT COUNT(DISTINCT id) FROM smartdocs.chunk_metadata) as total_chunks,
+          (SELECT COUNT(DISTINCT id) FROM smartdocs.kg_entities) as total_entities,
+          (SELECT COUNT(DISTINCT id) FROM smartdocs.kg_relationships) as total_relationships,
+          (SELECT SUM(file_size) FROM smartdocs.documents) as total_storage_bytes
+      `;
+      
+      const result = await db.query(statsQuery);
+      const stats = result.rows[0] || {};
+      
+      console.log('✅ [SystemAPI] Global stats:', JSON.stringify(stats, null, 2));
+      
+      res.json({
+        success: true,
+        data: {
+          statistics: stats
+        }
+      });
+    }
 
   } catch (error: any) {
     logger.error('[SystemAPI] Stats failed:', error);
+    console.error('🔴 [SystemAPI] Full error:', error);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
+      details: error.toString()
     });
   }
 });

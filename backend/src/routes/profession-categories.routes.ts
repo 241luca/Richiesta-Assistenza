@@ -75,8 +75,8 @@ router.get('/',
         { professions: transformed, allCategories },
         'Associazioni professioni-categorie recuperate'
       ));
-    } catch (error) {
-      logger.error('Errore recupero associazioni:', error);
+    } catch (error: unknown) {
+      logger.error('Errore recupero associazioni:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Errore recupero associazioni',
         'FETCH_ERROR'
@@ -137,8 +137,8 @@ router.get('/profession/:professionId',
         profession,
         'Categorie della professione recuperate'
       ));
-    } catch (error) {
-      logger.error('Errore recupero categorie professione:', error);
+    } catch (error: unknown) {
+      logger.error('Errore recupero categorie professione:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Errore recupero categorie',
         'FETCH_ERROR'
@@ -209,25 +209,28 @@ router.post('/',
         data: {
           // Genera id deterministico per rispettare lo schema che richiede id
           id: `pc_${professionId}_${categoryId}`,
-          profession: { connect: { id: professionId } },
-          category: { connect: { id: categoryId } },
+          professionId: professionId,
+          categoryId: categoryId,
           isDefault: isDefault || false,
           isActive: true
         },
         include: {
-          profession: true,
-          category: true
+          Profession: true,
+          Category: true
         }
-      });
+      }) as any;
 
       logger.info(`Associazione creata: ${profession.name} -> ${category.name}`);
 
-      return res.status(201).json(ResponseFormatter.success(
-        association,
+      return res.status(201).json(ResponseFormatter.success({
+        ...association,
+        profession: (association as any).Profession,
+        category: (association as any).Category
+      },
         'Associazione creata con successo'
       ));
-    } catch (error) {
-      logger.error('Errore creazione associazione:', error);
+    } catch (error: unknown) {
+      logger.error('Errore creazione associazione:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Errore creazione associazione',
         'CREATE_ERROR'
@@ -271,24 +274,27 @@ router.put('/:id',
         });
       }
 
-      const updated = await prisma.professionCategory.update({
+      const updated = await (prisma.professionCategory.update as any)({
         where: { id },
         data: {
           isDefault,
           isActive
         },
         include: {
-          profession: true,
-          category: true
+          Profession: true,
+          Category: true
         }
       });
 
-      return res.json(ResponseFormatter.success(
-        updated,
+      return res.json(ResponseFormatter.success({
+        ...updated,
+        profession: updated.Profession,
+        category: updated.Category
+      },
         'Associazione aggiornata con successo'
       ));
-    } catch (error) {
-      logger.error('Errore aggiornamento associazione:', error);
+    } catch (error: unknown) {
+      logger.error('Errore aggiornamento associazione:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Errore aggiornamento associazione',
         'UPDATE_ERROR'
@@ -309,11 +315,11 @@ router.delete('/:id',
     try {
       const { id } = req.params;
 
-      const existing = await prisma.professionCategory.findUnique({
+      const existing = await (prisma.professionCategory.findUnique as any)({
         where: { id },
         include: {
-          profession: true,
-          category: true
+          Profession: true,
+          Category: true
         }
       });
 
@@ -328,14 +334,16 @@ router.delete('/:id',
         where: { id }
       });
 
-      logger.info(`Associazione eliminata: ${existing.profession.name} -> ${existing.category.name}`);
+      const profession = existing.Profession || {};
+      const category = existing.Category || {};
+      logger.info(`Associazione eliminata: ${profession.name} -> ${category.name}`);
 
       return res.json(ResponseFormatter.success(
         null,
         'Associazione eliminata con successo'
       ));
-    } catch (error) {
-      logger.error('Errore eliminazione associazione:', error);
+    } catch (error: unknown) {
+      logger.error('Errore eliminazione associazione:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Errore eliminazione associazione',
         'DELETE_ERROR'
@@ -406,8 +414,8 @@ router.post('/bulk',
             where: { id: genId },
             create: {
               id: genId,
-              profession: { connect: { id: professionId } },
-              category: { connect: { id: categoryId } },
+              professionId: professionId,
+              categoryId: categoryId,
               isActive: true
             },
             update: {
@@ -452,8 +460,8 @@ router.post('/bulk',
         result,
         'Associazioni aggiornate con successo'
       ));
-    } catch (error) {
-      logger.error('Errore aggiornamento bulk:', error);
+    } catch (error: unknown) {
+      logger.error('Errore aggiornamento bulk:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Errore aggiornamento associazioni',
         'BULK_UPDATE_ERROR'

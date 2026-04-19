@@ -203,7 +203,7 @@ router.get('/active-users',
           userId: { not: null }
         },
         include: {
-          user: {
+          User: {
             select: {
               id: true,
               email: true,
@@ -216,14 +216,14 @@ router.get('/active-users',
         orderBy: { timestamp: 'desc' },
         distinct: ['userId'], // Un record per utente
         take: 100 // Limita a 100 utenti
-      });
+      }) as any[];
       
       // Formatta i risultati
-      const activeUsers = recentLogins.map(log => ({
+      const activeUsers = recentLogins.map((log: any) => ({
         userId: log.userId,
-        email: log.user?.email || log.userEmail,
-        fullName: log.user?.fullName,
-        role: log.user?.role || log.userRole,
+        email: log.User?.email || log.userEmail,
+        fullName: log.User?.fullName,
+        role: log.User?.role || log.userRole,
         lastLogin: log.timestamp,
         loginCount: 1, // Verrà calcolato dopo
         ipAddress: log.ipAddress
@@ -309,10 +309,10 @@ router.get('/export',
       const result = await auditLogService.search(exportFilters as any);
       
       // Prepara i dati per CSV
-      const csvData = result.logs.map(log => ({
+      const csvData = result.logs.map((log: any) => ({
         Timestamp: log.timestamp,
-        User: log.user?.fullName || log.user?.email || log.userId || 'System',
-        UserRole: log.user?.role || log.userRole || '',
+        User: log.User?.fullName || log.User?.email || log.userId || 'System',
+        UserRole: log.User?.role || log.userRole || '',
         Action: log.action,
         EntityType: log.entityType,
         EntityId: log.entityId,

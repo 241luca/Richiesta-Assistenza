@@ -146,9 +146,9 @@ class ModuleService {
       logger.info(`[ModuleService] Found ${modules.length} modules`);
       return modules;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ModuleService] Error fetching modules:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         filters,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -191,9 +191,9 @@ class ModuleService {
       logger.info(`[ModuleService] Module found: ${code}`);
       return module;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ModuleService] Error fetching module by code:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         code,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -228,9 +228,9 @@ class ModuleService {
       logger.info(`[ModuleService] Found ${modules.length} modules in category ${category}`);
       return modules;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ModuleService] Error fetching modules by category:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         category,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -266,9 +266,9 @@ class ModuleService {
       logger.info(`[ModuleService] Module ${code} enabled: ${module.isEnabled}`);
       return module.isEnabled;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ModuleService] Error checking module enabled status:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         code,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -326,9 +326,9 @@ class ModuleService {
       logger.info('[ModuleService] Statistics calculated:', stats);
       return stats;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ModuleService] Error fetching module stats:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
       });
       throw error;
@@ -363,9 +363,9 @@ class ModuleService {
       logger.info(`[ModuleService] Found ${modules.length} modules with dependencies`);
       return modules;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ModuleService] Error fetching modules with dependencies:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
       });
       throw error;
@@ -440,9 +440,9 @@ class ModuleService {
 
       return validation;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ModuleService] Error validating dependencies:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
       });
       throw error;
@@ -481,9 +481,9 @@ class ModuleService {
       logger.info(`[ModuleService] Found ${modules.length} enabled modules in category ${category}`);
       return modules;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ModuleService] Error fetching enabled modules by category:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         category,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -518,9 +518,9 @@ class ModuleService {
       logger.info(`[ModuleService] Module ${code} core: ${module.isCore}`);
       return module.isCore;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ModuleService] Error checking module core status:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         code,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -570,9 +570,9 @@ class ModuleService {
 
       return config;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ModuleService] Error fetching system config:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
       });
       throw error;
@@ -659,8 +659,8 @@ class ModuleService {
           enabledBy: userId,
           timestamp: new Date().toISOString()
         });
-      } catch (error) {
-        logger.error('[ModuleService] Error sending notification:', error);
+      } catch (error: unknown) {
+        logger.error('[ModuleService] Error sending notification:', error instanceof Error ? error.message : String(error));
       }
 
       // Invalida cache middleware per aggiornamento immediato
@@ -669,9 +669,9 @@ class ModuleService {
       logger.info(`[ModuleService] Module ${code} enabled successfully`);
       return updated;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ModuleService] Error enabling module:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         code,
         userId,
         stack: error instanceof Error ? error.stack : undefined
@@ -763,8 +763,8 @@ class ModuleService {
           reason: reason || 'Non specificato',
           timestamp: new Date().toISOString()
         });
-      } catch (error) {
-        logger.error('[ModuleService] Error sending notification:', error);
+      } catch (error: unknown) {
+        logger.error('[ModuleService] Error sending notification:', error instanceof Error ? error.message : String(error));
       }
 
       // Invalida cache middleware per aggiornamento immediato
@@ -773,9 +773,9 @@ class ModuleService {
       logger.info(`[ModuleService] Module ${code} disabled successfully`);
       return updated;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ModuleService] Error disabling module:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         code,
         userId,
         stack: error instanceof Error ? error.stack : undefined
@@ -842,8 +842,8 @@ class ModuleService {
           changedBy: userId,
           timestamp: new Date().toISOString()
         });
-      } catch (error) {
-        logger.error('[ModuleService] Error sending config change notification:', error);
+      } catch (error: unknown) {
+        logger.error('[ModuleService] Error sending config change notification:', error instanceof Error ? error.message : String(error));
       }
 
       // Invalida cache per riflettere il cambio immediatamente
@@ -852,9 +852,9 @@ class ModuleService {
       logger.info(`[ModuleService] Module ${code} config updated successfully`);
       return updated;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ModuleService] Error updating module config:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         code,
         userId,
         stack: error instanceof Error ? error.stack : undefined
@@ -889,9 +889,9 @@ class ModuleService {
       logger.info(`[ModuleService] Found ${settings.length} settings for module ${code}`);
       return settings;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ModuleService] Error fetching module settings:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         code,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -956,7 +956,7 @@ class ModuleService {
             oldValue: { [settingKey]: setting.value },
             newValue: { [settingKey]: value }
           } as Prisma.InputJsonValue
-        }
+        } as any
       });
 
       // Notifica admins dell’aggiornamento setting
@@ -967,8 +967,8 @@ class ModuleService {
           changedBy: userId,
           timestamp: new Date().toISOString()
         });
-      } catch (error) {
-        logger.error('[ModuleService] Error sending setting update notification:', error);
+      } catch (error: unknown) {
+        logger.error('[ModuleService] Error sending setting update notification:', error instanceof Error ? error.message : String(error));
       }
 
       // Invalida cache per riflettere il cambio immediatamente
@@ -977,9 +977,9 @@ class ModuleService {
       logger.info(`[ModuleService] Setting ${code}.${settingKey} updated successfully`);
       return updated;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ModuleService] Error updating module setting:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         code,
         settingKey,
         userId,
@@ -1029,9 +1029,9 @@ class ModuleService {
       logger.info(`[ModuleService] Found ${history.length} history records for module ${code}`);
       return history;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ModuleService] Error fetching module history:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         code,
         limit,
         stack: error instanceof Error ? error.stack : undefined

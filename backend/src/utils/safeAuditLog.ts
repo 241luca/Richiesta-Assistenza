@@ -28,7 +28,7 @@ export async function safeAuditLog(data: SafeAuditLogData): Promise<void> {
   try {
     await auditLogService.log(data);
     console.log('[AUDIT] Log created successfully for action:', data.action);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[AUDIT] Failed to create audit log:', error);
     console.error('[AUDIT] Data was:', JSON.stringify(data));
   }

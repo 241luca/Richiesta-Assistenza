@@ -22,8 +22,8 @@ router.get('/script-configs', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']
     });
 
     return res.json(ResponseFormatter.success(scripts, 'Script configurations retrieved'));
-  } catch (error) {
-    logger.error('Error fetching script configurations:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching script configurations:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to fetch script configurations', 'FETCH_ERROR')
     );
@@ -46,8 +46,8 @@ router.get('/script-configs/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADM
     }
 
     return res.json(ResponseFormatter.success(script, 'Script configuration retrieved'));
-  } catch (error) {
-    logger.error('Error fetching script configuration:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching script configuration:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to fetch script configuration', 'FETCH_ERROR')
     );
@@ -96,8 +96,8 @@ router.get('/script-configs/enabled/list', authenticate, async (req: any, res) =
 
     console.log('Scripts found:', scripts.length);
     return res.json(ResponseFormatter.success(scripts, 'Enabled scripts retrieved'));
-  } catch (error) {
-    logger.error('Error fetching enabled scripts:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching enabled scripts:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to fetch enabled scripts', 'FETCH_ERROR')
     );
@@ -130,8 +130,8 @@ router.post('/script-configs', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN'
     return res.status(201).json(
       ResponseFormatter.success(script, 'Script configuration created')
     );
-  } catch (error) {
-    logger.error('Error creating script configuration:', error);
+  } catch (error: unknown) {
+    logger.error('Error creating script configuration:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to create script configuration', 'CREATE_ERROR')
     );
@@ -177,8 +177,8 @@ router.put('/script-configs/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADM
     });
 
     return res.json(ResponseFormatter.success(script, 'Script configuration updated'));
-  } catch (error) {
-    logger.error('Error updating script configuration:', error);
+  } catch (error: unknown) {
+    logger.error('Error updating script configuration:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to update script configuration', 'UPDATE_ERROR')
     );
@@ -199,8 +199,8 @@ router.patch('/script-configs/:id/toggle', authenticate, requireRole(['ADMIN', '
     });
 
     return res.json(ResponseFormatter.success(script, 'Script status updated'));
-  } catch (error) {
-    logger.error('Error toggling script status:', error);
+  } catch (error: unknown) {
+    logger.error('Error toggling script status:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to toggle script status', 'UPDATE_ERROR')
     );
@@ -217,8 +217,8 @@ router.delete('/script-configs/:id', authenticate, requireRole(['SUPER_ADMIN']),
     });
 
     return res.json(ResponseFormatter.success(null, 'Script configuration deleted'));
-  } catch (error) {
-    logger.error('Error deleting script configuration:', error);
+  } catch (error: unknown) {
+    logger.error('Error deleting script configuration:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(
       ResponseFormatter.error('Failed to delete script configuration', 'DELETE_ERROR')
     );

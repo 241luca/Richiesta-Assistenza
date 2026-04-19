@@ -32,8 +32,91 @@ import NotificationStats from './NotificationStats';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 
+// ============ TIPI ============
+interface NotificationTypeConfig {
+  label: string;
+  color: string;
+  icon: React.ForwardRefExoticComponent<React.SVGProps<SVGSVGElement>>;
+}
+
+interface PriorityConfig {
+  label: string;
+  color: string;
+  value: number;
+}
+
+interface ChannelConfig {
+  label: string;
+  icon: React.ForwardRefExoticComponent<React.SVGProps<SVGSVGElement>>;
+  color: string;
+}
+
+interface StatItem {
+  type: string;
+  count: number;
+}
+
+interface ChannelStatItem {
+  channel: string;
+  count: number;
+}
+
+interface DayStatItem {
+  date: string;
+  count: number;
+}
+
+interface NotificationStats {
+  total: number;
+  delivered: number;
+  read: number;
+  failed: number;
+  deliveryRate: number;
+  readRate: number;
+  failureRate: number;
+  byType: StatItem[];
+  byChannel: ChannelStatItem[];
+  last7Days: DayStatItem[];
+}
+
+interface NotificationLog {
+  id: string;
+  type: string;
+  title: string;
+  content: string;
+  priority: string;
+  status: string;
+  channels: string[];
+  createdAt: string;
+  metadata: Record<string, unknown>;
+  recipient?: {
+    fullName: string;
+    email: string;
+  };
+}
+
+interface NotificationLogsData {
+  logs: NotificationLog[];
+  total: number;
+}
+
+interface NotificationTemplate {
+  id?: string;
+  code: string;
+  name: string;
+  description: string;
+  category: string;
+  subject?: string;
+  htmlContent?: string;
+  textContent?: string;
+  variables?: string[];
+  channels: string[];
+  priority: string;
+  isActive: boolean;
+}
+
 // Tipi di notifiche aggiornati
-const NOTIFICATION_TYPES = {
+const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
   // Richieste
   NEW_REQUEST: { label: 'Nuova Richiesta', color: 'blue', icon: DocumentTextIcon },
   REQUEST_ASSIGNED: { label: 'Richiesta Assegnata', color: 'green', icon: UserGroupIcon },
@@ -65,7 +148,7 @@ const NOTIFICATION_TYPES = {
 };
 
 // Priorità
-const PRIORITIES = {
+const PRIORITIES: Record<string, PriorityConfig> = {
   low: { label: 'Bassa', color: 'gray', value: 1 },
   normal: { label: 'Normale', color: 'blue', value: 2 },
   high: { label: 'Alta', color: 'yellow', value: 3 },
@@ -73,7 +156,7 @@ const PRIORITIES = {
 };
 
 // Canali
-const CHANNELS = {
+const CHANNELS: Record<string, ChannelConfig> = {
   websocket: { label: 'WebSocket', icon: BellIcon, color: 'green' },
   email: { label: 'Email', icon: EnvelopeIcon, color: 'blue' },
   sms: { label: 'SMS', icon: DevicePhoneMobileIcon, color: 'purple' },
@@ -82,8 +165,8 @@ const CHANNELS = {
 
 const NotificationDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'templates' | 'email-templates' | 'events' | 'logs' | 'test'>('overview');
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [selectedLog, setSelectedLog] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<NotificationTemplate | null>(null);
+  const [selectedLog, setSelectedLog] = useState<NotificationLog | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [showTestModal, setShowTestModal] = useState(false);
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
@@ -101,7 +184,7 @@ const NotificationDashboard: React.FC = () => {
   const queryClient = useQueryClient();
 
   // === QUERY: STATISTICHE ===
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery<NotificationStats>({
     queryKey: ['notification-stats'],
     queryFn: async () => {
       const response = await api.get('/notifications/stats');
@@ -111,7 +194,7 @@ const NotificationDashboard: React.FC = () => {
   });
 
   // === QUERY: LOG NOTIFICHE ===  
-  const { data: logs, isLoading: logsLoading, refetch: refetchLogs } = useQuery({
+  const { data: logs, isLoading: logsLoading, refetch: refetchLogs } = useQuery<NotificationLogsData>({
     queryKey: ['notification-logs', logFilters],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -125,10 +208,10 @@ const NotificationDashboard: React.FC = () => {
   });
 
   // === QUERY: TEMPLATE ===
-  const { data: templates, isLoading: templatesLoading } = useQuery({
+  const { data: templates, isLoading: templatesLoading } = useQuery<NotificationTemplate[]>({
     queryKey: ['notification-templates', filterCategory, searchTerm],
     queryFn: async () => {
-      const params: any = {};
+      const params: Record<string, string> = {};
       if (filterCategory !== 'all') params.category = filterCategory;
       if (searchTerm) params.search = searchTerm;
       
@@ -150,7 +233,7 @@ const NotificationDashboard: React.FC = () => {
 
   // === MUTATION: INVIA TEST ===
   const sendTestMutation = useMutation({
-    mutationFn: async (data) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       const response = await api.post('/notifications/test', data);
       return response.data;
     },
@@ -159,14 +242,14 @@ const NotificationDashboard: React.FC = () => {
       setShowTestModal(false);
       refetchLogs();
     },
-    onError: (error) => {
+    onError: () => {
       toast.error('Errore invio notifica di test');
     }
   });
 
   // === MUTATION: BROADCAST ===
   const broadcastMutation = useMutation({
-    mutationFn: async (data) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       const response = await api.post('/notifications/broadcast', data);
       return response.data;
     },
@@ -181,7 +264,7 @@ const NotificationDashboard: React.FC = () => {
 
   // === MUTATION: REINVIA NOTIFICA ===
   const resendMutation = useMutation({
-    mutationFn: async (id) => {
+    mutationFn: async (id: string) => {
       const response = await api.post(`/notifications/${id}/resend`);
       return response.data;
     },
@@ -267,7 +350,7 @@ const NotificationDashboard: React.FC = () => {
             <div className="bg-white p-6 rounded-lg shadow">
               <h3 className="text-lg font-semibold mb-4">Notifiche per Tipo</h3>
               <div className="space-y-2">
-                {stats?.byType?.map((item) => {
+                {stats?.byType?.map((item: StatItem) => {
                   const type = NOTIFICATION_TYPES[item.type] || { label: item.type, color: 'gray' };
                   const percentage = stats.total ? (item.count / stats.total) * 100 : 0;
                   return (
@@ -294,8 +377,8 @@ const NotificationDashboard: React.FC = () => {
             <div className="bg-white p-6 rounded-lg shadow">
               <h3 className="text-lg font-semibold mb-4">Notifiche per Canale</h3>
               <div className="space-y-2">
-                {stats?.byChannel?.map((item) => {
-                  const channel = CHANNELS[item.channel] || { label: item.channel, color: 'gray' };
+                {stats?.byChannel?.map((item: ChannelStatItem) => {
+                  const channel = CHANNELS[item.channel] || { label: item.channel, color: 'gray', icon: BellIcon };
                   const percentage = stats.total ? (item.count / stats.total) * 100 : 0;
                   const ChannelIcon = channel.icon;
                   return (
@@ -326,7 +409,7 @@ const NotificationDashboard: React.FC = () => {
           <div className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-lg font-semibold mb-4">Trend Ultimi 7 Giorni</h3>
             <div className="grid grid-cols-7 gap-2">
-              {stats?.last7Days?.map((day) => (
+              {stats?.last7Days?.map((day: DayStatItem) => (
                 <div key={day.date} className="text-center">
                   <div className="text-xs text-gray-500 mb-1">
                     {format(new Date(day.date), 'EEE', { locale: it })}
@@ -458,7 +541,7 @@ const NotificationDashboard: React.FC = () => {
             Reset Filtri
           </button>
           <button
-            onClick={refetchLogs}
+            onClick={() => refetchLogs()}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
             <ArrowPathIcon className="h-5 w-5 inline mr-2" />
@@ -513,9 +596,9 @@ const NotificationDashboard: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                logs?.logs?.map((log) => {
+                logs?.logs?.map((log: NotificationLog) => {
                   const type = NOTIFICATION_TYPES[log.type] || { label: log.type, color: 'gray', icon: BellIcon };
-                  const priority = PRIORITIES[log.priority?.toLowerCase()] || { label: log.priority, color: 'gray' };
+                  const priority = PRIORITIES[log.priority?.toLowerCase()] || { label: log.priority, color: 'gray', value: 0 };
                   const TypeIcon = type.icon;
 
                   return (
@@ -538,7 +621,7 @@ const NotificationDashboard: React.FC = () => {
                       <td className="px-4 py-3 text-sm">{log.title}</td>
                       <td className="px-4 py-3">
                         <div className="flex space-x-1">
-                          {log.channels?.map((channel) => {
+                          {log.channels?.map((channel: string) => {
                             const ch = CHANNELS[channel];
                             if (!ch) return null;
                             const ChannelIcon = ch.icon;
@@ -546,7 +629,7 @@ const NotificationDashboard: React.FC = () => {
                               <ChannelIcon
                                 key={channel}
                                 className={`h-5 w-5 text-${ch.color}-500`}
-                                title={ch.label}
+                                {...({ title: ch.label } as any)}
                               />
                             );
                           })}
@@ -613,7 +696,7 @@ const NotificationDashboard: React.FC = () => {
         </div>
         
         {/* Paginazione */}
-        {logs?.total > 0 && (
+        {logs?.total && logs.total > 0 && (
           <div className="px-4 py-3 bg-gray-50 border-t flex justify-between items-center">
             <div className="text-sm text-gray-700">
               Mostrando {logs?.logs?.length || 0} di {logs?.total} notifiche
@@ -777,7 +860,7 @@ const NotificationDashboard: React.FC = () => {
             </div>
             <div className="flex space-x-3">
               <button
-                onClick={refetchLogs}
+                onClick={() => refetchLogs()}
                 className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
               >
                 <ArrowPathIcon className="h-4 w-4 mr-2" />
@@ -923,7 +1006,7 @@ const NotificationDashboard: React.FC = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {templates?.filter((t: any) => t.channels?.includes('email') || t.channels?.includes('EMAIL')).map((template: any) => (
+                {templates?.filter((t: NotificationTemplate) => t.channels?.includes('email') || t.channels?.includes('EMAIL')).map((template: NotificationTemplate) => (
                   <div key={template.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
@@ -957,7 +1040,7 @@ const NotificationDashboard: React.FC = () => {
       {/* Template Editor Modal */}
       {isEditorOpen && (
         <TemplateEditor
-          template={selectedTemplate}
+          template={selectedTemplate as any}
           onClose={() => {
             setIsEditorOpen(false);
             setSelectedTemplate(null);

@@ -19,6 +19,9 @@ import containerCategoryGroupsRoutes from './api/routes/container-category-group
 import containerInstancesRoutes from './routes/containerInstances.routes';
 import syncRoutes from './api/routes/sync';
 import knowledgeGraphRoutes from './api/routes/knowledge-graph';
+import patternsRoutes from './routes/patterns.routes'; // ✅ NEW: Hybrid Patterns
+import advancedOCRRoutes from './routes/advancedOCR.routes'; // ✅ NEW: Advanced OCR (Docling + PaddleOCR)
+import markdownRoutes from './routes/markdown.routes'; // ✅ NEW: Markdown Storage
 
 const app: Application = express();
 const PORT = process.env.PORT || 3500;
@@ -67,6 +70,9 @@ app.use('/api/container-category-groups', containerCategoryGroupsRoutes);
 app.use('/api/container-instances', containerInstancesRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/knowledge-graph', knowledgeGraphRoutes);
+app.use('/api/patterns', patternsRoutes); // ✅ NEW: Hybrid Patterns
+app.use('/api/ocr', advancedOCRRoutes); // ✅ NEW: Advanced OCR
+app.use('/api/markdown', markdownRoutes); // ✅ NEW: Markdown Storage
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -74,7 +80,7 @@ app.get('/', (req: Request, res: Response) => {
     name: 'SmartDocs API',
     version: '1.0.0 - Enterprise Edition',
     status: 'running',
-    features: ['Semantic Chunking', 'Knowledge Graph', 'RAG'],
+    features: ['Semantic Chunking', 'Knowledge Graph', 'RAG', 'Hybrid Pattern Learning', 'Advanced OCR', 'Markdown-First Pipeline'],
     endpoints: {
       health: '/health',
       containers: '/api/containers',
@@ -83,7 +89,10 @@ app.get('/', (req: Request, res: Response) => {
       embeddings: '/api/embeddings/container/:containerId',
       query: '/api/query',
       knowledgeGraph: '/api/knowledge-graph',
-      sync: '/api/sync'
+      sync: '/api/sync',
+      patterns: '/api/patterns',
+      ocr: '/api/ocr',
+      markdown: '/api/markdown'
     }
   });
 });

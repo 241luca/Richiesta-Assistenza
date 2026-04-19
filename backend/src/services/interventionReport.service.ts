@@ -70,15 +70,15 @@ class InterventionReportService {
         allowDraftSave: true,
         maxPhotosPerReport: 10,
         photoMaxSizeMB: 5,
-        autoArchiveAfterDays: null,
+        autoArchiveAfterDays: null as any,
         defaultLanguage: 'it'
       };
       
       logger.info('[InterventionReportService] Configuration retrieved successfully');
       return defaultConfig;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[InterventionReportService] Error fetching configuration:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         stack: error instanceof Error ? error.stack : undefined
       });
       throw error;
@@ -103,9 +103,9 @@ class InterventionReportService {
 
       logger.info('[InterventionReportService] Configuration updated successfully');
       return updated;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[InterventionReportService] Error updating configuration:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         stack: error instanceof Error ? error.stack : undefined
       });
       throw error;
@@ -148,9 +148,9 @@ class InterventionReportService {
 
       logger.info('[InterventionReportService] Field types retrieved', { count: filtered.length });
       return filtered;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[InterventionReportService] Error fetching field types:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         filters,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -178,9 +178,9 @@ class InterventionReportService {
       
       logger.info('[InterventionReportService] Field type created', { id: fieldType.id });
       return fieldType;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[InterventionReportService] Error creating field type:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         data,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -196,9 +196,9 @@ class InterventionReportService {
       
       logger.info('[InterventionReportService] Field type updated', { id });
       return updated;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[InterventionReportService] Error updating field type:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         id,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -224,9 +224,9 @@ class InterventionReportService {
       
       logger.info('[InterventionReportService] Field type deleted', { id });
       return { success: true };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[InterventionReportService] Error deleting field type:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         id,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -265,9 +265,9 @@ class InterventionReportService {
 
       logger.info('[InterventionReportService] Statuses retrieved', { count: filtered.length });
       return filtered;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[InterventionReportService] Error fetching statuses:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         filters,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -289,9 +289,9 @@ class InterventionReportService {
       
       logger.info('[InterventionReportService] Status created', { id: status.id });
       return status;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[InterventionReportService] Error creating status:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         data,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -307,9 +307,9 @@ class InterventionReportService {
       
       logger.info('[InterventionReportService] Status updated', { id });
       return updated;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[InterventionReportService] Error updating status:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         id,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -343,9 +343,9 @@ class InterventionReportService {
 
       logger.info('[InterventionReportService] Intervention types retrieved', { count: filtered.length });
       return filtered;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[InterventionReportService] Error fetching intervention types:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         filters,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -361,9 +361,9 @@ class InterventionReportService {
       
       logger.info('[InterventionReportService] Intervention type created', { id: type.id });
       return type;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[InterventionReportService] Error creating intervention type:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         data,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -379,9 +379,9 @@ class InterventionReportService {
       
       logger.info('[InterventionReportService] Intervention type updated', { id });
       return updated;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[InterventionReportService] Error updating intervention type:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         id,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -423,9 +423,9 @@ class InterventionReportService {
 
       logger.info('[InterventionReportService] Sections retrieved', { count: filtered.length });
       return filtered;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[InterventionReportService] Error fetching sections:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         filters,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -441,9 +441,9 @@ class InterventionReportService {
       
       logger.info('[InterventionReportService] Section created', { id: section.id });
       return section;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[InterventionReportService] Error creating section:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         data,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -459,9 +459,9 @@ class InterventionReportService {
       
       logger.info('[InterventionReportService] Section updated', { id });
       return updated;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[InterventionReportService] Error updating section:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         id,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -510,9 +510,9 @@ class InterventionReportService {
       
       logger.info('[InterventionReportService] Report number generated', { reportNumber });
       return reportNumber;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[InterventionReportService] Error generating report number:', {
-        error: error instanceof Error ? error.message : 'Unknown',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown',
         stack: error instanceof Error ? error.stack : undefined
       });
       return `RAPP-${Date.now()}`;

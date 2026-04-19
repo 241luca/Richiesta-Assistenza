@@ -31,7 +31,7 @@ export const authorize = (...allowedRoles: string[]) => {
       }
 
       next();
-    } catch (error) {
+    } catch (error: unknown) {
       return res.status(500).json(
         ResponseFormatter.error('Errore durante l\'autorizzazione')
       );

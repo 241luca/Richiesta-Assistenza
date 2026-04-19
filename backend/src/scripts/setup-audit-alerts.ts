@@ -240,7 +240,7 @@ async function setupAlerts() {
     console.log(`📊 Total alerts configured: ${defaultAlerts.length}`);
     console.log(`📅 Total retention policies: ${retentionPolicies.length}`);
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Error setting up alerts:', error);
     process.exit(1);
   } finally {

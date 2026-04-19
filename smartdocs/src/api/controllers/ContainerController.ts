@@ -13,12 +13,40 @@ export class ContainerController {
   async list(req: Request, res: Response) {
     const { type, search, limit = 50, offset = 0 } = req.query;
 
-    const containers = await this.service.listContainers({
+    let containers = await this.service.listContainers({
       type: type as string,
       search: search as string,
       limit: Number(limit),
       offset: Number(offset)
     });
+
+    // 📊 Arricchisci con conteggio documenti da SmartDocs API
+    containers = await Promise.all(
+      containers.map(async (container: any) => {
+        try {
+          // Carica TUTTI i documenti (senza filtro container_id perché l'API non lo supporta)
+          const apiUrl = `http://localhost:3500/api/documents?limit=1000&offset=0`;
+          const response = await fetch(apiUrl);
+          
+          if (response.ok) {
+            const data = await response.json() as any;
+            // Filtra i documenti per questo container nel nostro codice
+            const docs = Array.isArray(data.data) ? data.data : [];
+            const docCount = docs.filter((doc: any) => doc.container_id === container.id).length;
+            
+            return {
+              ...container,
+              processed_docs: docCount
+            };
+          }
+          
+          return container;
+        } catch (err) {
+          logger.warn(`Failed to count documents for container ${container.id}:`, err);
+          return container;
+        }
+      })
+    );
 
     res.json({
       success: true,

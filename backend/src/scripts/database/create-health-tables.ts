@@ -132,7 +132,7 @@ async function createHealthCheckTables() {
 
     console.log('\n🎉 Tutte le tabelle Health Check sono state create con successo!');
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Errore nella creazione delle tabelle:', error);
     throw error;
   } finally {

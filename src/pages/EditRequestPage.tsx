@@ -410,7 +410,7 @@ export default function EditRequestPage() {
   };
   
   // Handle address change from autocomplete
-  const handleAddressChange = (newAddressData: typeof addressData) => {
+  const handleAddressChange = (newAddressData: any) => {
     setAddressData(newAddressData);
     // Update form values
     setValue('address', newAddressData.address);

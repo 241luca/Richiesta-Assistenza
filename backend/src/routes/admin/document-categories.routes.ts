@@ -29,7 +29,7 @@ router.get('/',
         'Categories retrieved successfully'
       ));
     } catch (error: any) {
-      logger.error('Error fetching categories:', error);
+      logger.error('Error fetching categories:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to fetch categories',
         'FETCH_ERROR'
@@ -50,7 +50,7 @@ router.get('/stats',
       const stats = await documentCategoryService.getStatistics();
       return res.json(ResponseFormatter.success(stats));
     } catch (error: any) {
-      logger.error('Error fetching category stats:', error);
+      logger.error('Error fetching category stats:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch stats', 'STATS_ERROR')
       );
@@ -69,14 +69,14 @@ router.get('/tree',
     try {
       // Per ora ritorna un array vuoto
       // Quando le tabelle saranno create, costruiremo l'albero gerarchico
-      const tree = [];
+      const tree: any[] = [];
       
       return res.json(ResponseFormatter.success(
         tree,
         'Category tree retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching category tree:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching category tree:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to fetch category tree',
         'FETCH_ERROR'
@@ -105,8 +105,8 @@ router.post('/initialize-defaults',
         result,
         'Initialize defaults completed'
       ));
-    } catch (error) {
-      logger.error('Error initializing defaults:', error);
+    } catch (error: unknown) {
+      logger.error('Error initializing defaults:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to initialize defaults',
         'INIT_ERROR'
@@ -131,9 +131,9 @@ router.get('/:id',
         'Category retrieved successfully'
       ));
     } catch (error: any) {
-      logger.error('Error fetching category:', error);
+      logger.error('Error fetching category:', error instanceof Error ? error.message : String(error));
       
-      if (error.message === 'Category not found') {
+      if (error instanceof Error ? error.message : String(error) === 'Category not found') {
         return res.status(404).json(ResponseFormatter.error(
           'Category not found',
           'NOT_FOUND'
@@ -167,11 +167,11 @@ router.post('/',
         'Category created successfully'
       ));
     } catch (error: any) {
-      logger.error('Error creating category:', error);
+      logger.error('Error creating category:', error instanceof Error ? error.message : String(error));
       
-      if (error.message.includes('already exists')) {
+      if (error instanceof Error ? error.message : String(error).includes('already exists')) {
         return res.status(400).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'DUPLICATE_ERROR'
         ));
       }
@@ -204,9 +204,9 @@ router.put('/:id',
         'Category updated successfully'
       ));
     } catch (error: any) {
-      logger.error('Error updating category:', error);
+      logger.error('Error updating category:', error instanceof Error ? error.message : String(error));
       
-      if (error.message === 'Category not found') {
+      if (error instanceof Error ? error.message : String(error) === 'Category not found') {
         return res.status(404).json(ResponseFormatter.error(
           'Category not found',
           'NOT_FOUND'
@@ -240,18 +240,18 @@ router.delete('/:id',
         'Category deleted successfully'
       ));
     } catch (error: any) {
-      logger.error('Error deleting category:', error);
+      logger.error('Error deleting category:', error instanceof Error ? error.message : String(error));
       
-      if (error.message === 'Category not found') {
+      if (error instanceof Error ? error.message : String(error) === 'Category not found') {
         return res.status(404).json(ResponseFormatter.error(
           'Category not found',
           'NOT_FOUND'
         ));
       }
       
-      if (error.message.includes('Cannot delete')) {
+      if (error instanceof Error ? error.message : String(error).includes('Cannot delete')) {
         return res.status(400).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'DELETE_RESTRICTED'
         ));
       }

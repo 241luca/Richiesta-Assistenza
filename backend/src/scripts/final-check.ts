@@ -63,7 +63,7 @@ async function finalCheck() {
       console.log(`⚠️  Solo ${total} record. Esegui: npx ts-node src/scripts/populate-audit.ts`);
     }
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ ERRORE:', error);
   } finally {
     await prisma.$disconnect();

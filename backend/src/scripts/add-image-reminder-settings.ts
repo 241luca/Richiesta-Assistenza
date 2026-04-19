@@ -178,7 +178,7 @@ async function main() {
         console.log(`✅ Aggiunta impostazione: ${setting.key}`);
         addedCount++;
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`❌ Errore con impostazione ${setting.key}:`, error);
     }
   }

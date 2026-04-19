@@ -92,9 +92,9 @@ export class CategoryService {
       // Ritorna dati puri (NO formatCategory!)
       return categories;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[CategoryService] Error fetching categories:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
       });
       throw error;
@@ -141,9 +141,9 @@ export class CategoryService {
       // Ritorna dati puri (NO formatCategory!)
       return category;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`[CategoryService] Error fetching category ${id}:`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         id,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -213,9 +213,9 @@ export class CategoryService {
       // Ritorna dati puri (NO formatCategory!)
       return newCategory;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[CategoryService] Error creating category:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         data,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -297,9 +297,9 @@ export class CategoryService {
       // Ritorna dati puri (NO formatCategory!)
       return updatedCategory;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`[CategoryService] Error updating category ${id}:`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         id,
         data,
         stack: error instanceof Error ? error.stack : undefined
@@ -353,9 +353,9 @@ export class CategoryService {
       logger.info(`[CategoryService] Category deleted successfully: ${id}`);
       return true;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`[CategoryService] Error deleting category ${id}:`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         id,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -401,9 +401,9 @@ export class CategoryService {
       logger.info(`[CategoryService] Category retrieved by slug: ${slug}`);
       return category;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`[CategoryService] Error fetching category by slug ${slug}:`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         slug,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -443,9 +443,9 @@ export class CategoryService {
       logger.info(`[CategoryService] Retrieved ${categories.length} active categories`);
       return categories;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[CategoryService] Error fetching active categories:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
       });
       throw error;

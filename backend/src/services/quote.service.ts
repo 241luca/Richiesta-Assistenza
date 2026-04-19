@@ -255,9 +255,9 @@ class QuoteService {
 
       return quote;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[QuoteService] Error creating quote:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         title: input.title,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -395,9 +395,9 @@ class QuoteService {
 
       return updatedQuote;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[QuoteService] Error updating quote:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         quoteId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -512,9 +512,9 @@ class QuoteService {
 
       return updatedQuote;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[QuoteService] Error accepting quote:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         quoteId,
         clientId,
         stack: error instanceof Error ? error.stack : undefined
@@ -591,9 +591,9 @@ class QuoteService {
 
       return updatedQuote;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[QuoteService] Error rejecting quote:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         quoteId,
         clientId,
         stack: error instanceof Error ? error.stack : undefined
@@ -621,9 +621,9 @@ class QuoteService {
       logger.info(`[QuoteService] Found ${versions.length} versions for quote ${quoteId}`);
       return versions;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[QuoteService] Error fetching quote versions:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         quoteId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -690,9 +690,9 @@ class QuoteService {
       logger.info(`[QuoteService] Quote created from template: ${quote.id}`);
       return quote;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[QuoteService] Error creating quote from template:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         templateId,
         requestId,
         stack: error instanceof Error ? error.stack : undefined
@@ -747,17 +747,17 @@ class QuoteService {
           name,
           description,
           template: templateData as any,
-          user: { connect: { id: quote.professionalId } }, // ✅ CORRETTO: usa connect per la relazione
+          User: { connect: { id: quote.professionalId } },
           isPublic: false
-        }
+        } as any
       });
 
       logger.info(`[QuoteService] Template created: ${template.id}`);
       return template;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[QuoteService] Error saving quote as template:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         quoteId,
         name,
         stack: error instanceof Error ? error.stack : undefined
@@ -800,9 +800,9 @@ class QuoteService {
       logger.info(`[QuoteService] Found ${templates.length} templates`);
       return templates;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[QuoteService] Error fetching templates:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         professionalId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -891,9 +891,9 @@ class QuoteService {
         stats
       };
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[QuoteService] Error comparing quotes:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         requestId,
         clientId,
         stack: error instanceof Error ? error.stack : undefined
@@ -973,7 +973,7 @@ class QuoteService {
       logger.info('[QuoteService] Using default deposit calculation (30%)');
       return totalAmount * 0.3;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[QuoteService] Error calculating deposit, using default 30%:', error);
       return totalAmount * 0.3;
     }
@@ -1001,8 +1001,8 @@ class QuoteService {
         },
         channels: ['websocket', 'email']
       });
-    } catch (error) {
-      logger.error('[QuoteService] Error sending quote notification:', error);
+    } catch (error: unknown) {
+      logger.error('[QuoteService] Error sending quote notification:', error instanceof Error ? error.message : String(error));
       // Non blocca il flusso
     }
   }

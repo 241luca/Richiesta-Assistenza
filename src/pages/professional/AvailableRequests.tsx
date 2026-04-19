@@ -285,7 +285,7 @@ export function AvailableRequests() {
       ) : (
         <div className="space-y-4">
           {filteredRequests.map((request: AvailableRequest) => {
-            const statusInfo = statusConfig[request.status] || statusConfig['PENDING'];
+            const statusInfo = (statusConfig as any)[request.status] || statusConfig['PENDING'];
             const priorityInfo = priorityConfig[request.priority as keyof typeof priorityConfig] || priorityConfig['MEDIUM'];
             const StatusIcon = statusInfo.icon;
             

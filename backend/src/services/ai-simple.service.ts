@@ -36,8 +36,8 @@ class AiSimpleService {
       } else {
         logger.warn('OpenAI API key not found or inactive');
       }
-    } catch (error) {
-      logger.error('Error initializing OpenAI:', error);
+    } catch (error: unknown) {
+      logger.error('Error initializing OpenAI:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -72,7 +72,7 @@ class AiSimpleService {
                 city: true
               }
             }
-          }
+          } as any
         });
 
         if (request) {
@@ -97,8 +97,8 @@ class AiSimpleService {
         model: 'gpt-3.5-turbo',
         tokensUsed: completion.usage?.total_tokens || 0
       };
-    } catch (error) {
-      logger.error('Error in AI service:', error);
+    } catch (error: unknown) {
+      logger.error('Error in AI service:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

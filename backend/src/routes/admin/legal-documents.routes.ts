@@ -127,8 +127,8 @@ router.get('/',
         documents,
         'Legal documents retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching legal documents:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching legal documents:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to fetch legal documents',
         'FETCH_ERROR'
@@ -213,8 +213,8 @@ router.get('/acceptances',
         },
         'Acceptances retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching acceptances:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching acceptances:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to fetch acceptances',
         'FETCH_ERROR'
@@ -308,7 +308,7 @@ router.get('/analytics',
             orderBy: { publishedAt: 'desc' },
             take: 1
           }
-        }
+        } as any
       });
       
       const documentsWithVersions = allActiveDocuments.filter(d => (d as any).LegalDocumentVersion?.length > 0);
@@ -372,8 +372,8 @@ router.get('/analytics',
         }
       }, 'Analytics retrieved successfully'));
       
-    } catch (error) {
-      logger.error('Error fetching analytics:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching analytics:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to fetch analytics',
         'ANALYTICS_ERROR'
@@ -448,7 +448,7 @@ router.post('/',
       req.body = validatedData;
       next();
     } catch (error: any) {
-      logger.error('Validation error:', error);
+      logger.error('Validation error:', error instanceof Error ? error.message : String(error));
       if (error.errors) {
         return res.status(400).json(ResponseFormatter.error(
           'Validation failed',
@@ -475,11 +475,11 @@ router.post('/',
         'Legal document created successfully'
       ));
     } catch (error: any) {
-      logger.error('Error creating legal document:', error);
+      logger.error('Error creating legal document:', error instanceof Error ? error.message : String(error));
       
-      if (error.message?.includes('already exists')) {
+      if (error instanceof Error ? error.message : String(error)?.includes('already exists')) {
         return res.status(400).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'DUPLICATE_ERROR'
         ));
       }
@@ -538,7 +538,7 @@ router.put('/:id',
         'Legal document updated successfully'
       ));
     } catch (error: any) {
-      logger.error('Error updating legal document:', error);
+      logger.error('Error updating legal document:', error instanceof Error ? error.message : String(error));
       
       if (error.code === 'P2025') {
         return res.status(404).json(ResponseFormatter.error(
@@ -669,8 +669,8 @@ router.get('/:id',
         document as any,
         'Document retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching document:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching document:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to fetch document',
         'FETCH_ERROR'
@@ -742,8 +742,8 @@ router.get('/:id/versions/:versionId',
         version,
         'Version retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching version:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching version:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to fetch version',
         'FETCH_ERROR'
@@ -766,7 +766,7 @@ router.post('/:id/versions',
       req.body = validatedData;
       next();
     } catch (error: any) {
-      logger.error('Validation error:', error);
+      logger.error('Validation error:', error instanceof Error ? error.message : String(error));
       if (error.errors) {
         return res.status(400).json(ResponseFormatter.error(
           'Validation failed',
@@ -798,18 +798,18 @@ router.post('/:id/versions',
         'Document version created successfully'
       ));
     } catch (error: any) {
-      logger.error('Error creating document version:', error);
+      logger.error('Error creating document version:', error instanceof Error ? error.message : String(error));
       
-      if (error.message?.includes('not found')) {
+      if (error instanceof Error ? error.message : String(error)?.includes('not found')) {
         return res.status(404).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'NOT_FOUND'
         ));
       }
       
-      if (error.message?.includes('already exists')) {
+      if (error instanceof Error ? error.message : String(error)?.includes('already exists')) {
         return res.status(400).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'DUPLICATE_ERROR'
         ));
       }
@@ -867,7 +867,7 @@ router.put('/:id/versions/:versionId',
         'Version updated successfully'
       ));
     } catch (error: any) {
-      logger.error('Error updating version:', error);
+      logger.error('Error updating version:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to update version',
         'UPDATE_ERROR'
@@ -909,8 +909,8 @@ router.put('/versions/:versionId/approve',
         version,
         'Version approved successfully'
       ));
-    } catch (error) {
-      logger.error('Error approving version:', error);
+    } catch (error: unknown) {
+      logger.error('Error approving version:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to approve version',
         'UPDATE_ERROR'
@@ -945,8 +945,8 @@ router.put('/versions/:versionId/reject',
         version,
         'Version archived successfully'
       ));
-    } catch (error) {
-      logger.error('Error archiving version:', error);
+    } catch (error: unknown) {
+      logger.error('Error archiving version:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to archive version',
         'UPDATE_ERROR'
@@ -1038,7 +1038,7 @@ router.put('/versions/:versionId/unpublish',
         'Version unpublished successfully'
       ));
     } catch (error: any) {
-      logger.error('Error unpublishing version:', error);
+      logger.error('Error unpublishing version:', error instanceof Error ? error.message : String(error));
       
       if (error.code === 'P2025') {
         return res.status(404).json(ResponseFormatter.error(
@@ -1078,18 +1078,18 @@ router.post('/versions/:versionId/publish',
         'Version published successfully'
       ));
     } catch (error: any) {
-      logger.error('Error publishing version:', error);
+      logger.error('Error publishing version:', error instanceof Error ? error.message : String(error));
       
-      if (error.message?.includes('not found')) {
+      if (error instanceof Error ? error.message : String(error)?.includes('not found')) {
         return res.status(404).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'NOT_FOUND'
         ));
       }
       
-      if (error.message?.includes('must be approved')) {
+      if (error instanceof Error ? error.message : String(error)?.includes('must be approved')) {
         return res.status(400).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'INVALID_STATUS'
         ));
       }
@@ -1175,8 +1175,8 @@ router.get('/acceptances/report',
         },
         'Acceptance report generated successfully'
       ));
-    } catch (error) {
-      logger.error('Error generating acceptance report:', error);
+    } catch (error: unknown) {
+      logger.error('Error generating acceptance report:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to generate report',
         'REPORT_ERROR'
@@ -1228,8 +1228,8 @@ router.get('/pending-users',
         },
         'Pending users report generated successfully'
       ));
-    } catch (error) {
-      logger.error('Error generating pending users report:', error);
+    } catch (error: unknown) {
+      logger.error('Error generating pending users report:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to generate report',
         'REPORT_ERROR'

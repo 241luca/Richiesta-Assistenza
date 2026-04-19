@@ -96,7 +96,7 @@ async function setCorrectEvolutionKey() {
     
     process.exit(0);
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Errore:', error);
     process.exit(1);
   }

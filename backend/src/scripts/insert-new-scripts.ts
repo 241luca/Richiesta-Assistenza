@@ -158,7 +158,7 @@ async function insertNewScripts() {
     console.log('\n✅ Inserimento completato con successo!');
     console.log('🌐 Ora puoi vedere gli script su: http://localhost:5193/admin/scripts');
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Errore durante l\'inserimento:', error);
     throw error;
   } finally {

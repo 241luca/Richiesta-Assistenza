@@ -113,7 +113,7 @@ class InterventionMaterialService {
       let filtered = materials;
       
       if (filters?.category) {
-        filtered = filtered.filter(m => m.category === filters.category);
+        filtered = filtered.filter(m => (m as any).Category === filters.category);
       }
       
       if (filters?.isActive !== undefined) {
@@ -134,7 +134,7 @@ class InterventionMaterialService {
       }
       
       return filtered;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero materiali:', error);
       throw error;
     }
@@ -150,7 +150,7 @@ class InterventionMaterialService {
       }
       
       return material;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero materiale:', error);
       throw error;
     }
@@ -166,7 +166,7 @@ class InterventionMaterialService {
       }
       
       return material;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero materiale per codice:', error);
       throw error;
     }
@@ -189,7 +189,7 @@ class InterventionMaterialService {
       
       console.log('Materiale creato:', material);
       return material;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore creazione materiale:', error);
       throw error;
     }
@@ -207,7 +207,7 @@ class InterventionMaterialService {
       
       console.log('Materiale aggiornato:', updated);
       return updated;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore aggiornamento materiale:', error);
       throw error;
     }
@@ -224,7 +224,7 @@ class InterventionMaterialService {
       
       console.log('Materiale eliminato:', id);
       return { success: true };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore eliminazione materiale:', error);
       throw error;
     }
@@ -243,7 +243,7 @@ class InterventionMaterialService {
       ];
       
       return categories;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero categorie:', error);
       throw error;
     }
@@ -262,7 +262,7 @@ class InterventionMaterialService {
         m.barcode?.includes(query) ||
         m.manufacturerCode?.toLowerCase().includes(queryLower)
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore ricerca materiali:', error);
       throw error;
     }
@@ -276,7 +276,7 @@ class InterventionMaterialService {
       return materials
         .sort((a, b) => b.usageCount - a.usageCount)
         .slice(0, limit);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero materiali più usati:', error);
       throw error;
     }
@@ -296,7 +296,7 @@ class InterventionMaterialService {
         } catch (error: any) {
           errors.push({
             row: data.indexOf(item) + 1,
-            error: error.message,
+            error: error instanceof Error ? error.message : String(error),
             data: item
           });
         }
@@ -308,7 +308,7 @@ class InterventionMaterialService {
         imported,
         errors
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore import materiali:', error);
       throw error;
     }
@@ -326,7 +326,7 @@ class InterventionMaterialService {
         format: 'json',
         filename: `materiali_${Date.now()}.json`
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore export materiali:', error);
       throw error;
     }

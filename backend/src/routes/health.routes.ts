@@ -38,7 +38,7 @@ router.get('/', async (req, res) => {
     health.status = 'degraded';
     health.checks.database = {
       status: 'unhealthy',
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     };
   }
 
@@ -71,7 +71,7 @@ router.get('/', async (req, res) => {
   }
 
   // 4. Response Time
-  health.responseTime = `${Date.now() - startTime}ms`;
+  (health as any).responseTime = `${Date.now() - startTime}ms`;
 
   // Determine HTTP status code
   const statusCode = health.status === 'healthy' ? 200 : 503;
@@ -98,7 +98,7 @@ router.get('/detailed', async (req, res) => {
   } catch (error: any) {
     checks.database = {
       status: 'unhealthy',
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     };
   }
 
@@ -114,7 +114,7 @@ router.get('/detailed', async (req, res) => {
   } catch (error: any) {
     checks.redis = {
       status: 'unhealthy',
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     };
   }
 
@@ -163,7 +163,7 @@ router.get('/detailed', async (req, res) => {
   } catch (error: any) {
     checks.application = {
       status: 'error',
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     };
   }
 
@@ -206,11 +206,11 @@ router.get('/ready', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
-    logger.error('Readiness check failed:', error);
+    logger.error('Readiness check failed:', error instanceof Error ? error.message : String(error));
     return res.status(503).json(
       ResponseFormatter.error('Readiness check failed', 'CHECK_FAILED', {
         ready: false,
-        reason: error.message
+        reason: error instanceof Error ? error.message : String(error)
       })
     );
   }
@@ -252,7 +252,7 @@ router.get('/detailed', async (req: any, res: any) => {
         latency,
         message: `Database responsive (${latency}ms)`
       });
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'PostgreSQL',
         status: 'offline',
@@ -283,7 +283,7 @@ router.get('/detailed', async (req: any, res: any) => {
         });
         if (overallStatus === 'healthy') overallStatus = 'degraded';
       }
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'Redis',
         status: 'offline',
@@ -349,8 +349,8 @@ router.get('/detailed', async (req: any, res: any) => {
           if (overallStatus === 'healthy') overallStatus = 'degraded';
         }
       }
-    } catch (error) {
-      logger.error('Error checking WebSocket status:', error);
+    } catch (error: unknown) {
+      logger.error('Error checking WebSocket status:', error instanceof Error ? error.message : String(error));
       services.push({
         name: 'WebSocket',
         status: 'warning',
@@ -366,7 +366,7 @@ router.get('/detailed', async (req: any, res: any) => {
         status: emailKey ? 'online' : 'warning',
         message: emailKey ? 'Email service configured' : 'Email API key missing'
       });
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'Email',
         status: 'warning',
@@ -389,7 +389,7 @@ router.get('/detailed', async (req: any, res: any) => {
         status: openAIKey ? 'online' : 'warning',
         message: openAIKey ? 'AI service configured' : 'OpenAI API key missing'
       });
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'OpenAI',
         status: 'warning',
@@ -405,7 +405,7 @@ router.get('/detailed', async (req: any, res: any) => {
         status: stripeKey ? 'online' : 'warning',
         message: stripeKey ? 'Payment service configured' : 'Stripe API key missing'
       });
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'Stripe',
         status: 'warning',
@@ -421,7 +421,7 @@ router.get('/detailed', async (req: any, res: any) => {
         status: mapsKey ? 'online' : 'warning',
         message: mapsKey ? 'Maps service configured' : 'Google Maps API key missing'
       });
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'Google Maps',
         status: 'warning',
@@ -445,8 +445,8 @@ router.get('/detailed', async (req: any, res: any) => {
       timestamp: new Date().toISOString()
     }));
 
-  } catch (error) {
-    logger.error('Error checking system health:', error);
+  } catch (error: unknown) {
+    logger.error('Error checking system health:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error(
       'Failed to check system health',
       'HEALTH_CHECK_ERROR'

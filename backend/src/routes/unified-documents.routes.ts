@@ -38,7 +38,7 @@ router.get('/',
         'Documents retrieved successfully'
       ));
     } catch (error: any) {
-      logger.error('Error fetching unified documents:', error);
+      logger.error('Error fetching unified documents:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to fetch documents',
         'FETCH_ERROR'
@@ -75,7 +75,7 @@ router.get('/statistics',
         'Statistics retrieved successfully'
       ));
     } catch (error: any) {
-      logger.error('Error fetching document statistics:', error);
+      logger.error('Error fetching document statistics:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to fetch statistics',
         'FETCH_ERROR'
@@ -120,18 +120,18 @@ router.get('/:type/:id',
         'Document retrieved successfully'
       ));
     } catch (error: any) {
-      logger.error('Error fetching document:', error);
+      logger.error('Error fetching document:', error instanceof Error ? error.message : String(error));
       
-      if (error.message.includes('not found')) {
+      if (error instanceof Error ? error.message : String(error).includes('not found')) {
         return res.status(404).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'NOT_FOUND'
         ));
       }
 
-      if (error.message.includes('Invalid parameters')) {
+      if (error instanceof Error ? error.message : String(error).includes('Invalid parameters')) {
         return res.status(400).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'INVALID_INPUT'
         ));
       }
@@ -177,18 +177,18 @@ router.post('/from-template',
         'Document created successfully'
       ));
     } catch (error: any) {
-      logger.error('Error creating document from template:', error);
+      logger.error('Error creating document from template:', error instanceof Error ? error.message : String(error));
       
-      if (error.message.includes('not found')) {
+      if (error instanceof Error ? error.message : String(error).includes('not found')) {
         return res.status(404).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'NOT_FOUND'
         ));
       }
 
-      if (error.message.includes('Invalid parameters')) {
+      if (error instanceof Error ? error.message : String(error).includes('Invalid parameters')) {
         return res.status(400).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'INVALID_INPUT'
         ));
       }

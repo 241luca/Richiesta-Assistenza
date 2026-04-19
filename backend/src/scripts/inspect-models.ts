@@ -52,7 +52,7 @@ async function inspectModels() {
     `;
     console.log('Campi nel database:', rawQuery);
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore:', error);
   } finally {
     await prisma.$disconnect();

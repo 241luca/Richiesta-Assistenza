@@ -7,7 +7,7 @@ import {
   ChartBarIcon,
   CurrencyEuroIcon,
   CalendarIcon,
-  TrendingUpIcon
+  ArrowTrendingUpIcon
 } from '@heroicons/react/24/outline';
 import api from '../../services/api';
 
@@ -221,7 +221,7 @@ export const ProfessionalStats: React.FC<ProfessionalStatsProps> = ({
       {stats.completedJobs === 0 && (
         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-center text-blue-700 text-sm">
-            <TrendingUpIcon className="h-5 w-5 mr-2" />
+            <ArrowTrendingUpIcon className="h-5 w-5 mr-2" />
             <span>Inizia a completare richieste per costruire la tua reputazione!</span>
           </div>
         </div>

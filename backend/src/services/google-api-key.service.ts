@@ -58,8 +58,8 @@ export class GoogleApiKeyService {
         clientSecret: null,
         apiKey: null
       };
-    } catch (error) {
-      logger.error('Error fetching Google API credentials:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching Google API credentials:', error instanceof Error ? error.message : String(error));
       // Errore database - restituisci null
       return {
         clientId: null,
@@ -107,8 +107,8 @@ export class GoogleApiKeyService {
           }
         });
       }
-    } catch (error) {
-      logger.error('Error saving Google Calendar credentials:', error);
+    } catch (error: unknown) {
+      logger.error('Error saving Google Calendar credentials:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

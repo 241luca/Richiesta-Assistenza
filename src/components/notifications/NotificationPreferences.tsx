@@ -46,11 +46,15 @@ export default function NotificationPreferences() {
     queryFn: async () => {
       const response = await api.get('/user/notification-preferences');
       return response.data;
-    },
-    onSuccess: (data) => {
-      setPreferences(data);
     }
   });
+
+  // Update preferences when data changes
+  React.useEffect(() => {
+    if (data) {
+      setPreferences(data);
+    }
+  }, [data]);
 
   // Salva preferenze
   const saveMutation = useMutation({
@@ -60,7 +64,7 @@ export default function NotificationPreferences() {
     onSuccess: () => {
       toast.success('Preferenze notifiche salvate!');
       setHasChanges(false);
-      queryClient.invalidateQueries(['notification-preferences']);
+      queryClient.invalidateQueries({ queryKey: ['notification-preferences'] });
     },
     onError: () => {
       toast.error('Errore nel salvataggio preferenze');
@@ -107,7 +111,7 @@ export default function NotificationPreferences() {
   ];
 
   // Toggle canale per tipo notifica
-  const toggleChannel = (notificationType: string, channel: string) => {
+  const toggleChannel = (notificationType: string, channel: 'database' | 'websocket' | 'email' | 'sms') => {
     if (!preferences) return;
 
     const updated = { ...preferences };

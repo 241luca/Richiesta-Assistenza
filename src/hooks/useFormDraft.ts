@@ -44,10 +44,18 @@ function debounce<T extends (...args: any[]) => any>(
 }
 
 // Interfaccia per i dati della bozza
-interface DraftData<T> {
+export interface DraftData<T> {
   data: T;
   timestamp: string;
   formId: string;
+}
+
+// Interfaccia per le info della bozza
+export interface DraftInfo {
+  timestamp: string;
+  timeAgo: string;
+  fieldsCount: number;
+  hasContent: boolean;
 }
 
 // Interfaccia per le opzioni del hook
@@ -177,7 +185,7 @@ export const useFormDraft = <T extends Record<string, any>>(
   }, [loadDraft]);
 
   // Funzione per ottenere informazioni sulla bozza
-  const getDraftInfo = useCallback(() => {
+  const getDraftInfo = useCallback((): DraftInfo | null => {
     const draft = loadDraft();
     if (!draft) return null;
 

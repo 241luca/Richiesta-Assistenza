@@ -21,7 +21,7 @@ const MAX_FILES = 5;
 // Configurazione storage
 const storage = multer.diskStorage({
   destination: (req: Request, file: Express.Multer.File, cb) => {
-    const uploadPath = path.join(process.cwd(), '..', 'uploads', 'attachments');
+    const uploadPath = path.join(process.cwd(), 'uploads', 'attachments');
     cb(null, uploadPath);
   },
   filename: (req: Request, file: Express.Multer.File, cb) => {

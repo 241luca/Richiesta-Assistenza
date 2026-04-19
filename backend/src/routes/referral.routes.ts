@@ -38,8 +38,8 @@ router.get('/my-code',
         result,
         'Codice referral recuperato con successo'
       ));
-    } catch (error) {
-      logger.error('Error getting referral code:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting referral code:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Errore nel recupero del codice referral',
         'REFERRAL_CODE_ERROR'
@@ -93,11 +93,11 @@ router.post('/invite',
         'Invito inviato con successo! 🎉'
       ));
     } catch (error: any) {
-      logger.error('Error sending referral invite:', error);
+      logger.error('Error sending referral invite:', error instanceof Error ? error.message : String(error));
       
-      if (error.message.includes('già stata invitata')) {
+      if (error instanceof Error ? error.message : String(error).includes('già stata invitata')) {
         return res.status(400).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'ALREADY_INVITED'
         ));
       }
@@ -125,8 +125,8 @@ router.get('/stats',
         stats,
         'Statistiche referral recuperate con successo'
       ));
-    } catch (error) {
-      logger.error('Error getting referral stats:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting referral stats:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Errore nel recupero delle statistiche',
         'STATS_ERROR'
@@ -155,8 +155,8 @@ router.get('/track/:code', async (req, res) => {
     // Redirect alla pagina di registrazione con il codice
     const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/signup?ref=${code}`;
     return res.redirect(redirectUrl);
-  } catch (error) {
-    logger.error('Error tracking referral click:', error);
+  } catch (error: unknown) {
+    logger.error('Error tracking referral click:', error instanceof Error ? error.message : String(error));
     
     // Anche in caso di errore, redirigi alla registrazione
     const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/signup`;
@@ -184,8 +184,8 @@ router.post('/track-signup',
         { tracked: true },
         'Registrazione tracciata con successo'
       ));
-    } catch (error) {
-      logger.error('Error tracking signup:', error);
+    } catch (error: unknown) {
+      logger.error('Error tracking signup:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Errore nel tracking della registrazione',
         'SIGNUP_TRACK_ERROR'
@@ -209,8 +209,8 @@ router.post('/track-conversion',
         { tracked: true },
         'Conversione tracciata con successo'
       ));
-    } catch (error) {
-      logger.error('Error tracking conversion:', error);
+    } catch (error: unknown) {
+      logger.error('Error tracking conversion:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Errore nel tracking della conversione',
         'CONVERSION_TRACK_ERROR'
@@ -281,8 +281,8 @@ router.get('/export',
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       return res.status(200).send(csv);
-    } catch (error) {
-      logger.error('Error exporting referral report:', error);
+    } catch (error: unknown) {
+      logger.error('Error exporting referral report:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Errore nell\'esportazione del report',
         'EXPORT_ERROR'
@@ -313,8 +313,8 @@ router.get('/analytics',
         analytics,
         'Analytics referral recuperate con successo'
       ));
-    } catch (error) {
-      logger.error('Error getting referral analytics:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting referral analytics:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Errore nel recupero delle analytics',
         'ANALYTICS_ERROR'
@@ -346,8 +346,8 @@ router.post('/cleanup-expired',
         { cleanedCount },
         `Pulizia completata: ${cleanedCount} referral scaduti`
       ));
-    } catch (error) {
-      logger.error('Error cleaning up expired referrals:', error);
+    } catch (error: unknown) {
+      logger.error('Error cleaning up expired referrals:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Errore nella pulizia dei referral scaduti',
         'CLEANUP_ERROR'

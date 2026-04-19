@@ -65,8 +65,8 @@ async function sendInterventionNotification(params: {
       },
       channels: ['websocket', 'email']
     });
-  } catch (error) {
-    logger.error('[ScheduledInterventionService] Error sending notification:', error);
+  } catch (error: unknown) {
+    logger.error('[ScheduledInterventionService] Error sending notification:', error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -257,7 +257,7 @@ export class ScheduledInterventionService {
       
     } catch (error: any) {
       logger.error('[ScheduledInterventionService] Error getting interventions:', {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         requestId, 
         userId,
         errorType: error.name,
@@ -363,7 +363,7 @@ export class ScheduledInterventionService {
           select: { id: true, email: true, fullName: true, firstName: true, lastName: true }
         }),
         prisma.user.findUnique({
-          where: { id: request.professionalId },
+          where: { id: request.professionalId || '' },
           select: { id: true, fullName: true, firstName: true, lastName: true, email: true }
         })
       ]);
@@ -414,7 +414,7 @@ export class ScheduledInterventionService {
       
     } catch (error: any) {
       logger.error('[ScheduledInterventionService] Error proposing interventions:', {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         professionalId,
         stack: error.stack
       });
@@ -549,7 +549,7 @@ export class ScheduledInterventionService {
       
     } catch (error: any) {
       logger.error('[ScheduledInterventionService] Error accepting intervention:', {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         interventionId,
         clientId,
         stack: error.stack
@@ -689,7 +689,7 @@ export class ScheduledInterventionService {
       
     } catch (error: any) {
       logger.error('[ScheduledInterventionService] Error rejecting intervention:', {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         interventionId,
         clientId,
         stack: error.stack

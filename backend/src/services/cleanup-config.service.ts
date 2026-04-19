@@ -139,8 +139,10 @@ export async function getCleanupConfig(): Promise<CleanupConfig> {
           autoCleanupDays: 30,
           createReadme: true,
           preserveStructure: true,
-          notifyOnCleanup: true
-        }
+          notifyOnCleanup: true,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        } as any
       });
 
       // Inizializza anche le configurazioni di sistema
@@ -148,8 +150,8 @@ export async function getCleanupConfig(): Promise<CleanupConfig> {
     }
 
     return config;
-  } catch (error) {
-    logger.error('Errore nel recupero configurazione cleanup:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero configurazione cleanup:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -161,7 +163,7 @@ export async function updateCleanupConfig(data: UpdateConfigData): Promise<Clean
       update: {
         ...data,
         updatedAt: new Date()
-      },
+      } as any,
       create: {
         name: 'default',
         isActive: true,
@@ -177,14 +179,16 @@ export async function updateCleanupConfig(data: UpdateConfigData): Promise<Clean
         preserveStructure: true,
         notifyOnCleanup: true,
         backupBaseDir: '/Users/lucamambelli/Desktop/backup-ra',
+        createdAt: new Date(),
+        updatedAt: new Date(),
         ...data
-      }
+      } as any
     });
 
     logger.info('Configurazione cleanup aggiornata');
     return config;
-  } catch (error) {
-    logger.error('Errore nell\'aggiornamento configurazione:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'aggiornamento configurazione:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -206,8 +210,8 @@ export async function getCleanupPatterns(includeInactive = false): Promise<Clean
     });
 
     return patterns;
-  } catch (error) {
-    logger.error('Errore nel recupero pattern:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero pattern:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -226,8 +230,8 @@ export async function createCleanupPattern(data: CreatePatternData): Promise<Cle
 
     logger.info('Pattern cleanup creato:', pattern.pattern);
     return pattern;
-  } catch (error) {
-    logger.error('Errore nella creazione pattern:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nella creazione pattern:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -244,8 +248,8 @@ export async function updateCleanupPattern(id: string, data: UpdatePatternData):
 
     logger.info('Pattern cleanup aggiornato:', pattern.pattern);
     return pattern;
-  } catch (error) {
-    logger.error('Errore nell\'aggiornamento pattern:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'aggiornamento pattern:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -258,8 +262,8 @@ export async function deleteCleanupPattern(id: string): Promise<{ success: boole
 
     logger.info('Pattern cleanup eliminato:', id);
     return { success: true };
-  } catch (error) {
-    logger.error('Errore nell\'eliminazione pattern:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'eliminazione pattern:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -281,8 +285,8 @@ export async function getExcludedFiles(includeInactive = false): Promise<Cleanup
     });
 
     return files;
-  } catch (error) {
-    logger.error('Errore nel recupero file esclusi:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero file esclusi:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -300,8 +304,8 @@ export async function createExcludedFile(data: CreateExcludedFileData): Promise<
 
     logger.info('File escluso aggiunto:', file.fileName);
     return file;
-  } catch (error) {
-    logger.error('Errore nell\'aggiunta file escluso:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'aggiunta file escluso:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -318,8 +322,8 @@ export async function updateExcludedFile(id: string, data: UpdateExcludedFileDat
 
     logger.info('File escluso aggiornato:', file.fileName);
     return file;
-  } catch (error) {
-    logger.error('Errore nell\'aggiornamento file escluso:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'aggiornamento file escluso:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -332,8 +336,8 @@ export async function deleteExcludedFile(id: string): Promise<{ success: boolean
 
     logger.info('File escluso rimosso:', id);
     return { success: true };
-  } catch (error) {
-    logger.error('Errore nella rimozione file escluso:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nella rimozione file escluso:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -352,8 +356,8 @@ export async function getExcludedDirectories(includeInactive = false): Promise<C
     });
 
     return dirs;
-  } catch (error) {
-    logger.error('Errore nel recupero directory escluse:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero directory escluse:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -371,8 +375,8 @@ export async function createExcludedDirectory(data: CreateExcludedDirectoryData)
 
     logger.info('Directory esclusa aggiunta:', dir.directory);
     return dir;
-  } catch (error) {
-    logger.error('Errore nell\'aggiunta directory esclusa:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'aggiunta directory esclusa:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -389,8 +393,8 @@ export async function updateExcludedDirectory(id: string, data: UpdateExcludedDi
 
     logger.info('Directory esclusa aggiornata:', dir.directory);
     return dir;
-  } catch (error) {
-    logger.error('Errore nell\'aggiornamento directory esclusa:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'aggiornamento directory esclusa:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -403,8 +407,8 @@ export async function deleteExcludedDirectory(id: string): Promise<{ success: bo
 
     logger.info('Directory esclusa eliminata:', id);
     return { success: true };
-  } catch (error) {
-    logger.error('Errore nell\'eliminazione directory esclusa:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'eliminazione directory esclusa:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -423,8 +427,8 @@ export async function getCleanupSchedules(includeInactive = false): Promise<Clea
     });
 
     return schedules;
-  } catch (error) {
-    logger.error('Errore nel recupero programmazioni:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero programmazioni:', error instanceof Error ? error.message : String(error));
     // Ritorna array vuoto se la tabella non esiste ancora
     return [];
   }
@@ -438,13 +442,13 @@ export async function createCleanupSchedule(data: CreateScheduleData): Promise<C
         isActive: data.isActive ?? true,
         createdAt: new Date(),
         updatedAt: new Date()
-      }
+      } as any // Type assertion needed for complex Prisma input
     });
 
     logger.info('Programmazione cleanup creata:', schedule.name);
     return schedule;
-  } catch (error) {
-    logger.error('Errore nella creazione programmazione:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nella creazione programmazione:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -461,8 +465,8 @@ export async function updateCleanupSchedule(id: string, data: UpdateScheduleData
 
     logger.info('Programmazione cleanup aggiornata:', schedule.name);
     return schedule;
-  } catch (error) {
-    logger.error('Errore nell\'aggiornamento programmazione:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'aggiornamento programmazione:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -475,8 +479,8 @@ export async function deleteCleanupSchedule(id: string): Promise<{ success: bool
 
     logger.info('Programmazione cleanup eliminata:', id);
     return { success: true };
-  } catch (error) {
-    logger.error('Errore nell\'eliminazione programmazione:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'eliminazione programmazione:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -491,15 +495,15 @@ export async function logCleanupExecution(data: LogExecutionData): Promise<Clean
       data: {
         ...data,
         createdAt: new Date()
-      }
+      } as any // Type assertion needed for complex Prisma input
     });
 
     // Aggiorna anche le statistiche
     await updateCleanupStats(data);
 
     return log;
-  } catch (error) {
-    logger.error('Errore nel log esecuzione cleanup:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel log esecuzione cleanup:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -532,8 +536,8 @@ async function updateCleanupStats(executionData: LogExecutionData): Promise<Clea
     });
 
     return stats;
-  } catch (error) {
-    logger.error('Errore nell\'aggiornamento statistiche:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'aggiornamento statistiche:', error instanceof Error ? error.message : String(error));
     // Non rilancio l'errore per non bloccare il log principale
     return undefined;
   }
@@ -552,8 +556,8 @@ export async function getCleanupStats(days = 30): Promise<CleanupStats[]> {
     });
 
     return stats;
-  } catch (error) {
-    logger.error('Errore nel recupero statistiche:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero statistiche:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -595,8 +599,8 @@ export async function getCleanupLogs(filters: CleanupLogFilters = {}): Promise<C
     });
 
     return logs;
-  } catch (error) {
-    logger.error('Errore nel recupero log cleanup:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero log cleanup:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -698,8 +702,8 @@ async function initializeSystemDefaults(): Promise<void> {
     }
 
     logger.info('Configurazioni di sistema inizializzate con successo');
-  } catch (error) {
-    logger.error('Errore nell\'inizializzazione delle configurazioni di sistema:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'inizializzazione delle configurazioni di sistema:', error instanceof Error ? error.message : String(error));
     // Non rilancio l'errore per non bloccare l'avvio
   }
 }
@@ -746,8 +750,8 @@ export async function getActivePatterns(): Promise<string[]> {
     });
 
     return patterns.map(p => p.pattern);
-  } catch (error) {
-    logger.error('Errore nel recupero pattern attivi:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero pattern attivi:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -759,8 +763,8 @@ export async function getActiveExcludedFiles(): Promise<string[]> {
     });
 
     return files.map(f => f.fileName);
-  } catch (error) {
-    logger.error('Errore nel recupero file esclusi attivi:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero file esclusi attivi:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -772,8 +776,8 @@ export async function getActiveExcludedDirectories(): Promise<string[]> {
     });
 
     return dirs.map(d => d.directory);
-  } catch (error) {
-    logger.error('Errore nel recupero directory escluse attive:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero directory escluse attive:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }

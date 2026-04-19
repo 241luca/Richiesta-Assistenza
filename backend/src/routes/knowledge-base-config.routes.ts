@@ -57,8 +57,8 @@ router.get('/config/:professionalId/:subcategoryId/:targetAudience',
         config,
         'Configurazione recuperata con successo'
       ));
-    } catch (error) {
-      logger.error('Error fetching KB config:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching KB config:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error(
           'Errore nel recupero della configurazione',
@@ -116,7 +116,7 @@ router.post('/config/:professionalId/:subcategoryId/:targetAudience',
         );
       }
       
-      logger.error('Error updating KB config:', error);
+      logger.error('Error updating KB config:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error(
           'Errore nel salvataggio della configurazione',
@@ -150,8 +150,8 @@ router.delete('/config/:professionalId/:subcategoryId/:targetAudience',
         { reset: true },
         'Configurazione ripristinata ai valori di default'
       ));
-    } catch (error) {
-      logger.error('Error resetting KB config:', error);
+    } catch (error: unknown) {
+      logger.error('Error resetting KB config:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error(
           'Errore nel reset della configurazione',

@@ -163,8 +163,8 @@ export async function logWhatsAppEvent(
     });
 
     logger.info(`WhatsApp event logged: ${event.action}`);
-  } catch (error) {
-    logger.error('Errore logging WhatsApp audit:', error);
+  } catch (error: unknown) {
+    logger.error('Errore logging WhatsApp audit:', error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -444,8 +444,8 @@ export async function generateAuditReport(
         encryptionEnabled: true,
       },
     };
-  } catch (error) {
-    logger.error('Errore generazione report WhatsApp:', error);
+  } catch (error: unknown) {
+    logger.error('Errore generazione report WhatsApp:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -528,8 +528,8 @@ export async function detectAnomalies(): Promise<Anomaly[]> {
       });
     }
 
-  } catch (error) {
-    logger.error('Errore rilevamento anomalie:', error);
+  } catch (error: unknown) {
+    logger.error('Errore rilevamento anomalie:', error instanceof Error ? error.message : String(error));
   }
 
   return anomalies;
@@ -550,8 +550,8 @@ export async function cleanupOldLogs(
     await auditLogService.cleanupOldLogs();
     
     return 0; // Non possiamo restituire il numero esatto senza query diretta
-  } catch (error) {
-    logger.error('Errore pulizia log WhatsApp:', error);
+  } catch (error: unknown) {
+    logger.error('Errore pulizia log WhatsApp:', error instanceof Error ? error.message : String(error));
     return 0;
   }
 }

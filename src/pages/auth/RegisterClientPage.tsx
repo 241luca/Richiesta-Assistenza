@@ -110,7 +110,7 @@ export function RegisterClientPage() {
       // Rimuovi confirmPassword prima di inviare
       delete (registrationData as any).confirmPassword;
 
-      const result = await registerUser(registrationData);
+      const result = await registerUser(registrationData as any);
       
       if (result.success) {
         toast.success('Registrazione completata! Controlla la tua email per confermare l\'account.');
@@ -595,7 +595,7 @@ export function RegisterClientPage() {
                 <PrivacyCheckboxes
                   privacyAccepted={watchPrivacy}
                   termsAccepted={watchTerms}
-                  marketingAccepted={watch('marketingAccepted', false)}
+                  marketingAccepted={watch('marketingAccepted', false) || false}
                   onPrivacyChange={(value) => setValue('privacyAccepted', value)}
                   onTermsChange={(value) => setValue('termsAccepted', value)}
                   onMarketingChange={(value) => setValue('marketingAccepted', value)}

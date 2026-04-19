@@ -11,7 +11,7 @@
         name: 'backup_creation_test',
         description: 'Backup creation capability',
         status: CheckStatus.FAIL,
-        message: `Backup creation failed: ${error.message}`,
+        message: `Backup creation failed: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.HIGH
       });
       
@@ -248,7 +248,7 @@
       }
       
     } catch (error: any) {
-      this.log(`Statistics collection error: ${error.message}`, 'warning');
+      this.log(`Statistics collection error: ${error instanceof Error ? error.message : String(error)}`, 'warning');
     }
     
     // Calculate health score adjustments

@@ -308,7 +308,7 @@ export default function SmartDocsSyncSettings() {
                   </p>
                 </div>
                 <Button
-                  variant={editedConfig.enabled ? 'default' : 'outline'}
+                  variant={editedConfig.enabled ? 'primary' : 'secondary'}
                   onClick={() => setEditedConfig({ ...editedConfig, enabled: !editedConfig.enabled })}
                 >
                   {editedConfig.enabled ? 'Abilitato' : 'Disabilitato'}
@@ -449,7 +449,7 @@ export default function SmartDocsSyncSettings() {
                     </div>
                     <Button
                       size="sm"
-                      variant={(editedConfig as any)[item.key] ? 'default' : 'outline'}
+                      variant={(editedConfig as any)[item.key] ? 'primary' : 'secondary'}
                       onClick={() => setEditedConfig({
                         ...editedConfig,
                         [item.key]: !(editedConfig as any)[item.key]
@@ -645,7 +645,7 @@ export default function SmartDocsSyncSettings() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium">{override.user_name}</p>
-                          <Badge variant="outline" className="mt-1">
+                          <Badge variant="info" className="mt-1">
                             {override.user_type === 'client' ? 'Cliente' : 'Professionista'}
                           </Badge>
                         </div>
@@ -654,7 +654,7 @@ export default function SmartDocsSyncSettings() {
                             {override.enabled ? 'Sync Attivo' : 'Sync Disabilitato'}
                           </Badge>
                           <Button
-                            variant="outline"
+                            variant="danger"
                             size="sm"
                             onClick={() => handleDeleteUserOverride(override.user_id, override.user_type)}
                           >

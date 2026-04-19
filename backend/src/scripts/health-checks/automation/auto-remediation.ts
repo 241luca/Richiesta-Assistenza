@@ -69,7 +69,7 @@ export class AutoRemediationSystem {
       const configFile = await fs.readFile(this.configPath, 'utf-8');
       this.rules = JSON.parse(configFile);
       logger.info(`✅ Loaded ${this.rules.length} remediation rules`);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('⚠️ No remediation config found, using defaults');
       this.rules = this.getDefaultRules();
       await this.saveConfiguration();
@@ -87,8 +87,8 @@ export class AutoRemediationSystem {
         'utf-8'
       );
       logger.info('✅ Remediation configuration saved');
-    } catch (error) {
-      logger.error('Error saving remediation config:', error);
+    } catch (error: unknown) {
+      logger.error('Error saving remediation config:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -372,8 +372,8 @@ export class AutoRemediationSystem {
         await this.sendRemediationNotification(rule, result, 'success');
       }
 
-    } catch (error) {
-      result.error = error.message;
+    } catch (error: unknown) {
+      result.error = error instanceof Error ? error.message : String(error);
       result.success = false;
 
       if (rule.notifyOnFailure) {
@@ -413,8 +413,8 @@ export class AutoRemediationSystem {
           logger.warn(`Unknown action type: ${action.type}`);
           return false;
       }
-    } catch (error) {
-      logger.error(`Action execution failed: ${action.description}`, error);
+    } catch (error: unknown) {
+      logger.error(`Action execution failed: ${action.description}`, error instanceof Error ? error.message : String(error));
       return false;
     }
   }
@@ -440,8 +440,8 @@ export class AutoRemediationSystem {
       await execAsync(command);
       logger.info(`✅ Service restarted: ${service}`);
       return true;
-    } catch (error) {
-      logger.error(`Failed to restart service ${service}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Failed to restart service ${service}:`, error instanceof Error ? error.message : String(error));
       return false;
     }
   }
@@ -465,8 +465,8 @@ export class AutoRemediationSystem {
       
       logger.info(`✅ Cache cleared: ${target}`);
       return true;
-    } catch (error) {
-      logger.error(`Failed to clear cache ${target}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Failed to clear cache ${target}:`, error instanceof Error ? error.message : String(error));
       return false;
     }
   }
@@ -485,8 +485,8 @@ export class AutoRemediationSystem {
       
       logger.info(`✅ Script executed: ${scriptPath}`);
       return true;
-    } catch (error) {
-      logger.error(`Failed to run script ${scriptPath}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Failed to run script ${scriptPath}:`, error instanceof Error ? error.message : String(error));
       return false;
     }
   }
@@ -525,8 +525,8 @@ export class AutoRemediationSystem {
       
       logger.info(`✅ Database cleanup completed: ${target}`);
       return true;
-    } catch (error) {
-      logger.error(`Database cleanup failed for ${target}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Database cleanup failed for ${target}:`, error instanceof Error ? error.message : String(error));
       return false;
     }
   }
@@ -539,8 +539,8 @@ export class AutoRemediationSystem {
       const scriptPath = path.join(__dirname, '../modules', `${module}-check.ts`);
       const { stdout } = await execAsync(`npx ts-node ${scriptPath}`);
       return JSON.parse(stdout);
-    } catch (error) {
-      logger.error(`Failed to rerun health check for ${module}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Failed to rerun health check for ${module}:`, error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -580,8 +580,8 @@ export class AutoRemediationSystem {
           channels: ['websocket', 'email']
         });
       }
-    } catch (error) {
-      logger.error('Error sending remediation notification:', error);
+    } catch (error: unknown) {
+      logger.error('Error sending remediation notification:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -602,8 +602,8 @@ export class AutoRemediationSystem {
           timestamp: result.timestamp
         }
       });
-    } catch (error) {
-      logger.error('Error saving remediation result:', error);
+    } catch (error: unknown) {
+      logger.error('Error saving remediation result:', error instanceof Error ? error.message : String(error));
     }
   }
 

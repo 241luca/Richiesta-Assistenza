@@ -120,7 +120,8 @@ function ProfessionsTab() {
     onSuccess: () => {
       toast.success('Professione aggiornata');
       queryClient.invalidateQueries({ queryKey: ['professions'] });
-      setEditingProfession(null);
+      setShowEditModal(false);
+      setSelectedProfession(null);
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Errore nell\'aggiornamento');
@@ -280,7 +281,7 @@ function ProfessionsTab() {
       {showCreateModal && (
         <CreateProfessionModal
           onClose={() => setShowCreateModal(false)}
-          onCreate={(data) => createMutation.mutate(data)}
+          onCreate={(data: any) => createMutation.mutate(data)}
         />
       )}
 
@@ -292,7 +293,7 @@ function ProfessionsTab() {
             setShowEditModal(false);
             setSelectedProfession(null);
           }}
-          onUpdate={(data) => {
+          onUpdate={(data: any) => {
             updateMutation.mutate({
               id: selectedProfession.id,
               data
@@ -307,7 +308,7 @@ function ProfessionsTab() {
 }
 
 // Modal per creare nuova professione
-function CreateProfessionModal({ onClose, onCreate }) {
+function CreateProfessionModal({ onClose, onCreate }: any) {
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
@@ -316,7 +317,7 @@ function CreateProfessionModal({ onClose, onCreate }) {
     isActive: true
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: any) => {
     e.preventDefault();
     onCreate(formData);
   };
@@ -401,7 +402,7 @@ function CreateProfessionModal({ onClose, onCreate }) {
 }
 
 // Modal per modificare professione esistente
-function EditProfessionModal({ profession, onClose, onUpdate }) {
+function EditProfessionModal({ profession, onClose, onUpdate }: any) {
   const [formData, setFormData] = useState({
     name: profession.name || '',
     slug: profession.slug || '',
@@ -410,7 +411,7 @@ function EditProfessionModal({ profession, onClose, onUpdate }) {
     isActive: profession.isActive !== false
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: any) => {
     e.preventDefault();
     onUpdate(formData);
   };

@@ -257,7 +257,7 @@ async function initCleanupData() {
     console.log('5. Salva la configurazione');
     console.log('\n✅ Il sistema cleanup v2.0 è pronto all\'uso!');
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Errore durante l\'inizializzazione:', error);
     process.exit(1);
   } finally {

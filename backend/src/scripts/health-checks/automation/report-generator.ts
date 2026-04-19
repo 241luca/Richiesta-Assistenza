@@ -83,8 +83,8 @@ export class HealthCheckReportGenerator {
       logger.info(`✅ Weekly report generated: ${filename}`);
       return filepath;
 
-    } catch (error) {
-      logger.error('Error generating weekly report:', error);
+    } catch (error: unknown) {
+      logger.error('Error generating weekly report:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -393,8 +393,8 @@ export class HealthCheckReportGenerator {
       }
 
       logger.info(`📧 Report sent to ${admins.length} administrators`);
-    } catch (error) {
-      logger.error('Error sending report to admins:', error);
+    } catch (error: unknown) {
+      logger.error('Error sending report to admins:', error instanceof Error ? error.message : String(error));
     }
   }
 

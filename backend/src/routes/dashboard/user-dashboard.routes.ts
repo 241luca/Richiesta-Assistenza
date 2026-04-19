@@ -94,8 +94,8 @@ async function getPendingLegalDocuments(userId: string) {
     }
 
     return pendingDocuments;
-  } catch (error) {
-    logger.error('Error getting pending legal documents:', error);
+  } catch (error: unknown) {
+    logger.error('Error getting pending legal documents:', error instanceof Error ? error.message : String(error));
     return [];
   }
 }
@@ -776,12 +776,12 @@ router.get('/', async (req: any, res: any) => {
       res.json(ResponseFormatter.success(dashboardData, 'Dashboard data retrieved successfully'));
     }
 
-  } catch (error) {
-    logger.error('Error fetching dashboard data:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching dashboard data:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero dei dati della dashboard',
       'DASHBOARD_ERROR',
-      process.env.NODE_ENV === 'development' ? error.message : undefined
+      process.env.NODE_ENV === 'development' ? error instanceof Error ? error.message : String(error) : undefined
     ));
   }
 });

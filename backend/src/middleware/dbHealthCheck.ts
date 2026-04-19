@@ -12,7 +12,7 @@ async function checkDbHealth() {
     await prisma.$queryRaw`SELECT 1`;
     dbHealthy = true;
     return true;
-  } catch (error) {
+  } catch (error: unknown) {
     dbHealthy = false;
     console.error('Database health check failed:', error);
     return false;

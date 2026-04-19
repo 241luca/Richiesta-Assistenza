@@ -4,11 +4,9 @@
  */
 
 import { Server } from 'socket.io';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../config/database';
 import { logger } from '../../utils/logger';
 import { sendNotificationToUser } from './notification.handler';
-
-const prisma = new PrismaClient();
 
 interface AuthenticatedSocket {
   id: string;
@@ -27,12 +25,12 @@ export function handleQuoteEvents(socket: AuthenticatedSocket, io: Server) {
   socket.on('quote:subscribe', async (quoteId: string) => {
     try {
       // Verifica che l'utente abbia accesso al preventivo
-      const quote = await prisma.quote.findFirst({
+      const quote = await (prisma.quote.findFirst as any)({
         where: {
           id: quoteId,
           OR: [
             { professionalId: socket.userId },
-            { request: { clientId: socket.userId } }
+            { AssistanceRequest: { clientId: socket.userId } }
           ]
         }
       });
@@ -44,8 +42,8 @@ export function handleQuoteEvents(socket: AuthenticatedSocket, io: Server) {
       socket.join(`quote:${quoteId}`);
       socket.emit('quote:subscribed', { quoteId });
       logger.debug(`Socket ${socket.id} subscribed to quote ${quoteId}`);
-    } catch (error) {
-      logger.error('Error subscribing to quote:', error);
+    } catch (error: unknown) {
+      logger.error('Error subscribing to quote:', error instanceof Error ? error.message : String(error));
       socket.emit('error', { message: 'Failed to subscribe to quote' });
     }
   });
@@ -59,12 +57,12 @@ export function handleQuoteEvents(socket: AuthenticatedSocket, io: Server) {
   }) => {
     try {
       // Verifica autorizzazioni
-      const quote = await prisma.quote.findFirst({
+      const quote = await (prisma.quote.findFirst as any)({
         where: {
           id: data.quoteId,
         },
         include: {
-          request: {
+          AssistanceRequest: {
             include: {
               client: { select: { id: true, firstName: true, lastName: true } }
             }
@@ -77,10 +75,13 @@ export function handleQuoteEvents(socket: AuthenticatedSocket, io: Server) {
         throw new Error('Quote not found');
       }
 
+      const assistanceRequest = quote.AssistanceRequest || {};
+
       // Verifica autorizzazioni per cambio stato
-      const isClient = socket.userId === quote.request.clientId;
+      const isClient = socket.userId === assistanceRequest.clientId;
       const isProfessional = socket.userId === quote.professionalId;
-      const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(socket.userRole!);
+      const userRole = socket.userRole || '';
+      const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(userRole);
 
       // Logica autorizzazioni per stato
       if (data.status === 'accepted' || data.status === 'rejected') {
@@ -97,7 +98,7 @@ export function handleQuoteEvents(socket: AuthenticatedSocket, io: Server) {
       const updated = await prisma.quote.update({
         where: { id: data.quoteId },
         data: { 
-          status: data.status,
+          status: data.status.toUpperCase() as any,
           updatedAt: new Date()
         }
       });
@@ -115,7 +116,7 @@ export function handleQuoteEvents(socket: AuthenticatedSocket, io: Server) {
         await sendNotificationToUser(io, quote.professionalId, {
           type: 'quote_accepted',
           title: 'Preventivo Accettato! 🎉',
-          message: `Il tuo preventivo per "${quote.request.title}" è stato accettato dal cliente`,
+          message: `Il tuo preventivo per "${assistanceRequest.title || ''}" è stato accettato dal cliente`,
           data: { quoteId: data.quoteId, requestId: quote.requestId },
           priority: 'high'
         });
@@ -124,7 +125,7 @@ export function handleQuoteEvents(socket: AuthenticatedSocket, io: Server) {
         await prisma.assistanceRequest.update({
           where: { id: quote.requestId },
           data: { 
-            status: 'assigned',
+            status: 'ASSIGNED' as any,
             professionalId: quote.professionalId,
             assignedAt: new Date()
           }
@@ -136,16 +137,17 @@ export function handleQuoteEvents(socket: AuthenticatedSocket, io: Server) {
         await sendNotificationToUser(io, quote.professionalId, {
           type: 'quote_rejected',
           title: 'Preventivo Rifiutato',
-          message: `Il tuo preventivo per "${quote.request.title}" è stato rifiutato`,
+          message: `Il tuo preventivo per "${assistanceRequest.title || ''}" è stato rifiutato`,
           data: { quoteId: data.quoteId, requestId: quote.requestId },
           priority: 'normal'
         });
       }
 
       logger.info(`Quote ${data.quoteId} status updated to ${data.status} by user ${socket.userId}`);
-    } catch (error) {
-      logger.error('Error updating quote status:', error);
-      socket.emit('error', { message: error instanceof Error ? error.message : 'Failed to update quote status' });
+    } catch (error: unknown) {
+      logger.error('Error updating quote status:', error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Failed to update quote status';
+      socket.emit('error', { message });
     }
   });
 
@@ -157,13 +159,13 @@ export function handleQuoteEvents(socket: AuthenticatedSocket, io: Server) {
     message: string 
   }) => {
     try {
-      const quote = await prisma.quote.findFirst({
+      const quote = await (prisma.quote.findFirst as any)({
         where: {
           id: data.quoteId,
-          request: { clientId: socket.userId }
+          AssistanceRequest: { clientId: socket.userId }
         },
         include: {
-          request: true
+          AssistanceRequest: true
         }
       });
 
@@ -171,13 +173,19 @@ export function handleQuoteEvents(socket: AuthenticatedSocket, io: Server) {
         throw new Error('Quote not found or access denied');
       }
 
+      const assistanceRequest = quote.AssistanceRequest || {};
+
+      if (!socket.userId) {
+        throw new Error('User not authenticated');
+      }
+
       // Salva la richiesta di revisione
       const revision = await prisma.quoteRevision.create({
         data: {
           quoteId: data.quoteId,
-          requestedBy: socket.userId!,
+          requestedById: socket.userId,
           message: data.message
-        }
+        } as any
       });
 
       // Notifica il professionista
@@ -185,7 +193,7 @@ export function handleQuoteEvents(socket: AuthenticatedSocket, io: Server) {
         await sendNotificationToUser(io, quote.professionalId, {
           type: 'quote_revision_requested',
           title: 'Richiesta di Modifica Preventivo',
-          message: `Il cliente ha richiesto una modifica al preventivo per "${quote.request.title}"`,
+          message: `Il cliente ha richiesto una modifica al preventivo per "${assistanceRequest.title || ''}"`,
           data: { quoteId: data.quoteId, revisionId: revision.id },
           priority: 'high'
         });
@@ -200,9 +208,10 @@ export function handleQuoteEvents(socket: AuthenticatedSocket, io: Server) {
       });
 
       logger.info(`Revision requested for quote ${data.quoteId} by user ${socket.userId}`);
-    } catch (error) {
-      logger.error('Error requesting quote revision:', error);
-      socket.emit('error', { message: error instanceof Error ? error.message : 'Failed to request revision' });
+    } catch (error: unknown) {
+      logger.error('Error requesting quote revision:', error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Failed to request revision';
+      socket.emit('error', { message });
     }
   });
 }
@@ -217,7 +226,7 @@ export async function notifyNewQuote(
   clientId: string,
   professionalName: string,
   requestTitle: string
-) {
+): Promise<void> {
   try {
     // Notifica il cliente
     await sendNotificationToUser(io, clientId, {
@@ -244,8 +253,8 @@ export async function notifyNewQuote(
     });
 
     logger.info(`New quote ${quoteId} notified to client ${clientId}`);
-  } catch (error) {
-    logger.error('Error notifying new quote:', error);
+  } catch (error: unknown) {
+    logger.error('Error notifying new quote:', error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -258,7 +267,7 @@ export async function notifyDepositPayment(
   professionalId: string,
   amount: number,
   clientName: string
-) {
+): Promise<void> {
   try {
     // Notifica il professionista
     await sendNotificationToUser(io, professionalId, {
@@ -277,7 +286,7 @@ export async function notifyDepositPayment(
     });
 
     logger.info(`Deposit payment for quote ${quoteId} notified to professional ${professionalId}`);
-  } catch (error) {
-    logger.error('Error notifying deposit payment:', error);
+  } catch (error: unknown) {
+    logger.error('Error notifying deposit payment:', error instanceof Error ? error.message : String(error));
   }
 }

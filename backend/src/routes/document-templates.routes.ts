@@ -42,8 +42,8 @@ router.get('/',
     try {
       const templates = await documentTemplateService.getAllTemplates(req.user.id);
       return res.json(ResponseFormatter.success(templates, 'Templates retrieved successfully'));
-    } catch (error) {
-      logger.error('Error fetching document templates:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching document templates:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch templates', 'FETCH_ERROR')
       );
@@ -64,8 +64,8 @@ router.get('/:id',
         );
       }
       return res.json(ResponseFormatter.success(template, 'Template retrieved successfully'));
-    } catch (error) {
-      logger.error('Error fetching template:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching template:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch template', 'FETCH_ERROR')
       );
@@ -87,8 +87,8 @@ router.post('/',
       return res.status(201).json(
         ResponseFormatter.success(template, 'Template created successfully')
       );
-    } catch (error) {
-      logger.error('Error creating template:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating template:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to create template', 'CREATE_ERROR')
       );
@@ -114,8 +114,8 @@ router.put('/:id',
         );
       }
       return res.json(ResponseFormatter.success(template, 'Template updated successfully'));
-    } catch (error) {
-      logger.error('Error updating template:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating template:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to update template', 'UPDATE_ERROR')
       );
@@ -136,8 +136,8 @@ router.delete('/:id',
         );
       }
       return res.json(ResponseFormatter.success(null, 'Template deleted successfully'));
-    } catch (error) {
-      logger.error('Error deleting template:', error);
+    } catch (error: unknown) {
+      logger.error('Error deleting template:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to delete template', 'DELETE_ERROR')
       );
@@ -164,8 +164,8 @@ router.post('/from-document',
       return res.status(201).json(
         ResponseFormatter.success(template, 'Template created from document successfully')
       );
-    } catch (error) {
-      logger.error('Error creating template from document:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating template from document:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to create template from document', 'CREATE_ERROR')
       );

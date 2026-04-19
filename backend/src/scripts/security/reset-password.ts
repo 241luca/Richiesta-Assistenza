@@ -74,7 +74,7 @@ export async function execute(params: ResetPasswordParams) {
     };
     
   } catch (error: any) {
-    logger.error('❌ Password reset failed:', error);
+    logger.error('❌ Password reset failed:', error instanceof Error ? error.message : String(error));
     throw error;
   } finally {
     await prisma.$disconnect();

@@ -77,8 +77,8 @@ export async function execute(params: BackupParams = {}) {
       timestamp: new Date()
     };
     
-  } catch (error) {
-    logger.error('❌ Backup failed:', error);
+  } catch (error: unknown) {
+    logger.error('❌ Backup failed:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }

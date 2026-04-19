@@ -35,7 +35,7 @@ export default function TeamManagementPage() {
   const generateCodeMutation = useMutation({
     mutationFn: () => api.post('/company/generate-employee-code'),
     onSuccess: (data) => {
-      setGeneratedCode(data.code);
+      setGeneratedCode(data.data.code);
       setShowCodeModal(true);
       queryClient.invalidateQueries({ queryKey: ['employee-codes'] });
     }
@@ -93,15 +93,15 @@ export default function TeamManagementPage() {
         <div className="px-6 py-4 grid grid-cols-3 gap-6">
           <div>
             <p className="text-sm text-gray-600">Dipendenti Attivi</p>
-            <p className="text-2xl font-bold">{team?.employees?.length || 0}</p>
+            <p className="text-2xl font-bold">{team?.data?.employees?.length || 0}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Collaboratori</p>
-            <p className="text-2xl font-bold">{team?.collaborators?.length || 0}</p>
+            <p className="text-2xl font-bold">{team?.data?.collaborators?.length || 0}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Codici Attivi</p>
-            <p className="text-2xl font-bold">{activeCodes?.length || 0}</p>
+            <p className="text-2xl font-bold">{activeCodes?.data?.length || 0}</p>
           </div>
         </div>
       </div>
@@ -112,7 +112,7 @@ export default function TeamManagementPage() {
           <h2 className="text-lg font-semibold">Team Attuale</h2>
         </div>
         <div className="divide-y">
-          {team?.members?.map((member: any) => (
+          {team?.data?.members?.map((member: any) => (
             <div key={member.id} className="px-6 py-4 flex items-center justify-between">
               <div className="flex items-center">
                 <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
@@ -148,7 +148,7 @@ export default function TeamManagementPage() {
             </div>
           ))}
           
-          {(!team?.members || team.members.length === 0) && (
+          {(!team?.data?.members || team.data.members.length === 0) && (
             <div className="px-6 py-12 text-center text-gray-500">
               Nessun dipendente nel team. Genera un codice per invitarli!
             </div>
@@ -162,7 +162,7 @@ export default function TeamManagementPage() {
           <h2 className="text-lg font-semibold">Codici di Invito Attivi</h2>
         </div>
         <div className="divide-y">
-          {activeCodes?.map((code: any) => (
+          {activeCodes?.data?.map((code: any) => (
             <div key={code.id} className="px-6 py-4 flex items-center justify-between">
               <div className="flex items-center">
                 <KeyIcon className="h-5 w-5 text-gray-400 mr-3" />
@@ -201,7 +201,7 @@ export default function TeamManagementPage() {
             </div>
           ))}
           
-          {(!activeCodes || activeCodes.length === 0) && (
+          {(!activeCodes?.data || activeCodes.data.length === 0) && (
             <div className="px-6 py-12 text-center text-gray-500">
               Nessun codice attivo. Genera un nuovo codice per invitare dipendenti.
             </div>

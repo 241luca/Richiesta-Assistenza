@@ -197,7 +197,7 @@ export const CustomFormsPage: React.FC = () => {
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {receivedForms.map((form) => (
+            {receivedForms.map((form: any) => (
               <div key={form.id} className="p-6 hover:bg-gray-50">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">

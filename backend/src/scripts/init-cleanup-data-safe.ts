@@ -176,7 +176,7 @@ async function initCleanupDataSafe() {
     console.log('\n⚠️ NOTA: Alcune funzionalità avanzate potrebbero non essere disponibili');
     console.log('fino all\'aggiornamento completo dello schema del database.');
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Errore durante l\'inizializzazione:', error);
     process.exit(1);
   } finally {

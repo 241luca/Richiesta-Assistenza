@@ -23,7 +23,7 @@ router.get('/stats', authenticate, async (req, res) => {
       active,
       inactive: total - active
     }));
-  } catch (error) {
+  } catch (error: unknown) {
     return res.status(500).json(
       ResponseFormatter.error('Errore nel recupero statistiche', 'STATS_ERROR')
     );
@@ -48,7 +48,7 @@ router.get('/stats', authenticate, async (req, res) => {
       active,
       inactive: total - active
     }));
-  } catch (error) {
+  } catch (error: unknown) {
     return res.status(500).json(
       ResponseFormatter.error('Errore nel recupero statistiche', 'STATS_ERROR')
     );
@@ -72,7 +72,7 @@ router.get('/stats', authenticate, async (req, res) => {
       configured,
       byRole
     }));
-  } catch (error) {
+  } catch (error: unknown) {
     return res.status(500).json(
       ResponseFormatter.error('Errore nel recupero statistiche', 'STATS_ERROR')
     );

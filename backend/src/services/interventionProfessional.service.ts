@@ -27,7 +27,7 @@ class InterventionProfessionalService {
               defaultValue: '12 mesi'
             }
           ],
-          customLayout: null,
+          customLayout: null as any,
           isActive: true,
           usageCount: 15,
           lastUsedAt: new Date('2024-12-20'),
@@ -36,7 +36,7 @@ class InterventionProfessionalService {
       ];
       
       return templates.filter(t => t.professionalId === professionalId);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero template professionista:', error);
       throw error;
     }
@@ -55,7 +55,7 @@ class InterventionProfessionalService {
       
       console.log('Template personalizzato creato:', template);
       return template;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore creazione template personalizzato:', error);
       throw error;
     }
@@ -128,7 +128,7 @@ class InterventionProfessionalService {
       let result = phrases.filter(p => p.professionalId === professionalId);
       
       if (category && category !== 'all' && category !== 'favorites') {
-        result = result.filter(p => p.category === category);
+        result = result.filter(p => (p as any).Category === category);
       }
       
       if (category === 'favorites') {
@@ -145,7 +145,7 @@ class InterventionProfessionalService {
       }
       
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero frasi professionista:', error);
       throw error;
     }
@@ -171,7 +171,7 @@ class InterventionProfessionalService {
       
       console.log('Frase ricorrente creata:', phrase);
       return phrase;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore creazione frase ricorrente:', error);
       throw error;
     }
@@ -189,7 +189,7 @@ class InterventionProfessionalService {
       
       console.log('Frase aggiornata:', updatedPhrase);
       return updatedPhrase;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore aggiornamento frase:', error);
       throw error;
     }
@@ -199,7 +199,7 @@ class InterventionProfessionalService {
     try {
       console.log('Frase eliminata:', { professionalId, phraseId });
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore eliminazione frase:', error);
       throw error;
     }
@@ -216,7 +216,7 @@ class InterventionProfessionalService {
       
       console.log('Preferito aggiornato:', phrase);
       return phrase;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore toggle preferito:', error);
       throw error;
     }
@@ -289,7 +289,7 @@ class InterventionProfessionalService {
       let result = materials.filter(m => m.professionalId === professionalId);
       
       if (category && category !== 'all') {
-        result = result.filter(m => m.category === category);
+        result = result.filter(m => (m as any).Category === category);
       }
       
       if (search) {
@@ -302,7 +302,7 @@ class InterventionProfessionalService {
       }
       
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero materiali professionista:', error);
       throw error;
     }
@@ -312,7 +312,7 @@ class InterventionProfessionalService {
     try {
       // Mock categorie materiali
       return ['Tubazioni', 'Guarnizioni', 'Raccordi', 'Consumabili', 'Elettrico', 'Sanitari'];
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero categorie materiali:', error);
       throw error;
     }
@@ -335,7 +335,7 @@ class InterventionProfessionalService {
       
       console.log('Materiale personalizzato creato:', material);
       return material;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore creazione materiale personalizzato:', error);
       throw error;
     }
@@ -352,7 +352,7 @@ class InterventionProfessionalService {
       
       console.log('Materiale aggiornato:', updatedMaterial);
       return updatedMaterial;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore aggiornamento materiale:', error);
       throw error;
     }
@@ -369,7 +369,7 @@ class InterventionProfessionalService {
       
       console.log('Stato materiale aggiornato:', material);
       return material;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore toggle stato materiale:', error);
       throw error;
     }
@@ -379,7 +379,7 @@ class InterventionProfessionalService {
     try {
       console.log('Materiale eliminato:', { professionalId, materialId });
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore eliminazione materiale:', error);
       throw error;
     }
@@ -395,7 +395,7 @@ class InterventionProfessionalService {
         professionalId,
         
         // Preferenze generali
-        defaultTemplateId: null,
+        defaultTemplateId: null as any,
         defaultLanguage: 'it',
         autoStartTimer: true,
         autoGpsLocation: false,
@@ -412,7 +412,7 @@ class InterventionProfessionalService {
         businessWebsite: '',
         
         // Firma
-        signatureImage: null,
+        signatureImage: null as any,
         signatureName: '',
         signatureTitle: '',
         
@@ -432,7 +432,7 @@ class InterventionProfessionalService {
       };
       
       return settings;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero impostazioni professionista:', error);
       throw error;
     }
@@ -448,7 +448,7 @@ class InterventionProfessionalService {
       
       console.log('Impostazioni aggiornate:', settings);
       return settings;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore aggiornamento impostazioni:', error);
       throw error;
     }
@@ -483,7 +483,7 @@ class InterventionProfessionalService {
       ];
       
       return folders.filter(f => f.professionalId === professionalId);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero cartelle professionista:', error);
       throw error;
     }
@@ -506,7 +506,7 @@ class InterventionProfessionalService {
       
       console.log('Cartella creata:', folder);
       return folder;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore creazione cartella:', error);
       throw error;
     }
@@ -537,7 +537,7 @@ class InterventionProfessionalService {
       };
       
       return stats;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore calcolo statistiche professionista:', error);
       throw error;
     }
@@ -583,7 +583,7 @@ class InterventionProfessionalService {
       ];
       
       return reports.slice(0, limit);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore recupero rapporti recenti:', error);
       throw error;
     }

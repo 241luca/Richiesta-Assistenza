@@ -208,12 +208,13 @@ router.get('/', async (req: any, res: any) => {
         recentQuotesCount: dashboardData.recentActivity.recentQuotes.length
       }
     ));
-  } catch (error) {
-    logger.error('Error fetching admin dashboard data:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
+    logger.error('Error fetching admin dashboard data:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error(
       'Failed to fetch admin dashboard data',
       'ADMIN_DASHBOARD_ERROR',
-      process.env.NODE_ENV === 'development' ? error.message : undefined
+      process.env.NODE_ENV === 'development' ? errorMessage : undefined
     ));
   }
 });

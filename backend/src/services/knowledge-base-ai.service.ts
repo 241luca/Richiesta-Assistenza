@@ -32,8 +32,8 @@ export class KnowledgeBaseAIService {
         logger.warn(`Unsupported file type for text extraction: ${ext}`);
         return '';
       }
-    } catch (error) {
-      logger.error('Error extracting text from document:', error);
+    } catch (error: unknown) {
+      logger.error('Error extracting text from document:', error instanceof Error ? error.message : String(error));
       return '';
     }
   }
@@ -113,8 +113,8 @@ export class KnowledgeBaseAIService {
             logger.warn(`[KnowledgeBase] Skipping document ${doc.id}: text too short or empty`);
             failed++;
           }
-        } catch (error) {
-          logger.error(`[KnowledgeBase] ❌ Error processing document ${doc.id}:`, error);
+        } catch (error: unknown) {
+          logger.error(`[KnowledgeBase] ❌ Error processing document ${doc.id}:`, error instanceof Error ? error.message : String(error));
           failed++;
         }
       }
@@ -127,8 +127,8 @@ export class KnowledgeBaseAIService {
         total: documents.length,
         success: true
       };
-    } catch (error) {
-      logger.error('[KnowledgeBase] Error processing documents:', error);
+    } catch (error: unknown) {
+      logger.error('[KnowledgeBase] Error processing documents:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -262,8 +262,8 @@ export class KnowledgeBaseAIService {
         config
       );
       
-    } catch (error) {
-      logger.error('[KnowledgeBase] Error getting relevant context:', error);
+    } catch (error: unknown) {
+      logger.error('[KnowledgeBase] Error getting relevant context:', error instanceof Error ? error.message : String(error));
       return [];
     }
   }
@@ -394,7 +394,7 @@ export class KnowledgeBaseAIService {
             
             logger.info(`[KnowledgeBase] Added ${textToInclude.length} characters from ${fileName}`);
           }
-        } catch (error) {
+        } catch (error: unknown) {
           logger.warn(`[KnowledgeBase] Could not read file ${doc.filePath}:`, error);
         }
       }
@@ -444,8 +444,8 @@ Adatta il linguaggio al target audience: ${targetAudience === 'professional' ? '
 
       logger.info('Prompt enriched with Knowledge Base content');
       return enrichedPrompt;
-    } catch (error) {
-      logger.error('Error enriching prompt with knowledge:', error);
+    } catch (error: unknown) {
+      logger.error('Error enriching prompt with knowledge:', error instanceof Error ? error.message : String(error));
       return basePrompt;
     }
   }

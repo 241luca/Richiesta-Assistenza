@@ -60,6 +60,8 @@ interface User {
   lastLogin?: string;
   createdAt: string;
   updatedAt: string;
+  requestsCount?: number;
+  quotesCount?: number;
   _count?: {
     clientRequests: number;
     professionalRequests: number;

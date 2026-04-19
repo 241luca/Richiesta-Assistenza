@@ -63,8 +63,8 @@ export async function generateAIResponse({ message, kb, config, context }: {
     return response;
     
   } catch (error: any) {
-    logger.error('Errore generazione risposta AI:', error);
-    throw new Error(`Errore AI: ${error.message}`);
+    logger.error('Errore generazione risposta AI:', error instanceof Error ? error.message : String(error));
+    throw new Error(`Errore AI: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -145,7 +145,7 @@ export async function determineSubcategoryFromMessage(message: string): Promise<
     return null;
     
   } catch (error: any) {
-    logger.error('Errore determinazione sottocategoria:', error);
+    logger.error('Errore determinazione sottocategoria:', error instanceof Error ? error.message : String(error));
     return null;
   }
 }
@@ -166,12 +166,12 @@ export async function getProfessionalAIConfig(instanceId: string): Promise<any> 
         aiEnabled: true,
         aiConfigProfessional: true,
         aiConfigClient: true
-      }
+      } as any
     });
     
     return config;
   } catch (error: any) {
-    logger.error('Errore recupero configurazione AI:', error);
+    logger.error('Errore recupero configurazione AI:', error instanceof Error ? error.message : String(error));
     return null;
   }
 }
@@ -207,7 +207,8 @@ export async function saveDetectionResult(data: {
   detectionFactors: any;
 }): Promise<void> {
   try {
-    await prisma.professionalWhatsAppMessage.create({
+    // FIXED: Usa professionalWhatsApp invece di professionalWhatsAppMessage
+    await (prisma.professionalWhatsApp as any).create({
       data: {
         whatsappId: data.whatsappId,
         phoneNumber: data.phoneNumber,
@@ -222,7 +223,7 @@ export async function saveDetectionResult(data: {
     
     logger.info('Detection result salvato per analytics');
   } catch (error: any) {
-    logger.error('Errore salvataggio detection result:', error);
+    logger.error('Errore salvataggio detection result:', error instanceof Error ? error.message : String(error));
     // Non rilanciare l'errore per non bloccare il flusso principale
   }
 }

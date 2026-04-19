@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
 import { StructuredDataIngestionService } from '../../services/StructuredDataIngestionService';
 import { DatabaseClient } from '../../database/client';
 import { logger } from '../../utils/logger';
@@ -7,62 +8,227 @@ const router = Router();
 const ingestionService = new StructuredDataIngestionService();
 const db = DatabaseClient.getInstance();
 
+// 🔥 Setup Multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const os = require('os');
+    cb(null, os.tmpdir());
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+    const ext = file.originalname.split('.').pop();
+    cb(null, `upload-${uniqueSuffix}.${ext}`);
+  }
+});
+
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
 /**
  * POST /api/sync/ingest
  * Ingest structured data from external applications
  * ENTERPRISE ENDPOINT - Multi-tenant ready
+ * 🔥 UPDATED: Now supports BOTH JSON and FormData (file uploads)
  */
-router.post('/ingest', async (req: Request, res: Response) => {
+router.post('/ingest', upload.single('file'), async (req: Request, res: Response) => {
+  const startTime = Date.now();
+  const isFileUpload = !!req.file;
+  
   try {
-    const {
-      container_id,
-      source_app,
-      source_type = 'auto_sync',
-      entity_type,
-      entity_id,
-      title,
-      content,
-      metadata,
-      auto_update = true,
-      chunk_size,
-      chunk_overlap
-    } = req.body;
+    let container_id, source_app, source_type, entity_type, entity_id, title, content, metadata, auto_update, chunk_size, chunk_overlap, use_markdown, ocr_engine, chunking_method;
+    
+    // 🔥 Parse data based on request type
+    if (isFileUpload) {
+      // 📎 File upload via FormData
+      logger.info(`[SyncAPI] 📄 File upload detected: ${req.file!.originalname} (${req.file!.size} bytes)`);
+      
+      container_id = req.body.container_id;
+      source_app = req.body.source_app;
+      source_type = req.body.source_type || 'auto_sync';
+      entity_type = req.body.entity_type;
+      entity_id = req.body.entity_id;
+      title = req.body.title || req.file!.originalname;
+      content = ''; // Will be extracted by OCR
+      metadata = req.body.metadata ? JSON.parse(req.body.metadata) : {};
+      auto_update = req.body.auto_update !== 'false';
+      chunk_size = req.body.chunk_size;
+      chunk_overlap = req.body.chunk_overlap;
+      use_markdown = req.body.use_markdown === 'true'; // Always true for file uploads
+      ocr_engine = req.body.ocr_engine || 'auto';
+      chunking_method = req.body.chunking_method || 'semantic';
+      
+      // ✅ Add uploaded file info to metadata
+      metadata.uploaded_file = {
+        original_name: req.file!.originalname,
+        size: req.file!.size,
+        mime_type: req.file!.mimetype,
+        uploaded_at: new Date().toISOString()
+      };
+    } else {
+      // 📝 JSON request (original format)
+      const body = req.body;
+      container_id = body.container_id;
+      source_app = body.source_app;
+      source_type = body.source_type || 'auto_sync';
+      entity_type = body.entity_type;
+      entity_id = body.entity_id;
+      title = body.title;
+      content = body.content;
+      metadata = body.metadata;
+      auto_update = body.auto_update !== false;
+      chunk_size = body.chunk_size;
+      chunk_overlap = body.chunk_overlap;
+      use_markdown = body.use_markdown;
+      ocr_engine = body.ocr_engine;
+      chunking_method = body.chunking_method;
+    }
 
     // Validation
-    if (!container_id || !source_app || !entity_type || !entity_id || !title || !content) {
+    if (!container_id || !source_app || !entity_type || !entity_id || !title) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: container_id, source_app, entity_type, entity_id, title, content'
+        error: 'Missing required fields: container_id, source_app, entity_type, entity_id, title'
+      });
+    }
+    
+    // ✅ For file uploads, content is optional (will be extracted)
+    if (!isFileUpload && !content) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required field: content (or upload a file)'
       });
     }
 
-    logger.info(`[SyncAPI] Ingest request from ${source_app} for ${entity_type} #${entity_id}`);
+    logger.info(`[SyncAPI] Ingest request from ${source_app} for ${entity_type} #${entity_id} ${isFileUpload ? '(FILE UPLOAD)' : '(JSON)'}`);
 
-    const result = await ingestionService.ingestStructuredData({
-      container_id,
-      source_app,
-      source_type,
-      entity_type,
-      entity_id,
-      title,
-      content,
-      metadata,
-      auto_update,
-      chunk_size,
-      chunk_overlap
-    });
+    // 🔥 Handle file path
+    let tempFilePath: string | undefined;
+    
+    if (isFileUpload) {
+      // ✅ Use uploaded file path
+      tempFilePath = req.file!.path;
+      logger.info(`[SyncAPI] Using uploaded file: ${tempFilePath}`);
+    } else if (use_markdown && content) {
+      // ✅ Create temp file from text content
+      const fs = require('fs').promises;
+      const path = require('path');
+      const os = require('os');
+      
+      tempFilePath = path.join(os.tmpdir(), `sync-test-${Date.now()}.md`);
+      await fs.writeFile(tempFilePath, content, 'utf-8');
+      logger.info(`[SyncAPI] Created temp file for Markdown conversion: ${tempFilePath}`);
+    }
 
-    res.json({
-      success: true,
-      data: result,
-      message: `Successfully ingested ${entity_type} #${entity_id}`
-    });
+    // 🔥 DEBUG: Log dei dati in ingresso
+    const debugInfo: any = {
+      request: {
+        type: isFileUpload ? 'file_upload' : 'json',
+        container_id,
+        source_app,
+        source_type,
+        entity_type,
+        entity_id,
+        title,
+        content_length: content?.length || 0,
+        file_path: tempFilePath,
+        file_info: isFileUpload ? {
+          name: req.file!.originalname,
+          size: req.file!.size,
+          mime: req.file!.mimetype
+        } : null,
+        metadata_keys: Object.keys(metadata || {}),
+        auto_update,
+        chunk_size,
+        chunk_overlap,
+        use_markdown,
+        ocr_engine,
+        chunking_method,
+        timestamp: new Date().toISOString()
+      }
+    };
+
+    try {
+      const result = await ingestionService.ingestStructuredData({
+        container_id,
+        source_app,
+        source_type,
+        entity_type,
+        entity_id,
+        title,
+        content: content || '', // Empty for file uploads
+        metadata,
+        auto_update,
+        chunk_size,
+        chunk_overlap,
+        // ✅ Markdown pipeline params
+        use_markdown: isFileUpload ? true : use_markdown, // Force markdown for files
+        file_path: tempFilePath,
+        ocr_engine,
+        chunking_method
+      });
+
+      // Cleanup temp file
+      if (tempFilePath) {
+        const fs = require('fs').promises;
+        await fs.unlink(tempFilePath).catch((err) => {
+          logger.warn(`[SyncAPI] Failed to cleanup temp file ${tempFilePath}:`, err.message);
+        });
+      }
+
+      const processingTime = Date.now() - startTime;
+
+      // 🔥 DEBUG: Info completa di risposta
+      debugInfo.response = {
+        documentId: result.documentId,
+        chunksCreated: result.chunksCreated,
+        entitiesExtracted: result.entitiesExtracted,
+        relationshipsExtracted: result.relationshipsExtracted,
+        semanticChunking: result.semanticChunking,
+        keywords: result.keywords,
+        hybridExtraction: result.hybridExtraction,
+        markdown: result.markdown,  // ✅ Include Markdown content
+        processingTime_ms: processingTime,
+        timestamp: new Date().toISOString()
+      };
+
+      res.json({
+        success: true,
+        data: result,
+        message: `Successfully ingested ${entity_type} #${entity_id}`,
+        debug: debugInfo
+      });
+    } catch (ingestionError: any) {
+      // Cleanup temp file on error
+      if (tempFilePath) {
+        const fs = require('fs').promises;
+        await fs.unlink(tempFilePath).catch(() => {});
+      }
+      throw ingestionError;
+    }
 
   } catch (error: any) {
+    const processingTime = Date.now() - startTime;
     logger.error('[SyncAPI] Ingest failed:', error);
+    
+    // Cleanup uploaded file on error
+    if (req.file?.path) {
+      const fs = require('fs').promises;
+      await fs.unlink(req.file.path).catch(() => {});
+    }
+    
+    const debugError = {
+      error: error.message,
+      stack: error.stack,
+      processingTime_ms: processingTime,
+      timestamp: new Date().toISOString()
+    };
+
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
+      debug: debugError
     });
   }
 });
@@ -231,7 +397,7 @@ router.post('/jobs/:id/retry', async (req: Request, res: Response) => {
     const result = await ingestionService.ingestStructuredData({
       container_id: job.container_id,
       source_app: job.source_app || 'richiesta_assistenza',
-      source_type: 'retry',
+      source_type: 'auto_sync',
       entity_type: job.entity_type,
       entity_id: job.entity_id,
       title: doc.title || `${job.entity_type} ${job.entity_id}`,

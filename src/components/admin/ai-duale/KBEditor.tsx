@@ -13,7 +13,13 @@ interface KnowledgeBase {
   kbEmergency?: any;
 }
 
-export function KBEditor({ subcategoryId }: { subcategoryId?: string }) {
+interface KBEditorProps {
+  subcategoryId?: string;
+  professionalId?: string;
+  subcategories?: any;
+}
+
+export function KBEditor({ subcategoryId, professionalId, subcategories: propSubcategories }: KBEditorProps) {
   const [selectedSubcategory, setSelectedSubcategory] = useState(subcategoryId || '');
   const [kbProfessional, setKbProfessional] = useState('');
   const [kbClient, setKbClient] = useState('');

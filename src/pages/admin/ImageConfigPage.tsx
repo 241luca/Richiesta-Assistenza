@@ -112,7 +112,7 @@ export default function ImageConfigPage() {
   });
 
   // Filtra le impostazioni per sezione selezionata
-  const filteredSettings = settings.filter(setting => setting.category === selectedSection);
+  const filteredSettings = settings.filter((setting: any) => setting.category === selectedSection);
 
   const handleEdit = (setting: SystemSetting) => {
     setEditingId(setting.id);
@@ -289,16 +289,16 @@ export default function ImageConfigPage() {
         <div className="lg:col-span-3">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             {/* Header sezione */}
-            <div className={`p-6 bg-gradient-to-r ${SECTIONS_CONFIG[selectedSection]?.gradient} rounded-t-lg`}>
+            <div className={`p-6 bg-gradient-to-r ${(SECTIONS_CONFIG as any)[selectedSection]?.gradient} rounded-t-lg`}>
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-white/20 rounded-lg">
-                  {React.createElement(SECTIONS_CONFIG[selectedSection]?.icon, {
+                  {React.createElement((SECTIONS_CONFIG as any)[selectedSection]?.icon, {
                     className: "h-6 w-6 text-white"
                   })}
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-white">{selectedSection}</h2>
-                  <p className="text-white/90">{SECTIONS_CONFIG[selectedSection]?.description}</p>
+                  <p className="text-white/90">{(SECTIONS_CONFIG as any)[selectedSection]?.description}</p>
                 </div>
               </div>
             </div>
@@ -312,7 +312,7 @@ export default function ImageConfigPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {filteredSettings.map((setting) => (
+                  {filteredSettings.map((setting: any) => (
                     <div
                       key={setting.id}
                       className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"

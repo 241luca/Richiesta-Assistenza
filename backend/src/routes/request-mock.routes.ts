@@ -65,7 +65,7 @@ const mockRequests = [
     },
     requestedDate: new Date(Date.now() + 172800000).toISOString(),
     notes: '',
-    attachments: [],
+    attachments: [] as any[],
     quotes: [
       {
         id: '1',
@@ -90,7 +90,7 @@ router.get('/', (req: any, res: any) => {
     filteredRequests = filteredRequests.filter(r => r.status === req.query.status);
   }
   if (req.query.category) {
-    filteredRequests = filteredRequests.filter(r => r.category === req.query.category);
+    filteredRequests = filteredRequests.filter(r => (r as any).category === req.query.category);
   }
   
   res.json({ 

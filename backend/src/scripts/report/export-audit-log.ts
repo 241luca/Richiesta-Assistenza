@@ -87,7 +87,7 @@ export async function execute(params: ExportParams) {
     };
     
   } catch (error: any) {
-    logger.error('❌ Audit log export failed:', error);
+    logger.error('❌ Audit log export failed:', error instanceof Error ? error.message : String(error));
     throw error;
   } finally {
     await prisma.$disconnect();

@@ -61,8 +61,8 @@ export class CleanupService {
       }
       
       return config;
-    } catch (error) {
-      logger.error('Failed to load cleanup configuration:', error);
+    } catch (error: unknown) {
+      logger.error('Failed to load cleanup configuration:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -105,7 +105,7 @@ export class CleanupService {
               path: path.relative(this.projectRoot, filePath),
               size: this.formatFileSize(stats.size)
             };
-          } catch (error) {
+          } catch (error: unknown) {
             return null;
           }
         })
@@ -125,12 +125,12 @@ export class CleanupService {
         totalSize: this.formatFileSize(totalSize),
         destinationPath: cleanupPath,
         files: validFiles,
-        patterns: patterns.map(p => p.pattern),
+        patterns: patterns.map((p: any) => (typeof p === 'string' ? p : p.pattern)),
         projectPath: this.projectRoot
       };
       
-    } catch (error) {
-      logger.error('Cleanup preview failed:', error);
+    } catch (error: unknown) {
+      logger.error('Cleanup preview failed:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -221,8 +221,8 @@ export class CleanupService {
           
           logger.debug(`Moved: ${file.relativePath}`);
         } catch (error: any) {
-          errors.push(`Failed to move ${file.path}: ${error.message}`);
-          logger.error(`Failed to move ${file.path}:`, error);
+          errors.push(`Failed to move ${file.path}: ${error instanceof Error ? error.message : String(error)}`);
+          logger.error(`Failed to move ${file.path}:`, error instanceof Error ? error.message : String(error));
         }
       }
       
@@ -273,7 +273,7 @@ export class CleanupService {
           cleanupPath,
           movedCount,
           totalSize,
-          patterns: patterns.map(p => p.pattern),
+          patterns: patterns.map((p: any) => (typeof p === 'string' ? p : p.pattern)),
           errors: errors.length > 0 ? errors : undefined,
           cleanupDir: cleanupDirName
         },
@@ -292,7 +292,7 @@ export class CleanupService {
       };
       
     } catch (error: any) {
-      logger.error('Cleanup failed:', error);
+      logger.error('Cleanup failed:', error instanceof Error ? error.message : String(error));
       
       // Log errore nell'audit log
       await auditLogService.log({
@@ -303,9 +303,9 @@ export class CleanupService {
         userAgent: 'cleanup-service',
         action: AuditAction.CLEANUP_FAILED,
         entityType: 'SystemCleanup',
-        errorMessage: error.message || 'Cleanup operation failed',
+        errorMessage: error instanceof Error ? error.message : String(error) || 'Cleanup operation failed',
         metadata: {
-          error: error.stack || error.message,
+          error: error.stack || error instanceof Error ? error.message : String(error),
           projectRoot: this.projectRoot
         },
         success: false,
@@ -313,76 +313,6 @@ export class CleanupService {
         category: LogCategory.SYSTEM
       });
       
-      throw error;
-    }
-  }
-
-  /**
-   * Esegue un preview del cleanup senza spostare file
-   */
-  async previewCleanup(userId: string) {
-    logger.info('👀 Starting cleanup preview...');
-    
-    try {
-      // Carica configurazione
-      const config = await this.loadConfiguration();
-      
-      // Ottieni pattern ed esclusioni
-      const patterns = await cleanupConfigService.getActivePatterns();
-      const excludedFiles = await cleanupConfigService.getExcludedFiles();
-      const excludedDirs = await cleanupConfigService.getExcludedDirectories();
-      
-      // Trova file che verrebbero spostati
-      const filesToMove = await this.findFilesToMove(
-        this.projectRoot,
-        patterns,
-        excludedFiles,
-        excludedDirs,
-        config.maxDepth || 2
-      );
-      
-      // Calcola statistiche
-      const totalSize = filesToMove.reduce((acc, file) => acc + file.size, 0);
-      const byType = this.groupFilesByType(filesToMove);
-      const byPattern = this.groupFilesByPattern(filesToMove);
-      
-      // Salva preview nel database
-      const previewId = `preview-${Date.now()}`;
-      await prisma.cleanupPreview?.create({
-        data: {
-          sessionId: previewId,
-          files: filesToMove,
-          totalFiles: filesToMove.length,
-          totalSize: BigInt(totalSize),
-          matchedPatterns: byPattern,
-          configUsed: config,
-          validUntil: new Date(Date.now() + 3600000), // Valido per 1 ora
-          createdBy: userId
-        }
-      }).catch(err => {
-        // Se la tabella non esiste ancora, ignora
-        logger.warn('CleanupPreview table not found, skipping save');
-      });
-      
-      return {
-        success: true,
-        preview: {
-          sessionId: previewId,
-          totalFiles: filesToMove.length,
-          totalSize,
-          byType,
-          byPattern,
-          files: filesToMove.slice(0, 100), // Mostra solo primi 100 file
-          // AGGIUNGO INFO SU DOVE SALVEREBBE
-          projectPath: this.projectRoot,
-          destinationPath: this.cleanupDestination,
-          cleanupFolderName: `CLEANUP-${format(new Date(), 'yyyy-MM-dd-HH-mm-ss')}`,
-          fullDestinationPath: path.join(this.cleanupDestination, `CLEANUP-${format(new Date(), 'yyyy-MM-dd-HH-mm-ss')}`)
-        }
-      };
-      
-    } catch (error: any) {
-      logger.error('Preview failed:', error);
       throw error;
     }
   }
@@ -460,7 +390,7 @@ export class CleanupService {
         }
       }
     } catch (error: any) {
-      logger.error(`Error reading directory ${dir}:`, error.message);
+      logger.error(`Error reading directory ${dir}:`, error instanceof Error ? error.message : String(error));
     }
     
     return files;
@@ -600,8 +530,8 @@ Generated by Cleanup Service v2.0
           
           logger.debug(`Restored: ${file.relativePath}`);
         } catch (error: any) {
-          errors.push(`Failed to restore ${file.relativePath}: ${error.message}`);
-          logger.error(`Failed to restore ${file.relativePath}:`, error);
+          errors.push(`Failed to restore ${file.relativePath}: ${error instanceof Error ? error.message : String(error)}`);
+          logger.error(`Failed to restore ${file.relativePath}:`, error instanceof Error ? error.message : String(error));
         }
       }
       
@@ -615,7 +545,7 @@ Generated by Cleanup Service v2.0
       };
       
     } catch (error: any) {
-      logger.error('Restore failed:', error);
+      logger.error('Restore failed:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -658,7 +588,7 @@ Generated by Cleanup Service v2.0
               modified: stats.mtime,
               fileCount
             };
-          } catch (error) {
+          } catch (error: unknown) {
             return {
               ...dir,
               created: new Date(),
@@ -673,7 +603,7 @@ Generated by Cleanup Service v2.0
       return dirsWithInfo.sort((a, b) => b.created.getTime() - a.created.getTime());
       
     } catch (error: any) {
-      logger.error('Failed to get cleanup directories:', error);
+      logger.error('Failed to get cleanup directories:', error instanceof Error ? error.message : String(error));
       return [];
     }
   }
@@ -721,7 +651,7 @@ Generated by Cleanup Service v2.0
       };
       
     } catch (error: any) {
-      logger.error('Failed to delete cleanup directory:', error);
+      logger.error('Failed to delete cleanup directory:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

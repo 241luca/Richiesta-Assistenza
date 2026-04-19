@@ -8,7 +8,7 @@ import { ResponseFormatter } from '../utils/responseFormatter';
 const prisma = new PrismaClient();
 
 export class ProfileImageService {
-  private readonly uploadsDir = path.join(process.cwd(), '..', 'uploads');
+  private readonly uploadsDir = path.join(process.cwd(), 'uploads');
   private readonly profileImagesDir = path.join(this.uploadsDir, 'profiles');
   private readonly profileThumbsDir = path.join(this.uploadsDir, 'profile-thumbs');
 
@@ -23,7 +23,7 @@ export class ProfileImageService {
     try {
       await fs.mkdir(this.profileImagesDir, { recursive: true });
       await fs.mkdir(this.profileThumbsDir, { recursive: true });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore creazione directory:', error);
     }
   }
@@ -113,7 +113,7 @@ export class ProfileImageService {
         profileImageUrl,
         thumbnailUrl
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nel salvare l\'immagine del profilo:', error);
       throw error;
     }
@@ -169,7 +169,7 @@ export class ProfileImageService {
       return {
         recognitionImageUrl
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore nel salvare l\'immagine di riconoscimento:', error);
       throw error;
     }
@@ -208,7 +208,7 @@ export class ProfileImageService {
           console.error('Errore eliminazione vecchia immagine di riconoscimento:', err);
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore durante eliminazione vecchia immagine di riconoscimento:', error);
     }
   }
@@ -241,7 +241,7 @@ export class ProfileImageService {
           console.error('Errore eliminazione vecchia immagine:', err);
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore durante eliminazione vecchia immagine:', error);
     }
   }
@@ -291,7 +291,7 @@ export class ProfileImageService {
           data: { profileImage: null }
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore rimozione immagine profilo:', error);
       throw error;
     }

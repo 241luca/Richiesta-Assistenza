@@ -145,7 +145,7 @@ router.get('/categories', async (req, res) => {
  */
 router.post('/run/:category', async (req, res) => {
   const { category } = req.params;
-  const testConfig = TEST_CATEGORIES[category];
+  const testConfig = (TEST_CATEGORIES as any)[category];
   
   if (!testConfig) {
     return res.status(400).json({ 
@@ -214,7 +214,7 @@ router.post('/run/:category', async (req, res) => {
         
       } catch (error: any) {
         hasErrors = true;
-        const errorMsg = error.stderr || error.message;
+        const errorMsg = error.stderr || error instanceof Error ? error.message : String(error);
         
         res.write(`data: ${JSON.stringify({
           type: 'error',
@@ -277,7 +277,7 @@ router.post('/run/:category', async (req, res) => {
             type: 'result',
             name: script.name,
             status: 'failed',
-            error: error.message
+            error: error instanceof Error ? error.message : String(error)
           })}\n\n`);
         }
       }
@@ -295,7 +295,7 @@ router.post('/run/:category', async (req, res) => {
   } catch (error: any) {
     res.write(`data: ${JSON.stringify({
       type: 'fatal',
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     })}\n\n`);
   }
   
@@ -361,7 +361,7 @@ router.get('/history', async (req, res) => {
     } catch {
       res.json({ history: [], message: 'Nessuno storico disponibile' });
     }
-  } catch (error) {
+  } catch (error: unknown) {
     res.status(500).json({ error: 'Errore lettura storico' });
   }
 });

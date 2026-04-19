@@ -119,6 +119,13 @@ const SYSTEM_ENUMS = {
   }
 };
 
+// Type helper per accesso sicuro a SYSTEM_ENUMS
+type SystemEnumKey = keyof typeof SYSTEM_ENUMS;
+
+function isValidEnumKey(key: string): key is SystemEnumKey {
+  return key in SYSTEM_ENUMS;
+}
+
 export class SystemEnumService {
   /**
    * Get all system enums with their values
@@ -126,14 +133,14 @@ export class SystemEnumService {
   async getAllEnums() {
     try {
       // Restituisce tutti gli enum del sistema definiti staticamente
-      return Object.values(SYSTEM_ENUMS).map(enumDef => ({
+      return Object.values(SYSTEM_ENUMS).map((enumDef: any) => ({
         id: enumDef.id,
         name: enumDef.name,
         description: enumDef.description,
-        Category: enumDef.category,
+        Category: enumDef.Category,
         isEditable: enumDef.isEditable,
         isActive: true,
-        EnumValue: enumDef.values.map((val, idx) => ({
+        EnumValue: enumDef.values.map((val: any, idx: number) => ({
           id: `${enumDef.id}_${val.value}`,
           enumId: enumDef.id,
           value: val.value,
@@ -149,8 +156,8 @@ export class SystemEnumService {
           metadata: val.metadata || null
         }))
       }));
-    } catch (error) {
-      logger.error('Error getting all system enums:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting all system enums:', error instanceof Error ? error.message : String(error));
       throw new Error('Failed to fetch system enums');
     }
   }
@@ -160,12 +167,12 @@ export class SystemEnumService {
    */
   async getEnumValues(enumName: string) {
     try {
-      const enumDef = SYSTEM_ENUMS[enumName];
-      if (!enumDef) {
+      if (!isValidEnumKey(enumName)) {
         throw new Error(`System enum '${enumName}' not found`);
       }
+      const enumDef = SYSTEM_ENUMS[enumName];
 
-      return enumDef.values.map((val, idx) => ({
+      return enumDef.values.map((val: any, idx) => ({
         id: `${enumDef.id}_${val.value}`,
         enumId: enumDef.id,
         value: val.value,
@@ -173,15 +180,15 @@ export class SystemEnumService {
         description: val.description || null,
         color: val.color,
         textColor: val.textColor,
-        bgColor: val.bgColor || null,
+        bgColor: val.bgColor || val.color || null,
         icon: val.icon || null,
         order: val.order || idx,
         isActive: true,
         isDefault: val.isDefault || false,
         metadata: val.metadata || null
       }));
-    } catch (error) {
-      logger.error(`Error getting enum values for '${enumName}':`, error);
+    } catch (error: unknown) {
+      logger.error(`Error getting enum values for '${enumName}':`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -191,12 +198,12 @@ export class SystemEnumService {
    */
   async getEnumValueConfig(enumName: string, value: string) {
     try {
-      const enumDef = SYSTEM_ENUMS[enumName];
-      if (!enumDef) {
+      if (!isValidEnumKey(enumName)) {
         return null;
       }
+      const enumDef = SYSTEM_ENUMS[enumName];
 
-      const enumValue = enumDef.values.find(val => val.value === value);
+      const enumValue = enumDef.values.find((val: any) => val.value === value) as any;
       if (!enumValue) {
         return null;
       }
@@ -209,7 +216,7 @@ export class SystemEnumService {
         description: enumValue.description || null,
         color: enumValue.color,
         textColor: enumValue.textColor,
-        bgColor: enumValue.bgColor || null,
+        bgColor: enumValue.bgColor || enumValue.color || null,
         icon: enumValue.icon || null,
         order: enumValue.order || 0,
         isActive: true,
@@ -219,11 +226,11 @@ export class SystemEnumService {
           id: enumDef.id,
           name: enumDef.name,
           description: enumDef.description,
-          Category: enumDef.category
+          Category: (enumDef as any).category || enumDef.Category
         }
       };
-    } catch (error) {
-      logger.error(`Error getting enum value config for '${enumName}.${value}':`, error);
+    } catch (error: unknown) {
+      logger.error(`Error getting enum value config for '${enumName}.${value}':`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -284,8 +291,8 @@ export class SystemEnumService {
         icon: value.icon,
         isDefault: value.isDefault
       }));
-    } catch (error) {
-      logger.error(`Error getting formatted enum values for '${enumName}':`, error);
+    } catch (error: unknown) {
+      logger.error(`Error getting formatted enum values for '${enumName}':`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -297,7 +304,7 @@ export class SystemEnumService {
     try {
       const enumValue = await this.getEnumValueConfig(enumName, value);
       return !!enumValue;
-    } catch (error) {
+    } catch (error: unknown) {
       return false;
     }
   }

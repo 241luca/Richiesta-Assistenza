@@ -26,12 +26,12 @@ class PaymentByIdService {
           },
           refunds: true,
           invoice: true
-        }
+        } as any
       });
 
       return payment;
-    } catch (error) {
-      logger.error('Error getting payment by id:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting payment by id:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

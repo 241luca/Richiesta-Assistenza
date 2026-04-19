@@ -184,7 +184,7 @@ export default function MyContainers({ userId, userType }: MyContainersProps) {
                       {instance.description || 'Nessuna descrizione'}
                     </CardDescription>
                   </div>
-                  <Badge variant={instance.is_active ? 'default' : 'secondary'}>
+                  <Badge variant={instance.is_active ? 'success' : 'default'}>
                     {instance.is_active ? 'Attivo' : 'Inattivo'}
                   </Badge>
                 </div>
@@ -193,7 +193,7 @@ export default function MyContainers({ userId, userType }: MyContainersProps) {
                 <div className="space-y-3">
                   {/* Template */}
                   <div className="flex items-center gap-2 text-sm">
-                    <Badge variant="outline">{instance.template_code}</Badge>
+                    <Badge variant="info">{instance.template_code}</Badge>
                   </div>
 
                   {/* AI Model */}
@@ -310,7 +310,7 @@ export default function MyContainers({ userId, userType }: MyContainersProps) {
                     <Label className="text-sm text-muted-foreground">Formati Accettati</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {viewingInstance.allowed_formats.map(format => (
-                        <Badge key={format} variant="outline">.{format.toUpperCase()}</Badge>
+                        <Badge key={format} variant="info">.{format.toUpperCase()}</Badge>
                       ))}
                     </div>
                   </div>
@@ -318,7 +318,7 @@ export default function MyContainers({ userId, userType }: MyContainersProps) {
                     <Label className="text-sm text-muted-foreground">Tipi Documento</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {viewingInstance.document_types.map(type => (
-                        <Badge key={type} variant="outline">{type}</Badge>
+                        <Badge key={type} variant="info">{type}</Badge>
                       ))}
                     </div>
                   </div>

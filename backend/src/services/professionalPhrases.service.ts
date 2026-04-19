@@ -20,7 +20,7 @@ class ProfessionalPhrasesService {
       });
       
       return phrases;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching professional phrases:', error);
       throw error;
     }
@@ -31,7 +31,7 @@ class ProfessionalPhrasesService {
     try {
       const phrase = await prisma.professionalReportPhrase.findFirst({
         where: {
-          id,
+          id: id as unknown as string,
           professionalId
         }
       });
@@ -41,7 +41,7 @@ class ProfessionalPhrasesService {
       }
       
       return phrase;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching phrase:', error);
       throw error;
     }
@@ -62,15 +62,15 @@ class ProfessionalPhrasesService {
         const count = await prisma.professionalReportPhrase.count({
           where: { professionalId: data.professionalId }
         });
-        data.code = `${data.category.toUpperCase()}_${count + 1}`;
+        data.code = `${data.Category.toUpperCase()}_${count + 1}`;
       }
 
       const phrase = await prisma.professionalReportPhrase.create({
-        data
+        data: data as any
       });
       
       return phrase;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating phrase:', error);
       throw error;
     }
@@ -83,7 +83,7 @@ class ProfessionalPhrasesService {
       const existing = await this.getById(id, professionalId);
       
       const phrase = await prisma.professionalReportPhrase.update({
-        where: { id },
+        where: { id: id.toString() },
         data: {
           ...data,
           updatedAt: new Date()
@@ -91,7 +91,7 @@ class ProfessionalPhrasesService {
       });
       
       return phrase;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating phrase:', error);
       throw error;
     }
@@ -104,7 +104,7 @@ class ProfessionalPhrasesService {
       await this.getById(id, professionalId);
       
       const phrase = await prisma.professionalReportPhrase.update({
-        where: { id },
+        where: { id: id as unknown as string },
         data: {
           isActive: false,
           updatedAt: new Date()
@@ -112,7 +112,7 @@ class ProfessionalPhrasesService {
       });
       
       return phrase;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting phrase:', error);
       throw error;
     }
@@ -124,7 +124,7 @@ class ProfessionalPhrasesService {
       const phrase = await this.getById(id, professionalId);
       
       const updated = await prisma.professionalReportPhrase.update({
-        where: { id },
+        where: { id: id as unknown as string },
         data: {
           isFavorite: !phrase.isFavorite,
           updatedAt: new Date()
@@ -132,7 +132,7 @@ class ProfessionalPhrasesService {
       });
       
       return updated;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error toggling favorite:', error);
       throw error;
     }
@@ -142,7 +142,7 @@ class ProfessionalPhrasesService {
   async incrementUsage(id: number) {
     try {
       const phrase = await prisma.professionalReportPhrase.update({
-        where: { id },
+        where: { id: id as unknown as string },
         data: {
           usageCount: {
             increment: 1
@@ -151,7 +151,7 @@ class ProfessionalPhrasesService {
       });
       
       return phrase;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error incrementing usage:', error);
       throw error;
     }
@@ -177,7 +177,7 @@ class ProfessionalPhrasesService {
       });
       
       return phrases;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error searching phrases:', error);
       throw error;
     }
@@ -189,7 +189,7 @@ class ProfessionalPhrasesService {
       const phrases = await prisma.professionalReportPhrase.findMany({
         where: {
           professionalId,
-          Category: category as any,
+          category: Category as any,
           isActive: true
         },
         orderBy: [
@@ -199,7 +199,7 @@ class ProfessionalPhrasesService {
       });
       
       return phrases;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching phrases by Category:', error);
       throw error;
     }
@@ -212,10 +212,10 @@ class ProfessionalPhrasesService {
         const created = [];
         
         for (const phraseData of phrases) {
-          const phrase = await tx.professionalPhrase.create({
+          const phrase = await (tx.professionalReportPhrase.create as any)({
             data: {
               professionalId,
-              Category: phraseData.category || 'note',
+              category: phraseData.category || 'note',
               code: phraseData.code || `IMP_${Date.now()}`,
               title: phraseData.title,
               content: phraseData.content,
@@ -230,7 +230,7 @@ class ProfessionalPhrasesService {
       });
       
       return results;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error importing phrases:', error);
       throw error;
     }
@@ -252,13 +252,13 @@ class ProfessionalPhrasesService {
           isFavorite: true
         },
         orderBy: [
-          { Category: 'asc' },
+          { category: 'asc' },
           { code: 'asc' }
         ]
       });
       
       return phrases;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error exporting phrases:', error);
       throw error;
     }

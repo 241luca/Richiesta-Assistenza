@@ -56,8 +56,8 @@ export async function execute(params: ClearCacheParams = {}) {
       message: `Successfully deleted ${deleted} keys`
     };
     
-  } catch (error) {
-    logger.error('❌ Failed to clear cache:', error);
+  } catch (error: unknown) {
+    logger.error('❌ Failed to clear cache:', error instanceof Error ? error.message : String(error));
     throw error;
   } finally {
     await client.disconnect();

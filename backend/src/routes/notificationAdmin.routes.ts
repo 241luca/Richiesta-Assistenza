@@ -106,8 +106,8 @@ router.get('/stats', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async 
     };
 
     res.json(ResponseFormatter.success(stats, 'Statistics retrieved'));
-  } catch (error) {
-    logger.error('Error fetching notification stats:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching notification stats:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to fetch statistics', 'STATS_ERROR'));
   }
 });
@@ -225,8 +225,8 @@ router.get('/logs', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (
         pages: Math.ceil(total / limitNum)
       }
     ));
-  } catch (error) {
-    logger.error('Error fetching notification logs:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching notification logs:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to fetch logs', 'LOGS_ERROR'));
   }
 });
@@ -242,8 +242,8 @@ router.get('/templates', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), as
     });
 
     res.json(ResponseFormatter.success(templates, 'Templates retrieved'));
-  } catch (error) {
-    logger.error('Error fetching templates:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching templates:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to fetch templates', 'TEMPLATES_ERROR'));
   }
 });
@@ -280,8 +280,8 @@ router.post('/templates', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), a
     }
 
     res.json(ResponseFormatter.success(template, 'Template saved'));
-  } catch (error) {
-    logger.error('Error saving template:', error);
+  } catch (error: unknown) {
+    logger.error('Error saving template:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to save template', 'TEMPLATE_SAVE_ERROR'));
   }
 });
@@ -306,8 +306,8 @@ router.delete('/templates/:id', authenticate, requireRole(['SUPER_ADMIN']), asyn
     });
 
     res.json(ResponseFormatter.success(null, 'Template deleted'));
-  } catch (error) {
-    logger.error('Error deleting template:', error);
+  } catch (error: unknown) {
+    logger.error('Error deleting template:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to delete template', 'DELETE_ERROR'));
   }
 });
@@ -362,9 +362,9 @@ router.post('/test', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async 
       sentTo: targetUserId,
       channels: data.channels
     }, 'Test notification sent'));
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    logger.error('Error sending test notification:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
+    logger.error('Error sending test notification:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to send test', 'TEST_ERROR', errorMessage));
   }
 });
@@ -417,8 +417,8 @@ router.post('/:id/resend', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), 
     });
 
     res.json(ResponseFormatter.success(null, 'Notification resent'));
-  } catch (error) {
-    logger.error('Error resending notification:', error);
+  } catch (error: unknown) {
+    logger.error('Error resending notification:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to resend', 'RESEND_ERROR'));
   }
 });
@@ -437,8 +437,8 @@ router.get('/events', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async
     });
 
     res.json(ResponseFormatter.success(events, 'Events retrieved'));
-  } catch (error) {
-    logger.error('Error fetching events:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching events:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to fetch events', 'EVENTS_ERROR'));
   }
 });
@@ -461,8 +461,8 @@ router.post('/events', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), asyn
     }
 
     res.json(ResponseFormatter.success(event, 'Event saved'));
-  } catch (error) {
-    logger.error('Error saving event:', error);
+  } catch (error: unknown) {
+    logger.error('Error saving event:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to save event', 'EVENT_SAVE_ERROR'));
   }
 });
@@ -475,8 +475,8 @@ router.delete('/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async
     });
 
     res.json(ResponseFormatter.success(null, 'Notification deleted'));
-  } catch (error) {
-    logger.error('Error deleting notification:', error);
+  } catch (error: unknown) {
+    logger.error('Error deleting notification:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to delete', 'DELETE_ERROR'));
   }
 });
@@ -536,8 +536,8 @@ router.post('/broadcast', authenticate, requireRole(['SUPER_ADMIN']), async (req
       succeeded,
       failed
     }, 'Broadcast sent'));
-  } catch (error) {
-    logger.error('Error broadcasting:', error);
+  } catch (error: unknown) {
+    logger.error('Error broadcasting:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to broadcast', 'BROADCAST_ERROR'));
   }
 });
@@ -560,8 +560,8 @@ router.get('/unread', authenticate, async (req: AuthenticatedRequest, res) => {
       'Unread notifications retrieved successfully',
       { count: notifications.length }
     ));
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
     res.status(500).json(ResponseFormatter.error(
       'Error fetching notifications',
       'NOTIFICATIONS_FETCH_ERROR',
@@ -583,8 +583,8 @@ router.post('/:id/read', authenticate, async (req: AuthenticatedRequest, res) =>
       null,
       'Notification marked as read'
     ));
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
     res.status(500).json(ResponseFormatter.error(
       'Error marking notification as read',
       'NOTIFICATION_MARK_READ_ERROR',
@@ -606,8 +606,8 @@ router.post('/read-all', authenticate, async (req: AuthenticatedRequest, res) =>
       null,
       'All notifications marked as read'
     ));
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
     res.status(500).json(ResponseFormatter.error(
       'Error marking all notifications as read',
       'NOTIFICATIONS_MARK_ALL_READ_ERROR',
@@ -629,8 +629,8 @@ router.get('/count', authenticate, async (req: AuthenticatedRequest, res) => {
       { count },
       'Unread notifications count retrieved successfully'
     ));
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
     res.status(500).json(ResponseFormatter.error(
       'Error counting notifications',
       'NOTIFICATIONS_COUNT_ERROR',

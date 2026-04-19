@@ -110,9 +110,9 @@ export class EmailService {
       
       return this.emailConfig;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[EmailService] Error loading email configuration:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
       });
       return null;
@@ -153,9 +153,9 @@ export class EmailService {
       
       return this.transporter;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[EmailService] Failed to initialize email transporter:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
       });
       this.transporter = null;
@@ -245,7 +245,7 @@ export class EmailService {
         subject: mailOptions.subject
       });
       
-    } catch (error) {
+    } catch (error: unknown) {
       // Log errore nel database
       try {
         const config = await this.getEmailConfiguration();
@@ -257,7 +257,7 @@ export class EmailService {
             subject: options.subject,
             body: options.html || options.text || '',
             status: 'failed',
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
             sentAt: new Date()
           }
         });
@@ -268,13 +268,13 @@ export class EmailService {
       }
 
       logger.error('[EmailService] Error sending email:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         to: options.to,
         subject: options.subject,
         stack: error instanceof Error ? error.stack : undefined
       });
       
-      throw new Error(`Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Failed to send email: ${error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error'}`);
     }
   }
 
@@ -327,9 +327,9 @@ export class EmailService {
       
       logger.info('[EmailService] Email configuration updated successfully');
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[EmailService] Error updating email configuration:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
       });
       throw error;
@@ -367,9 +367,9 @@ export class EmailService {
       logger.info('[EmailService] Test email sent successfully', { testEmail });
       return true;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[EmailService] Test email failed:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         testEmail,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -402,9 +402,9 @@ export class EmailService {
       logger.info('[EmailService] Email logs retrieved', { count: logs.length });
       return logs;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[EmailService] Error getting email logs:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         limit,
         stack: error instanceof Error ? error.stack : undefined
       });

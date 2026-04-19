@@ -35,7 +35,7 @@ router.get('/:id/skills', authenticate, async (req: any, res) => {
     ));
     
   } catch (error: any) {
-    logger.error('Error getting professional skills:', error);
+    logger.error('Error getting professional skills:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle competenze',
       'SKILLS_ERROR'
@@ -74,7 +74,7 @@ router.post('/:id/skills', authenticate, async (req: any, res) => {
         userId: professionalId,
         name,
         level: level || 'intermediate'
-      }
+      } as any
     });
     
     return res.json(ResponseFormatter.success(
@@ -83,7 +83,7 @@ router.post('/:id/skills', authenticate, async (req: any, res) => {
     ));
     
   } catch (error: any) {
-    logger.error('Error creating professional skill:', error);
+    logger.error('Error creating professional skill:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nella creazione della competenza',
       'SKILL_CREATE_ERROR'
@@ -126,7 +126,7 @@ router.put('/:id/skills/:skillId', authenticate, async (req: any, res) => {
     ));
     
   } catch (error: any) {
-    logger.error('Error updating professional skill:', error);
+    logger.error('Error updating professional skill:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento della competenza',
       'SKILL_UPDATE_ERROR'
@@ -162,7 +162,7 @@ router.delete('/:id/skills/:skillId', authenticate, async (req: any, res) => {
     ));
     
   } catch (error: any) {
-    logger.error('Error deleting professional skill:', error);
+    logger.error('Error deleting professional skill:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'eliminazione della competenza',
       'SKILL_DELETE_ERROR'
@@ -198,7 +198,7 @@ router.get('/:id/certifications', authenticate, async (req: any, res) => {
     ));
     
   } catch (error: any) {
-    logger.error('Error getting professional certifications:', error);
+    logger.error('Error getting professional certifications:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle certificazioni',
       'CERTIFICATIONS_ERROR'
@@ -239,7 +239,7 @@ router.post('/:id/certifications', authenticate, async (req: any, res) => {
         issuer,
         validUntil: validUntil ? new Date(validUntil) : null,
         isVerified: isVerified || false
-      }
+      } as any
     });
     
     return res.json(ResponseFormatter.success(
@@ -248,7 +248,7 @@ router.post('/:id/certifications', authenticate, async (req: any, res) => {
     ));
     
   } catch (error: any) {
-    logger.error('Error creating professional certification:', error);
+    logger.error('Error creating professional certification:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nella creazione della certificazione',
       'CERTIFICATION_CREATE_ERROR'
@@ -293,7 +293,7 @@ router.put('/:id/certifications/:certificationId', authenticate, async (req: any
     ));
     
   } catch (error: any) {
-    logger.error('Error updating professional certification:', error);
+    logger.error('Error updating professional certification:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento della certificazione',
       'CERTIFICATION_UPDATE_ERROR'
@@ -329,7 +329,7 @@ router.delete('/:id/certifications/:certificationId', authenticate, async (req: 
     ));
     
   } catch (error: any) {
-    logger.error('Error deleting professional certification:', error);
+    logger.error('Error deleting professional certification:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'eliminazione della certificazione',
       'CERTIFICATION_DELETE_ERROR'

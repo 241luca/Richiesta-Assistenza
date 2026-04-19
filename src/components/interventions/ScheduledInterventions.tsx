@@ -280,7 +280,7 @@ export default function ScheduledInterventions({
                     )}
                     {intervention.report && (
                       <button
-                        onClick={() => navigate(`/reports/${intervention.report.id}`)}
+                        onClick={() => navigate(`/reports/${intervention.report?.id}`)}
                         className="text-sm text-blue-600 hover:text-blue-700 mt-1 flex items-center"
                       >
                         <DocumentTextIcon className="h-4 w-4 mr-1" />

@@ -323,7 +323,7 @@ async function main() {
       } else {
         console.log(`⏭️  Impostazione già esistente: ${setting.key}`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`❌ Errore creando ${setting.key}:`, error);
     }
   }

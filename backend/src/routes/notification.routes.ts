@@ -18,11 +18,12 @@ router.get('/unread', authenticate, async (req, res) => {
       'Unread notifications retrieved successfully',
       { count: notifications.length }
     ));
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
     res.json(ResponseFormatter.error(
       'Error fetching notifications',
       'NOTIFICATIONS_FETCH_ERROR',
-      error.message
+      errorMessage
     ));
   }
 });
@@ -75,8 +76,8 @@ router.get('/logs', authenticate, async (req, res) => {
       limit: parseInt(limit as string),
       offset: parseInt(offset as string)
     }, 'Notification logs retrieved successfully'));
-  } catch (error) {
-    logger.error('Error fetching notification logs:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching notification logs:', error instanceof Error ? error.message : String(error));
     res.status(500).json(
       ResponseFormatter.error('Failed to fetch notification logs', 'LOGS_FETCH_ERROR')
     );
@@ -92,11 +93,12 @@ router.post('/:id/read', authenticate, async (req, res) => {
       null,
       'Notification marked as read'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
     res.json(ResponseFormatter.error(
       'Error marking notification as read',
       'NOTIFICATION_MARK_READ_ERROR',
-      error.message
+      errorMessage
     ));
   }
 });
@@ -110,11 +112,12 @@ router.post('/read-all', authenticate, async (req, res) => {
       null,
       'All notifications marked as read'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
     res.json(ResponseFormatter.error(
       'Error marking all notifications as read',
       'NOTIFICATIONS_MARK_ALL_READ_ERROR',
-      error.message
+      errorMessage
     ));
   }
 });
@@ -128,11 +131,12 @@ router.get('/count', authenticate, async (req, res) => {
       { count },
       'Unread notifications count retrieved successfully'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error';
     res.json(ResponseFormatter.error(
       'Error counting notifications',
       'NOTIFICATIONS_COUNT_ERROR',
-      error.message
+      errorMessage
     ));
   }
 });
@@ -189,8 +193,8 @@ router.get('/', authenticate, async (req, res) => {
       categories: categories.map(c => c.type),
       total: notifications.length
     }));
-  } catch (error) {
-    logger.error('Error fetching notifications:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching notifications:', error instanceof Error ? error.message : String(error));
     res.status(500).json(
       ResponseFormatter.error('Failed to fetch notifications')
     );
@@ -288,8 +292,8 @@ router.get('/stats', authenticate, async (req, res) => {
       }, {} as Record<string, number>),
       bySeverity
     }));
-  } catch (error) {
-    logger.error('Error fetching notification stats:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching notification stats:', error instanceof Error ? error.message : String(error));
     res.status(500).json(
       ResponseFormatter.error('Failed to fetch notification stats')
     );
@@ -314,8 +318,8 @@ router.put('/:id/read', authenticate, async (req, res) => {
     });
 
     res.json(ResponseFormatter.success(notification, 'Notification marked as read'));
-  } catch (error) {
-    logger.error('Error marking notification as read:', error);
+  } catch (error: unknown) {
+    logger.error('Error marking notification as read:', error instanceof Error ? error.message : String(error));
     res.status(500).json(
       ResponseFormatter.error('Failed to mark as read')
     );
@@ -342,8 +346,8 @@ router.put('/:id/archive', authenticate, async (req, res) => {
     });
 
     res.json(ResponseFormatter.success(notification, 'Notification marked as read'));
-  } catch (error) {
-    logger.error('Error marking notification:', error);
+  } catch (error: unknown) {
+    logger.error('Error marking notification:', error instanceof Error ? error.message : String(error));
     res.status(500).json(
       ResponseFormatter.error('Failed to update notification')
     );
@@ -364,8 +368,8 @@ router.delete('/:id', authenticate, async (req, res) => {
     });
 
     res.json(ResponseFormatter.success(null, 'Notification deleted'));
-  } catch (error) {
-    logger.error('Error deleting notification:', error);
+  } catch (error: unknown) {
+    logger.error('Error deleting notification:', error instanceof Error ? error.message : String(error));
     res.status(500).json(
       ResponseFormatter.error('Failed to delete notification')
     );
@@ -389,8 +393,8 @@ router.put('/read-all', authenticate, async (req, res) => {
     });
 
     res.json(ResponseFormatter.success(null, 'All notifications marked as read'));
-  } catch (error) {
-    logger.error('Error marking all as read:', error);
+  } catch (error: unknown) {
+    logger.error('Error marking all as read:', error instanceof Error ? error.message : String(error));
     res.status(500).json(
       ResponseFormatter.error('Failed to mark all as read')
     );

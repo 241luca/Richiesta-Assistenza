@@ -30,7 +30,7 @@ router.get('/',
         'Document types retrieved successfully'
       ));
     } catch (error: any) {
-      logger.error('Error fetching document types:', error);
+      logger.error('Error fetching document types:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to fetch document types',
         'FETCH_ERROR'
@@ -51,7 +51,7 @@ router.get('/stats',
       const stats = await documentTypeService.getStatistics();
       return res.json(ResponseFormatter.success(stats));
     } catch (error: any) {
-      logger.error('Error fetching stats:', error);
+      logger.error('Error fetching stats:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch stats', 'STATS_ERROR')
       );
@@ -75,7 +75,7 @@ router.get('/statistics',
         'Statistics retrieved successfully'
       ));
     } catch (error: any) {
-      logger.error('Error fetching statistics:', error);
+      logger.error('Error fetching statistics:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to fetch statistics',
         'FETCH_ERROR'
@@ -100,7 +100,7 @@ router.post('/initialize-defaults',
         'Default types initialized successfully'
       ));
     } catch (error: any) {
-      logger.error('Error initializing defaults:', error);
+      logger.error('Error initializing defaults:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Failed to initialize defaults',
         'INIT_ERROR'
@@ -125,9 +125,9 @@ router.get('/:id',
         'Document type retrieved successfully'
       ));
     } catch (error: any) {
-      logger.error('Error fetching document type:', error);
+      logger.error('Error fetching document type:', error instanceof Error ? error.message : String(error));
       
-      if (error.message === 'Document type not found') {
+      if (error instanceof Error ? error.message : String(error) === 'Document type not found') {
         return res.status(404).json(ResponseFormatter.error(
           'Document type not found',
           'NOT_FOUND'
@@ -158,11 +158,11 @@ router.post('/',
         'Document type created successfully'
       ));
     } catch (error: any) {
-      logger.error('Error creating document type:', error);
+      logger.error('Error creating document type:', error instanceof Error ? error.message : String(error));
       
-      if (error.message.includes('already exists')) {
+      if (error instanceof Error ? error.message : String(error).includes('already exists')) {
         return res.status(400).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'DUPLICATE_ERROR'
         ));
       }
@@ -195,18 +195,18 @@ router.put('/:id',
         'Document type updated successfully'
       ));
     } catch (error: any) {
-      logger.error('Error updating document type:', error);
+      logger.error('Error updating document type:', error instanceof Error ? error.message : String(error));
       
-      if (error.message === 'Document type not found') {
+      if (error instanceof Error ? error.message : String(error) === 'Document type not found') {
         return res.status(404).json(ResponseFormatter.error(
           'Document type not found',
           'NOT_FOUND'
         ));
       }
       
-      if (error.message.includes('already exists')) {
+      if (error instanceof Error ? error.message : String(error).includes('already exists')) {
         return res.status(400).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'DUPLICATE_ERROR'
         ));
       }
@@ -248,9 +248,9 @@ router.patch('/:id/toggle-status',
         `Document type ${isActive ? 'activated' : 'deactivated'} successfully`
       ));
     } catch (error: any) {
-      logger.error('Error toggling document type status:', error);
+      logger.error('Error toggling document type status:', error instanceof Error ? error.message : String(error));
       
-      if (error.message === 'Document type not found') {
+      if (error instanceof Error ? error.message : String(error) === 'Document type not found') {
         return res.status(404).json(ResponseFormatter.error(
           'Document type not found',
           'NOT_FOUND'
@@ -281,18 +281,18 @@ router.delete('/:id',
         'Document type deleted successfully'
       ));
     } catch (error: any) {
-      logger.error('Error deleting document type:', error);
+      logger.error('Error deleting document type:', error instanceof Error ? error.message : String(error));
       
-      if (error.message === 'Document type not found') {
+      if (error instanceof Error ? error.message : String(error) === 'Document type not found') {
         return res.status(404).json(ResponseFormatter.error(
           'Document type not found',
           'NOT_FOUND'
         ));
       }
       
-      if (error.message.includes('Cannot delete')) {
+      if (error instanceof Error ? error.message : String(error).includes('Cannot delete')) {
         return res.status(400).json(ResponseFormatter.error(
-          error.message,
+          error instanceof Error ? error.message : String(error),
           'DELETE_RESTRICTED'
         ));
       }

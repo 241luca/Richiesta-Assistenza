@@ -31,8 +31,8 @@ router.get('/config', ...adminOnly, async (req, res) => {
     const configs = await cleanupConfigService.getAllCleanupConfigs();
     return res.json(ResponseFormatter.success(configs, 'Configurazioni recuperate'));
   } catch (error: any) {
-    logger.error('Errore recupero configurazioni:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore recupero configurazioni:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -48,8 +48,8 @@ router.get('/config/:id', ...adminOnly, async (req, res) => {
     }
     return res.json(ResponseFormatter.success(config, 'Configurazione recuperata'));
   } catch (error: any) {
-    logger.error('Errore recupero configurazione:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore recupero configurazione:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -62,8 +62,8 @@ router.post('/config', ...adminOnly, async (req, res) => {
     const config = await cleanupConfigService.createCleanupConfig(req.body);
     return res.status(201).json(ResponseFormatter.success(config, 'Configurazione creata'));
   } catch (error: any) {
-    logger.error('Errore creazione configurazione:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore creazione configurazione:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -76,8 +76,8 @@ router.put('/config/:id', ...adminOnly, async (req, res) => {
     const config = await cleanupConfigService.updateCleanupConfig(req.params.id, req.body);
     return res.json(ResponseFormatter.success(config, 'Configurazione aggiornata'));
   } catch (error: any) {
-    logger.error('Errore aggiornamento configurazione:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore aggiornamento configurazione:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -90,8 +90,8 @@ router.delete('/config/:id', ...adminOnly, async (req, res) => {
     await cleanupConfigService.deleteCleanupConfig(req.params.id);
     return res.json(ResponseFormatter.success(null, 'Configurazione eliminata'));
   } catch (error: any) {
-    logger.error('Errore eliminazione configurazione:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore eliminazione configurazione:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -109,8 +109,8 @@ router.get('/patterns', ...adminOnly, async (req, res) => {
     const patterns = await cleanupConfigService.getCleanupPatterns(includeInactive);
     return res.json(ResponseFormatter.success(patterns, 'Pattern recuperati'));
   } catch (error: any) {
-    logger.error('Errore recupero pattern:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore recupero pattern:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -126,8 +126,8 @@ router.get('/patterns/:id', ...adminOnly, async (req, res) => {
     }
     return res.json(ResponseFormatter.success(pattern, 'Pattern recuperato'));
   } catch (error: any) {
-    logger.error('Errore recupero pattern:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore recupero pattern:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -140,8 +140,8 @@ router.post('/patterns', ...adminOnly, async (req, res) => {
     const pattern = await cleanupConfigService.createCleanupPattern(req.body);
     return res.status(201).json(ResponseFormatter.success(pattern, 'Pattern creato'));
   } catch (error: any) {
-    logger.error('Errore creazione pattern:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore creazione pattern:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -154,8 +154,8 @@ router.put('/patterns/:id', ...adminOnly, async (req, res) => {
     const pattern = await cleanupConfigService.updateCleanupPattern(req.params.id, req.body);
     return res.json(ResponseFormatter.success(pattern, 'Pattern aggiornato'));
   } catch (error: any) {
-    logger.error('Errore aggiornamento pattern:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore aggiornamento pattern:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -168,8 +168,8 @@ router.delete('/patterns/:id', ...adminOnly, async (req, res) => {
     await cleanupConfigService.deleteCleanupPattern(req.params.id);
     return res.json(ResponseFormatter.success(null, 'Pattern eliminato'));
   } catch (error: any) {
-    logger.error('Errore eliminazione pattern:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore eliminazione pattern:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -187,8 +187,8 @@ router.get('/excluded-files', ...adminOnly, async (req, res) => {
     const files = await cleanupConfigService.getCleanupExcludedFiles(includeInactive);
     return res.json(ResponseFormatter.success(files, 'File esclusi recuperati'));
   } catch (error: any) {
-    logger.error('Errore recupero file esclusi:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore recupero file esclusi:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -204,8 +204,8 @@ router.get('/excluded-files/:id', ...adminOnly, async (req, res) => {
     }
     return res.json(ResponseFormatter.success(file, 'File escluso recuperato'));
   } catch (error: any) {
-    logger.error('Errore recupero file escluso:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore recupero file escluso:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -218,8 +218,8 @@ router.post('/excluded-files', ...adminOnly, async (req, res) => {
     const file = await cleanupConfigService.createCleanupExcludedFile(req.body);
     return res.status(201).json(ResponseFormatter.success(file, 'File escluso creato'));
   } catch (error: any) {
-    logger.error('Errore creazione file escluso:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore creazione file escluso:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -232,8 +232,8 @@ router.put('/excluded-files/:id', ...adminOnly, async (req, res) => {
     const file = await cleanupConfigService.updateCleanupExcludedFile(req.params.id, req.body);
     return res.json(ResponseFormatter.success(file, 'File escluso aggiornato'));
   } catch (error: any) {
-    logger.error('Errore aggiornamento file escluso:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore aggiornamento file escluso:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -246,8 +246,8 @@ router.delete('/excluded-files/:id', ...adminOnly, async (req, res) => {
     await cleanupConfigService.deleteCleanupExcludedFile(req.params.id);
     return res.json(ResponseFormatter.success(null, 'File escluso eliminato'));
   } catch (error: any) {
-    logger.error('Errore eliminazione file escluso:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore eliminazione file escluso:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -265,8 +265,8 @@ router.get('/excluded-directories', ...adminOnly, async (req, res) => {
     const dirs = await cleanupConfigService.getCleanupExcludedDirectories(includeInactive);
     return res.json(ResponseFormatter.success(dirs, 'Directory escluse recuperate'));
   } catch (error: any) {
-    logger.error('Errore recupero directory escluse:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore recupero directory escluse:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -282,8 +282,8 @@ router.get('/excluded-directories/:id', ...adminOnly, async (req, res) => {
     }
     return res.json(ResponseFormatter.success(dir, 'Directory esclusa recuperata'));
   } catch (error: any) {
-    logger.error('Errore recupero directory esclusa:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore recupero directory esclusa:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -296,8 +296,8 @@ router.post('/excluded-directories', ...adminOnly, async (req, res) => {
     const dir = await cleanupConfigService.createCleanupExcludedDirectory(req.body);
     return res.status(201).json(ResponseFormatter.success(dir, 'Directory esclusa creata'));
   } catch (error: any) {
-    logger.error('Errore creazione directory esclusa:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore creazione directory esclusa:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -310,8 +310,8 @@ router.put('/excluded-directories/:id', ...adminOnly, async (req, res) => {
     const dir = await cleanupConfigService.updateCleanupExcludedDirectory(req.params.id, req.body);
     return res.json(ResponseFormatter.success(dir, 'Directory esclusa aggiornata'));
   } catch (error: any) {
-    logger.error('Errore aggiornamento directory esclusa:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore aggiornamento directory esclusa:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 
@@ -324,8 +324,8 @@ router.delete('/excluded-directories/:id', ...adminOnly, async (req, res) => {
     await cleanupConfigService.deleteCleanupExcludedDirectory(req.params.id);
     return res.json(ResponseFormatter.success(null, 'Directory esclusa eliminata'));
   } catch (error: any) {
-    logger.error('Errore eliminazione directory esclusa:', error);
-    return res.status(500).json(ResponseFormatter.error(error.message));
+    logger.error('Errore eliminazione directory esclusa:', error instanceof Error ? error.message : String(error));
+    return res.status(500).json(ResponseFormatter.error(error instanceof Error ? error.message : String(error)));
   }
 });
 

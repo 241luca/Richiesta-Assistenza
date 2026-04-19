@@ -150,7 +150,7 @@ export abstract class BaseHealthCheck {
         name: `${modelName}_connection`,
         description: `Database connection for ${modelName}`,
         status: CheckStatus.FAIL,
-        message: `Connection failed: ${error.message}`,
+        message: `Connection failed: ${error instanceof Error ? error.message : String(error)}`,
         severity: CheckSeverity.CRITICAL,
         category: 'connectivity'
       };
@@ -203,7 +203,7 @@ export abstract class BaseHealthCheck {
         name: `service_${name}`,
         description,
         status: CheckStatus.FAIL,
-        message: `Service check failed: ${error.message}`,
+        message: `Service check failed: ${error instanceof Error ? error.message : String(error)}`,
         severity,
         category: 'connectivity'
       };

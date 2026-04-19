@@ -9,7 +9,8 @@
 import logger from '../utils/logger';
 import { prisma } from '../config/database';
 import { NotificationService } from './notification.service';
-import { auditService } from './auditLog.service';
+import { auditLogService } from './auditLog.service';
+import { LogSeverity, LogCategory } from '@prisma/client';
 
 const notificationService = new NotificationService();
 
@@ -75,25 +76,27 @@ export class WhatsAppErrorHandler {
    * Gestisce un errore generico e lo categorizza
    */
   async handleError(error: any, context?: string): Promise<WhatsAppError> {
-    logger.error(`❌ Errore in ${context || 'WhatsApp'}:`, error);
+    logger.error(`❌ Errore in ${context || 'WhatsApp'}:`, error instanceof Error ? error.message : String(error));
     
     // Categorizza l'errore
     const categorizedError = this.categorizeError(error);
     
     // Usa il sistema AuditLog esistente per salvare l'errore
-    await auditService.log({
-      action: 'WHATSAPP_ERROR',
+    await auditLogService.log({
+      action: 'WHATSAPP_ERROR' as any,
       entityType: 'WhatsApp',
       entityId: context || 'system',
-      userId: null, // Sistema
-      details: {
+      userId: undefined,
+      ipAddress: 'system',
+      userAgent: 'whatsapp-error-handler',
+      metadata: {
         error: categorizedError.toJSON(),
         context: context
       },
       success: false,
       errorMessage: categorizedError.message,
       severity: this.mapSeverityToAudit(categorizedError.severity),
-      category: 'SYSTEM'
+      category: LogCategory.SYSTEM
     });
     
     // Aggiorna contatori
@@ -118,13 +121,13 @@ export class WhatsAppErrorHandler {
   /**
    * Mappa la severità per il sistema AuditLog esistente
    */
-  private mapSeverityToAudit(severity: ErrorSeverity): string {
+  private mapSeverityToAudit(severity: ErrorSeverity): LogSeverity {
     switch(severity) {
-      case ErrorSeverity.LOW: return 'INFO';
-      case ErrorSeverity.MEDIUM: return 'WARNING';
-      case ErrorSeverity.HIGH: return 'ERROR';
-      case ErrorSeverity.CRITICAL: return 'CRITICAL';
-      default: return 'INFO';
+      case ErrorSeverity.LOW: return LogSeverity.INFO;
+      case ErrorSeverity.MEDIUM: return LogSeverity.WARNING;
+      case ErrorSeverity.HIGH: return LogSeverity.ERROR;
+      case ErrorSeverity.CRITICAL: return LogSeverity.CRITICAL;
+      default: return LogSeverity.INFO;
     }
   }
   
@@ -132,7 +135,7 @@ export class WhatsAppErrorHandler {
    * Categorizza un errore generico
    */
   private categorizeError(error: any): WhatsAppError {
-    const errorMessage = error.message || error.toString() || 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : String(error) || error.toString() || 'Unknown error';
     
     // Connection errors
     if (this.isConnectionError(errorMessage)) {
@@ -375,16 +378,19 @@ export class WhatsAppErrorHandler {
     logger.info(`🔄 Tentativo auto-recovery per ${error.type}`);
     
     // Log nel sistema audit
-    await auditService.log({
-      action: 'WHATSAPP_AUTO_RECOVERY_ATTEMPT',
+    await auditLogService.log({
+      action: 'WHATSAPP_AUTO_RECOVERY_ATTEMPT' as any,
       entityType: 'WhatsApp',
       entityId: 'system',
-      details: {
+      ipAddress: 'system',
+      userAgent: 'whatsapp-error-handler',
+      metadata: {
         errorType: error.type,
-        errorMessage: error.message
+        errorMessage: error instanceof Error ? error.message : String(error)
       },
       success: true,
-      category: 'SYSTEM'
+      severity: LogSeverity.INFO,
+      category: LogCategory.SYSTEM
     });
     
     switch(error.type) {
@@ -411,7 +417,7 @@ export class WhatsAppErrorHandler {
   private async notifyAdminsViaNotificationService(error: WhatsAppError): Promise<void> {
     try {
       // Trova tutti gli admin
-      const admins = await prisma.user.findMany({
+      const admins = await (prisma.user.findMany as any)({
         where: {
           role: { in: ['ADMIN', 'SUPER_ADMIN'] },
           isActive: true
@@ -420,9 +426,10 @@ export class WhatsAppErrorHandler {
       
       // Usa il sistema di notifiche esistente per ogni admin
       for (const admin of admins) {
-        await notificationService.sendToUser(admin.id, {
+        await notificationService.sendToUser({
+          userId: admin.id,
           title: '🚨 Errore Critico WhatsApp',
-          message: error.userMessage || error.message,
+          message: error.userMessage || error instanceof Error ? error.message : String(error),
           type: 'whatsapp_error',
           priority: 'high',
           data: {
@@ -436,17 +443,19 @@ export class WhatsAppErrorHandler {
       logger.info(`📨 Notifica inviata a ${admins.length} amministratori via NotificationService`);
       
       // Log nel sistema audit
-      await auditService.log({
-        action: 'WHATSAPP_CRITICAL_ERROR_NOTIFIED',
+      await auditLogService.log({
+        action: 'WHATSAPP_CRITICAL_ERROR_NOTIFIED' as any,
         entityType: 'WhatsApp',
         entityId: 'system',
-        details: {
+        ipAddress: 'system',
+        userAgent: 'whatsapp-error-handler',
+        metadata: {
           error: error.toJSON(),
           adminsNotified: admins.length
         },
         success: true,
-        severity: 'CRITICAL',
-        category: 'SYSTEM'
+        severity: LogSeverity.CRITICAL,
+        category: LogCategory.SYSTEM
       });
       
     } catch (notifyError) {
@@ -487,13 +496,17 @@ export class WhatsAppErrorHandler {
     logger.info('🔄 Contatori errori resettati');
     
     // Log nel sistema audit
-    auditService.log({
-      action: 'WHATSAPP_ERROR_COUNTERS_RESET',
+    auditLogService.log({
+      action: 'WHATSAPP_ERROR_COUNTERS_RESET' as any,
       entityType: 'WhatsApp',
       entityId: 'system',
+      userId: undefined,
+      ipAddress: 'system',
+      userAgent: 'whatsapp-error-handler',
       success: true,
-      category: 'ADMIN'
-    }).catch(err => logger.error('Errore log audit:', err));
+      severity: LogSeverity.INFO,
+      category: LogCategory.SYSTEM
+    }).catch((err: any) => logger.error('Errore log audit:', err));
   }
   
   /**

@@ -73,8 +73,8 @@ class CrmService {
       });
       logger.info('[CRM] Lead creato da referral', { email, referralId: input.referralId });
       return created;
-    } catch (error) {
-      logger.error('[CRM] Errore upsert lead da referral', error);
+    } catch (error: unknown) {
+      logger.error('[CRM] Errore upsert lead da referral', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -109,8 +109,8 @@ class CrmService {
       });
       logger.info('[CRM] Stato aggiornato', { id: updated.id, status: input.status });
       return updated;
-    } catch (error) {
-      logger.error('[CRM] Errore updateStatus', error);
+    } catch (error: unknown) {
+      logger.error('[CRM] Errore updateStatus', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -145,8 +145,8 @@ class CrmService {
       });
       logger.info('[CRM] Contatto collegato a utente', { id: updated.id, userId: input.userId });
       return updated;
-    } catch (error) {
-      logger.error('[CRM] Errore linkUser', error);
+    } catch (error: unknown) {
+      logger.error('[CRM] Errore linkUser', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

@@ -444,7 +444,7 @@ function PatternsSection() {
       {showCreateModal && (
         <CreatePatternModal
           onClose={() => setShowCreateModal(false)}
-          onCreate={(data) => createMutation.mutate(data)}
+          onCreate={(data: any) => createMutation.mutate(data)}
         />
       )}
     </div>
@@ -653,7 +653,7 @@ function ExcludeFilesSection() {
       {showCreateModal && (
         <CreateExcludeFileModal
           onClose={() => setShowCreateModal(false)}
-          onCreate={(data) => createMutation.mutate(data)}
+          onCreate={(data: any) => createMutation.mutate(data)}
         />
       )}
       
@@ -662,7 +662,7 @@ function ExcludeFilesSection() {
         <EditExcludeFileModal
           file={editingFile}
           onClose={() => setEditingFile(null)}
-          onUpdate={(data) => updateMutation.mutate({ id: editingFile.id, data })}
+          onUpdate={(data: any) => updateMutation.mutate({ id: editingFile.id, data })}
         />
       )}
     </div>
@@ -838,7 +838,7 @@ function ExcludeDirectoriesSection() {
       {showCreateModal && (
         <CreateExcludeDirectoryModal
           onClose={() => setShowCreateModal(false)}
-          onCreate={(data) => createMutation.mutate(data)}
+          onCreate={(data: any) => createMutation.mutate(data)}
         />
       )}
     </div>

@@ -40,17 +40,17 @@ router.get('/range/category/:categoryId',
       
       return res.json(ResponseFormatter.success(pricing, 'Pricing categoria recuperato con successo'));
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[PricingRoutes] Errore recupero pricing categoria:', error);
       
       if (error instanceof z.ZodError) {
         return res.status(400).json(
-          ResponseFormatter.error('Parametri non validi', error.errors)
+          ResponseFormatter.error('Parametri non validi', JSON.stringify(error.errors))
         );
       }
       
       return res.status(400).json(
-        ResponseFormatter.error(error.message || 'Errore nel recupero del pricing')
+        ResponseFormatter.error(error instanceof Error ? error.message : String(error) || 'Errore nel recupero del pricing')
       );
     }
   }
@@ -85,17 +85,17 @@ router.get('/range/estimate',
 
       return res.json(ResponseFormatter.success(range, 'Stima prezzo calcolata con successo'));
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[PricingRoutes] Errore calcolo stima prezzo:', error);
       
       if (error instanceof z.ZodError) {
         return res.status(400).json(
-          ResponseFormatter.error('Parametri non validi', error.errors)
+          ResponseFormatter.error('Parametri non validi', JSON.stringify(error.errors))
         );
       }
       
       return res.status(400).json(
-        ResponseFormatter.error(error.message || 'Errore nel calcolo della stima')
+        ResponseFormatter.error(error instanceof Error ? error.message : String(error) || 'Errore nel calcolo della stima')
       );
     }
   }
@@ -120,7 +120,7 @@ router.get('/stats',
       
       return res.json(ResponseFormatter.success(stats, 'Statistiche pricing recuperate con successo'));
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[PricingRoutes] Errore recupero statistiche:', error);
       
       return res.status(500).json(
@@ -145,7 +145,7 @@ router.get('/health', async (req, res) => {
       dataAvailable: stats.totalQuotes > 0
     }, 'Servizio pricing operativo'));
     
-  } catch (error) {
+  } catch (error: unknown) {
     return res.status(500).json(
       ResponseFormatter.error('Servizio pricing non disponibile')
     );
@@ -181,12 +181,12 @@ router.get('/test/estimate', async (req, res) => {
       testNote: '🧪 Questo è un endpoint di test. In produzione richiederà autenticazione.'
     }, '🧪 TEST: Range prezzi calcolato con successo'));
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[PricingRoutes] 🧪 Test endpoint errore:', error);
     
     return res.json(ResponseFormatter.error(
-      `🧪 TEST ERROR: ${error.message}`,
-      { error: error.toString(), stack: error.stack }
+      `🧪 TEST ERROR: ${(error as any).message}`,
+      JSON.stringify({ error: (error as any).toString(), stack: (error as any).stack })
     ));
   }
 });
@@ -212,12 +212,12 @@ router.get('/test/stats', async (req, res) => {
       }
     }, '🧪 TEST: Statistiche recuperate con successo'));
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[PricingRoutes] 🧪 Test stats errore:', error);
     
     return res.json(ResponseFormatter.error(
-      `🧪 TEST ERROR: ${error.message}`,
-      { error: error.toString() }
+      `🧪 TEST ERROR: ${(error as any).message}`,
+      JSON.stringify({ error: (error as any).toString() })
     ));
   }
 });

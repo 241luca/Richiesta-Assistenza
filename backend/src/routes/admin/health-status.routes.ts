@@ -33,7 +33,7 @@ router.get('/status', async (req: any, res: any) => {
         latency,
         message: `Database responsive (${latency}ms)`
       });
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'PostgreSQL',
         status: 'offline',
@@ -64,7 +64,7 @@ router.get('/status', async (req: any, res: any) => {
         });
         if (overallStatus === 'healthy') overallStatus = 'degraded';
       }
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'Redis',
         status: 'offline',
@@ -87,7 +87,7 @@ router.get('/status', async (req: any, res: any) => {
       if (!io && overallStatus === 'healthy') {
         overallStatus = 'degraded';
       }
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'WebSocket',
         status: 'warning',
@@ -103,7 +103,7 @@ router.get('/status', async (req: any, res: any) => {
         status: emailKey ? 'online' : 'warning',
         message: emailKey ? 'Email service configured' : 'Email API key missing'
       });
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'Email',
         status: 'warning',
@@ -114,13 +114,13 @@ router.get('/status', async (req: any, res: any) => {
     // 5. WhatsApp (WppConnect)
     try {
       // Verifica se WppConnect è attivo
-      const wppStatus = global.wppClient ? 'online' : 'offline';
+      const wppStatus = (global as any).wppClient ? 'online' : 'offline';
       services.push({
         name: 'WhatsApp',
         status: wppStatus === 'online' ? 'online' : 'warning',
         message: wppStatus === 'online' ? 'WhatsApp connected' : 'WhatsApp not connected'
       });
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'WhatsApp',
         status: 'warning',
@@ -136,7 +136,7 @@ router.get('/status', async (req: any, res: any) => {
         status: openAIKey ? 'online' : 'warning',
         message: openAIKey ? 'AI service configured' : 'OpenAI API key missing'
       });
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'OpenAI',
         status: 'warning',
@@ -152,7 +152,7 @@ router.get('/status', async (req: any, res: any) => {
         status: stripeKey ? 'online' : 'warning',
         message: stripeKey ? 'Payment service configured' : 'Stripe API key missing'
       });
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'Stripe',
         status: 'warning',
@@ -168,7 +168,7 @@ router.get('/status', async (req: any, res: any) => {
         status: mapsKey ? 'online' : 'warning',
         message: mapsKey ? 'Maps service configured' : 'Google Maps API key missing'
       });
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'Google Maps',
         status: 'warning',
@@ -185,7 +185,7 @@ router.get('/status', async (req: any, res: any) => {
         status: queueCount > 0 ? 'online' : 'warning',
         message: `${queueCount} queue${queueCount !== 1 ? 's' : ''} active`
       });
-    } catch (error) {
+    } catch (error: unknown) {
       services.push({
         name: 'Queue System',
         status: 'warning',
@@ -217,8 +217,8 @@ router.get('/status', async (req: any, res: any) => {
       timestamp: new Date().toISOString()
     }));
 
-  } catch (error) {
-    logger.error('Error checking system health:', error);
+  } catch (error: unknown) {
+    logger.error('Error checking system health:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error(
       'Failed to check system health',
       'HEALTH_CHECK_ERROR'

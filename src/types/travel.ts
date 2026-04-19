@@ -71,5 +71,11 @@ export interface RequestTravelResponse {
 
 export interface TravelInfoCardProps {
   requestId: string;
+  travelInfo: {
+    distance: number;
+    duration: number;
+    cost: number;
+  };
+  onOpenItinerary?: () => void;
   className?: string;
 }

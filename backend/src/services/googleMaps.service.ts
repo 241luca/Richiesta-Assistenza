@@ -118,14 +118,14 @@ export class GoogleMapsService {
           if (preloaded > 0) {
             logger.info(`🚀 Preloaded ${preloaded} common Italian addresses in cache`);
           }
-        } catch (error) {
+        } catch (error: unknown) {
           logger.debug('Preload failed, continuing normally:', error);
         }
       }, 5000); // Dopo 5 secondi dall'avvio
 
       this.isInitialized = true;
       logger.info('🗺️ Google Maps Service initialized with Redis cache');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Google Maps Service starting without Redis:', error);
       this.isInitialized = true;
     }
@@ -162,8 +162,8 @@ export class GoogleMapsService {
       
       logger.debug(`Google Maps API key retrieved (${apiKeyData.key.length} chars)`);
       return apiKeyData.key;
-    } catch (error) {
-      logger.error('Error retrieving Google Maps API key:', error);
+    } catch (error: unknown) {
+      logger.error('Error retrieving Google Maps API key:', error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -229,8 +229,8 @@ export class GoogleMapsService {
       logger.warn(`⚠️ Geocoding failed for: ${addressString} (Status: ${response.data.status})`);
       return null;
 
-    } catch (error) {
-      logger.error('Geocoding API error:', error);
+    } catch (error: unknown) {
+      logger.error('Geocoding API error:', error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -320,8 +320,8 @@ export class GoogleMapsService {
       logger.warn(`⚠️ Distance calculation failed: ${originStr} -> ${destStr}`);
       return null;
 
-    } catch (error) {
-      logger.error('Distance calculation error:', error);
+    } catch (error: unknown) {
+      logger.error('Distance calculation error:', error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -425,8 +425,8 @@ export class GoogleMapsService {
       }
 
       return [];
-    } catch (error) {
-      logger.error('Autocomplete error:', error);
+    } catch (error: unknown) {
+      logger.error('Autocomplete error:', error instanceof Error ? error.message : String(error));
       return [];
     }
   }
@@ -495,8 +495,8 @@ export class GoogleMapsService {
       }
 
       return null;
-    } catch (error) {
-      logger.error('Place details error:', error);
+    } catch (error: unknown) {
+      logger.error('Place details error:', error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -525,8 +525,8 @@ export class GoogleMapsService {
         errors: result.errors,
         success: result.success
       };
-    } catch (error) {
-      logger.error('Cleanup error:', error);
+    } catch (error: unknown) {
+      logger.error('Cleanup error:', error instanceof Error ? error.message : String(error));
       return {
         memoryCleared: 0,
         databaseCleared: 0,
@@ -567,8 +567,8 @@ export class GoogleMapsService {
         performance: stats.performance,
         cacheTypes: stats.cacheTypes
       };
-    } catch (error) {
-      logger.error('Stats error:', error);
+    } catch (error: unknown) {
+      logger.error('Stats error:', error instanceof Error ? error.message : String(error));
       return {
         geocodeCacheHits: 0,
         distanceCacheHits: 0,
@@ -593,8 +593,8 @@ export class GoogleMapsService {
       // Test veloce con un indirizzo in cache
       const testResult = await this.geocode('Roma, Italia');
       return testResult !== null;
-    } catch (error) {
-      logger.error('Service availability check failed:', error);
+    } catch (error: unknown) {
+      logger.error('Service availability check failed:', error instanceof Error ? error.message : String(error));
       return false;
     }
   }
@@ -639,8 +639,8 @@ export class GoogleMapsService {
     try {
       await GoogleMapsCacheService.close();
       logger.info('🛑 Google Maps Service shutdown completed');
-    } catch (error) {
-      logger.error('Shutdown error:', error);
+    } catch (error: unknown) {
+      logger.error('Shutdown error:', error instanceof Error ? error.message : String(error));
     }
   }
 }

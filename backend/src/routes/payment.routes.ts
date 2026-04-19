@@ -33,7 +33,7 @@ router.get('/config', async (req, res) => {
     const config = await paymentService.getPublicConfig();
     res.json(ResponseFormatter.success(config));
   } catch (error: any) {
-    logger.error('Get payment config error:', error);
+    logger.error('Get payment config error:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to get payment config'));
   }
 });
@@ -62,7 +62,7 @@ router.get('/stats', authenticate, async (req: any, res) => {
     
     res.json(ResponseFormatter.success(stats));
   } catch (error: any) {
-    logger.error('Get payment stats error:', error);
+    logger.error('Get payment stats error:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to get payment stats'));
   }
 });
@@ -200,7 +200,7 @@ router.get('/my-payments', authenticate, async (req: any, res) => {
       stats: statsObj
     }));
   } catch (error: any) {
-    logger.error('Get my payments error:', error);
+    logger.error('Get my payments error:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to get payments'));
   }
 });
@@ -257,13 +257,13 @@ router.get('/', authenticate, async (req: any, res) => {
     
     // Query database
     const [payments, total] = await Promise.all([
-      prisma.payment.findMany({
+      (prisma.payment.findMany as any)({
         where,
         skip,
         take,
         orderBy: { createdAt: 'desc' },
         include: {
-          client: {
+          User_Payment_clientIdToUser: {
             select: {
               id: true,
               firstName: true,
@@ -271,7 +271,7 @@ router.get('/', authenticate, async (req: any, res) => {
               email: true
             }
           },
-          professional: {
+          User_Payment_professionalIdToUser: {
             select: {
               id: true,
               firstName: true,
@@ -279,15 +279,15 @@ router.get('/', authenticate, async (req: any, res) => {
               email: true
             }
           },
-          request: {
+          AssistanceRequest: {
             select: {
               id: true,
               title: true
             }
           },
-          quote: true,        // SINGOLARE - Prisma ci ha detto questo!
-          invoice: true,      // SINGOLARE - non invoices
-          paymentSplits: true
+          Quote: true,
+          Invoice: true,
+          PaymentSplit: true
         }
       }),
       prisma.payment.count({ where })
@@ -303,7 +303,7 @@ router.get('/', authenticate, async (req: any, res) => {
       }
     }));
   } catch (error: any) {
-    logger.error('Get payments error:', error);
+    logger.error('Get payments error:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to get payments'));
   }
 });
@@ -314,16 +314,14 @@ router.get('/:id', authenticate, async (req: any, res) => {
     const { id } = req.params;
     const user = req.user;
     
-    const payment = await prisma.payment.findUnique({
+    const payment = await (prisma.payment.findUnique as any)({
       where: { id },
       include: {
-        client: true,
-        professional: true,
-        request: true,
-        // quote: true,  // Commentato - potrebbe non esistere
-        invoice: true,        // SINGOLARE!
-        // refunds: true,     // Non esiste come relazione
-        paymentSplits: true
+        User_Payment_clientIdToUser: true,
+        User_Payment_professionalIdToUser: true,
+        AssistanceRequest: true,
+        Invoice: true,
+        PaymentSplit: true
       }
     });
     
@@ -341,7 +339,7 @@ router.get('/:id', authenticate, async (req: any, res) => {
     
     res.json(ResponseFormatter.success(payment));
   } catch (error: any) {
-    logger.error('Get payment error:', error);
+    logger.error('Get payment error:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to get payment'));
   }
 });
@@ -368,6 +366,10 @@ router.post('/create-intent', authenticate, async (req: any, res) => {
       metadata
     });
     
+    if (!payment) {
+      return res.status(500).json(ResponseFormatter.error('Failed to create payment record'));
+    }
+    
     // Poi crea il payment intent Stripe
     const paymentIntent = await paymentService.createPaymentIntent(payment.id);
     
@@ -376,7 +378,7 @@ router.post('/create-intent', authenticate, async (req: any, res) => {
       paymentId: payment.id
     }));
   } catch (error: any) {
-    logger.error('Create payment intent error:', error);
+    logger.error('Create payment intent error:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to create payment intent'));
   }
 });
@@ -391,13 +393,13 @@ router.post('/:id/confirm', authenticate, async (req: any, res) => {
     
     res.json(ResponseFormatter.success(payment));
   } catch (error: any) {
-    logger.error('Confirm payment error:', error);
+    logger.error('Confirm payment error:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to confirm payment'));
   }
 });
 
 // POST /api/payments/:id/refund - Rimborso pagamento
-router.post('/:id/refund', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN), async (req: any, res) => {
+router.post('/:id/refund', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req: any, res) => {
   try {
     const { id } = req.params;
     const { amount, reason } = req.body;
@@ -406,7 +408,7 @@ router.post('/:id/refund', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMI
     
     res.json(ResponseFormatter.success(refund));
   } catch (error: any) {
-    logger.error('Refund payment error:', error);
+    logger.error('Refund payment error:', error instanceof Error ? error.message : String(error));
     res.status(500).json(ResponseFormatter.error('Failed to refund payment'));
   }
 });
@@ -416,7 +418,7 @@ router.post('/:id/refund', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMI
 // ========================================
 
 // POST /api/payments/test-connection - Test connessione Stripe
-router.post('/test-connection', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN), async (req, res) => {
+router.post('/test-connection', authenticate, requireRole([Role.ADMIN, Role.SUPER_ADMIN]), async (req: any, res) => {
   try {
     const result = await paymentService.testConnection();
     
@@ -429,11 +431,11 @@ router.post('/test-connection', authenticate, requireRole(Role.ADMIN, Role.SUPER
         platformFee: config.platformFee
       }));
     } else {
-      res.json(ResponseFormatter.error('Connessione Stripe fallita', 503));
+      res.json(ResponseFormatter.error('Connessione Stripe fallita', 'STRIPE_CONNECTION_FAILED'));
     }
   } catch (error: any) {
-    logger.error('Test connection error:', error);
-    res.json(ResponseFormatter.error(error.message || 'Test connessione fallito', 503));
+    logger.error('Test connection error:', error instanceof Error ? error.message : String(error));
+    res.json(ResponseFormatter.error(error instanceof Error ? error.message : String(error) || 'Test connessione fallito', 'STRIPE_TEST_FAILED'));
   }
 });
 
@@ -456,8 +458,8 @@ router.post('/stripe-webhook',
       
       res.json({ received: true });
     } catch (error: any) {
-      logger.error('Stripe webhook error:', error);
-      res.status(400).send(`Webhook Error: ${error.message}`);
+      logger.error('Stripe webhook error:', error instanceof Error ? error.message : String(error));
+      res.status(400).send(`Webhook Error: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 );

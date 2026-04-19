@@ -16,8 +16,8 @@ export class SmartDocsConfigService {
         SELECT * FROM smartdocs.sync_config LIMIT 1
       `;
       return Array.isArray(config) ? config[0] : null;
-    } catch (error) {
-      logger.error('[SmartDocsConfig] Failed to get global config', error);
+    } catch (error: unknown) {
+      logger.error('[SmartDocsConfig] Failed to get global config', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -42,8 +42,8 @@ export class SmartDocsConfigService {
     batch_sync_size?: number;
   }) {
     try {
-      const setClauses = [];
-      const values = [];
+      const setClauses: any[] = [];
+      const values: any[] = [];
       let paramIndex = 1;
 
       Object.entries(data).forEach(([key, value]) => {
@@ -66,8 +66,8 @@ export class SmartDocsConfigService {
 
       const result = await prisma.$queryRawUnsafe(query, ...values);
       return Array.isArray(result) ? result[0] : null;
-    } catch (error) {
-      logger.error('[SmartDocsConfig] Failed to update global config', error);
+    } catch (error: unknown) {
+      logger.error('[SmartDocsConfig] Failed to update global config', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -82,8 +82,8 @@ export class SmartDocsConfigService {
         ORDER BY category_id, subcategory_id
       `;
       return exclusions;
-    } catch (error) {
-      logger.error('[SmartDocsConfig] Failed to get category exclusions', error);
+    } catch (error: unknown) {
+      logger.error('[SmartDocsConfig] Failed to get category exclusions', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -107,8 +107,8 @@ export class SmartDocsConfigService {
         RETURNING *
       `;
       return Array.isArray(result) ? result[0] : null;
-    } catch (error) {
-      logger.error('[SmartDocsConfig] Failed to add category exclusion', error);
+    } catch (error: unknown) {
+      logger.error('[SmartDocsConfig] Failed to add category exclusion', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -122,8 +122,8 @@ export class SmartDocsConfigService {
         DELETE FROM smartdocs.category_sync_exclusions WHERE id = ${id}
       `;
       return { success: true };
-    } catch (error) {
-      logger.error('[SmartDocsConfig] Failed to remove category exclusion', error);
+    } catch (error: unknown) {
+      logger.error('[SmartDocsConfig] Failed to remove category exclusion', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -138,8 +138,8 @@ export class SmartDocsConfigService {
         ORDER BY user_id
       `;
       return overrides;
-    } catch (error) {
-      logger.error('[SmartDocsConfig] Failed to get user overrides', error);
+    } catch (error: unknown) {
+      logger.error('[SmartDocsConfig] Failed to get user overrides', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -154,8 +154,8 @@ export class SmartDocsConfigService {
         WHERE user_id = ${userId} AND user_type = ${userType}
       `;
       return Array.isArray(result) ? result[0] : null;
-    } catch (error) {
-      logger.error('[SmartDocsConfig] Failed to get user override', error);
+    } catch (error: unknown) {
+      logger.error('[SmartDocsConfig] Failed to get user override', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -243,8 +243,8 @@ export class SmartDocsConfigService {
 
       const result = await prisma.$queryRawUnsafe(query, ...values);
       return Array.isArray(result) ? result[0] : null;
-    } catch (error) {
-      logger.error('[SmartDocsConfig] Failed to set user override', error);
+    } catch (error: unknown) {
+      logger.error('[SmartDocsConfig] Failed to set user override', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -259,8 +259,8 @@ export class SmartDocsConfigService {
         WHERE user_id = ${userId} AND user_type = ${userType}
       `;
       return { success: true };
-    } catch (error) {
-      logger.error('[SmartDocsConfig] Failed to delete user override', error);
+    } catch (error: unknown) {
+      logger.error('[SmartDocsConfig] Failed to delete user override', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -279,8 +279,8 @@ export class SmartDocsConfigService {
         : await prisma.$queryRaw`SELECT * FROM smartdocs.entity_sync_exclusions ORDER BY created_at DESC`;
       
       return result;
-    } catch (error) {
-      logger.error('[SmartDocsConfig] Failed to get entity exclusions', error);
+    } catch (error: unknown) {
+      logger.error('[SmartDocsConfig] Failed to get entity exclusions', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -304,8 +304,8 @@ export class SmartDocsConfigService {
         RETURNING *
       `;
       return Array.isArray(result) ? result[0] : null;
-    } catch (error) {
-      logger.error('[SmartDocsConfig] Failed to add entity exclusion', error);
+    } catch (error: unknown) {
+      logger.error('[SmartDocsConfig] Failed to add entity exclusion', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -319,8 +319,8 @@ export class SmartDocsConfigService {
         DELETE FROM smartdocs.entity_sync_exclusions WHERE id = ${id}
       `;
       return { success: true };
-    } catch (error) {
-      logger.error('[SmartDocsConfig] Failed to remove entity exclusion', error);
+    } catch (error: unknown) {
+      logger.error('[SmartDocsConfig] Failed to remove entity exclusion', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -346,8 +346,8 @@ export class SmartDocsConfigService {
         ) as is_sync_enabled_for_request
       `;
       return result[0]?.is_sync_enabled_for_request || false;
-    } catch (error) {
-      logger.error('[SmartDocsConfig] Failed to check sync enabled', error);
+    } catch (error: unknown) {
+      logger.error('[SmartDocsConfig] Failed to check sync enabled', error instanceof Error ? error.message : String(error));
       return false;
     }
   }
@@ -361,8 +361,8 @@ export class SmartDocsConfigService {
         SELECT * FROM smartdocs.get_user_sync_config(${String(userId)}, ${userType})
       `;
       return Array.isArray(result) ? result[0] : null;
-    } catch (error) {
-      logger.error('[SmartDocsConfig] Failed to get user sync config', error);
+    } catch (error: unknown) {
+      logger.error('[SmartDocsConfig] Failed to get user sync config', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

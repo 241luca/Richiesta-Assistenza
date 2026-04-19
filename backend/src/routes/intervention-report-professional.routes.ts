@@ -27,7 +27,7 @@ router.get('/templates', authenticate, requireProfessional, async (req: any, res
       templates,
       'Template personalizzati recuperati con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero template personalizzati:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero dei template personalizzati',
@@ -73,7 +73,7 @@ router.get('/phrases', authenticate, requireProfessional, async (req: any, res) 
       phrases,
       'Frasi ricorrenti recuperate con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero frasi ricorrenti:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle frasi ricorrenti',
@@ -99,7 +99,7 @@ router.post('/phrases', authenticate, requireProfessional, async (req: any, res)
     
     if (error.statusCode === 400) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'PHRASE_VALIDATION_ERROR'
       ));
     }
@@ -145,7 +145,7 @@ router.delete('/phrases/:id', authenticate, requireProfessional, async (req: any
       null,
       'Frase ricorrente eliminata con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore eliminazione frase ricorrente:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'eliminazione della frase ricorrente',
@@ -167,7 +167,7 @@ router.post('/phrases/:id/favorite', authenticate, requireProfessional, async (r
       phrase,
       'Preferito aggiornato con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore toggle preferito:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento del preferito',
@@ -192,7 +192,7 @@ router.get('/materials', authenticate, requireProfessional, async (req: any, res
       materials,
       'Materiali personalizzati recuperati con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero materiali personalizzati:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero dei materiali personalizzati',
@@ -210,7 +210,7 @@ router.get('/material-categories', authenticate, requireProfessional, async (req
       categories,
       'Categorie materiali recuperate con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero categorie materiali:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle categorie materiali',
@@ -236,7 +236,7 @@ router.post('/materials', authenticate, requireProfessional, async (req: any, re
     
     if (error.statusCode === 400) {
       return res.status(400).json(ResponseFormatter.error(
-        error.message,
+        error instanceof Error ? error.message : String(error),
         'MATERIAL_VALIDATION_ERROR'
       ));
     }
@@ -283,7 +283,7 @@ router.patch('/materials/:id', authenticate, requireProfessional, async (req: an
       material,
       'Stato materiale aggiornato con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore toggle stato materiale:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento dello stato del materiale',
@@ -304,7 +304,7 @@ router.delete('/materials/:id', authenticate, requireProfessional, async (req: a
       null,
       'Materiale personalizzato eliminato con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore eliminazione materiale personalizzato:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'eliminazione del materiale personalizzato',
@@ -324,7 +324,7 @@ router.get('/settings', authenticate, requireProfessional, async (req: any, res)
       settings,
       'Impostazioni recuperate con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero impostazioni:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle impostazioni',
@@ -345,7 +345,7 @@ router.put('/settings', authenticate, requireProfessional, async (req: any, res)
       settings,
       'Impostazioni aggiornate con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore aggiornamento impostazioni:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento delle impostazioni',
@@ -369,7 +369,7 @@ router.get('/stats', authenticate, requireProfessional, async (req: any, res) =>
       stats,
       'Statistiche recuperate con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero statistiche:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle statistiche',
@@ -390,7 +390,7 @@ router.get('/recent', authenticate, requireProfessional, async (req: any, res) =
       reports,
       'Rapporti recenti recuperati con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero rapporti recenti:', error);
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero dei rapporti recenti',

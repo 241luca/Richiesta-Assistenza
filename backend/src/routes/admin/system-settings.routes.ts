@@ -42,8 +42,8 @@ router.get('/', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req,
       settings,
       'Impostazioni di sistema recuperate con successo'
     ));
-  } catch (error) {
-    logger.error('Errore nel recupero delle impostazioni:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero delle impostazioni:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle impostazioni',
       'FETCH_ERROR'
@@ -71,8 +71,8 @@ router.get('/:key', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (
       setting,
       'Impostazione recuperata con successo'
     ));
-  } catch (error) {
-    logger.error('Errore nel recupero dell\'impostazione:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero dell\'impostazione:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero dell\'impostazione',
       'FETCH_ERROR'
@@ -121,8 +121,8 @@ router.post('/', authenticate, requireRole(['SUPER_ADMIN']), async (req, res) =>
         action: AuditAction.CREATE,
         entityType: 'SystemSettings',
         entityId: setting.id,
-        user: (req as any).user?.id ? { connect: { id: (req as any).user.id } } : undefined,
-        ipAddress: req.ip,
+        userId: (req as any).user?.id || null,
+        ipAddress: req.ip || 'unknown',
         userAgent: req.get('user-agent') || '',
         newValues: setting,
         success: true,
@@ -135,7 +135,7 @@ router.post('/', authenticate, requireRole(['SUPER_ADMIN']), async (req, res) =>
       setting,
       'Impostazione creata con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return res.status(400).json(ResponseFormatter.error(
         'Dati non validi',
@@ -144,7 +144,7 @@ router.post('/', authenticate, requireRole(['SUPER_ADMIN']), async (req, res) =>
       ));
     }
     
-    logger.error('Errore nella creazione dell\'impostazione:', error);
+    logger.error('Errore nella creazione dell\'impostazione:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nella creazione dell\'impostazione',
       'CREATE_ERROR'
@@ -194,7 +194,7 @@ router.put('/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (r
           action: AuditAction.UPDATE,
           entityType: 'SystemSettings',
           entityId: id,
-          user: (req as any).user?.id ? { connect: { id: (req as any).user.id } } : undefined,
+          userId: (req as any).user?.id || null,
           ipAddress: req.ip || 'unknown',
           userAgent: req.get('user-agent') || '',
           oldValues: existingSetting,
@@ -213,7 +213,7 @@ router.put('/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (r
       updatedSetting,
       'Impostazione aggiornata con successo'
     ));
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return res.status(400).json(ResponseFormatter.error(
         'Dati non validi',
@@ -222,7 +222,7 @@ router.put('/:id', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), async (r
       ));
     }
     
-    logger.error('Errore nell\'aggiornamento dell\'impostazione:', error);
+    logger.error('Errore nell\'aggiornamento dell\'impostazione:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento dell\'impostazione',
       'UPDATE_ERROR'
@@ -267,7 +267,7 @@ router.delete('/:id', authenticate, requireRole(['SUPER_ADMIN']), async (req, re
         action: AuditAction.DELETE,
         entityType: 'SystemSettings',
         entityId: id,
-        user: (req as any).user?.id ? { connect: { id: (req as any).user.id } } : undefined,
+        userId: (req as any).user?.id || null,
         ipAddress: req.ip || 'unknown',
         userAgent: req.get('user-agent') || '',
         oldValues: existingSetting,
@@ -281,8 +281,8 @@ router.delete('/:id', authenticate, requireRole(['SUPER_ADMIN']), async (req, re
       null,
       'Impostazione eliminata con successo'
     ));
-  } catch (error) {
-    logger.error('Errore nell\'eliminazione dell\'impostazione:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'eliminazione dell\'impostazione:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'eliminazione dell\'impostazione',
       'DELETE_ERROR'
@@ -304,8 +304,8 @@ router.get('/category/:category', authenticate, requireRole(['ADMIN', 'SUPER_ADM
       settings,
       `Impostazioni della categoria ${category} recuperate con successo`
     ));
-  } catch (error) {
-    logger.error('Errore nel recupero delle impostazioni per categoria:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nel recupero delle impostazioni per categoria:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero delle impostazioni',
       'FETCH_ERROR'
@@ -334,7 +334,7 @@ router.post('/bulk-update', authenticate, requireRole(['SUPER_ADMIN']), async (r
           data: { value: setting.value }
         });
         results.push({ key: setting.key, success: true, data: updated });
-      } catch (error) {
+      } catch (error: unknown) {
         results.push({ key: setting.key, success: false, error: 'Update failed' });
       }
     }
@@ -345,7 +345,7 @@ router.post('/bulk-update', authenticate, requireRole(['SUPER_ADMIN']), async (r
         id: createId(),
         action: AuditAction.BULK_UPDATE,
         entityType: 'SystemSettings',
-        user: (req as any).user?.id ? { connect: { id: (req as any).user.id } } : undefined,
+        userId: (req as any).user?.id || null,
         ipAddress: req.ip || 'unknown',
         userAgent: req.get('user-agent') || '',
         newValues: results,
@@ -359,8 +359,8 @@ router.post('/bulk-update', authenticate, requireRole(['SUPER_ADMIN']), async (r
       results,
       'Aggiornamento bulk completato'
     ));
-  } catch (error) {
-    logger.error('Errore nell\'aggiornamento bulk:', error);
+  } catch (error: unknown) {
+    logger.error('Errore nell\'aggiornamento bulk:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento bulk',
       'BULK_UPDATE_ERROR'

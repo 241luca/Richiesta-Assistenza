@@ -207,7 +207,7 @@ function EnumsTab() {
     return acc;
   }, {} as any);
 
-  const categoryNames = {
+  const categoryNames: Record<string, string> = {
     richieste: 'Gestione Richieste',
     preventivi: 'Gestione Preventivi',
     pagamenti: 'Sistema Pagamenti',
@@ -216,7 +216,7 @@ function EnumsTab() {
     ai: 'Intelligenza Artificiale'
   };
 
-  const categoryColors = {
+  const categoryColors: Record<string, string> = {
     richieste: 'blue',
     preventivi: 'green',
     pagamenti: 'purple',
@@ -243,7 +243,7 @@ function EnumsTab() {
       </div>
 
       {/* Grouped Enums */}
-      {Object.entries(groupedEnums).map(([category, enums]: [string, any[]]) => (
+      {Object.entries(groupedEnums).map(([category, enums]) => (
         <div key={category} className="bg-white rounded-lg shadow">
           {/* Category Header */}
           <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
@@ -257,7 +257,7 @@ function EnumsTab() {
                     {categoryNames[category]}
                   </h2>
                   <p className="text-sm text-gray-500 mt-0.5">
-                    {enums.length} tabelle di configurazione
+                    {(enums as any[]).length} tabelle di configurazione
                   </p>
                 </div>
               </div>
@@ -266,7 +266,7 @@ function EnumsTab() {
 
           {/* Enum List */}
           <div className="divide-y divide-gray-200">
-            {enums.map((enumConfig: any) => {
+            {(enums as any[]).map((enumConfig: any) => {
               const Icon = enumConfig.icon;
               const isExpanded = expandedEnums.has(enumConfig.key);
 

@@ -68,8 +68,8 @@ router.get('/professional/:professionalId', async (req, res) => {
       portfolios,
       'Portfolio recuperati con successo'
     ));
-  } catch (error) {
-    logger.error('Error fetching professional portfolio:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching professional portfolio:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero del portfolio',
       'FETCH_ERROR'
@@ -96,8 +96,8 @@ router.get('/:id', async (req, res) => {
       portfolio,
       'Portfolio recuperato con successo'
     ));
-  } catch (error) {
-    logger.error('Error fetching portfolio:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching portfolio:', error instanceof Error ? error.message : String(error));
     return res.status(404).json(ResponseFormatter.error(
       'Portfolio non trovato',
       'NOT_FOUND'
@@ -123,7 +123,7 @@ router.post(
     try {
       const portfolioData = {
         ...req.body,
-        professionalId: req.user.id
+        professionalId: req.user!.id
       };
 
       const portfolio = await portfolioService.createPortfolio(portfolioData);
@@ -132,8 +132,8 @@ router.post(
         portfolio,
         'Portfolio creato con successo'
       ));
-    } catch (error) {
-      logger.error('Error creating portfolio:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating portfolio:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(ResponseFormatter.error(
         'Errore nella creazione del portfolio',
         'CREATE_ERROR'
@@ -162,7 +162,7 @@ router.put(
       
       const portfolio = await portfolioService.updatePortfolio(
         id,
-        req.user.id,
+        req.user!.id,
         req.body
       );
       
@@ -170,10 +170,10 @@ router.put(
         portfolio,
         'Portfolio aggiornato con successo'
       ));
-    } catch (error) {
-      logger.error('Error updating portfolio:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating portfolio:', error instanceof Error ? error.message : String(error));
       
-      if (error.message === 'Portfolio not found or unauthorized') {
+      if (error instanceof Error ? error.message : String(error) === 'Portfolio not found or unauthorized') {
         return res.status(403).json(ResponseFormatter.error(
           'Non autorizzato a modificare questo portfolio',
           'UNAUTHORIZED'
@@ -204,16 +204,16 @@ router.delete(
     try {
       const { id } = req.params;
       
-      await portfolioService.deletePortfolio(id, req.user.id);
+      await portfolioService.deletePortfolio(id, req.user!.id);
       
       return res.json(ResponseFormatter.success(
         null,
         'Portfolio eliminato con successo'
       ));
-    } catch (error) {
-      logger.error('Error deleting portfolio:', error);
+    } catch (error: unknown) {
+      logger.error('Error deleting portfolio:', error instanceof Error ? error.message : String(error));
       
-      if (error.message === 'Portfolio not found or unauthorized') {
+      if (error instanceof Error ? error.message : String(error) === 'Portfolio not found or unauthorized') {
         return res.status(403).json(ResponseFormatter.error(
           'Non autorizzato a eliminare questo portfolio',
           'UNAUTHORIZED'
@@ -243,8 +243,8 @@ router.get('/category/:categoryId', async (req, res) => {
       portfolios,
       'Portfolio per categoria recuperati con successo'
     ));
-  } catch (error) {
-    logger.error('Error fetching portfolio by category:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching portfolio by category:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero portfolio per categoria',
       'FETCH_ERROR'
@@ -280,8 +280,8 @@ router.get('/search', async (req, res) => {
       portfolios,
       'Ricerca portfolio completata'
     ));
-  } catch (error) {
-    logger.error('Error searching portfolio:', error);
+  } catch (error: unknown) {
+    logger.error('Error searching portfolio:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nella ricerca portfolio',
       'SEARCH_ERROR'
@@ -303,8 +303,8 @@ router.get('/popular', async (req, res) => {
       portfolios,
       'Portfolio popolari recuperati con successo'
     ));
-  } catch (error) {
-    logger.error('Error fetching popular portfolios:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching popular portfolios:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero portfolio popolari',
       'FETCH_ERROR'
@@ -326,8 +326,8 @@ router.get('/recent', async (req, res) => {
       portfolios,
       'Portfolio recenti recuperati con successo'
     ));
-  } catch (error) {
-    logger.error('Error fetching recent portfolios:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching recent portfolios:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero portfolio recenti',
       'FETCH_ERROR'

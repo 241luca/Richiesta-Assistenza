@@ -33,7 +33,7 @@ export default function ProfessionalSkills() {
     }
   });
 
-  const { data: skills = [], refetchSkills } = useQuery({
+  const { data: skills = [], refetch: refetchSkills } = useQuery({
     queryKey: ['professional-skills', professionalId],
     queryFn: async () => {
       try {
@@ -46,7 +46,7 @@ export default function ProfessionalSkills() {
     }
   });
 
-  const { data: certifications = [], refetchCerts } = useQuery({
+  const { data: certifications = [], refetch: refetchCerts } = useQuery({
     queryKey: ['professional-certifications', professionalId],
     queryFn: async () => {
       try {

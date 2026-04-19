@@ -130,7 +130,7 @@ export default function QuoteDetailPage() {
             <h1 className="text-3xl font-bold text-gray-900">{quote.title}</h1>
             <p className="mt-2 text-gray-600">{quote.description}</p>
           </div>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[quote.status]}`}>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${(statusColors as any)[quote.status]}`}>
             {quote.status === 'DRAFT' && 'Bozza'}
             {quote.status === 'PENDING' && 'In Attesa'}
             {quote.status === 'ACCEPTED' && 'Accettato'}

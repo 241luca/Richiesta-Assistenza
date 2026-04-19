@@ -1,5 +1,4 @@
 export { QuickActions } from './QuickActions';
-export { default as QuickActions } from './QuickActions';
 
 // Interfacce utili per l'uso esterno
 export interface QuickActionItem {

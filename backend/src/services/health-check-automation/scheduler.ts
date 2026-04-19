@@ -50,7 +50,7 @@ interface HealthCheckResult {
 
 export class HealthCheckScheduler {
   private tasks: Map<string, cron.ScheduledTask> = new Map();
-  private config: ScheduleConfig;
+  private config: ScheduleConfig = this.getDefaultConfig(); // Initialize with default
   private configPath: string;
 
   constructor() {
@@ -66,7 +66,7 @@ export class HealthCheckScheduler {
       const configFile = await fs.readFile(this.configPath, 'utf-8');
       this.config = JSON.parse(configFile);
       logger.info('✅ Health check schedule configuration loaded');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('⚠️ No configuration file found, using defaults');
       this.config = this.getDefaultConfig();
       await this.saveConfiguration();
@@ -88,8 +88,8 @@ export class HealthCheckScheduler {
         'utf-8'
       );
       logger.info('✅ Configuration saved');
-    } catch (error) {
-      logger.error('❌ Error saving configuration:', error);
+    } catch (error: unknown) {
+      logger.error('❌ Error saving configuration:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -198,19 +198,30 @@ export class HealthCheckScheduler {
       const moduleKey = moduleMap[moduleName] || moduleName.replace('-system', '').replace('-health', '');
       
       // Usa il servizio reale per eseguire il check
-      const result = await healthCheckService.runSingleCheck(moduleKey);
+      const result = await healthCheckService.runSingleCheck(moduleKey) as any; // Cast to any for flexibility
 
-      // Salva il risultato nel database
-      await this.saveResult(result);
+      // Salva il risultato nel database - convert SystemHealthSummary to HealthCheckResult
+      const healthCheckResult: HealthCheckResult = {
+        module: moduleName,
+        timestamp: new Date(),
+        status: (result?.status || 'unknown') as 'healthy' | 'warning' | 'critical' | 'unknown',
+        score: result?.overallScore || 0,
+        checks: result?.modules || [],
+        warnings: [],
+        errors: [],
+        executionTime: result?.timestamp ? (Date.now() - new Date(result.timestamp).getTime()) : 0
+      };
+      
+      await this.saveResult(healthCheckResult);
 
       // Controlla se servono alert
-      await this.checkAlerts(result);
+      await this.checkAlerts(healthCheckResult);
 
-      logger.info(`✅ ${moduleName} check completed - Score: ${result.score}/100`);
-      return result;
+      logger.info(`✅ ${moduleName} check completed - Score: ${healthCheckResult.score}/100`);
+      return healthCheckResult;
 
-    } catch (error) {
-      logger.error(`❌ Error running ${moduleName} check:`, error);
+    } catch (error: unknown) {
+      logger.error(`❌ Error running ${moduleName} check:`, error instanceof Error ? error.message : String(error));
       
       // Crea un risultato di errore
       const errorResult: HealthCheckResult = {
@@ -220,7 +231,7 @@ export class HealthCheckScheduler {
         score: 0,
         checks: [],
         warnings: [],
-        errors: [`Failed to execute health check: ${error.message}`],
+        errors: [`Failed to execute health check: ${error instanceof Error ? error.message : String(error)}`],
         executionTime: 0
       };
 
@@ -278,8 +289,8 @@ export class HealthCheckScheduler {
           ${result.timestamp}
         )
       `;
-    } catch (error) {
-      logger.error('Error saving health check result:', error);
+    } catch (error: unknown) {
+      logger.error('Error saving health check result:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -348,8 +359,8 @@ export class HealthCheckScheduler {
       }
 
       logger.info(`📧 Alert sent: ${title}`);
-    } catch (error) {
-      logger.error('Error sending alert:', error);
+    } catch (error: unknown) {
+      logger.error('Error sending alert:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -367,8 +378,8 @@ export class HealthCheckScheduler {
       `;
 
       logger.info(`🧹 Cleaned up old health check results`);
-    } catch (error) {
-      logger.error('Error cleaning up old results:', error);
+    } catch (error: unknown) {
+      logger.error('Error cleaning up old results:', error instanceof Error ? error.message : String(error));
     }
   }
 

@@ -503,7 +503,7 @@ export default function ClientReportDetailPage() {
                 
                 <button
                   onClick={() => rateMutation.mutate()}
-                  disabled={rating === 0 || rateMutation.isLoading}
+                  disabled={rating === 0 || rateMutation.isPending}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
                   Invia Valutazione
@@ -557,7 +557,7 @@ export default function ClientReportDetailPage() {
                 
                 <button
                   onClick={saveSignature}
-                  disabled={signMutation.isLoading}
+                  disabled={signMutation.isPending}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
                   Conferma Firma

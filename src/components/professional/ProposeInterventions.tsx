@@ -58,7 +58,7 @@ export default function ProposeInterventions({
       onClose?.();
     },
     onError: (error: any) => {
-      toast.error(ResponseFormatter.getErrorMessage(error));
+      toast.error(error.response?.data?.message || 'Errore nella proposta interventi');
     }
   });
 

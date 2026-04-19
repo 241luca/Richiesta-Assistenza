@@ -113,7 +113,7 @@ export default function SmartDocsPreferences() {
               </p>
             </div>
             <Button
-              variant={editedOverride.enabled ? 'default' : 'outline'}
+              variant={editedOverride.enabled ? 'primary' : 'secondary'}
               onClick={() => setEditedOverride({ ...editedOverride, enabled: !editedOverride.enabled })}
             >
               {editedOverride.enabled ? 'Abilitata' : 'Disabilitata'}
@@ -140,7 +140,7 @@ export default function SmartDocsPreferences() {
                     </div>
                     <Button
                       size="sm"
-                      variant={(editedOverride as any)[item.key] !== false ? 'default' : 'outline'}
+                      variant={(editedOverride as any)[item.key] !== false ? 'primary' : 'secondary'}
                       onClick={() => {
                         const currentValue = (editedOverride as any)[item.key];
                         setEditedOverride({

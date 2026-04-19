@@ -68,7 +68,7 @@ router.get('/requests/:id/attachments', authenticate, async (req: Request, res: 
       data: attachments,
       count: attachments.length
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero attachments:', error);
     res.status(500).json({
       success: false,
@@ -210,7 +210,7 @@ router.post(
         data: savedAttachments
       });
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Errore upload attachments:', error);
       
       // Prova a eliminare file caricati in caso di errore
@@ -250,17 +250,17 @@ router.delete('/attachments/:id', authenticate, async (req: Request, res: Respon
   } catch (error: any) {
     console.error('Errore eliminazione attachment:', error);
     
-    if (error.message === 'Attachment non trovato') {
+    if (error instanceof Error ? error.message : String(error) === 'Attachment non trovato') {
       return res.status(404).json({
         success: false,
-        message: error.message
+        message: error instanceof Error ? error.message : String(error)
       });
     }
     
-    if (error.message === 'Non hai i permessi per eliminare questo file') {
+    if (error instanceof Error ? error.message : String(error) === 'Non hai i permessi per eliminare questo file') {
       return res.status(403).json({
         success: false,
-        message: error.message
+        message: error instanceof Error ? error.message : String(error)
       });
     }
     
@@ -323,7 +323,7 @@ router.get('/attachments/:id/download', authenticate, async (req: Request, res: 
     }
     
     // Costruisci percorso file
-    const filePath = path.join(process.cwd(), '..', 'uploads', attachment.filePath);
+    const filePath = path.join(process.cwd(), 'uploads', attachment.filePath);
     
     // Verifica che il file esista
     try {
@@ -344,7 +344,7 @@ router.get('/attachments/:id/download', authenticate, async (req: Request, res: 
     const fileStream = await fs.readFile(filePath);
     res.send(fileStream);
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore download attachment:', error);
     res.status(500).json({
       success: false,
@@ -379,7 +379,7 @@ router.get('/attachments/:id/thumbnail', authenticate, async (req: Request, res:
     }
     
     // Costruisci percorso thumbnail
-    const thumbnailPath = path.join(process.cwd(), '..', 'uploads', attachment.thumbnailPath);
+    const thumbnailPath = path.join(process.cwd(), 'uploads', attachment.thumbnailPath);
     
     // Verifica che il file esista
     try {
@@ -399,7 +399,7 @@ router.get('/attachments/:id/thumbnail', authenticate, async (req: Request, res:
     const thumbnailData = await fs.readFile(thumbnailPath);
     res.send(thumbnailData);
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero thumbnail:', error);
     res.status(500).json({
       success: false,
@@ -438,7 +438,7 @@ router.get('/storage/stats', authenticate, async (req: Request, res: Response) =
       success: true,
       data: stats
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Errore recupero statistiche:', error);
     res.status(500).json({
       success: false,

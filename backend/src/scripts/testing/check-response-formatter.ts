@@ -299,8 +299,8 @@ export async function execute(params: CheckResponseFormatterParams = {}) {
         : `Trovate ${allViolations.length} violazioni in ${sortedFiles.length} file`
     };
     
-  } catch (error) {
-    logger.error('❌ Script execution failed:', error);
+  } catch (error: unknown) {
+    logger.error('❌ Script execution failed:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }

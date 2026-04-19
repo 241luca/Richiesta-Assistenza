@@ -39,8 +39,8 @@ export class SystemSettingsService {
       }, {} as Record<string, typeof settings>);
 
       return grouped;
-    } catch (error) {
-      logger.error('Error getting all system settings:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting all system settings:', error instanceof Error ? error.message : String(error));
       throw new Error('Failed to fetch system settings');
     }
   }
@@ -56,8 +56,8 @@ export class SystemSettingsService {
       });
 
       return settings;
-    } catch (error) {
-      logger.error(`Error getting settings for category '${category}':`, error);
+    } catch (error: unknown) {
+      logger.error(`Error getting settings for category '${category}':`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -72,8 +72,8 @@ export class SystemSettingsService {
       });
 
       return setting;
-    } catch (error) {
-      logger.error(`Error getting setting '${key}':`, error);
+    } catch (error: unknown) {
+      logger.error(`Error getting setting '${key}':`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -97,8 +97,8 @@ export class SystemSettingsService {
         default:
           return setting.value as T;
       }
-    } catch (error) {
-      logger.error(`Error getting setting value '${key}':`, error);
+    } catch (error: unknown) {
+      logger.error(`Error getting setting value '${key}':`, error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -140,8 +140,8 @@ export class SystemSettingsService {
       });
 
       return result;
-    } catch (error) {
-      logger.error('Error getting public settings:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting public settings:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -176,13 +176,13 @@ export class SystemSettingsService {
           isPublic: options?.isPublic ?? false,
           validation: options?.validation,
           metadata: options?.metadata
-        }
+        } as any
       });
 
       logger.info(`Setting '${key}' updated successfully`);
       return setting;
-    } catch (error) {
-      logger.error(`Error setting '${key}':`, error);
+    } catch (error: unknown) {
+      logger.error(`Error setting '${key}':`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -216,8 +216,8 @@ export class SystemSettingsService {
 
       logger.info(`Setting '${key}' updated to '${value}'`);
       return updated;
-    } catch (error) {
-      logger.error(`Error updating setting '${key}':`, error);
+    } catch (error: unknown) {
+      logger.error(`Error updating setting '${key}':`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -241,8 +241,8 @@ export class SystemSettingsService {
       });
 
       logger.info(`Setting '${key}' deleted successfully`);
-    } catch (error) {
-      logger.error(`Error deleting setting '${key}':`, error);
+    } catch (error: unknown) {
+      logger.error(`Error deleting setting '${key}':`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -267,8 +267,8 @@ export class SystemSettingsService {
         appName: config.APP_NAME || 'Richiesta Assistenza',
         companyName: config.COMPANY_NAME || 'LM Tecnologie'
       };
-    } catch (error) {
-      logger.error('Error getting footer config:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting footer config:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

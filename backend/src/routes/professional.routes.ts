@@ -128,7 +128,7 @@ router.get(
                   ...request,
                   distance: distance || null
                 };
-              } catch (error) {
+              } catch (error: unknown) {
                 logger.warn(`Errore calcolo distanza per richiesta ${request.id}:`, error);
                 return {
                   ...request,
@@ -158,8 +158,8 @@ router.get(
         )
       );
 
-    } catch (error) {
-      logger.error('Errore nel recupero delle richieste disponibili:', error);
+    } catch (error: unknown) {
+      logger.error('Errore nel recupero delle richieste disponibili:', error instanceof Error ? error.message : String(error));
       next(error);
     }
   }
@@ -245,8 +245,8 @@ router.get(
         )
       );
 
-    } catch (error) {
-      logger.error('Errore nel recupero delle richieste del professionista:', error);
+    } catch (error: unknown) {
+      logger.error('Errore nel recupero delle richieste del professionista:', error instanceof Error ? error.message : String(error));
       next(error);
     }
   }
@@ -369,7 +369,7 @@ router.post(
           type: 'REQUEST_ASSIGNED',
           entityId: requestId,
           isRead: false
-        }
+        } as any
       });
 
       // Log dell'attività
@@ -382,8 +382,8 @@ router.post(
         )
       );
 
-    } catch (error) {
-      logger.error('Errore nell\'auto-assegnazione della richiesta:', error);
+    } catch (error: unknown) {
+      logger.error('Errore nell\'auto-assegnazione della richiesta:', error instanceof Error ? error.message : String(error));
       next(error);
     }
   }
@@ -417,8 +417,8 @@ router.put('/:id/approve', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), as
     });
 
     return res.json(ResponseFormatter.success(user, 'Professionista approvato'));
-  } catch (error) {
-    logger.error('Errore approvazione:', error);
+  } catch (error: unknown) {
+    logger.error('Errore approvazione:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Errore approvazione', 'APPROVAL_ERROR'));
   }
 });
@@ -450,8 +450,8 @@ router.put('/:id/reject', authenticate, checkRole(['ADMIN', 'SUPER_ADMIN']), asy
     });
 
     return res.json(ResponseFormatter.success(user, 'Professionista rifiutato'));
-  } catch (error) {
-    logger.error('Errore rifiuto:', error);
+  } catch (error: unknown) {
+    logger.error('Errore rifiuto:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Errore rifiuto', 'REJECTION_ERROR'));
   }
 });
@@ -532,8 +532,8 @@ router.post('/:id/request-documents', authenticate, checkRole(['ADMIN', 'SUPER_A
     });
 
     return res.json(ResponseFormatter.success(null, 'Email inviata con successo'));
-  } catch (error) {
-    logger.error('Errore invio richiesta documenti:', error);
+  } catch (error: unknown) {
+    logger.error('Errore invio richiesta documenti:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error('Errore invio email', 'EMAIL_ERROR'));
   }
 });

@@ -17,14 +17,14 @@ router.get('/',
   async (req: any, res) => {
     try {
       // Per ora ritorna array vuoto - tabelle non esistono
-      const configs = [];
+      const configs: any[] = [];
       
       return res.json(ResponseFormatter.success(
         configs,
         'UI configurations retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching UI configs:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching UI configs:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch UI configs', 'FETCH_ERROR')
       );
@@ -45,7 +45,7 @@ router.get('/stats',
         uiConfigs: {
           total: 0,
           active: 0,
-          byRole: []
+          byRole: [] as any[]
         }
       };
       
@@ -53,8 +53,8 @@ router.get('/stats',
         stats,
         'UI config stats retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching UI config stats:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching UI config stats:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch stats', 'STATS_ERROR')
       );
@@ -75,8 +75,8 @@ router.get('/:id',
         'UI configuration not found',
         'NOT_FOUND'
       ));
-    } catch (error) {
-      logger.error('Error fetching UI config:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching UI config:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to fetch UI config', 'FETCH_ERROR')
       );
@@ -97,8 +97,8 @@ router.post('/',
         'UI config creation not yet implemented',
         'NOT_IMPLEMENTED'
       ));
-    } catch (error) {
-      logger.error('Error creating UI config:', error);
+    } catch (error: unknown) {
+      logger.error('Error creating UI config:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to create UI config', 'CREATE_ERROR')
       );
@@ -119,8 +119,8 @@ router.put('/:id',
         'UI config update not yet implemented',
         'NOT_IMPLEMENTED'
       ));
-    } catch (error) {
-      logger.error('Error updating UI config:', error);
+    } catch (error: unknown) {
+      logger.error('Error updating UI config:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to update UI config', 'UPDATE_ERROR')
       );
@@ -141,8 +141,8 @@ router.delete('/:id',
         'UI config deletion not yet implemented',
         'NOT_IMPLEMENTED'
       ));
-    } catch (error) {
-      logger.error('Error deleting UI config:', error);
+    } catch (error: unknown) {
+      logger.error('Error deleting UI config:', error instanceof Error ? error.message : String(error));
       return res.status(500).json(
         ResponseFormatter.error('Failed to delete UI config', 'DELETE_ERROR')
       );

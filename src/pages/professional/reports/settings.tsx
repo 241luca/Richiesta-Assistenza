@@ -142,16 +142,18 @@ export default function ProfessionalSettingsPage() {
           pdfSettings
         };
       }
-    },
-    onSuccess: (data) => {
-      if (data) {
-        setBusinessData(data.businessData || businessData);
-        setPreferences(data.preferences || preferences);
-        setNotifications(data.notifications || notifications);
-        setPdfSettings(data.pdfSettings || pdfSettings);
-      }
     }
   });
+
+  // Update settings when data changes
+  React.useEffect(() => {
+    if (settings) {
+      setBusinessData(settings.businessData || businessData);
+      setPreferences(settings.preferences || preferences);
+      setNotifications(settings.notifications || notifications);
+      setPdfSettings(settings.pdfSettings || pdfSettings);
+    }
+  }, [settings]);
 
   // Mutation per salvare le impostazioni
   const saveMutation = useMutation({

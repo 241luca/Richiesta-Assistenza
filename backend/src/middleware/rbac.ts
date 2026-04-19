@@ -65,7 +65,7 @@ export function requireOwnershipOrAdmin(
       }
 
       next();
-    } catch (error) {
+    } catch (error: unknown) {
       // ✅ CORRETTO: Usa ResponseFormatter per l'errore
       return res.status(500).json(
         ResponseFormatter.error(

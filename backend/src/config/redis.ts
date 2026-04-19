@@ -18,7 +18,7 @@ redis.on('connect', () => {
 });
 
 redis.on('error', (error) => {
-  logger.error('❌ Redis connection error:', error);
+  logger.error('❌ Redis connection error:', error instanceof Error ? error.message : String(error));
 });
 
 redis.on('close', () => {
@@ -31,8 +31,8 @@ export const cache = {
     try {
       const data = await redis.get(key);
       return data ? JSON.parse(data) : null;
-    } catch (error) {
-      logger.error(`Cache get error for key ${key}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Cache get error for key ${key}:`, error instanceof Error ? error.message : String(error));
       return null;
     }
   },
@@ -45,16 +45,16 @@ export const cache = {
       } else {
         await redis.set(key, data);
       }
-    } catch (error) {
-      logger.error(`Cache set error for key ${key}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Cache set error for key ${key}:`, error instanceof Error ? error.message : String(error));
     }
   },
 
   async del(key: string): Promise<void> {
     try {
       await redis.del(key);
-    } catch (error) {
-      logger.error(`Cache delete error for key ${key}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Cache delete error for key ${key}:`, error instanceof Error ? error.message : String(error));
     }
   },
 
@@ -62,8 +62,8 @@ export const cache = {
     try {
       await redis.flushall();
       logger.info('Cache flushed');
-    } catch (error) {
-      logger.error('Cache flush error:', error);
+    } catch (error: unknown) {
+      logger.error('Cache flush error:', error instanceof Error ? error.message : String(error));
     }
   },
 
@@ -74,8 +74,8 @@ export const cache = {
       if (keys.length > 0) {
         await redis.del(...keys);
       }
-    } catch (error) {
-      logger.error(`Cache delete pattern error for ${pattern}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Cache delete pattern error for ${pattern}:`, error instanceof Error ? error.message : String(error));
     }
   }
 };

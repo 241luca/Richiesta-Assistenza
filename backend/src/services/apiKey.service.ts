@@ -55,8 +55,8 @@ export class ApiKeyService {
       decrypted += decipher.final('utf8');
       
       return decrypted;
-    } catch (error) {
-      logger.error('Error decrypting API key:', error);
+    } catch (error: unknown) {
+      logger.error('Error decrypting API key:', error instanceof Error ? error.message : String(error));
       return encryptedKey; // Fallback per chiavi non criptate (development)
     }
   }
@@ -91,8 +91,8 @@ export class ApiKeyService {
         ...key,
         key: this.maskKey(key.key, key.service as any)
       }));
-    } catch (error) {
-      logger.error('Error fetching API keys:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching API keys:', error instanceof Error ? error.message : String(error));
       throw new Error('Failed to fetch API keys');
     }
   }
@@ -118,8 +118,8 @@ export class ApiKeyService {
         ...apiKey,
         key: unmask ? decryptedKey : this.maskKey(apiKey.key, apiKey.service as any)
       };
-    } catch (error) {
-      logger.error(`Error fetching API key for ${service}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Error fetching API key for ${service}:`, error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -226,8 +226,8 @@ export class ApiKeyService {
         ...apiKey,
         key: this.maskKey(apiKey.key, apiKey.service as any)
       };
-    } catch (error) {
-      logger.error('Error upserting API key:', error);
+    } catch (error: unknown) {
+      logger.error('Error upserting API key:', error instanceof Error ? error.message : String(error));
       throw new Error('Failed to save API key');
     }
   }
@@ -255,8 +255,8 @@ export class ApiKeyService {
         default:
           return false;
       }
-    } catch (error) {
-      logger.error(`Error validating ${service} key:`, error);
+    } catch (error: unknown) {
+      logger.error(`Error validating ${service} key:`, error instanceof Error ? error.message : String(error));
       return false;
     }
   }
@@ -362,11 +362,11 @@ export class ApiKeyService {
         return true;
       } else {
         const error = await response.text();
-        logger.error('Failed to send test email:', error);
+        logger.error('Failed to send test email:', typeof error === 'string' ? error : 'Unknown error');
         return false;
       }
-    } catch (error) {
-      logger.error('Error sending Brevo test email:', error);
+    } catch (error: unknown) {
+      logger.error('Error sending Brevo test email:', error instanceof Error ? error.message : String(error));
       return false;
     }
   }
@@ -401,8 +401,8 @@ export class ApiKeyService {
       
       logger.info(`API key ${service} deleted`);
       return true;
-    } catch (error) {
-      logger.error('Error deleting API key:', error);
+    } catch (error: unknown) {
+      logger.error('Error deleting API key:', error instanceof Error ? error.message : String(error));
       return false;
     }
   }
@@ -492,8 +492,8 @@ export class ApiKeyService {
           lastValidated: new Date().toISOString()
         }
       };
-    } catch (error) {
-      logger.error(`Error testing ${service} key:`, error);
+    } catch (error: unknown) {
+      logger.error(`Error testing ${service} key:`, error instanceof Error ? error.message : String(error));
       return {
         success: false,
         message: 'Error testing API key',

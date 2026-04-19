@@ -105,7 +105,7 @@ export default function DocumentUploader({ containerId, onUploadComplete }: Docu
         headers: {
           'Content-Type': 'multipart/form-data'
         },
-        onUploadProgress: (progressEvent) => {
+        onUploadProgress: (progressEvent: any) => {
           const progress = progressEvent.total
             ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
             : 0;

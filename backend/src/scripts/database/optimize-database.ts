@@ -43,7 +43,7 @@ export async function execute(params: OptimizeParams = { vacuum: true, reindex: 
     };
     
   } catch (error: any) {
-    logger.error('❌ Database optimization failed:', error);
+    logger.error('❌ Database optimization failed:', error instanceof Error ? error.message : String(error));
     throw error;
   } finally {
     await prisma.$disconnect();

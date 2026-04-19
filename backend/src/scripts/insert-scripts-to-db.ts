@@ -278,7 +278,7 @@ async function insertNewScriptsToDatabase() {
     console.log('🌐 Ora puoi vedere gli script su: http://localhost:5193/admin/scripts');
     console.log('\n💡 Nota: Potrebbe essere necessario ricaricare la pagina (F5) per vedere i nuovi script');
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Errore durante l\'inserimento:', error);
     throw error;
   } finally {

@@ -7,8 +7,7 @@ import {
   EnvelopeIcon, 
   MapPinIcon,
   DocumentTextIcon,
-  ShieldCheckIcon,
-  CookieIcon
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 
 export default function MinimalFooter() {

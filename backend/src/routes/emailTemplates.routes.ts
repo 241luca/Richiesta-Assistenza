@@ -45,8 +45,8 @@ router.get(
         templates,
         'Email templates retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching email templates:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching email templates:', error instanceof Error ? error.message : String(error));
       res.status(500).json(ResponseFormatter.error(
         'Failed to fetch email templates'
       ));
@@ -73,7 +73,7 @@ router.get(
       if (!template) {
         return res.status(404).json(ResponseFormatter.error(
           'Template not found',
-          404
+          'NOT_FOUND'
         ));
       }
 
@@ -81,8 +81,8 @@ router.get(
         template,
         'Template retrieved successfully'
       ));
-    } catch (error) {
-      logger.error('Error fetching template:', error);
+    } catch (error: unknown) {
+      logger.error('Error fetching template:', error instanceof Error ? error.message : String(error));
       res.status(500).json(ResponseFormatter.error(
         'Failed to fetch template'
       ));
@@ -125,9 +125,6 @@ router.post(
             textContent: templateData.textContent,
             variables: templateData.variables,
             channels: ['email'],
-            metadata: {
-              brevoTemplateId: templateData.brevoTemplateId
-            },
             isActive: templateData.isActive,
             updatedAt: new Date()
           }
@@ -146,13 +143,10 @@ router.post(
             variables: templateData.variables,
             channels: ['email'],
             priority: 'NORMAL',
-            metadata: {
-              brevoTemplateId: templateData.brevoTemplateId
-            },
             isActive: templateData.isActive,
             createdAt: new Date(),
             updatedAt: new Date()
-          }
+          } as any
         });
       }
 
@@ -162,8 +156,8 @@ router.post(
         template,
         `Template ${existing ? 'updated' : 'created'} successfully`
       ));
-    } catch (error) {
-      logger.error('Error saving email template:', error);
+    } catch (error: unknown) {
+      logger.error('Error saving email template:', error instanceof Error ? error.message : String(error));
       res.status(500).json(ResponseFormatter.error(
         'Failed to save template'
       ));
@@ -196,7 +190,7 @@ router.post(
       if (!template) {
         return res.status(404).json(ResponseFormatter.error(
           'Template not found',
-          404
+          'NOT_FOUND'
         ));
       }
 
@@ -211,13 +205,15 @@ router.post(
       if (!apiKey) {
         return res.status(400).json(ResponseFormatter.error(
           'Brevo API not configured',
-          400
+          'API_NOT_CONFIGURED'
         ));
       }
 
       // Prepara le variabili di test
       const testVariables: any = {};
-      template.variables.forEach((variable: string) => {
+      const variables = template.variables as any;
+      if (Array.isArray(variables)) {
+        variables.forEach((variable: string) => {
         // Valori di esempio per le variabili
         switch(variable) {
           case 'userName':
@@ -245,6 +241,7 @@ router.post(
             testVariables[variable] = `[${variable}]`;
         }
       });
+      }
 
       // Sostituisci le variabili nel contenuto
       let htmlContent = template.htmlContent;
@@ -286,7 +283,7 @@ router.post(
               <hr>
               <p><strong>Variabili disponibili:</strong></p>
               <ul>
-                ${template.variables.map((v: string) => 
+                ${(template.variables as any).map((v: string) => 
                   `<li>${v}: ${testVariables[v]}</li>`
                 ).join('')}
               </ul>
@@ -303,13 +300,13 @@ router.post(
         ));
       } else {
         const error = await response.text();
-        logger.error('Failed to send test email:', error);
+        logger.error('Failed to send test email:', typeof error === 'string' ? error : 'Unknown error');
         res.status(500).json(ResponseFormatter.error(
           'Failed to send test email'
         ));
       }
-    } catch (error) {
-      logger.error('Error sending test email:', error);
+    } catch (error: unknown) {
+      logger.error('Error sending test email:', error instanceof Error ? error.message : String(error));
       res.status(500).json(ResponseFormatter.error(
         'Failed to send test email'
       ));
@@ -339,8 +336,8 @@ router.delete(
         null,
         'Template deleted successfully'
       ));
-    } catch (error) {
-      logger.error('Error deleting template:', error);
+    } catch (error: unknown) {
+      logger.error('Error deleting template:', error instanceof Error ? error.message : String(error));
       res.status(500).json(ResponseFormatter.error(
         'Failed to delete template'
       ));

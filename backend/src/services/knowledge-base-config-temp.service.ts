@@ -68,8 +68,8 @@ export class KnowledgeBaseConfigService {
         targetAudience
       };
       
-    } catch (error) {
-      logger.error('Error getting KB config:', error);
+    } catch (error: unknown) {
+      logger.error('Error getting KB config:', error instanceof Error ? error.message : String(error));
       return this.getDefaultConfig(targetAudience);
     }
   }

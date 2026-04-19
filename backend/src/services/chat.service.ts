@@ -121,9 +121,9 @@ class ChatService {
       logger.warn('[ChatService] Access denied:', { userId, requestId });
       return false;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ChatService] Error checking chat access:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         userId,
         requestId,
         stack: error instanceof Error ? error.stack : undefined
@@ -168,9 +168,9 @@ class ChatService {
 
       return isActive;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ChatService] Error checking chat status:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         requestId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -228,7 +228,7 @@ class ChatService {
           userId: data.userId,
           message: data.message,
           messageType: data.messageType || 'TEXT',
-          attachments: data.attachments || null,
+          attachments: (data.attachments || null) as any,
           readBy: JSON.stringify([{ userId: data.userId, readAt: new Date() }]),
           updatedAt: new Date()
         },
@@ -263,9 +263,9 @@ class ChatService {
 
       return formattedMessage;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ChatService] Error sending chat message:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         requestId: data.requestId,
         userId: data.userId,
         stack: error instanceof Error ? error.stack : undefined
@@ -351,9 +351,9 @@ class ChatService {
 
       return formattedMessages.reverse(); // Dal più vecchio al più recente
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ChatService] Error getting chat messages:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         requestId,
         userId,
         stack: error instanceof Error ? error.stack : undefined
@@ -445,9 +445,9 @@ class ChatService {
 
       return formattedMessage;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ChatService] Error updating chat message:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         messageId,
         userId,
         stack: error instanceof Error ? error.stack : undefined
@@ -527,9 +527,9 @@ class ChatService {
         markedCount 
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ChatService] Error marking messages as read:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         requestId,
         userId,
         stack: error instanceof Error ? error.stack : undefined
@@ -584,9 +584,9 @@ class ChatService {
 
       return unreadCount;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ChatService] Error counting unread messages:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         requestId,
         userId,
         stack: error instanceof Error ? error.stack : undefined
@@ -671,9 +671,9 @@ class ChatService {
 
       logger.info('[ChatService] Initial system message created:', { requestId });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ChatService] Error creating initial system message:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         requestId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -722,9 +722,9 @@ class ChatService {
 
       logger.info('[ChatService] System message sent:', { requestId });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ChatService] Error sending system message:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         requestId,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -799,9 +799,9 @@ class ChatService {
 
       logger.info('[ChatService] Chat closed for request:', { requestId, status });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ChatService] Error closing chat for request:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         requestId,
         status,
         stack: error instanceof Error ? error.stack : undefined
@@ -885,9 +885,9 @@ class ChatService {
 
       logger.info('[ChatService] Chat notifications sent:', { requestId, recipientCount: recipientIds.length });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[ChatService] Error creating chat notifications:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error instanceof Error ? error.message : String(error) : 'Unknown error',
         requestId,
         senderId,
         stack: error instanceof Error ? error.stack : undefined

@@ -40,8 +40,8 @@ async function getGoogleMapsApiKey(): Promise<string | null> {
     logger.debug(`Google Maps API Key loaded (length: ${finalKey.length})`);
     
     return finalKey;
-  } catch (error) {
-    logger.error('Error retrieving Google Maps API Key:', error);
+  } catch (error: unknown) {
+    logger.error('Error retrieving Google Maps API Key:', error instanceof Error ? error.message : String(error));
     return null;
   }
 }
@@ -76,8 +76,8 @@ async function calculateDistance(origin: string, destination: string) {
     
     logger.warn(`⚠️ Could not calculate distance between ${origin} and ${destination}`);
     return null;
-  } catch (error) {
-    logger.error('❌ Error calculating distance:', error);
+  } catch (error: unknown) {
+    logger.error('❌ Error calculating distance:', error instanceof Error ? error.message : String(error));
     
     // Fallback: prova con chiamata diretta se il servizio ha problemi
     try {
@@ -197,7 +197,7 @@ router.get('/work-address', authenticate, async (req: any, res) => {
     ));
     
   } catch (error: any) {
-    logger.error('Error getting work address:', error);
+    logger.error('Error getting work address:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero dell\'indirizzo di lavoro',
       'WORK_ADDRESS_ERROR'
@@ -323,7 +323,7 @@ router.put('/work-address', authenticate, async (req: any, res) => {
           }
         })
         .catch((error) => {
-          logger.error('❌ Error during background travel recalculation:', error);
+          logger.error('❌ Error during background travel recalculation:', error instanceof Error ? error.message : String(error));
         });
     });
     
@@ -333,7 +333,7 @@ router.put('/work-address', authenticate, async (req: any, res) => {
     ));
     
   } catch (error: any) {
-    logger.error('Error updating work address:', error);
+    logger.error('Error updating work address:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nell\'aggiornamento dell\'indirizzo di lavoro',
       'WORK_ADDRESS_UPDATE_ERROR'
@@ -529,7 +529,7 @@ router.get('/request/:id/travel-info', authenticate, async (req: any, res) => {
     }, 'Informazioni viaggio non disponibili'));
     
   } catch (error: any) {
-    logger.error('Error getting travel info:', error);
+    logger.error('Error getting travel info:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel calcolo delle informazioni di viaggio',
       'TRAVEL_INFO_ERROR'
@@ -577,8 +577,8 @@ router.get('/calculate', authenticate, async (req, res) => {
       }, 'Stima viaggio'));
     }
     
-  } catch (error) {
-    logger.error('Error calculating travel:', error);
+  } catch (error: unknown) {
+    logger.error('Error calculating travel:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel calcolo del viaggio',
       'CALCULATION_ERROR'
@@ -624,8 +624,8 @@ router.post('/save', authenticate, async (req: any, res) => {
       cost
     }, 'Informazioni di viaggio salvate'));
     
-  } catch (error) {
-    logger.error('Error saving travel info:', error);
+  } catch (error: unknown) {
+    logger.error('Error saving travel info:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel salvataggio',
       'SAVE_ERROR'
@@ -669,7 +669,7 @@ router.post('/request/:id/recalculate', authenticate, async (req: any, res) => {
     if (!request) {
       return res.status(404).json(ResponseFormatter.error(
         'Richiesta non trovata',
-        { code: 'REQUEST_NOT_FOUND' }
+        'REQUEST_NOT_FOUND'
       ));
     }
 
@@ -680,7 +680,7 @@ router.post('/request/:id/recalculate', authenticate, async (req: any, res) => {
     if (!isAdmin && !isAssignedProfessional) {
       return res.status(403).json(ResponseFormatter.error(
         'Non autorizzato a ricalcolare questa richiesta',
-        { code: 'UNAUTHORIZED' }
+        'UNAUTHORIZED'
       ));
     }
 
@@ -698,7 +698,7 @@ router.post('/request/:id/recalculate', authenticate, async (req: any, res) => {
     if (!origin) {
       return res.status(400).json(ResponseFormatter.error(
         'Indirizzo professionista non disponibile',
-        { code: 'MISSING_ORIGIN' }
+        'MISSING_ORIGIN'
       ));
     }
 
@@ -711,13 +711,13 @@ router.post('/request/:id/recalculate', authenticate, async (req: any, res) => {
     if (!distanceInfo) {
       return res.status(400).json(ResponseFormatter.error(
         'Impossibile calcolare la distanza',
-        { code: 'CALCULATION_FAILED' }
+        'CALCULATION_FAILED'
       ));
     }
 
     // Calcola il costo (usa tariffa personalizzata se disponibile)
     const distanceKm = distanceInfo.distance / 1000;
-    const travelRatePerKm = request.professional?.travelRatePerKm || 0.50;
+    const travelRatePerKm = (request.professional as any)?.travelRatePerKm || 0.50;
     const cost = Math.round(distanceKm * travelRatePerKm * 100) / 100;
 
     // Salva nel database
@@ -747,11 +747,11 @@ router.post('/request/:id/recalculate', authenticate, async (req: any, res) => {
       updated,
       'Distanza ricalcolata con successo'
     ));
-  } catch (error) {
-    logger.error('❌ Error recalculating distance:', error);
+  } catch (error: unknown) {
+    logger.error('❌ Error recalculating distance:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore durante il ricalcolo',
-      { error: error.message }
+      'RECALCULATE_ERROR'
     ));
   }
 });
@@ -767,7 +767,7 @@ router.get('/work-address', authenticate, async (req: any, res) => {
     if (!userId) {
       return res.status(401).json(ResponseFormatter.error(
         'Utente non autenticato',
-        { code: 'UNAUTHORIZED' }
+        'UNAUTHORIZED'
       ));
     }
 
@@ -788,7 +788,7 @@ router.get('/work-address', authenticate, async (req: any, res) => {
     if (!user) {
       return res.status(404).json(ResponseFormatter.error(
         'Utente non trovato',
-        { code: 'USER_NOT_FOUND' }
+        'USER_NOT_FOUND'
       ));
     }
 
@@ -810,11 +810,11 @@ router.get('/work-address', authenticate, async (req: any, res) => {
       addressData,
       'Indirizzo di lavoro recuperato'
     ));
-  } catch (error) {
-    logger.error('Error fetching work address:', error);
+  } catch (error: unknown) {
+    logger.error('Error fetching work address:', error instanceof Error ? error.message : String(error));
     return res.status(500).json(ResponseFormatter.error(
       'Errore nel recupero indirizzo',
-      { error: error.message }
+      'FETCH_ADDRESS_ERROR'
     ));
   }
 });

@@ -304,8 +304,8 @@ class PDFService {
       logger.info(`PDF generated successfully: ${filePath}`);
 
       return filePath;
-    } catch (error) {
-      logger.error('Error generating PDF:', error);
+    } catch (error: unknown) {
+      logger.error('Error generating PDF:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -448,8 +448,8 @@ class PDFService {
 
       logger.info(`Request PDF generated successfully: ${filePath}`);
       return filePath;
-    } catch (error) {
-      logger.error('Error generating request PDF:', error);
+    } catch (error: unknown) {
+      logger.error('Error generating request PDF:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -513,8 +513,8 @@ class PDFService {
       });
 
       return filePath;
-    } catch (error) {
-      logger.error('Error generating comparison PDF:', error);
+    } catch (error: unknown) {
+      logger.error('Error generating comparison PDF:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

@@ -23,7 +23,7 @@ export async function checkChatSystem() {
   const metrics: any = {};
   const warnings = [];
   const errors = [];
-  const recommendations = [];
+  const recommendations: any[] = [];
   let score = 100;
 
   try {
@@ -108,7 +108,7 @@ export async function checkChatSystem() {
     metrics.avg_response_time_min = 15; // Mock per ora
     
   } catch (error: any) {
-    errors.push(`Chat check failed: ${error.message}`);
+    errors.push(`Chat check failed: ${error instanceof Error ? error.message : String(error)}`);
     score = 0;
   }
 
@@ -166,7 +166,7 @@ export async function checkPaymentSystem() {
           status: 'pass',
           message: 'Connected to Stripe API'
         });
-      } catch (error) {
+      } catch (error: unknown) {
         checks.push({
           description: 'Stripe Connection',
           status: 'fail',
@@ -246,7 +246,7 @@ export async function checkPaymentSystem() {
     metrics.total_revenue_month = Number(monthRevenue._sum.amount || 0);
     
   } catch (error: any) {
-    errors.push(`Payment check failed: ${error.message}`);
+    errors.push(`Payment check failed: ${error instanceof Error ? error.message : String(error)}`);
     score -= 20;
   }
 
@@ -386,7 +386,7 @@ export async function checkAISystem() {
     metrics.api_errors_24h = 0;
     
   } catch (error: any) {
-    errors.push(`AI check failed: ${error.message}`);
+    errors.push(`AI check failed: ${error instanceof Error ? error.message : String(error)}`);
     score -= 20;
   }
 
@@ -487,15 +487,15 @@ export async function checkRequestSystem() {
     const avgCompletion = await prisma.assistanceRequest.aggregate({
       where: {
         status: 'COMPLETED',
-        completedDate: { not: null },
-        createdAt: { not: null }
+        completedDate: { not: null as any },
+        createdAt: { not: null as any }
       },
       _avg: {
         actualHours: true
       }
     });
     
-    metrics.avg_completion_hours = Math.round(avgCompletion._avg.actualHours || 0);
+    metrics.avg_completion_hours = Math.round(avgCompletion._avg?.actualHours || 0);
     
     // 5. Tasso accettazione preventivi
     const totalQuotes = await prisma.quote.count();
@@ -536,7 +536,7 @@ export async function checkRequestSystem() {
     }
 
   } catch (error: any) {
-    errors.push(`Request system check failed: ${error.message}`);
+    errors.push(`Request system check failed: ${error instanceof Error ? error.message : String(error)}`);
     score -= 20;
   }
 

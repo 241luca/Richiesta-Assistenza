@@ -47,7 +47,10 @@ export const QuoteComparison: React.FC<QuoteComparisonProps> = ({ requestId }) =
   // Fetch comparison data
   const { data, isLoading, error } = useQuery({
     queryKey: ['/api/quotes/request', requestId, 'compare'],
-    queryFn: () => api.get(`/api/quotes/request/${requestId}/compare`)
+    queryFn: async () => {
+      const response = await api.get(`/api/quotes/request/${requestId}/compare`);
+      return response.data.data || response.data;
+    }
   });
 
   const quotes = data?.quotes || [];
@@ -93,7 +96,7 @@ export const QuoteComparison: React.FC<QuoteComparisonProps> = ({ requestId }) =
         responseType: 'blob'
       });
       
-      const url = window.URL.createObjectURL(new Blob([response]));
+      const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `preventivo-${quoteId}.pdf`);
@@ -114,7 +117,7 @@ export const QuoteComparison: React.FC<QuoteComparisonProps> = ({ requestId }) =
         responseType: 'blob'
       });
       
-      const url = window.URL.createObjectURL(new Blob([response]));
+      const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `confronto-preventivi-${requestId}.pdf`);
@@ -238,7 +241,7 @@ export const QuoteComparison: React.FC<QuoteComparisonProps> = ({ requestId }) =
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h4 className="font-semibold">{quote.professional.fullName}</h4>
-                    <p className="text-sm text-gray-600">{quote.professional.professionData?.name || quote.professional.profession}</p>
+                    <p className="text-sm text-gray-600">{quote.professional.profession}</p>
                   </div>
                   {quote.status === 'ACCEPTED' && (
                     <Badge variant="success">Accettato</Badge>
@@ -352,7 +355,7 @@ export const QuoteComparison: React.FC<QuoteComparisonProps> = ({ requestId }) =
                           {quote.professional.fullName}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {quote.professional.professionData?.name || quote.professional.profession}
+                          {quote.professional.profession}
                         </div>
                       </div>
                     </td>
@@ -444,16 +447,16 @@ export const QuoteComparison: React.FC<QuoteComparisonProps> = ({ requestId }) =
                 </thead>
                 <tbody>
                   {/* Get all unique item descriptions */}
-                  {Array.from(new Set(
+                  {(Array.from(new Set(
                     quotes
                       .filter((q: QuoteComparisonData) => selectedQuotes.includes(q.id))
-                      .flatMap((q: QuoteComparisonData) => q.items.map(i => i.description))
-                  )).map(description => (
+                      .flatMap((q: QuoteComparisonData) => q.items.map((i: any) => i.description))
+                  )) as string[]).map((description: string) => (
                     <tr key={description} className="border-t">
                       <td className="py-2 text-sm">{description}</td>
                       {selectedQuotes.map(quoteId => {
                         const quote = quotes.find((q: QuoteComparisonData) => q.id === quoteId);
-                        const item = quote?.items.find(i => i.description === description);
+                        const item = quote?.items.find((i: any) => i.description === description);
                         return (
                           <td key={quoteId} className="py-2 px-4 text-sm">
                             {item ? `€${item.total.toFixed(2)}` : '-'}
