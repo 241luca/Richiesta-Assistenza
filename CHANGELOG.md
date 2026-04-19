@@ -15,7 +15,7 @@ Pulizia massiva del repository accumulata da mesi di sviluppo (757 file pendenti
 - Il database della VM aveva schema fermo a Dicembre 2025 mentre il codice nuovo richiedeva tabelle `DocumentContainer` e nuovi valori enum `AuditAction` (`NOTIFICATION_SENT`)
 - Fix via `prisma db push --accept-data-loss --skip-generate` (dopo backup DB completo 1.2 MB)
 - Risolti errori 500 su `/api/users/image-status` e crash chat/notifiche
-- **Urgenza residua**: le migration Prisma nel repo sono incomplete → vedere [GESTIONE-PRISMA.md](DOCUMENTAZIONE/ATTUALE/04-GUIDE/GESTIONE-PRISMA.md)
+- ✅ **Risolto il 19/04/2026 pomeriggio**: creata migration `20260419160000_add_smartdocs_tables`, locale e VM perfettamente allineati (161 tabelle). Vedere [GESTIONE-PRISMA.md](DOCUMENTAZIONE/ATTUALE/04-GUIDE/GESTIONE-PRISMA.md) e [report 19/04 pomeriggio](DOCUMENTAZIONE/REPORT-SESSIONI/2026-04-19-fix-prisma-migrations.md)
 
 **TypeScript Strict Mode — Attivazione completa**
 - `tsconfig.json` root: `strict: false` → `true`
@@ -83,6 +83,49 @@ Aggiunte 30+ regole di protezione per file privati, venv Python, analisi SmartDo
 | `5111cd9` | feat: script deploy + infra SmartDocs | 30 | +4.912 |
 
 **Totale**: 546 file, +23.615 / -35.365 righe
+
+### 🛠️ Sessione pomeridiana — Fix completo migration Prisma (Claude + Luca)
+
+Dopo la sessione del mattino, è stata risolta l'**urgenza residua** sulle migration Prisma:
+
+**Problema**
+- Il registro `_prisma_migrations` conteneva 4 record incoerenti (stesso su locale e VM):
+  - Migration init marcata `rolled_back` ma il DB aveva tutte le 151 tabelle
+  - Un secondo tentativo dell'init rimasto "IN CORSO" da mesi bloccava tutto
+  - Migration `0001_document_form_integration` registrata applicata ma file SQL vuoto
+- 10 tabelle del modulo SmartDocs mancavano in locale (presenti solo sulla VM via `db push`)
+- Cartella `backend/prisma/` aveva 16 file di backup spazzatura
+
+**Risoluzione**
+- Backup completi pre-intervento: DB locale (13 MB), DB VM (13 MB), cartella prisma
+- Pulito registro `_prisma_migrations` (locale + VM): eliminato tentativo appeso, migration init marcata APPLICATA
+- Rimossa migration vuota `0001_document_form_integration` da filesystem e registro
+- Generata migration mancante `20260419160000_add_smartdocs_tables` con `prisma migrate diff` (384 righe SQL, 10 tabelle, 36 indici, 16 foreign key)
+- Applicata sul locale (151 → 161 tabelle), registrata come applicata sulla VM
+- Spostati 16 file schema vecchi in `backend/prisma/_old_schemas/` (archivio, ignorato da Git)
+- `.gitignore`: aggiunta eccezione `!**/prisma/migrations/**/*.sql` per permettere il commit dei file migration legittimi (la regola `*.sql` li bloccava)
+
+**Stato finale**
+- `prisma migrate status` = "Database schema is up to date!" su entrambi
+- Locale e VM perfettamente allineati: 161 tabelle ciascuno, 3 migration APPLICATA
+- Zero dati applicativi toccati (tutte le operazioni solo sul registro Prisma e su tabelle vuote)
+
+**Documentazione prodotta**
+- 🆕 [GESTIONE-PRISMA.md](DOCUMENTAZIONE/ATTUALE/04-GUIDE/GESTIONE-PRISMA.md) — guida completa Prisma nel progetto (era linkata ma non esisteva)
+- 🆕 [Report sessione 19/04 pomeriggio](DOCUMENTAZIONE/REPORT-SESSIONI/2026-04-19-fix-prisma-migrations.md)
+
+**Commit**: `17249e6` — *"fix(prisma): sistema migration e allinea DB locale con VM"*
+
+**Metriche**
+| Metrica | Valore |
+|---|---|
+| Tabelle riallineate | 10 (modulo SmartDocs) |
+| Record Prisma corretti | 4 su locale + 4 su VM |
+| File spazzatura archiviati | 17 |
+| Backup creati | 3 (cartella + 2 DB) |
+| Tempo intervento | ~40 minuti |
+
+---
 
 ---
 

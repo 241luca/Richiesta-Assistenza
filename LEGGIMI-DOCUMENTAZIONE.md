@@ -35,7 +35,7 @@ DOCUMENTAZIONE/
 ├── ARCHIVIO/                       Documentazione storica
 └── REPORT-SESSIONI/                Report ogni sessione di sviluppo
     ├── 2026-04-18-fix-hardcoded-deploy-vm103.md
-    └── 2026-04-19-allineamento-e-fix-prisma.md  🆕 Ultimo report
+    └── 2026-04-19-fix-prisma-migrations.md  🆕 Ultimo report (fix migration + allineamento)
 ```
 
 ---
@@ -59,7 +59,7 @@ DOCUMENTAZIONE/
 - **File sorgente corretti**: 22 (zero localhost hardcoded)
 - **TypeScript strict mode**: ✅ Attivo su tutto il progetto
 - **Documenti totali**: 75+ file .md
-- **Database VM**: ✅ Sincronizzato con `schema.prisma` (via `prisma db push` 19/04)
+- **Database VM**: ✅ Perfettamente allineato con locale (161 tabelle, 3 migration)
 
 ---
 

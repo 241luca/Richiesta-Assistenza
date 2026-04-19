@@ -1,7 +1,7 @@
 # 🚀 Sistema di Richiesta Assistenza
 
-**Versione**: 6.2.0  
-**Ultimo Aggiornamento**: 18 Aprile 2026  
+**Versione**: 6.2.1  
+**Ultimo Aggiornamento**: 19 Aprile 2026  
 **Status**: ✅ Production Ready — In esecuzione su VM 103 (192.168.0.203)
 
 ---
@@ -90,7 +90,8 @@ richiesta-assistenza/
 │   │   ├── middleware/            Auth, audit, security, compression
 │   │   └── utils/                 ResponseFormatter, logger, socket
 │   ├── prisma/
-│   │   └── schema.prisma          Schema DB (86+ tabelle)
+│   │   ├── schema.prisma          Schema DB (161 tabelle)
+│   │   └── migrations/            Storia delle modifiche allo schema
 │   ├── Dockerfile                 Ottimizzato — usa dist precompilato
 │   └── docker-entrypoint.sh       Fix permessi volumi Docker
 │
@@ -134,12 +135,15 @@ cd backend && npm install && cd ..
 cp .env.example .env
 # Modifica .env con le tue configurazioni
 
-# 4. Setup database
+# 4. Setup database (PRIMA INSTALLAZIONE — DB vuoto)
 cd backend
 npx prisma generate
-npx prisma db push
-npx prisma db seed   # Dati di esempio
+npx prisma migrate deploy   # Applica tutte le migration esistenti
+npx prisma db seed          # Dati di esempio
 cd ..
+# ⚠️  Per modifiche future allo schema: SEMPRE `npx prisma migrate dev --name ...`
+# 🚫 Non usare MAI `prisma db push` dopo il primo setup (causa disallineamenti)
+# 📖 Guida completa: DOCUMENTAZIONE/ATTUALE/04-GUIDE/GESTIONE-PRISMA.md
 
 # 5. Avvia i servizi
 # Terminal 1 — Backend (porta 3200)

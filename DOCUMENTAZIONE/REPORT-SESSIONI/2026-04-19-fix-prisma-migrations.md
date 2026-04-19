@@ -243,7 +243,54 @@ npx prisma migrate dev --name descrizione_della_modifica
 
 ---
 
+## 📚 FASE BIS — Aggiornamento documentazione (post-commit)
+
+Dopo il commit del fix tecnico, è stata aggiornata tutta la documentazione del progetto per riflettere le modifiche e stabilire regole chiare per il futuro.
+
+### File creati
+- **`DOCUMENTAZIONE/ATTUALE/04-GUIDE/GESTIONE-PRISMA.md`** (nuovo, 230+ righe)
+  - Regole d'oro (✅ usa `migrate`, 🚫 mai `db push`)
+  - Come funzionano le migration in questo progetto
+  - Procedura per modificare lo schema (step-by-step)
+  - Operazioni quotidiane
+  - Deploy sulla VM
+  - Troubleshooting (migration failed, drift detected, ecc.)
+  - Storia cronologica delle migration e degli eventi
+  - Procedura backup/restore database
+
+### File aggiornati
+- **`CHANGELOG.md`**
+  - Rimossa la nota "Urgenza residua: migration incomplete" (risolta!)
+  - Aggiunta sotto-sezione "Sessione pomeridiana — Fix completo migration Prisma" con diagnosi, interventi, metriche
+  
+- **`README.md`**
+  - Versione 6.2.0 → 6.2.1, data 18/04 → 19/04
+  - Schema DB: "86+ tabelle" → "161 tabelle"
+  - Setup database: ora raccomanda `migrate deploy`, non `db push`
+  - Aggiunto avviso "mai db push dopo il primo setup" con link alla guida
+
+- **`ISTRUZIONI-PROGETTO.md`**
+  - Testata: v4.4.0 → v4.5.0 (19 Aprile 2026)
+  - Nuova regola 4️⃣.bis: "Migration Prisma — MAI db push, SEMPRE migrate"
+  - Corrette 3 occorrenze di `db push` nei blocchi codice (comandi DB, setup, blocco Soluzione)
+  - Aggiunta voce alla checklist pre-commit: "Migration Prisma: usato `migrate dev` (NON `db push`)"
+
+- **`LEGGIMI-DOCUMENTAZIONE.md`**
+  - Aggiornato nome del report (era sbagliato: citava un file inesistente)
+  - Corretta la statistica "Database VM": da "via db push" a "161 tabelle, 3 migration allineate"
+
+### File eliminati
+- 3 file di backup temporanei (`CHANGELOG.md.backup-*`, `ISTRUZIONI-PROGETTO.md.backup-*`) — gli originali sono già su Git
+
+### Impatto
+La nuova guida `GESTIONE-PRISMA.md` è ora il **riferimento unico** per qualsiasi operazione su database con Prisma. La regola "mai più `db push`" è ora documentata in 3 posti diversi (ISTRUZIONI-PROGETTO, README, GESTIONE-PRISMA), così è impossibile non notarla.
+
+Il CHANGELOG linkava la guida `GESTIONE-PRISMA.md` anche prima, ma il file non esisteva (era un link rotto). Ora esiste ed è completa.
+
+---
+
 **Esito sessione**: ✅ **SUCCESSO COMPLETO**  
-**Tempo totale**: ~40 minuti  
+**Tempo totale**: ~60 minuti (40 fix tecnico + 20 documentazione)  
 **Rischio corso**: Minimo (backup completi, nessun dato applicativo toccato)  
-**Allineamento locale/VM**: ✅ PERFETTO (161 tabelle su entrambi)
+**Allineamento locale/VM**: ✅ PERFETTO (161 tabelle su entrambi)  
+**Documentazione**: ✅ COMPLETA (guida Prisma creata, tutti i riferimenti aggiornati)
