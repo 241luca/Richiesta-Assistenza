@@ -1,0 +1,380 @@
+version: '3.8'
+
+# ==========================================
+# DOCKER COMPOSE PRODUCTION - VPS
+# SmartDocs - AI Document Management System
+# ==========================================
+# ⚠️ IMPORTANTE:
+# - Sistema ISOLATO da Richiesta Assistenza
+# - Database separato (porta 5436)
+# - Redis separato (porta 6381)
+# - Comunicazione con Richiesta Assistenza solo via API REST
+# - Volume bind mounts su /data per backup facili
+# ==========================================
+
+services:
+  # ==========================================
+  # NGINX - Reverse Proxy (Gateway unico)
+  # ==========================================
+  smartdocs-nginx:
+    image: nginx:alpine
+    container_name: smartdocs-nginx
+    restart: always
+    ports:
+      - "8083:80"      # HTTP (porta custom per evitare conflitti)
+      - "8444:443"     # HTTPS
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      # Certificati SSL (opzionale, se diverso da main)
+      - /etc/letsencrypt:/etc/nginx/certs:ro
+    depends_on:
+      smartdocs-api:
+        condition: service_healthy
+      smartdocs-admin:
+        condition: service_started
+    networks:
+      - smartdocs-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/nginx-health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==========================================
+  # SMARTDOCS API - Node.js Backend
+  # ==========================================
+  smartdocs-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: smartdocs-api:latest
+    container_name: smartdocs-api
+    restart: always
+    # Porta NON esposta (accessibile solo via Nginx interno)
+    expose:
+      - "3500"
+    environment:
+      - NODE_ENV=production
+      - PORT=3500
+      # Database SEPARATO (porta interna 5432)
+      - DATABASE_URL=postgresql://smartdocs:${SMARTDOCS_DB_PASSWORD}@smartdocs-db:5432/smartdocs
+      # OpenAI
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4}
+      - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      # Redis SEPARATO
+      - REDIS_URL=redis://:${SMARTDOCS_REDIS_PASSWORD}@smartdocs-redis:6379
+      # CORS
+      - CORS_ORIGIN=${CORS_ORIGIN}
+      # Encryption
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      # Storage
+      - MINIO_ENDPOINT=smartdocs-storage
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_USE_SSL=false
+      - MINIO_BUCKET=documents
+      # Vector DB
+      - QDRANT_URL=http://smartdocs-vector:6333
+      # External API (Richiesta Assistenza)
+      - RICHIESTA_ASSISTENZA_API_URL=${RICHIESTA_ASSISTENZA_API_URL}
+      - RICHIESTA_ASSISTENZA_API_KEY=${RICHIESTA_ASSISTENZA_API_KEY}
+    volumes:
+      - /data/smartdocs/uploads:/app/uploads
+      - /data/smartdocs/cache:/app/.cache
+    depends_on:
+      smartdocs-db:
+        condition: service_healthy
+      smartdocs-redis:
+        condition: service_started
+      smartdocs-storage:
+        condition: service_healthy
+    networks:
+      - smartdocs-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3500/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==========================================
+  # SMARTDOCS WORKER - Background Processor
+  # ==========================================
+  smartdocs-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: smartdocs-api:latest
+    container_name: smartdocs-worker
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://smartdocs:${SMARTDOCS_DB_PASSWORD}@smartdocs-db:5432/smartdocs
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - REDIS_URL=redis://:${SMARTDOCS_REDIS_PASSWORD}@smartdocs-redis:6379
+      - WORKER_POLL_INTERVAL=${WORKER_POLL_INTERVAL:-5000}
+      - MINIO_ENDPOINT=smartdocs-storage
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - QDRANT_URL=http://smartdocs-vector:6333
+    volumes:
+      - /data/smartdocs/uploads:/app/uploads
+      - /data/smartdocs/cache:/app/.cache
+    command: npm run worker
+    depends_on:
+      smartdocs-db:
+        condition: service_healthy
+      smartdocs-api:
+        condition: service_healthy
+    networks:
+      - smartdocs-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 3G
+        reservations:
+          cpus: '1.0'
+          memory: 1.5G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==========================================
+  # ADMIN UI - React Management Panel
+  # ==========================================
+  smartdocs-admin:
+    build:
+      context: ./admin-ui
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8083/api}
+    image: smartdocs-admin:latest
+    container_name: smartdocs-admin
+    restart: always
+    # Porta NON esposta (accessibile solo via Nginx)
+    expose:
+      - "80"
+    networks:
+      - smartdocs-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # ==========================================
+  # POSTGRESQL + pgvector (DATABASE SEPARATO)
+  # ==========================================
+  smartdocs-db:
+    image: ankane/pgvector:latest
+    container_name: smartdocs-db
+    restart: always
+    environment:
+      - POSTGRES_USER=smartdocs
+      - POSTGRES_PASSWORD=${SMARTDOCS_DB_PASSWORD}
+      - POSTGRES_DB=smartdocs
+    ports:
+      - "5436:5432"  # ⚠️ Porta host 5436 (diversa da main: 5434)
+    volumes:
+      # Bind mount per backup facile
+      - /data/smartdocs/postgres:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./scripts/seed-data.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    networks:
+      - smartdocs-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1.5G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartdocs -d smartdocs"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==========================================
+  # REDIS - Cache e Job Queue (SEPARATO)
+  # ==========================================
+  smartdocs-redis:
+    image: redis:7-alpine
+    container_name: smartdocs-redis
+    restart: always
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${SMARTDOCS_REDIS_PASSWORD}
+      --maxmemory 1gb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6381:6379"  # Porta host 6381 (diversa da main: 6379)
+    volumes:
+      - /data/smartdocs/redis:/data
+    networks:
+      - smartdocs-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${SMARTDOCS_REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # ==========================================
+  # MINIO - S3-compatible Storage
+  # ==========================================
+  smartdocs-storage:
+    image: minio/minio:latest
+    container_name: smartdocs-storage
+    restart: always
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # Console Web UI
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY}
+    volumes:
+      - /data/smartdocs/minio:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - smartdocs-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # ==========================================
+  # QDRANT - Vector Database
+  # ==========================================
+  smartdocs-vector:
+    image: qdrant/qdrant:latest
+    container_name: smartdocs-vector
+    restart: always
+    ports:
+      - "6333:6333"   # HTTP API
+      - "6334:6334"   # gRPC
+    volumes:
+      - /data/smartdocs/qdrant:/qdrant/storage
+    networks:
+      - smartdocs-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:6333/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+# ==========================================
+# VOLUMES - Non usati (bind mounts su /data)
+# ==========================================
+# volumes:
+#   (Nessun named volume, tutto su bind mounts /data/smartdocs/*)
+
+# ==========================================
+# NETWORK - Isolato da altri sistemi
+# ==========================================
+networks:
+  smartdocs-network:
+    driver: bridge
+    name: smartdocs-network
+
+# ==========================================
+# NOTE DEPLOY:
+# ==========================================
+# 1. Crea directory su VPS:
+#    mkdir -p /data/smartdocs/{postgres,redis,minio,qdrant,uploads,cache}
+#
+# 2. Configura .env.production con credenziali sicure
+#
+# 3. Deploy:
+#    docker-compose -f docker-compose.production.yml up -d
+#
+# 4. Verifica:
+#    docker-compose -f docker-compose.production.yml ps
+#    curl http://localhost:8083/health
+#
+# 5. Logs:
+#    docker-compose -f docker-compose.production.yml logs -f
+# ==========================================

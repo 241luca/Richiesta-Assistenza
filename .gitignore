@@ -260,3 +260,42 @@ LEGGIMI-DOCUMENTAZIONE.md
 # Eccezioni: i file che DEVONO invece essere pubblici
 !DOCUMENTAZIONE/ATTUALE/04-GUIDE/DEPLOY-VM.md
 !DOCUMENTAZIONE/REPORT-SESSIONI/2026-04-18-fix-hardcoded-deploy-vm103.md
+
+# === PYTHON VIRTUAL ENVIRONMENTS ===
+# Ambienti Python ricostruibili con pip install — MAI su Git (pesanti GB!)
+venv/
+venv_*/
+*/venv/
+*/venv_*/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# === SMARTDOCS TEMPORANEI ===
+smartdocs/temp/
+smartdocs/venv_*/
+
+# === SMARTDOCS — ANALISI E ROADMAP PRIVATI ===
+# Documenti di analisi tecnica/strategica interni — non pubblicare
+smartdocs/ANALISI-*.md
+smartdocs/ROADMAP-*.md
+smartdocs/SMARTDOCS-*.md
+smartdocs/STRATEGIE-*.md
+smartdocs/DEPLOYMENT-REPORT-*.md
+smartdocs/REPORT-*.md
+smartdocs/WORKER-v2-*.md
+smartdocs/MARKDOWN-IMPLEMENTATION-COMPLETE.md
+smartdocs/MARKDOWN-PIPELINE-ARCHITECTURE.md
+smartdocs/ADVANCED-OCR-IMPLEMENTATION-SUMMARY.md
+smartdocs/GUIDA-*.md
+smartdocs/GUIDE-TECNICHE-FIX.md
+
+# Eccezioni: guide pubbliche da mantenere
+!smartdocs/TESTING-GUIDE.md
+!smartdocs/ADVANCED-OCR-QUICK-START.md
+!smartdocs/MARKDOWN-QUICK-START.md
+!smartdocs/DEPLOYMENT-GUIDE-v2.md
+
+# === SMARTDOCS PRODUCTION ENV (template, ma pericoloso se committato per errore) ===
+smartdocs/.env.production
