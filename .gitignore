@@ -1,6 +1,6 @@
 # ===================================
 # .gitignore per Progetto Richiesta Assistenza
-# Aggiornato: Ottobre 2025
+# Aggiornato: Gennaio 2025
 # ===================================
 
 # === NODE.JS ===
@@ -63,14 +63,21 @@ test-results/
 playwright-report/
 playwright/.cache/
 
+# Test output files
+test-output.json
+test-results.json
+
 # === DATABASE ===
 *.db
 *.sqlite
 *.sqlite3
 database.sqlite
 prisma/migrations/dev.db*
+database/
+backend/database/
 
-# === BACKUP FILES ===
+# === BACKUP FILES - CRITICAL! ===
+# NESSUN BACKUP VA SU GITHUB!
 *.backup
 *.backup-*
 *.bak
@@ -79,6 +86,13 @@ prisma/migrations/dev.db*
 *~
 .#*
 #*#
+backend/backups/
+database-backups/
+backup/
+*.sql
+*.sql.gz
+db-*.sql.gz
+backup-*
 
 # === MACOS ===
 .DS_Store
@@ -229,20 +243,6 @@ electron-dist/
 *.yaml.local
 *.yml.local
 
-# === DOCUMENTAZIONE PRIVATA ===
-DOCUMENTAZIONE/
-ISTRUZIONI-PROGETTO.md
-LEGGIMI-DOCUMENTAZIONE.md
-*.backup
-*.backup-*
-*-backup-*
-backup-*/
-report-sessioni*/
-cleanup-temp/
-analisi-*/
-debug-*/
-scripts-temp/
-
 # === MISC ===
 .history/
 .temp/
@@ -250,3 +250,13 @@ scripts-temp/
 *.tgz
 *.tar.gz
 *.zip
+
+# === FILE PRIVATI (Security Fix — vedi commit b0e758ff del 7 Ott 2025) ===
+# Questi file contengono documentazione interna/privata e NON devono finire su GitHub.
+# Vanno tenuti SOLO sul Mac e sulla VM per uso interno.
+DOCUMENTAZIONE/
+ISTRUZIONI-PROGETTO.md
+LEGGIMI-DOCUMENTAZIONE.md
+# Eccezioni: i file che DEVONO invece essere pubblici
+!DOCUMENTAZIONE/ATTUALE/04-GUIDE/DEPLOY-VM.md
+!DOCUMENTAZIONE/REPORT-SESSIONI/2026-04-18-fix-hardcoded-deploy-vm103.md
