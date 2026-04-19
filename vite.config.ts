@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import { resolve } from 'path';
 import react from '@vitejs/plugin-react';
 
@@ -36,7 +36,7 @@ export default defineConfig({
       ]
     },
     // Important: Don't run tests in parallel to avoid port conflicts
-    threads: false,
+    // threads: false, // Deprecated in newer vitest versions
     // Use a different port for test server
     pool: 'forks',
     // Actually run the tests, don't skip them

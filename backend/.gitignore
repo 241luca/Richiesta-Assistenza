@@ -1,2 +1,6 @@
 simple-backup.service.ts
 simple-backup.routes.ts
+
+# TypeScript build info (generated)
+tsconfig.tsbuildinfo
+*.tsbuildinfo
