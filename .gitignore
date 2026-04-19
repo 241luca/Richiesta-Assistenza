@@ -93,6 +93,8 @@ backup/
 *.sql.gz
 db-*.sql.gz
 backup-*
+# Eccezione: i file migration.sql di Prisma DEVONO stare su Git
+!**/prisma/migrations/**/*.sql
 
 # === MACOS ===
 .DS_Store
@@ -299,3 +301,20 @@ smartdocs/GUIDE-TECNICHE-FIX.md
 
 # === SMARTDOCS PRODUCTION ENV (template, ma pericoloso se committato per errore) ===
 smartdocs/.env.production
+
+# === PRISMA - backup e vecchi schemi (mai committare) ===
+backend/prisma/_old_schemas/
+backend/prisma.BACKUP-*
+backend/prisma/*.backup
+backend/prisma/*.backup-*
+backend/prisma/*.BACKUP-*
+backend/prisma/schema.prisma.*
+backend/prisma/schema-WITH-*
+backend/prisma/schema.copia.prisma
+backend/prisma/schema_additions.prisma
+backend/prisma/schema_fixed.prisma
+backend/prisma/add-models.prisma
+backend/prisma/review-tables.prisma
+
+# === BACKUP DATABASE ===
+database-backups/
