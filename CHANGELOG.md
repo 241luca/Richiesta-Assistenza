@@ -4,6 +4,88 @@
 
 ---
 
+## v6.2.1 — 19 Aprile 2026 🧹 GRANDE PULIZIA + FIX PRISMA
+
+### 🎯 Obiettivo
+Pulizia massiva del repository accumulata da mesi di sviluppo (757 file pendenti), riorganizzazione documentazione in 5 commit puliti, deploy completo sulla VM 103 con fix schema database Prisma.
+
+### 🔴 Fix Critici
+
+**Prisma DB Schema Sincronizzazione (VM)**
+- Il database della VM aveva schema fermo a Dicembre 2025 mentre il codice nuovo richiedeva tabelle `DocumentContainer` e nuovi valori enum `AuditAction` (`NOTIFICATION_SENT`)
+- Fix via `prisma db push --accept-data-loss --skip-generate` (dopo backup DB completo 1.2 MB)
+- Risolti errori 500 su `/api/users/image-status` e crash chat/notifiche
+- **Urgenza residua**: le migration Prisma nel repo sono incomplete → vedere [GESTIONE-PRISMA.md](DOCUMENTAZIONE/ATTUALE/04-GUIDE/GESTIONE-PRISMA.md)
+
+**TypeScript Strict Mode — Attivazione completa**
+- `tsconfig.json` root: `strict: false` → `true`
+- Applicato pattern `catch (error: unknown)` a 391 file (backend, frontend, smartdocs)
+- Log con `error.message` convertiti in `error instanceof Error ? error.message : String(error)`
+
+**Fix Dockerfile frontend**
+- Container `assistenza-frontend` rebuildato con `docker build -f Dockerfile.frontend` (il servizio non è in `docker-compose.yml`)
+
+### 🆕 Nuove feature
+
+**SmartDocs v2 — Pipeline OCR avanzato**
+- `AdvancedOCRService.ts` — OCR multi-engine con preprocessing
+- `DocumentClassifierService.ts` — classificazione automatica documenti
+- `HybridExtractionService.ts` — estrazione ibrida (pattern + LLM)
+- `LLMEntityExtractionService.ts` — extraction tramite LLM
+- `MarkdownStorageService.ts` — persistenza markdown strutturato
+- `PatternGeneratorService.ts` — generazione pattern automatica
+- `UnifiedTextExtractorService.ts` — estrazione testo unificata
+- Nuove routes: `advancedOCR`, `markdown`, `patterns`
+
+**Nuove API**
+- `professional-ai-settings.routes.ts` — impostazioni AI per professionista
+
+**Debug & testing**
+- `src/components/admin/DebugPanel.tsx` — pannello debug admin
+- `src/utils/debugLogger.ts` — utility di logging
+- `backend/src/__tests__/critical/` — 4 test suite comprehensive
+
+**Infrastruttura deploy**
+- `start-local.sh`, `stop-local.sh`, `docker-local.sh` — gestione ambiente locale
+- `deploy-vps.sh` — deploy VPS
+- `DOCKER-LOCAL-GUIDA.md` — guida ambiente locale
+- SmartDocs: Dockerfile Marker e PaddleOCR, Nginx config, admin-ui
+
+### 🧹 Pulizia repository
+
+Eliminati 91 file obsoleti: script una-tantum, file di debug, dump errori, 11 backup storici di SmartDocsTestLab, migration consolidate, cartelle analisi obsolete, config vecchi.
+
+### 🔒 `.gitignore` rinforzato
+
+Aggiunte 30+ regole di protezione per file privati, venv Python, analisi SmartDocs private, `.env.production` SmartDocs.
+
+### ⚙️ Config principali
+
+- `backend/package.json`: +`nanoid 3.3.11`, -`@wppconnect-team/wppconnect`, +script `start:prod:skip-migrations`
+- `.env.example`: porte standardizzate (DB 5434, Redis 6382), aggiunte `DB_PASSWORD`, `DB_USER`, `DB_NAME`, `REDIS_PASSWORD`
+- `vite.config.ts`: fix vitest import + `threads: false` rimosso
+- `docker-compose.prod.yml`: `restart: always`
+
+### 📚 Documentazione
+
+- 🆕 [GESTIONE-PRISMA.md](DOCUMENTAZIONE/ATTUALE/04-GUIDE/GESTIONE-PRISMA.md) — guida Prisma completa
+- 🔄 [DEPLOY-VM.md](DOCUMENTAZIONE/ATTUALE/04-GUIDE/DEPLOY-VM.md) — riscritta con procedura corretta
+- 🆕 [Report sessione 19/04/2026](DOCUMENTAZIONE/REPORT-SESSIONI/2026-04-19-allineamento-e-fix-prisma.md)
+
+### 📊 Metriche commit
+
+| Commit | Titolo | File | Righe |
+|---|---|---|---|
+| `1ca921f` | chore: rimozione file temporanei | 91 | -26.179 |
+| `595a55e` | chore: TS strict + feature SmartDocs/AI/tests | 410 | +18.137 / -6.946 |
+| `879f698` | chore: escludi DOCUMENTAZIONE/ e file privati | 1 | +27 / -17 |
+| `f954c43` | chore: config Docker, TS strict, package.json | 14 | +539 / -2.223 |
+| `5111cd9` | feat: script deploy + infra SmartDocs | 30 | +4.912 |
+
+**Totale**: 546 file, +23.615 / -35.365 righe
+
+---
+
 ## v6.2.0 — 18 Aprile 2026 🧹 ZERO HARDCODED + DEPLOY VM 103
 
 ### 🎯 Obiettivo

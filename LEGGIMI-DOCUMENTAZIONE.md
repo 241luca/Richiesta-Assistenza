@@ -1,7 +1,7 @@
-# 📚 LEGGIMI DOCUMENTAZIONE - Sistema Richiesta Assistenza v6.2.0
+# 📚 LEGGIMI DOCUMENTAZIONE - Sistema Richiesta Assistenza v6.2.1
 
-**Ultimo Aggiornamento**: 18 Aprile 2026  
-**Versione Sistema**: 6.2.0
+**Ultimo Aggiornamento**: 19 Aprile 2026
+**Versione Sistema**: 6.2.1
 
 > 🎯 **SCOPO**: Guida rapida per navigare tutta la documentazione del progetto
 
@@ -29,11 +29,13 @@ DOCUMENTAZIONE/
 │   ├── 02-FUNZIONALITA/           Docs per ogni feature
 │   ├── 03-API/                    Documentazione API
 │   ├── 04-GUIDE/                  Guide pratiche
-│   │   └── DEPLOY-VM.md          🆕 Guida deploy VM 103 completa
+│   │   ├── DEPLOY-VM.md          ✨ Guida deploy VM 103 COMPLETA (riscritta 19/04)
+│   │   └── GESTIONE-PRISMA.md    🆕 Guida Prisma, migration, troubleshooting
 │   └── 05-TROUBLESHOOTING/        Risoluzione problemi
 ├── ARCHIVIO/                       Documentazione storica
 └── REPORT-SESSIONI/                Report ogni sessione di sviluppo
-    └── 2026-04-18-fix-hardcoded-deploy-vm103.md  🆕 Ultimo report
+    ├── 2026-04-18-fix-hardcoded-deploy-vm103.md
+    └── 2026-04-19-allineamento-e-fix-prisma.md  🆕 Ultimo report
 ```
 
 ---
@@ -42,19 +44,22 @@ DOCUMENTAZIONE/
 
 | Guida | Percorso |
 |---|---|
-| **Deploy VM 103** | `DOCUMENTAZIONE/ATTUALE/04-GUIDE/DEPLOY-VM.md` |
-| **Script deploy automatico** | `deploy-vm.sh` (root del progetto) |
+| **Deploy VM 103 (completa)** | `DOCUMENTAZIONE/ATTUALE/04-GUIDE/DEPLOY-VM.md` |
+| **Gestione Prisma / migration** | `DOCUMENTAZIONE/ATTUALE/04-GUIDE/GESTIONE-PRISMA.md` |
+| **Script deploy (parziale)** | `deploy-vm.sh` (root del progetto) |
 | **Regole sviluppo** | `ISTRUZIONI-PROGETTO.md` |
 | **Template .env** | `.env.example` |
 
 ---
 
-## 📊 Statistiche v6.2.0
+## 📊 Statistiche v6.2.1
 
-- **Versione**: 6.2.0 — 18 Aprile 2026
+- **Versione**: 6.2.1 — 19 Aprile 2026
 - **VM produzione**: http://192.168.0.203 ✅ Online
 - **File sorgente corretti**: 22 (zero localhost hardcoded)
-- **Documenti totali**: 70+ file .md
+- **TypeScript strict mode**: ✅ Attivo su tutto il progetto
+- **Documenti totali**: 75+ file .md
+- **Database VM**: ✅ Sincronizzato con `schema.prisma` (via `prisma db push` 19/04)
 
 ---
 
